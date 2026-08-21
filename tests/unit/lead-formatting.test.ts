@@ -14,17 +14,21 @@ describe('lead formatting', () => {
       down_payment: '$2,000',
       purchase_timeline: 'Esta semana',
       documents: 'ID y prueba de ingresos',
-    })).toBe('Carlos Mendoza (+15551234567), SUV, $2,000 de down, ID y prueba de ingresos, quiere comprar esta semana.');
+    })).toBe('Carlos Mendoza +15551234567 SUV, $2,000 de down, ID y prueba de ingresos, quiere comprar esta semana.');
   });
 
-  it('uses readable placeholders without duplicate punctuation', () => {
+  it('uses empty strings for missing optional values', () => {
     const message = buildWhatsAppMessage('Maria Lopez', '+15559876543', {
       vehicle_type: 'Sedan',
       down_payment: null,
       purchase_timeline: '',
       documents: null,
     });
-    expect(message).toBe('Maria Lopez (+15559876543), Sedan, down no indicado, documentos no indicados, tiempo no indicado.');
-    expect(message).not.toContain(',,');
+    expect(message).toBe('Maria Lopez +15559876543 Sedan.');
+    expect(message).not.toContain('no indicado');
+  });
+
+  it('accepts omitted optional fields and keeps them empty', () => {
+    expect(buildWhatsAppMessage('Alex Rivera', '+15550001111', {})).toBe('Alex Rivera +15550001111.');
   });
 });

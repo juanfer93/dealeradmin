@@ -11,12 +11,13 @@ function clean(value: string | null | undefined): string | undefined {
 }
 
 export function buildWhatsAppMessage(name: string, phone: string, data: MessageLeadData): string {
-  const vehicle = clean(data.vehicle_type) ?? 'vehículo no indicado';
+  const vehicle = clean(data.vehicle_type) ?? '';
   const downValue = clean(data.down_payment);
-  const down = downValue ? `${downValue} de down` : 'down no indicado';
-  const documents = clean(data.documents) ?? 'documentos no indicados';
+  const down = downValue ? `${downValue} de down` : '';
+  const documents = clean(data.documents) ?? '';
   const timelineValue = clean(data.purchase_timeline);
-  const timeline = timelineValue ? `quiere comprar ${timelineValue.toLowerCase()}` : 'tiempo no indicado';
+  const timeline = timelineValue ? `quiere comprar ${timelineValue.toLowerCase()}` : '';
 
-  return [`${name.trim()} (${phone})`, vehicle, down, documents, timeline].join(', ') + '.';
+  const identity = [name.trim(), phone, vehicle].filter(Boolean).join(' ');
+  return [identity, down, documents, timeline].filter(Boolean).join(', ') + '.';
 }

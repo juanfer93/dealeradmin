@@ -147,11 +147,11 @@ export class WebhookService {
         [
           leadId,
           dealers[0].id,
-          payload.lead.vehicle_type?.trim() || null,
-          payload.lead.down_payment?.trim() || null,
-          payload.lead.purchase_timeline?.trim() || null,
-          payload.lead.documents?.trim() || null,
-          payload.lead.easterns_zone?.trim() || null,
+          payload.lead.vehicle_type?.trim() || '',
+          payload.lead.down_payment?.trim() || '',
+          payload.lead.purchase_timeline?.trim() || '',
+          payload.lead.documents?.trim() || '',
+          payload.lead.easterns_zone?.trim() || '',
           messageText,
         ],
       );
