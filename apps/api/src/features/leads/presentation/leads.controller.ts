@@ -12,39 +12,18 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { DataSource } from 'typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
 import { AuthService } from '../../auth/application/auth.service';
+import { getTestManualLeads, testDealers, testLead } from '../application/test-lead-store';
 
 type LeadStatus = 'pending' | 'sent';
 
 type StatusBody = { status?: unknown };
 
-const testDealers = [
-  { id: 'dealer-fredericksburg', code: 'FRED', name: 'Offlease Fredericksburg', pendingCount: 1 },
-  { id: 'dealer-fredericksburg-2', code: 'FRED-2', name: 'Offlease Fredericksburg 2', pendingCount: 0 },
-  { id: 'dealer-stafford', code: 'STAFFORD', name: 'Offlease Motors Stafford', pendingCount: 0 },
-];
-
-const testLead = {
-  id: 'lead-maria-lopez',
-  dealerId: 'dealer-fredericksburg',
-  dealerName: 'Offlease Fredericksburg',
-  name: 'Maria Lopez',
-  phone: '+15559876543',
-  vehicleType: 'Sedan',
-  downPayment: '',
-  identification: '',
-  bankAccount: '',
-  documents: '',
-  purchaseTimeline: '',
-  status: 'pending' as LeadStatus,
-  messageText: 'Maria Lopez +15559876543 Sedan.',
-  createdAt: '2026-08-21T12:00:00.000Z',
-};
-
 @Controller('leads')
 export class LeadsController {
   constructor(
-    @Optional() private readonly dataSource: DataSource | undefined,
+    @Optional() @InjectDataSource() private readonly dataSource: DataSource | undefined,
     private readonly authService: AuthService,
   ) {}
 
@@ -58,7 +37,12 @@ export class LeadsController {
     const status = this.parseStatus(statusQuery);
 
     if (process.env.NODE_ENV === 'test') {
-      const leads = status === 'pending' && (!dealerId || dealerId === testLead.dealerId) ? [testLead] : [];
+      const manualLeads = getTestManualLeads().filter((lead) =>
+        status === lead.status && (!dealerId || dealerId === lead.dealerId),
+      );
+      const leads = status === 'pending' && (!dealerId || dealerId === testLead.dealerId)
+        ? [testLead, ...manualLeads]
+        : manualLeads;
       return { dealers: testDealers, leads };
     }
 

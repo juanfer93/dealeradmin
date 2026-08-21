@@ -1,4 +1,6 @@
 import { z } from 'zod';
+export { CreateManualLeadSchema } from './leads/manual-lead.schema';
+export type { CreateManualLeadDto } from './leads/manual-lead.schema';
 
 export const LeadWebhookSchema = z.object({
   event_id: z.string().min(1),
