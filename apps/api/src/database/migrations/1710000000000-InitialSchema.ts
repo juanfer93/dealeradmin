@@ -58,6 +58,7 @@ export class InitialSchema1710000000000 implements MigrationInterface {
       payload_hash VARCHAR NOT NULL
     )`);
     await queryRunner.query(`CREATE INDEX leads_ghl_location_idx ON leads (ghl_location_id)`);
+    await queryRunner.query(`CREATE UNIQUE INDEX leads_canonical_phone_unique_idx ON leads (canonical_phone) WHERE canonical_phone IS NOT NULL`);
     await queryRunner.query(`CREATE INDEX lead_dealers_status_idx ON lead_dealers (status)`);
     await queryRunner.query(`CREATE INDEX webhook_events_received_idx ON webhook_events (received_at)`);
   }

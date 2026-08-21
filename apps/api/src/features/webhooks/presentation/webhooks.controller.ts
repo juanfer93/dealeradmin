@@ -1,4 +1,5 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
 import { WebhookService } from '../application/webhook.service';
 import { HmacSignatureGuard } from './hmac-signature.guard';
 
@@ -8,7 +9,7 @@ export class WebhooksController {
 
   @Post()
   @UseGuards(HmacSignatureGuard)
-  receiveLead(@Body() body: unknown): { accepted: true; eventId: string } {
-    return this.webhookService.acceptLead(body);
+  receiveLead(@Req() request: Request & { rawBody?: Buffer }, @Body() body: unknown) {
+    return this.webhookService.acceptLead(body, request.rawBody?.toString('utf8'));
   }
 }
