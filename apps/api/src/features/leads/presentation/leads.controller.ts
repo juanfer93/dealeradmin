@@ -14,7 +14,7 @@ import type { Request } from 'express';
 import { DataSource } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { AuthService } from '../../auth/application/auth.service';
-import { getTestManualLeads, testDealers, testLead } from '../application/test-lead-store';
+import { getTestManualLeads, testDealers, testLead, smartMergeTestLead, updateTestLeadStatus } from '../application/test-lead-store';
 
 type LeadStatus = 'pending' | 'sent';
 
@@ -40,9 +40,10 @@ export class LeadsController {
       const manualLeads = getTestManualLeads().filter((lead) =>
         status === lead.status && (!dealerId || dealerId === lead.dealerId),
       );
-      const leads = status === 'pending' && (!dealerId || dealerId === testLead.dealerId)
-        ? [testLead, ...manualLeads]
-        : manualLeads;
+      const fixedLeads = [testLead, smartMergeTestLead].filter((lead) =>
+        status === lead.status && (!dealerId || dealerId === lead.dealerId),
+      );
+      const leads = [...fixedLeads, ...manualLeads];
       return { dealers: testDealers, leads };
     }
 
@@ -104,6 +105,7 @@ export class LeadsController {
     }
 
     if (process.env.NODE_ENV === 'test') {
+      updateTestLeadStatus(leadId, 'sent');
       return { success: true };
     }
 

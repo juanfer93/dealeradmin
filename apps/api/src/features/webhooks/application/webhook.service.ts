@@ -10,6 +10,7 @@ import { createHash } from 'node:crypto';
 import { DataSource } from 'typeorm';
 import { buildWhatsAppMessage } from '../../leads/domain/message-builder';
 import { normalizePhone } from '../../leads/domain/phone-normalizer';
+import { applyTestWebhookLead } from '../../leads/application/test-lead-store';
 
 type PersistedWebhookResponse = {
   accepted: true;
@@ -26,6 +27,7 @@ type WebhookResponse = PersistedWebhookResponse | TestWebhookResponse;
 type LeadRow = { id: string };
 type DealerRow = { id: string };
 type EventRow = { event_id: string };
+type LeadDealerRow = { status: string; routing_status: string };
 
 @Injectable()
 export class WebhookService {
@@ -38,6 +40,7 @@ export class WebhookService {
     }
 
     if (!this.dataSource && process.env.NODE_ENV === 'test') {
+      applyTestWebhookLead(lead.data);
       return { accepted: true, eventId: lead.data.event_id };
     }
 
@@ -133,11 +136,23 @@ export class WebhookService {
         ...payload.lead,
         identification,
       });
+      const currentLeadDealers = (await queryRunner.query(
+        `SELECT status, routing_status
+         FROM lead_dealers
+         WHERE lead_id = $1 AND dealer_id = $2
+         FOR UPDATE`,
+        [leadId, dealers[0].id],
+      )) as LeadDealerRow[];
+      const currentLeadDealer = currentLeadDealers[0];
+      const isAlreadySent = currentLeadDealer?.status === 'sent';
+      const targetStatus = currentLeadDealer?.status || 'pending';
+      const targetRoutingStatus = isAlreadySent ? currentLeadDealer.routing_status : 'resolved';
+
       await queryRunner.query(
         `INSERT INTO lead_dealers
           (lead_id, dealer_id, vehicle_type, down_payment, identification, bank_account, purchase_timeline, documents,
            easterns_zone, routing_status, status, message_text, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'resolved', 'pending', $10, CURRENT_TIMESTAMP)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP)
          ON CONFLICT (lead_id, dealer_id) DO UPDATE SET
            vehicle_type = EXCLUDED.vehicle_type,
            down_payment = EXCLUDED.down_payment,
@@ -146,8 +161,8 @@ export class WebhookService {
            purchase_timeline = EXCLUDED.purchase_timeline,
            documents = EXCLUDED.documents,
            easterns_zone = EXCLUDED.easterns_zone,
-           routing_status = EXCLUDED.routing_status,
-           status = EXCLUDED.status,
+           routing_status = CASE WHEN lead_dealers.status = 'sent' THEN lead_dealers.routing_status ELSE EXCLUDED.routing_status END,
+           status = CASE WHEN lead_dealers.status = 'sent' THEN 'sent' ELSE EXCLUDED.status END,
            message_text = EXCLUDED.message_text,
            updated_at = CURRENT_TIMESTAMP`,
         [
@@ -160,6 +175,8 @@ export class WebhookService {
           payload.lead.purchase_timeline?.trim() || '',
           payload.lead.documents?.trim() || '',
           payload.lead.easterns_zone?.trim() || '',
+          targetRoutingStatus,
+          targetStatus,
           messageText,
         ],
       );

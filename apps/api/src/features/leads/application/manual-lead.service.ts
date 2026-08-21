@@ -113,8 +113,8 @@ export class ManualLeadService {
            documents = EXCLUDED.documents,
            identification = EXCLUDED.identification,
            bank_account = EXCLUDED.bank_account,
-           routing_status = EXCLUDED.routing_status,
-           status = EXCLUDED.status,
+           routing_status = CASE WHEN lead_dealers.status = 'sent' THEN lead_dealers.routing_status ELSE EXCLUDED.routing_status END,
+           status = CASE WHEN lead_dealers.status = 'sent' THEN 'sent' ELSE EXCLUDED.status END,
            message_text = EXCLUDED.message_text,
            updated_at = CURRENT_TIMESTAMP`,
         [
