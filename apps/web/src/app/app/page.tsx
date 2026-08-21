@@ -1,5 +1,5 @@
 import OperatorDashboard from '../../components/operator/OperatorDashboard';
 
-export default function DashboardPage() {
+export default function AppPage() {
   return <OperatorDashboard />;
 }

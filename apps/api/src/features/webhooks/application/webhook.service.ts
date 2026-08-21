@@ -128,15 +128,21 @@ export class WebhookService {
         );
       }
 
-      const messageText = buildWhatsAppMessage(payload.lead.name, canonicalPhone, payload.lead);
+      const identification = payload.lead.identification ?? payload.lead.id_number ?? payload.lead.id ?? '';
+      const messageText = buildWhatsAppMessage(payload.lead.name, canonicalPhone, {
+        ...payload.lead,
+        identification,
+      });
       await queryRunner.query(
         `INSERT INTO lead_dealers
-          (lead_id, dealer_id, vehicle_type, down_payment, purchase_timeline, documents,
+          (lead_id, dealer_id, vehicle_type, down_payment, identification, bank_account, purchase_timeline, documents,
            easterns_zone, routing_status, status, message_text, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'resolved', 'pending', $8, CURRENT_TIMESTAMP)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'resolved', 'pending', $10, CURRENT_TIMESTAMP)
          ON CONFLICT (lead_id, dealer_id) DO UPDATE SET
            vehicle_type = EXCLUDED.vehicle_type,
            down_payment = EXCLUDED.down_payment,
+           identification = EXCLUDED.identification,
+           bank_account = EXCLUDED.bank_account,
            purchase_timeline = EXCLUDED.purchase_timeline,
            documents = EXCLUDED.documents,
            easterns_zone = EXCLUDED.easterns_zone,
@@ -149,6 +155,8 @@ export class WebhookService {
           dealers[0].id,
           payload.lead.vehicle_type?.trim() || '',
           payload.lead.down_payment?.trim() || '',
+          identification.trim(),
+          payload.lead.bank_account?.trim() || '',
           payload.lead.purchase_timeline?.trim() || '',
           payload.lead.documents?.trim() || '',
           payload.lead.easterns_zone?.trim() || '',

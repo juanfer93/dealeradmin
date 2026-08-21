@@ -6,6 +6,10 @@ export function normalizePhone(phone: string): string {
     throw new Error('PHONE_INVALID');
   }
 
+  if (trimmed.startsWith('+')) {
+    return `+${digits}`;
+  }
+
   if (trimmed.startsWith('00')) {
     return `+${digits.slice(2)}`;
   }

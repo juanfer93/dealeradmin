@@ -3,39 +3,55 @@
 @tailwind utilities;
 
 :root {
-  --page: #f7f9f8;
-  --surface: #ffffff;
-  --ink: #13201d;
-  --muted: #66736f;
-  --line: #dfe7e4;
-  --teal: #0b817a;
-  --error: #b64c45;
+  --brand: #0B817A;
+  --brand-strong: #075F5A;
+  --brand-soft: #E7F5F2;
+  --page: #F7F9F8;
+  --surface: #FFFFFF;
+  --surface-raised: #EDF3F0;
+  --text: #182128;
+  --text-muted: #63717A;
+  --border: #DCE4E7;
+  --review: #C8892C;
+  --error: #B64C45;
+  --line: var(--border);
+  --ink: var(--text);
+  --muted: var(--text-muted);
+  --teal: var(--brand);
+}
+
+[data-theme="dark"] {
+  --brand: #5ED5AA;
+  --brand-strong: #7AE1BF;
+  --brand-soft: #16382E;
+  --page: #0B0F0D;
+  --surface: #111815;
+  --surface-raised: #17231D;
+  --text: #F1F7F4;
+  --text-muted: #AFC1B9;
+  --border: #294039;
+  --review: #F0B75A;
+  --error: #F07A6F;
 }
 
 * { box-sizing: border-box; }
 
-html { background: var(--page); }
+html { background: var(--page); color-scheme: light; }
+
+html[data-theme="dark"] { color-scheme: dark; }
 
 body {
   min-height: 100vh;
   margin: 0;
   background: var(--page);
-  color: var(--ink);
+  color: var(--text);
   font-family: Arial, Helvetica, sans-serif;
   text-rendering: optimizeLegibility;
+  font-feature-settings: "tnum";
 }
 
 button, input { font: inherit; }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --page: #0b0f0d;
-    --surface: #131a17;
-    --ink: #eff6f3;
-    --muted: #a4b1ac;
-    --line: #293630;
-    --teal: #59c7bd;
-    --error: #f07a6f;
-  }
-  html { color-scheme: dark; }
-}
+button:focus-visible, a:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+.tabular-nums { font-variant-numeric: tabular-nums; }

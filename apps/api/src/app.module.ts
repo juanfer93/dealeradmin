@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { parseEnvironment } from '@dealeradmin/config';
 import { AuthModule } from './features/auth/presentation/auth.module';
 import { WebhooksModule } from './features/webhooks/presentation/webhooks.module';
+import { LeadsModule } from './features/leads/presentation/leads.module';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -23,6 +24,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
     ...(process.env.NODE_ENV === 'test' ? [] : [databaseModule]),
     AuthModule,
     WebhooksModule,
+    LeadsModule,
   ],
 })
 export class AppModule {}

@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useRef, useState } from 'react';
+import { Logo } from '../../components/ui/logo';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -23,7 +24,7 @@ export default function LoginPage() {
       if (!response.ok) {
         throw new Error('The username or password does not match.');
       }
-      window.location.assign('/dashboard');
+      window.location.assign('/app');
     } catch (submissionError) {
       const message = submissionError instanceof Error ? submissionError.message : 'Unable to sign in right now.';
       setError(message);
@@ -38,7 +39,7 @@ export default function LoginPage() {
       <section className="w-full max-w-[400px] rounded-[14px] border border-[var(--line)] bg-[var(--surface)] p-7 shadow-[0_18px_50px_rgba(19,32,29,0.08)] sm:p-9" aria-labelledby="login-title">
         <div className="mb-10 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[var(--teal)] text-sm font-bold text-white" aria-hidden="true">d</span>
+            <Logo size={32} />
             <span className="text-sm font-semibold tracking-[-0.01em]">dealerADMIN</span>
           </div>
           <span className="text-xs text-[var(--muted)]">Operator console</span>

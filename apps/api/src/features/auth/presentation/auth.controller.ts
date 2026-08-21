@@ -28,4 +28,10 @@ export class AuthController {
   session(@Req() request: Request): { authenticated: boolean } {
     return { authenticated: this.authService.verifySession(request.cookies?.dealeradmin_session) };
   }
+
+  @Post('logout')
+  logout(@Res({ passthrough: true }) response: Response): { ok: true } {
+    response.clearCookie('dealeradmin_session', { httpOnly: true, sameSite: 'lax', path: '/' });
+    return { ok: true };
+  }
 }

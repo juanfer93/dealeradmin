@@ -35,7 +35,7 @@ test('logs in and reaches the protected dashboard', async ({ page }) => {
   await page.getByLabel('Username').fill('operator');
   await page.getByLabel('Password').fill('test-password');
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByRole('heading', { name: 'Operator dashboard' })).toBeVisible();
-  await expect(page.getByText('Session active')).toBeVisible();
+  await expect(page).toHaveURL(/\/app$/);
+  await expect(page.getByRole('heading', { name: 'Lead work queue' })).toBeVisible();
+  await expect(page.getByText('Webhook: Active')).toBeVisible();
 });
