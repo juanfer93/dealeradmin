@@ -18,7 +18,7 @@ import { getTestManualLeads, testDealers, testLead, smartMergeTestLead, updateTe
 
 type LeadStatus = 'pending' | 'sent';
 
-type StatusBody = { status?: unknown };
+type StatusBody = { status?: unknown; dealerId?: unknown };
 
 @Controller('leads')
 export class LeadsController {
@@ -103,6 +103,9 @@ export class LeadsController {
     if (body.status !== 'sent') {
       throw new BadRequestException('Only the sent status is supported by the operator queue');
     }
+    if (typeof body.dealerId !== 'string' || !body.dealerId) {
+      throw new BadRequestException('Dealer is required to update the lead relationship');
+    }
 
     if (process.env.NODE_ENV === 'test') {
       updateTestLeadStatus(leadId, 'sent');
@@ -116,8 +119,8 @@ export class LeadsController {
     const result = await this.dataSource.query(
       `UPDATE lead_dealers
        SET status = 'sent', sent_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-       WHERE lead_id = $1 AND status = 'pending'`,
-      [leadId],
+       WHERE lead_id = $1 AND dealer_id = $2 AND status = 'pending'`,
+      [leadId, body.dealerId],
     );
     if (result.length === 0) {
       throw new BadRequestException('Lead not found or already sent');

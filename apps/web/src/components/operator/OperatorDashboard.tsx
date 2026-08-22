@@ -93,7 +93,7 @@ export default function OperatorDashboard() {
     window.setTimeout(() => setCopiedLeadId((current) => current === lead.id ? null : current), 1600);
   }
   async function markSent(lead: Lead) {
-    const response = await fetch(`/api/leads/${lead.id}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ status: 'sent' }) });
+    const response = await fetch(`/api/leads/${lead.id}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ status: 'sent', dealerId: lead.dealerId }) });
     if (!response.ok) { setError('The lead could not be marked as sent.'); return; }
     setLeads((current) => current.filter((item) => item.id !== lead.id));
     setDealers((current) => current.map((dealer) => dealer.id === lead.dealerId ? { ...dealer, pendingCount: Math.max(0, dealer.pendingCount - 1) } : dealer));

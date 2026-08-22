@@ -30,7 +30,7 @@ test.describe('Día 4 E2E Tests - Dashboard & Queue Operation', () => {
 
     await page.route('**/api/leads/**/status', async (route) => {
       expect(route.request().method()).toBe('PATCH');
-      expect(route.request().postDataJSON()).toEqual({ status: 'sent' });
+      expect(route.request().postDataJSON()).toEqual({ status: 'sent', dealerId: 'dealer-fredericksburg' });
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
     });
     await mariaRow.getByRole('button', { name: 'Marcar enviado' }).click();
