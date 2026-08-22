@@ -29,7 +29,7 @@ test('un lead enviado no reaparece en pendientes tras un webhook enriquecido', a
       phone: '+15551234567',
       vehicle_type: 'Troca',
       down_payment: '$3,500',
-      purchase_timeline: 'Esta semana',
+      purchase_timeline: 'Solo estoy mirando',
       documents: 'Pasaporte e ID',
     },
   };
@@ -50,4 +50,5 @@ test('un lead enviado no reaparece en pendientes tras un webhook enriquecido', a
   await expect(sentRow).toBeVisible();
   await expect(sentRow).toContainText('$3,500');
   await expect(sentRow).toContainText('Pasaporte e ID');
+  await expect(sentRow).toContainText('Quiere ver opciones');
 });

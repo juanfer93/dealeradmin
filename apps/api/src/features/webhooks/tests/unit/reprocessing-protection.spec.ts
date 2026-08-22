@@ -33,7 +33,7 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
         phone: '+15551234567',
         vehicle_type: 'Troca',
         down_payment: '$3,500',
-        purchase_timeline: 'Esta semana',
+        purchase_timeline: 'Solo estoy mirando',
         documents: 'Pasaporte e ID',
       },
     });
@@ -50,12 +50,12 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
       '$3,500',
       '',
       '',
-      'Esta semana',
+      'Quiere ver opciones',
       'Pasaporte e ID',
       '',
       'resolved',
       'sent',
-      'Carlos Mendoza +15551234567 Troca, $3,500 de down, quiere comprar esta semana.',
+      'Carlos Mendoza +15551234567 Troca, $3,500 de down, Quiere ver opciones.',
     ]);
   });
 });

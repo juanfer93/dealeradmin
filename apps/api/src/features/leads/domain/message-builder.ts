@@ -6,9 +6,25 @@ export type MessageLeadData = {
   purchase_timeline?: string | null;
 };
 
+export const LOOKING_OPTIONS_LABEL = 'Quiere ver opciones';
+
+const ONLY_LOOKING_PATTERNS = [
+  /\b(?:solo|sólo)\s+(?:estoy\s+|est[aá]\s+|ando\s+)?(?:mirando|viendo|buscando|busco|cotizando|explorando|curioseando|revisando)\b/i,
+  /\b(?:estoy|est[aá]|ando)\s+(?:solo|sólo)\s+(?:mirando|viendo|buscando|busco|cotizando|explorando|curioseando|revisando)\b/i,
+  /\b(?:just|only)\s+(?:looking|browsing|shopping\s+around|checking)\b/i,
+];
+
 function clean(value: string | null | undefined): string | undefined {
   const normalized = value?.trim();
   return normalized || undefined;
+}
+
+export function normalizePurchaseTimeline(value: string | null | undefined): string | undefined {
+  const normalized = clean(value);
+  if (!normalized) return undefined;
+  return ONLY_LOOKING_PATTERNS.some((pattern) => pattern.test(normalized))
+    ? LOOKING_OPTIONS_LABEL
+    : normalized;
 }
 
 export function buildWhatsAppMessage(name: string, phone: string, data: MessageLeadData): string {
@@ -19,8 +35,12 @@ export function buildWhatsAppMessage(name: string, phone: string, data: MessageL
   const identification = identificationValue ? `ID ${identificationValue}` : '';
   const bankAccountValue = clean(data.bank_account);
   const bankAccount = bankAccountValue ? `cuenta bancaria ${bankAccountValue}` : '';
-  const timelineValue = clean(data.purchase_timeline);
-  const timeline = timelineValue ? `quiere comprar ${timelineValue.toLowerCase()}` : '';
+  const timelineValue = normalizePurchaseTimeline(data.purchase_timeline);
+  const timeline = timelineValue
+    ? timelineValue === LOOKING_OPTIONS_LABEL
+      ? timelineValue
+      : `quiere comprar ${timelineValue.toLowerCase()}`
+    : '';
 
   const identity = [name.trim(), phone, vehicle].filter(Boolean).join(' ');
   return [identity, down, identification, bankAccount, timeline].filter(Boolean).join(', ') + '.';

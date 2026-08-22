@@ -8,7 +8,7 @@ import {
 import { LeadWebhookDto, LeadWebhookSchema } from '@dealeradmin/contracts';
 import { createHash } from 'node:crypto';
 import { DataSource } from 'typeorm';
-import { buildWhatsAppMessage } from '../../leads/domain/message-builder';
+import { buildWhatsAppMessage, normalizePurchaseTimeline } from '../../leads/domain/message-builder';
 import { normalizePhone } from '../../leads/domain/phone-normalizer';
 import { applyTestWebhookLead } from '../../leads/application/test-lead-store';
 
@@ -132,9 +132,11 @@ export class WebhookService {
       }
 
       const identification = payload.lead.identification ?? payload.lead.id_number ?? payload.lead.id ?? '';
+      const purchaseTimeline = normalizePurchaseTimeline(payload.lead.purchase_timeline) ?? '';
       const messageText = buildWhatsAppMessage(payload.lead.name, canonicalPhone, {
         ...payload.lead,
         identification,
+        purchase_timeline: purchaseTimeline,
       });
       const currentLeadDealers = (await queryRunner.query(
         `SELECT status, routing_status
@@ -172,7 +174,7 @@ export class WebhookService {
           payload.lead.down_payment?.trim() || '',
           identification.trim(),
           payload.lead.bank_account?.trim() || '',
-          payload.lead.purchase_timeline?.trim() || '',
+          purchaseTimeline,
           payload.lead.documents?.trim() || '',
           payload.lead.easterns_zone?.trim() || '',
           targetRoutingStatus,

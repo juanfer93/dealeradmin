@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildWhatsAppMessage } from '../../apps/api/src/features/leads/domain/message-builder';
+import { buildWhatsAppMessage, normalizePurchaseTimeline } from '../../apps/api/src/features/leads/domain/message-builder';
 import { normalizePhone } from '../../apps/api/src/features/leads/domain/phone-normalizer';
 
 describe('lead formatting', () => {
@@ -21,6 +21,15 @@ describe('lead formatting', () => {
       bank_account: 'Chase',
       purchase_timeline: 'Esta semana',
     })).toBe('Carlos Mendoza +15551234567 SUV, $2,000 de down, ID A1234567, cuenta bancaria Chase, quiere comprar esta semana.');
+  });
+
+  it('replaces only-looking answers with the operator-facing options label', () => {
+    expect(normalizePurchaseTimeline('Solo estoy mirando')).toBe('Quiere ver opciones');
+    expect(normalizePurchaseTimeline('just browsing')).toBe('Quiere ver opciones');
+    expect(buildWhatsAppMessage('Carlos Mendoza', '+15551234567', {
+      vehicle_type: 'Troca',
+      purchase_timeline: 'solo viendo opciones',
+    })).toBe('Carlos Mendoza +15551234567 Troca, Quiere ver opciones.');
   });
 
   it('uses empty strings for missing optional values', () => {

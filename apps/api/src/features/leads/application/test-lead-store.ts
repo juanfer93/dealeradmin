@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { CreateManualLeadDto, LeadWebhookDto } from '@dealeradmin/contracts';
-import { buildWhatsAppMessage } from '../domain/message-builder';
+import { buildWhatsAppMessage, normalizePurchaseTimeline } from '../domain/message-builder';
 import { normalizePhone } from '../domain/phone-normalizer';
 
 export type TestDealer = {
@@ -140,7 +140,7 @@ export function applyTestWebhookLead(payload: LeadWebhookDto): boolean {
   lead.downPayment = payload.lead.down_payment?.trim() || '';
   lead.identification = identification.trim();
   lead.bankAccount = payload.lead.bank_account?.trim() || '';
-  lead.purchaseTimeline = payload.lead.purchase_timeline?.trim() || '';
+  lead.purchaseTimeline = normalizePurchaseTimeline(payload.lead.purchase_timeline) || '';
   lead.documents = payload.lead.documents?.trim() || '';
   lead.messageText = buildWhatsAppMessage(payload.lead.name, canonicalPhone, { ...payload.lead, identification });
   return true;
