@@ -10,7 +10,9 @@ import { createHash } from 'node:crypto';
 import { DataSource } from 'typeorm';
 import { buildWhatsAppMessage, normalizePurchaseTimeline } from '../../leads/domain/message-builder';
 import { normalizePhone } from '../../leads/domain/phone-normalizer';
+import { normalizeDownPayment } from '../../leads/domain/down-payment';
 import { applyTestWebhookLead } from '../../leads/application/test-lead-store';
+import { GeoroutingService } from '../../routing/domain/services/georouting.service';
 
 type PersistedWebhookResponse = {
   accepted: true;
@@ -27,11 +29,20 @@ type WebhookResponse = PersistedWebhookResponse | TestWebhookResponse;
 type LeadRow = { id: string };
 type DealerRow = { id: string };
 type EventRow = { event_id: string };
-type LeadDealerRow = { status: string; routing_status: string };
+type LeadDealerRow = {
+  status: string;
+  routing_status: string;
+  assigned_dealer_id: string | null;
+  routing_override: boolean;
+  routing_reason: string | null;
+};
 
 @Injectable()
 export class WebhookService {
-  constructor(@Optional() private readonly dataSource?: DataSource) {}
+  constructor(
+    @Optional() private readonly dataSource?: DataSource,
+    @Optional() private readonly georoutingService?: GeoroutingService,
+  ) {}
 
   async acceptLead(payload: unknown, rawBody?: string): Promise<WebhookResponse> {
     const lead = LeadWebhookSchema.safeParse(payload);
@@ -72,13 +83,25 @@ export class WebhookService {
         return { accepted: true, eventId: payload.event_id, status: 'duplicate_ignored' };
       }
 
-      const dealers = (await queryRunner.query(
+      let dealers = (await queryRunner.query(
         `SELECT id
          FROM dealers
          WHERE ghl_location_id = $1 AND active = true
          LIMIT 1`,
         [payload.ghl_location_id],
       )) as DealerRow[];
+
+      const isEasternsPayload =
+        payload.dealer_name.toLowerCase().includes('easterns') || Boolean(payload.lead.easterns_zone?.trim());
+      if (dealers.length === 0 && isEasternsPayload) {
+        dealers = (await queryRunner.query(
+          `SELECT id
+           FROM dealers
+           WHERE routing_config->>'group' = 'Easterns' AND active = true
+           ORDER BY code ASC
+           LIMIT 1`,
+        )) as DealerRow[];
+      }
 
       if (dealers.length === 0) {
         throw new BadRequestException(`Dealer con Location ID ${payload.ghl_location_id} no encontrado o inactivo`);
@@ -139,22 +162,35 @@ export class WebhookService {
         purchase_timeline: purchaseTimeline,
       });
       const currentLeadDealers = (await queryRunner.query(
-        `SELECT status, routing_status
+        `SELECT status, routing_status, assigned_dealer_id, routing_override, routing_reason
          FROM lead_dealers
-         WHERE lead_id = $1 AND dealer_id = $2
+         WHERE lead_id = $1
          FOR UPDATE`,
-        [leadId, dealers[0].id],
+        [leadId],
       )) as LeadDealerRow[];
       const currentLeadDealer = currentLeadDealers[0];
       const isAlreadySent = currentLeadDealer?.status === 'sent';
+      const routing = isEasternsPayload
+        ? await this.georoutingService?.resolveDealer(payload.lead, queryRunner)
+        : { dealerId: dealers[0].id, reason: 'Source dealer from GHL location' };
+      if (!routing) throw new ServiceUnavailableException('Georouting service is not available');
+      const hasPersistentAssignment = Boolean(currentLeadDealer?.assigned_dealer_id);
+      const preservesAssignment = Boolean(currentLeadDealer?.routing_override || isAlreadySent || hasPersistentAssignment);
+      const targetDealerId = preservesAssignment
+        ? currentLeadDealer?.assigned_dealer_id || routing.dealerId
+        : routing.dealerId;
       const targetStatus = currentLeadDealer?.status || 'pending';
-      const targetRoutingStatus = isAlreadySent ? currentLeadDealer.routing_status : 'resolved';
+      const targetRoutingStatus = preservesAssignment ? currentLeadDealer?.routing_status || 'resolved' : 'resolved';
+      const targetRoutingOverride = currentLeadDealer?.routing_override ?? false;
+      const targetRoutingReason = preservesAssignment
+        ? currentLeadDealer?.routing_reason || routing.reason
+        : routing.reason;
 
       await queryRunner.query(
         `INSERT INTO lead_dealers
           (lead_id, dealer_id, vehicle_type, down_payment, identification, bank_account, purchase_timeline, documents,
-           easterns_zone, routing_status, status, message_text, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP)
+           easterns_zone, assigned_dealer_id, routing_override, routing_reason, routing_status, status, message_text, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, CURRENT_TIMESTAMP)
          ON CONFLICT (lead_id, dealer_id) DO UPDATE SET
            vehicle_type = EXCLUDED.vehicle_type,
            down_payment = EXCLUDED.down_payment,
@@ -163,6 +199,13 @@ export class WebhookService {
            purchase_timeline = EXCLUDED.purchase_timeline,
            documents = EXCLUDED.documents,
            easterns_zone = EXCLUDED.easterns_zone,
+           assigned_dealer_id = CASE
+             WHEN lead_dealers.status = 'sent' OR lead_dealers.routing_override = true
+             THEN lead_dealers.assigned_dealer_id ELSE EXCLUDED.assigned_dealer_id END,
+           routing_override = CASE WHEN lead_dealers.status = 'sent' THEN lead_dealers.routing_override ELSE EXCLUDED.routing_override END,
+           routing_reason = CASE
+             WHEN lead_dealers.status = 'sent' OR lead_dealers.routing_override = true
+             THEN lead_dealers.routing_reason ELSE EXCLUDED.routing_reason END,
            routing_status = CASE WHEN lead_dealers.status = 'sent' THEN lead_dealers.routing_status ELSE EXCLUDED.routing_status END,
            status = CASE WHEN lead_dealers.status = 'sent' THEN 'sent' ELSE EXCLUDED.status END,
            message_text = EXCLUDED.message_text,
@@ -171,12 +214,15 @@ export class WebhookService {
           leadId,
           dealers[0].id,
           payload.lead.vehicle_type?.trim() || '',
-          payload.lead.down_payment?.trim() || '',
+          normalizeDownPayment(payload.lead.down_payment),
           identification.trim(),
           payload.lead.bank_account?.trim() || '',
           purchaseTimeline,
           payload.lead.documents?.trim() || '',
           payload.lead.easterns_zone?.trim() || '',
+          targetDealerId,
+          targetRoutingOverride,
+          targetRoutingReason,
           targetRoutingStatus,
           targetStatus,
           messageText,

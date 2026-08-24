@@ -4,6 +4,7 @@ import { parseEnvironment } from '@dealeradmin/config';
 import { AuthModule } from './features/auth/presentation/auth.module';
 import { WebhooksModule } from './features/webhooks/presentation/webhooks.module';
 import { LeadsModule } from './features/leads/presentation/leads.module';
+import { RoutingModule } from './features/routing/presentation/routing.module';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -25,6 +26,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
     AuthModule,
     WebhooksModule,
     LeadsModule,
+    RoutingModule,
   ],
 })
 export class AppModule {}

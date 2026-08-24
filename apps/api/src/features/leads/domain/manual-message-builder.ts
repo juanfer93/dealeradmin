@@ -6,6 +6,8 @@ type ManualMessageLeadData = {
   purchase_timeline?: string | null;
 };
 
+import { isCashDownPayment, normalizeDownPayment } from './down-payment';
+
 function clean(value: string | null | undefined): string | undefined {
   const normalized = value?.trim();
   return normalized || undefined;
@@ -13,7 +15,7 @@ function clean(value: string | null | undefined): string | undefined {
 
 export function buildManualLeadMessage(name: string, phone: string, data: ManualMessageLeadData): string {
   const vehicle = clean(data.vehicle_type);
-  const down = clean(data.down_payment);
+  const down = normalizeDownPayment(data.down_payment);
   const identification = clean(data.identification);
   const bankAccount = clean(data.bank_account);
   const timeline = clean(data.purchase_timeline);
@@ -21,7 +23,7 @@ export function buildManualLeadMessage(name: string, phone: string, data: Manual
   return [
     [name.trim(), phone].filter(Boolean).join(' '),
     vehicle,
-    down ? `${down} de down` : '',
+    down ? (isCashDownPayment(down) ? 'paga en cash' : `${down} de down`) : '',
     identification ? `ID: ${identification}` : '',
     bankAccount ? `Cuenta: ${bankAccount}` : '',
     timeline ? `quiere comprar ${timeline.toLowerCase()}` : '',

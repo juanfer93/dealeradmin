@@ -6,6 +6,8 @@ export type MessageLeadData = {
   purchase_timeline?: string | null;
 };
 
+import { isCashDownPayment, normalizeDownPayment } from './down-payment';
+
 export const LOOKING_OPTIONS_LABEL = 'Quiere ver opciones';
 
 const ONLY_LOOKING_PATTERNS = [
@@ -29,8 +31,8 @@ export function normalizePurchaseTimeline(value: string | null | undefined): str
 
 export function buildWhatsAppMessage(name: string, phone: string, data: MessageLeadData): string {
   const vehicle = clean(data.vehicle_type) ?? '';
-  const downValue = clean(data.down_payment);
-  const down = downValue ? `${downValue} de down` : '';
+  const downValue = normalizeDownPayment(data.down_payment);
+  const down = downValue ? (isCashDownPayment(downValue) ? 'paga en cash' : `${downValue} de down`) : '';
   const identificationValue = clean(data.identification);
   const identification = identificationValue ? `ID ${identificationValue}` : '';
   const bankAccountValue = clean(data.bank_account);

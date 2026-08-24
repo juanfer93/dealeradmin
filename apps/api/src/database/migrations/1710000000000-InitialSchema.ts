@@ -40,6 +40,7 @@ export class InitialSchema1710000000000 implements MigrationInterface {
       routing_status VARCHAR(30) NOT NULL,
       assigned_dealer_id UUID REFERENCES dealers(id),
       routing_override BOOLEAN NOT NULL DEFAULT false,
+      routing_reason TEXT,
       status VARCHAR(30) NOT NULL DEFAULT 'pending',
       message_text TEXT,
       sent_at TIMESTAMPTZ,

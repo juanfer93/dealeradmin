@@ -22,6 +22,9 @@ export const LeadWebhookSchema = z.object({
     purchase_timeline: z.string().nullable().optional(),
     documents: z.string().nullable().optional(),
     easterns_zone: z.string().nullable().optional(),
+    city: z.string().nullable().optional(),
+    state: z.string().nullable().optional(),
+    zip_code: z.string().nullable().optional(),
   }),
 });
 

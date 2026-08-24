@@ -11,6 +11,7 @@ import { DataSource } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { buildManualLeadMessage } from '../domain/manual-message-builder';
 import { normalizePhone } from '../domain/phone-normalizer';
+import { normalizeDownPayment } from '../domain/down-payment';
 import { addTestManualLead, getTestDealer } from './test-lead-store';
 
 type DealerRow = { id: string; ghl_location_id: string };
@@ -104,8 +105,9 @@ export class ManualLeadService {
       await queryRunner.query(
         `INSERT INTO lead_dealers
           (lead_id, dealer_id, vehicle_type, down_payment, purchase_timeline, documents,
-           identification, bank_account, routing_status, status, message_text, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'manual', 'pending', $9, CURRENT_TIMESTAMP)
+           identification, bank_account, assigned_dealer_id, routing_override, routing_reason,
+           routing_status, status, message_text, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, 'Manual console assignment', 'manual', 'pending', $10, CURRENT_TIMESTAMP)
          ON CONFLICT (lead_id, dealer_id) DO UPDATE SET
            vehicle_type = EXCLUDED.vehicle_type,
            down_payment = EXCLUDED.down_payment,
@@ -113,6 +115,9 @@ export class ManualLeadService {
            documents = EXCLUDED.documents,
            identification = EXCLUDED.identification,
            bank_account = EXCLUDED.bank_account,
+           assigned_dealer_id = CASE WHEN lead_dealers.status = 'sent' THEN lead_dealers.assigned_dealer_id ELSE EXCLUDED.assigned_dealer_id END,
+           routing_override = CASE WHEN lead_dealers.status = 'sent' THEN lead_dealers.routing_override ELSE EXCLUDED.routing_override END,
+           routing_reason = CASE WHEN lead_dealers.status = 'sent' THEN lead_dealers.routing_reason ELSE EXCLUDED.routing_reason END,
            routing_status = CASE WHEN lead_dealers.status = 'sent' THEN lead_dealers.routing_status ELSE EXCLUDED.routing_status END,
            status = CASE WHEN lead_dealers.status = 'sent' THEN 'sent' ELSE EXCLUDED.status END,
            message_text = EXCLUDED.message_text,
@@ -121,11 +126,12 @@ export class ManualLeadService {
           leadId,
           dealer.id,
           dto.vehicle_type.trim(),
-          dto.down_payment.trim(),
+          normalizeDownPayment(dto.down_payment),
           dto.purchase_timeline.trim(),
           dto.documents.trim(),
           dto.identification.trim(),
           dto.bank_account.trim(),
+          dealer.id,
           messageText,
         ],
       );

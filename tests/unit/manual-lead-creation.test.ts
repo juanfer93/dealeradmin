@@ -49,7 +49,7 @@ describe('Creación manual de leads', () => {
     expect(queryRunner.rollbackTransaction).not.toHaveBeenCalled();
     const relationInsert = queryRunner.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO lead_dealers'));
     expect(relationInsert?.[1]).toEqual([
-      'lead-1', 'dealer-1', 'Troca', '', '', '', 'LIC-9900', '', 'Pedro Infante +13019876543, Troca, ID: LIC-9900.',
+      'lead-1', 'dealer-1', 'Troca', '', '', '', 'LIC-9900', '', 'dealer-1', 'Pedro Infante +13019876543, Troca, ID: LIC-9900.',
     ]);
   });
 });

@@ -16,7 +16,7 @@ export class AuthController {
     const env = parseEnvironment();
     response.cookie('dealeradmin_session', token, {
       httpOnly: true,
-      secure: env.NODE_ENV !== 'development',
+      secure: env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 8 * 60 * 60 * 1000,
       path: '/',

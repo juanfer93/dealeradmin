@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import type { CreateManualLeadDto, LeadWebhookDto } from '@dealeradmin/contracts';
 import { buildWhatsAppMessage, normalizePurchaseTimeline } from '../domain/message-builder';
 import { normalizePhone } from '../domain/phone-normalizer';
+import { normalizeDownPayment } from '../domain/down-payment';
+import { EASTERN_DEALER_IDS } from '../../routing/domain/services/georouting.service';
 
 export type TestDealer = {
   id: string;
@@ -32,6 +34,9 @@ export const testDealers: TestDealer[] = [
   { id: 'dealer-fredericksburg', code: 'FRED', name: 'Offlease Fredericksburg', pendingCount: 1 },
   { id: 'dealer-fredericksburg-2', code: 'FRED-2', name: 'Offlease Fredericksburg 2', pendingCount: 0 },
   { id: 'dealer-stafford', code: 'STAFFORD', name: 'Offlease Motors Stafford', pendingCount: 1, ghlLocationId: 'loc_stafford_789' },
+  { id: EASTERN_DEALER_IDS.rosedale, code: 'DLR-EAST-ROSE', name: 'Easterns Rosedale', pendingCount: 0 },
+  { id: EASTERN_DEALER_IDS.laurel, code: 'DLR-EAST-LAUR', name: 'Easterns Laurel', pendingCount: 1 },
+  { id: EASTERN_DEALER_IDS.sterling, code: 'DLR-EAST-STER', name: 'Easterns Sterling', pendingCount: 0 },
 ];
 
 export const testLead: TestLead = {
@@ -68,6 +73,23 @@ export const smartMergeTestLead: TestLead = {
   createdAt: '2026-08-21T12:05:00.000Z',
 };
 
+export const easternsTestLead: TestLead = {
+  id: 'lead-easterns-andres',
+  dealerId: EASTERN_DEALER_IDS.laurel,
+  dealerName: 'Easterns Laurel',
+  name: 'Andres Felipe',
+  phone: '+15550001111',
+  vehicleType: 'SUV',
+  downPayment: 'Cash',
+  identification: '',
+  bankAccount: '',
+  documents: '',
+  purchaseTimeline: '',
+  status: 'pending',
+  messageText: 'Andres Felipe +15550001111 SUV, paga en cash.',
+  createdAt: '2026-08-24T15:00:00.000Z',
+};
+
 const manualTestLeads: TestLead[] = [];
 
 export function getTestDealer(dealerId: string): TestDealer | undefined {
@@ -94,7 +116,7 @@ export function addTestManualLead(
     name: dto.name.trim(),
     phone,
     vehicleType: dto.vehicle_type.trim(),
-    downPayment: dto.down_payment.trim(),
+    downPayment: normalizeDownPayment(dto.down_payment),
     identification: dto.identification.trim(),
     bankAccount: dto.bank_account.trim(),
     documents: dto.documents.trim(),
@@ -109,11 +131,25 @@ export function addTestManualLead(
 }
 
 export function updateTestLeadStatus(leadId: string, status: 'sent'): boolean {
-  const lead = [testLead, smartMergeTestLead, ...manualTestLeads].find((item) => item.id === leadId);
+  const lead = [testLead, smartMergeTestLead, easternsTestLead, ...manualTestLeads].find((item) => item.id === leadId);
   if (!lead || lead.status === status) return false;
   lead.status = status;
   const dealer = getTestDealer(lead.dealerId);
   if (dealer) dealer.pendingCount = Math.max(0, dealer.pendingCount - 1);
+  return true;
+}
+
+export function reassignTestLead(leadId: string, currentDealerId: string, targetDealerId: string): boolean {
+  const lead = [testLead, smartMergeTestLead, easternsTestLead, ...manualTestLeads].find((item) => item.id === leadId);
+  const targetDealer = getTestDealer(targetDealerId);
+  if (!lead || lead.status !== 'pending' || lead.dealerId !== currentDealerId || !targetDealer || currentDealerId === targetDealerId) {
+    return false;
+  }
+  const currentDealer = getTestDealer(currentDealerId);
+  if (currentDealer) currentDealer.pendingCount = Math.max(0, currentDealer.pendingCount - 1);
+  targetDealer.pendingCount += 1;
+  lead.dealerId = targetDealer.id;
+  lead.dealerName = targetDealer.name;
   return true;
 }
 
@@ -137,7 +173,7 @@ export function applyTestWebhookLead(payload: LeadWebhookDto): boolean {
   lead.name = payload.lead.name.trim();
   lead.phone = canonicalPhone;
   lead.vehicleType = payload.lead.vehicle_type?.trim() || '';
-  lead.downPayment = payload.lead.down_payment?.trim() || '';
+  lead.downPayment = normalizeDownPayment(payload.lead.down_payment);
   lead.identification = identification.trim();
   lead.bankAccount = payload.lead.bank_account?.trim() || '';
   lead.purchaseTimeline = normalizePurchaseTimeline(payload.lead.purchase_timeline) || '';
