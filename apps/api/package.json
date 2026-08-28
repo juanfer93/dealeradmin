@@ -16,6 +16,7 @@
     "@nestjs/typeorm": "^11.0.0",
     "argon2": "^0.41.1",
     "cookie-parser": "^1.4.7",
+    "exceljs": "^4.4.0",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.16.0",
     "reflect-metadata": "^0.2.2",

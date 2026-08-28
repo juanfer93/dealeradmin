@@ -5,6 +5,7 @@ import { AuthModule } from './features/auth/presentation/auth.module';
 import { WebhooksModule } from './features/webhooks/presentation/webhooks.module';
 import { LeadsModule } from './features/leads/presentation/leads.module';
 import { RoutingModule } from './features/routing/presentation/routing.module';
+import { ReportsModule } from './features/reports/presentation/reports.module';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -27,6 +28,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
     WebhooksModule,
     LeadsModule,
     RoutingModule,
+    ReportsModule,
   ],
 })
 export class AppModule {}
