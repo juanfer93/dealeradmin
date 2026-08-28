@@ -30,6 +30,13 @@ type LeadRow = { id: string };
 type DealerRow = { id: string };
 type EventRow = { event_id: string };
 type LeadDealerRow = {
+  vehicle_type: string | null;
+  down_payment: string | null;
+  identification: string | null;
+  bank_account: string | null;
+  purchase_timeline: string | null;
+  documents: string | null;
+  easterns_zone: string | null;
   status: string;
   routing_status: string;
   assigned_dealer_id: string | null;
@@ -154,21 +161,25 @@ export class WebhookService {
         );
       }
 
-      const identification = payload.lead.identification ?? payload.lead.id_number ?? payload.lead.id ?? '';
-      const purchaseTimeline = normalizePurchaseTimeline(payload.lead.purchase_timeline) ?? '';
-      const messageText = buildWhatsAppMessage(payload.lead.name, canonicalPhone, {
-        ...payload.lead,
-        identification,
-        purchase_timeline: purchaseTimeline,
-      });
       const currentLeadDealers = (await queryRunner.query(
-        `SELECT status, routing_status, assigned_dealer_id, routing_override, routing_reason
+        `SELECT status, routing_status, assigned_dealer_id, routing_override, routing_reason,
+                vehicle_type, down_payment, identification, bank_account, purchase_timeline, documents, easterns_zone
          FROM lead_dealers
          WHERE lead_id = $1
          FOR UPDATE`,
         [leadId],
       )) as LeadDealerRow[];
       const currentLeadDealer = currentLeadDealers[0];
+      const identification = payload.lead.identification ?? payload.lead.id_number ?? payload.lead.id ?? '';
+      const purchaseTimeline = normalizePurchaseTimeline(payload.lead.purchase_timeline) ?? '';
+      const messageText = buildWhatsAppMessage(payload.lead.name, canonicalPhone, {
+        ...payload.lead,
+        vehicle_type: payload.lead.vehicle_type?.trim() || currentLeadDealer?.vehicle_type || '',
+        down_payment: normalizeDownPayment(payload.lead.down_payment) || currentLeadDealer?.down_payment || '',
+        identification: identification.trim() || currentLeadDealer?.identification || '',
+        bank_account: payload.lead.bank_account?.trim() || currentLeadDealer?.bank_account || '',
+        purchase_timeline: purchaseTimeline || currentLeadDealer?.purchase_timeline || '',
+      });
       const isAlreadySent = currentLeadDealer?.status === 'sent';
       const routing = isEasternsPayload
         ? await this.georoutingService?.resolveDealer(payload.lead, queryRunner)
@@ -192,13 +203,13 @@ export class WebhookService {
            easterns_zone, assigned_dealer_id, routing_override, routing_reason, routing_status, status, message_text, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, CURRENT_TIMESTAMP)
          ON CONFLICT (lead_id, dealer_id) DO UPDATE SET
-           vehicle_type = EXCLUDED.vehicle_type,
-           down_payment = EXCLUDED.down_payment,
-           identification = EXCLUDED.identification,
-           bank_account = EXCLUDED.bank_account,
-           purchase_timeline = EXCLUDED.purchase_timeline,
-           documents = EXCLUDED.documents,
-           easterns_zone = EXCLUDED.easterns_zone,
+           vehicle_type = COALESCE(NULLIF(EXCLUDED.vehicle_type, ''), lead_dealers.vehicle_type),
+           down_payment = COALESCE(NULLIF(EXCLUDED.down_payment, ''), lead_dealers.down_payment),
+           identification = COALESCE(NULLIF(EXCLUDED.identification, ''), lead_dealers.identification),
+           bank_account = COALESCE(NULLIF(EXCLUDED.bank_account, ''), lead_dealers.bank_account),
+           purchase_timeline = COALESCE(NULLIF(EXCLUDED.purchase_timeline, ''), lead_dealers.purchase_timeline),
+           documents = COALESCE(NULLIF(EXCLUDED.documents, ''), lead_dealers.documents),
+           easterns_zone = COALESCE(NULLIF(EXCLUDED.easterns_zone, ''), lead_dealers.easterns_zone),
            assigned_dealer_id = CASE
              WHEN lead_dealers.status = 'sent' OR lead_dealers.routing_override = true
              THEN lead_dealers.assigned_dealer_id ELSE EXCLUDED.assigned_dealer_id END,
