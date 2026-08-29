@@ -2,7 +2,7 @@
   "version": 2,
   "framework": "nextjs",
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm --filter web build",
+  "buildCommand": "pnpm build",
   "outputDirectory": "apps/web/.next",
   "functions": {
     "api/[...path].ts": { "maxDuration": 30 }

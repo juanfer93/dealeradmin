@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@dealeradmin/config": ["packages/config/src"],
+      "@dealeradmin/contracts": ["packages/contracts/src"]
+    }
+  },
+  "include": [
+    "api/**/*.ts",
+    "apps/api/src/**/*.ts",
+    "packages/config/src/**/*.ts",
+    "packages/contracts/src/**/*.ts"
+  ]
+}

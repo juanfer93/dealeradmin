@@ -17,6 +17,9 @@ importers:
       next:
         specifier: ^15.4.0
         version: 15.5.23(@playwright/test@1.62.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
       vitest:
         specifier: ^3.2.3
         version: 3.2.7(@types/node@22.20.1)(jiti@1.21.7)(jsdom@30.0.1)(supports-color@8.1.1)(terser@5.50.0)
