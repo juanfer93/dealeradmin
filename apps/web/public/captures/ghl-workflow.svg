@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 720" role="img" aria-labelledby="title desc">
+  <title id="title">GHL workflow documented capture</title>
+  <desc id="desc">A clean workflow builder diagram showing two triggers converging into a condition, the main webhook route, confirmation, and a separate alternative branch.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#5ed5aa"/></marker>
+    <marker id="arrow-muted" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#637d70"/></marker>
+  </defs>
+  <rect width="1440" height="720" fill="#0d1310"/>
+  <rect x="24" y="24" width="1392" height="672" rx="16" fill="#111815" stroke="#294039"/>
+  <circle cx="58" cy="62" r="7" fill="#5ed5aa"/>
+  <text x="82" y="69" fill="#f1f7f4" font-family="Arial, sans-serif" font-size="22" font-weight="700">dealerADMIN - Lead Routing &amp; Webhook</text>
+  <rect x="1220" y="42" width="125" height="38" rx="19" fill="#342a16" stroke="#c8892c"/>
+  <text x="1282" y="67" text-anchor="middle" fill="#f0b75a" font-family="Arial, sans-serif" font-size="15" font-weight="700">DRAFT</text>
+  <text x="58" y="124" fill="#7f948a" font-family="Arial, sans-serif" font-size="14" letter-spacing="2">WORKFLOW BUILDER · OBSERVED FLOW</text>
+  <path d="M270 248 H318 V356 H365" fill="none" stroke="#5ed5aa" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+  <path d="M270 478 H318 V356 H365" fill="none" stroke="#5ed5aa" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+  <path d="M600 356 H690" fill="none" stroke="#5ed5aa" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <path d="M925 356 H1015" fill="none" stroke="#5ed5aa" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <path d="M1132 432 V500" fill="none" stroke="#5ed5aa" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <path d="M482 432 V500" fill="none" stroke="#637d70" stroke-width="3" stroke-linecap="round" stroke-dasharray="8 8" marker-end="url(#arrow-muted)"/>
+  <g>
+    <rect x="70" y="175" width="200" height="145" rx="12" fill="#17231d" stroke="#5ed5aa"/>
+    <text x="94" y="207" fill="#5ed5aa" font-family="Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1">01 · TRIGGER</text>
+    <text x="94" y="246" fill="#f1f7f4" font-family="Arial, sans-serif" font-size="17" font-weight="700">Contact Tag</text>
+    <text x="94" y="274" fill="#afc1b9" font-family="Arial, sans-serif" font-size="13">dealeradmin_send_now</text>
+    <text x="94" y="298" fill="#afc1b9" font-family="Arial, sans-serif" font-size="13">is added</text>
+  </g>
+  <g>
+    <rect x="70" y="405" width="200" height="145" rx="12" fill="#17231d" stroke="#5ed5aa"/>
+    <text x="94" y="437" fill="#5ed5aa" font-family="Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1">02 · TRIGGER</text>
+    <text x="94" y="476" fill="#f1f7f4" font-family="Arial, sans-serif" font-size="17" font-weight="700">Contact Changed</text>
+    <text x="94" y="504" fill="#afc1b9" font-family="Arial, sans-serif" font-size="13">A contact update</text>
+    <text x="94" y="528" fill="#afc1b9" font-family="Arial, sans-serif" font-size="13">starts the workflow</text>
+  </g>
+  <g>
+    <rect x="365" y="284" width="235" height="148" rx="12" fill="#193a30" stroke="#5ed5aa"/>
+    <text x="389" y="316" fill="#5ed5aa" font-family="Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1">03 · CONDITION</text>
+    <text x="389" y="355" fill="#f1f7f4" font-family="Arial, sans-serif" font-size="17" font-weight="700">Send now?</text>
+    <text x="389" y="383" fill="#d8eee5" font-family="Arial, sans-serif" font-size="13">dealeradmin_send_now</text>
+    <text x="389" y="407" fill="#d8eee5" font-family="Arial, sans-serif" font-size="13">includes “true”</text>
+  </g>
+  <g>
+    <rect x="690" y="284" width="235" height="148" rx="12" fill="#17231d" stroke="#294039"/>
+    <text x="714" y="316" fill="#5ed5aa" font-family="Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1">04 · ELIGIBILITY</text>
+    <text x="714" y="355" fill="#f1f7f4" font-family="Arial, sans-serif" font-size="17" font-weight="700">Phone is not empty</text>
+    <text x="714" y="383" fill="#afc1b9" font-family="Arial, sans-serif" font-size="13">Qualified contact</text>
+    <text x="714" y="407" fill="#afc1b9" font-family="Arial, sans-serif" font-size="13">continues to dispatch</text>
+  </g>
+  <g>
+    <rect x="1015" y="284" width="235" height="148" rx="12" fill="#193a30" stroke="#5ed5aa"/>
+    <text x="1039" y="316" fill="#5ed5aa" font-family="Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1">05 · ACTION</text>
+    <text x="1039" y="355" fill="#f1f7f4" font-family="Arial, sans-serif" font-size="17" font-weight="700">Webhook</text>
+    <text x="1039" y="383" fill="#d8eee5" font-family="Arial, sans-serif" font-size="13">POST to dealerADMIN</text>
+    <text x="1039" y="407" fill="#d8eee5" font-family="Arial, sans-serif" font-size="13">signed event payload</text>
+  </g>
+  <g>
+    <rect x="1015" y="500" width="235" height="145" rx="12" fill="#17231d" stroke="#5ed5aa"/>
+    <text x="1039" y="532" fill="#5ed5aa" font-family="Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1">06 · CONFIRM</text>
+    <text x="1039" y="571" fill="#f1f7f4" font-family="Arial, sans-serif" font-size="17" font-weight="700">Update status</text>
+    <text x="1039" y="599" fill="#afc1b9" font-family="Arial, sans-serif" font-size="13">Set status to sent</text>
+    <text x="1039" y="623" fill="#afc1b9" font-family="Arial, sans-serif" font-size="13">remove send tag</text>
+  </g>
+  <g>
+    <rect x="365" y="500" width="235" height="145" rx="12" fill="#17231d" stroke="#637d70" stroke-dasharray="8 8"/>
+    <text x="389" y="532" fill="#7f948a" font-family="Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1">ALTERNATIVE BRANCH</text>
+    <text x="389" y="571" fill="#f1f7f4" font-family="Arial, sans-serif" font-size="17" font-weight="700">Wait / review</text>
+    <text x="389" y="599" fill="#afc1b9" font-family="Arial, sans-serif" font-size="13">Condition not met</text>
+    <text x="389" y="623" fill="#afc1b9" font-family="Arial, sans-serif" font-size="13">or phone missing</text>
+  </g>
+  <text x="58" y="674" fill="#7f948a" font-family="Arial, sans-serif" font-size="13">Documented from the visible GHL workflow builder. Draft state shown for reference.</text>
+</svg>

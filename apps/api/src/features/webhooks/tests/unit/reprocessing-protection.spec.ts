@@ -58,7 +58,7 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
       'Source dealer from GHL location',
       'resolved',
       'sent',
-      'Carlos Mendoza +15551234567 Troca, $3,500 de down, Quiere ver opciones.',
+      'Carlos Mendoza +15551234567 Troca, $3,500 de down, documentos Pasaporte e ID, Quiere ver opciones.',
     ]);
   });
 });

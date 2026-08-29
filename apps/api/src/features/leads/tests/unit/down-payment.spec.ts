@@ -14,4 +14,14 @@ describe('normalización de pago inicial', () => {
   it('explica el pago en efectivo en el mensaje operativo', () => {
     expect(buildWhatsAppMessage('Ana Perez', '+15550000000', { down_payment: 'pagará de contado' })).toContain('paga en cash');
   });
+
+  it('mantiene el resumen en inglés cuando la cualificación llega en inglés', () => {
+    expect(buildWhatsAppMessage('Alexander Freez', '3212343212', {
+      vehicle_type: 'truck',
+      down_payment: '$1,500',
+      identification: 'ID-123',
+      documents: 'proof of income',
+      purchase_timeline: 'this week',
+    })).toBe('Alexander Freez 3212343212 truck, $1,500 down, ID ID-123, proof of income, wants to buy this week.');
+  });
 });

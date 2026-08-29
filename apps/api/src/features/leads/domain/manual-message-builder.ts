@@ -4,9 +4,11 @@ type ManualMessageLeadData = {
   identification?: string | null;
   bank_account?: string | null;
   purchase_timeline?: string | null;
+  documents?: string | null;
 };
 
 import { isCashDownPayment, normalizeDownPayment } from './down-payment';
+import { detectMessageLanguage } from './message-builder';
 
 function clean(value: string | null | undefined): string | undefined {
   const normalized = value?.trim();
@@ -14,6 +16,7 @@ function clean(value: string | null | undefined): string | undefined {
 }
 
 export function buildManualLeadMessage(name: string, phone: string, data: ManualMessageLeadData): string {
+  const language = detectMessageLanguage(data);
   const vehicle = clean(data.vehicle_type);
   const down = normalizeDownPayment(data.down_payment);
   const identification = clean(data.identification);
@@ -23,9 +26,10 @@ export function buildManualLeadMessage(name: string, phone: string, data: Manual
   return [
     [name.trim(), phone].filter(Boolean).join(' '),
     vehicle,
-    down ? (isCashDownPayment(down) ? 'paga en cash' : `${down} de down`) : '',
+    down ? (isCashDownPayment(down) ? (language === 'es' ? 'paga en cash' : 'cash') : `${down}${language === 'es' ? ' de down' : ' down'}`) : '',
     identification ? `ID: ${identification}` : '',
-    bankAccount ? `Cuenta: ${bankAccount}` : '',
-    timeline ? `quiere comprar ${timeline.toLowerCase()}` : '',
+    bankAccount ? (language === 'es' ? `Cuenta: ${bankAccount}` : `Bank account: ${bankAccount}`) : '',
+    data.documents?.trim() ? (language === 'es' ? `documentos: ${data.documents.trim()}` : data.documents.trim()) : '',
+    timeline ? (language === 'es' ? `quiere comprar ${timeline.toLowerCase()}` : `wants to buy ${timeline.toLowerCase()}`) : '',
   ].filter(Boolean).join(', ') + '.';
 }

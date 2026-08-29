@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 :root {
+  --motion-fast: 160ms;
+  --motion-base: 240ms;
+  --motion-slow: 520ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --brand: #0B817A;
   --brand-strong: #075F5A;
   --brand-soft: #E7F5F2;
@@ -55,3 +59,86 @@ button, input { font: inherit; }
 button:focus-visible, a:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
 .tabular-nums { font-variant-numeric: tabular-nums; }
+
+.landing-grid {
+  background-image: linear-gradient(rgba(94, 213, 170, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(94, 213, 170, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+  background-position: center top;
+}
+
+img[src="/captures/ghl-workflow.svg"] {
+  display: block;
+  height: min(52.78vw, 633px) !important;
+  object-fit: cover;
+}
+
+section[aria-labelledby="workflow-title"] > div > .landing-reveal:nth-child(2) {
+  min-height: calc(min(52.78vw, 633px) + 48px);
+}
+
+section[aria-labelledby="workflow-title"] img {
+  display: block;
+  width: 100%;
+  height: min(52.78vw, 633px) !important;
+  object-fit: cover;
+}
+
+@keyframes landing-rise-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.landing-rise {
+  opacity: 0;
+  animation: landing-rise-in var(--motion-slow) var(--ease-out) both;
+  will-change: opacity, transform;
+}
+
+.landing-rise-1 { animation-delay: 40ms; }
+.landing-rise-2 { animation-delay: 120ms; }
+.landing-rise-3 { animation-delay: 220ms; }
+
+.landing-rise-section-1 { animation-delay: 320ms; }
+.landing-rise-section-2 { animation-delay: 400ms; }
+.landing-rise-section-3 { animation-delay: 480ms; }
+
+.landing-reveal {
+  opacity: 0;
+  transform: translate3d(0, 24px, 0);
+  transition: opacity var(--motion-slow) var(--ease-out), transform var(--motion-slow) var(--ease-out);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+.landing-reveal-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .landing-rise {
+    opacity: 1;
+    animation: none;
+    transform: none;
+    will-change: auto;
+  }
+
+  .landing-reveal,
+  .landing-reveal-visible {
+    opacity: 1;
+    transform: none;
+    transition: none;
+    will-change: auto;
+  }
+}

@@ -1,7 +1,10 @@
 {
   "version": 2,
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/apps/api/$1" },
-    { "source": "/(.*)", "destination": "/apps/web/$1" }
-  ]
+  "framework": "nextjs",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm --filter web build",
+  "outputDirectory": "apps/web/.next",
+  "functions": {
+    "api/[...path].ts": { "maxDuration": 30 }
+  }
 }

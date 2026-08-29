@@ -178,7 +178,8 @@ export class WebhookService {
         down_payment: normalizeDownPayment(payload.lead.down_payment) || currentLeadDealer?.down_payment || '',
         identification: identification.trim() || currentLeadDealer?.identification || '',
         bank_account: payload.lead.bank_account?.trim() || currentLeadDealer?.bank_account || '',
-        purchase_timeline: purchaseTimeline || currentLeadDealer?.purchase_timeline || '',
+        purchase_timeline: payload.lead.purchase_timeline?.trim() || currentLeadDealer?.purchase_timeline || '',
+        documents: payload.lead.documents?.trim() || currentLeadDealer?.documents || '',
       });
       const isAlreadySent = currentLeadDealer?.status === 'sent';
       const routing = isEasternsPayload

@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { isPortfolioMode, portfolioWriteBlockedMessage } from '../../lib/portfolio-mode';
+import { useLanguage } from '../../lib/i18n';
 
 type ManualLeadForm = {
   name: string;
@@ -31,16 +33,17 @@ const initialForm: ManualLeadForm = {
   bank_account: '',
 };
 
-function getResponseMessage(body: unknown): string {
+function getResponseMessage(body: unknown, fallback: string): string {
   if (typeof body === 'object' && body !== null && 'message' in body) {
     const message = body.message;
     if (Array.isArray(message)) return message.join(', ');
     if (typeof message === 'string') return message;
   }
-  return 'No se pudo guardar el lead';
+  return fallback;
 }
 
 export function AddLeadModal({ isOpen, onClose, dealerId, onLeadAdded }: AddLeadModalProps) {
+  const { language, t } = useLanguage();
   const [formData, setFormData] = useState<ManualLeadForm>(initialForm);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -63,6 +66,10 @@ export function AddLeadModal({ isOpen, onClose, dealerId, onLeadAdded }: AddLead
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
+    if (isPortfolioMode) {
+      setError(language === 'es' ? portfolioWriteBlockedMessage : 'Demo mode: this action is disabled to protect production data.');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -73,13 +80,13 @@ export function AddLeadModal({ isOpen, onClose, dealerId, onLeadAdded }: AddLead
         body: JSON.stringify(formData),
       });
       const body: unknown = await response.json().catch(() => undefined);
-      if (!response.ok) throw new Error(getResponseMessage(body));
+      if (!response.ok) throw new Error(getResponseMessage(body, t.modal.errors.save));
 
       setFormData(initialForm);
       onClose();
       onLeadAdded();
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Hubo un error de conexión');
+      setError(submitError instanceof Error ? submitError.message : t.modal.errors.connection);
     } finally {
       setLoading(false);
     }
@@ -98,11 +105,11 @@ export function AddLeadModal({ isOpen, onClose, dealerId, onLeadAdded }: AddLead
       >
         <div className="mb-5 flex items-start justify-between gap-4 border-b border-[var(--border)] pb-4">
           <div>
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--brand)]">Manual intake</p>
-            <h2 id="add-lead-modal-title" className="text-lg font-semibold tracking-[-0.02em] text-[var(--text)]">Agregar lead manual</h2>
-            <p className="mt-1 text-xs text-[var(--text-muted)]">Los campos opcionales pueden quedar vacíos.</p>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--brand)]">{t.modal.eyebrow}</p>
+            <h2 id="add-lead-modal-title" className="text-lg font-semibold tracking-[-0.02em] text-[var(--text)]">{t.modal.title}</h2>
+            <p className="mt-1 text-xs text-[var(--text-muted)]">{t.modal.optional}</p>
           </div>
-          <button type="button" onClick={onClose} disabled={loading} aria-label="Cerrar" className="rounded p-1 text-xl leading-none text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-raised)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50">×</button>
+          <button type="button" onClick={onClose} disabled={loading} aria-label={t.modal.close} className="rounded p-1 text-xl leading-none text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-raised)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50">×</button>
         </div>
 
         {error && <div role="alert" className="mb-4 rounded border border-[var(--error)]/30 bg-[var(--error)]/10 px-3 py-2 text-sm text-[var(--error)]">{error}</div>}
@@ -110,50 +117,50 @@ export function AddLeadModal({ isOpen, onClose, dealerId, onLeadAdded }: AddLead
         <form onSubmit={(event) => void handleSubmit(event)} className="space-y-4" id="manual-lead-form">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="manual-lead-name" className={labelClass}>Nombre completo <span aria-hidden="true">*</span></label>
+              <label htmlFor="manual-lead-name" className={labelClass}>{t.modal.fullName} <span aria-hidden="true">*</span></label>
               <input id="manual-lead-name" autoFocus required name="name" value={formData.name} onChange={handleChange} className={inputClass} />
             </div>
             <div>
-              <label htmlFor="manual-lead-phone" className={labelClass}>Teléfono móvil <span aria-hidden="true">*</span></label>
+              <label htmlFor="manual-lead-phone" className={labelClass}>{t.modal.mobile} <span aria-hidden="true">*</span></label>
               <input id="manual-lead-phone" required inputMode="tel" name="phone" value={formData.phone} onChange={handleChange} className={inputClass} />
             </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="manual-lead-vehicle" className={labelClass}>Tipo de vehículo</label>
-              <input id="manual-lead-vehicle" name="vehicle_type" value={formData.vehicle_type} onChange={handleChange} placeholder="p. ej. SUV" className={inputClass} />
+              <label htmlFor="manual-lead-vehicle" className={labelClass}>{t.modal.vehicleType}</label>
+              <input id="manual-lead-vehicle" name="vehicle_type" value={formData.vehicle_type} onChange={handleChange} placeholder={t.modal.placeholders.vehicle} className={inputClass} />
             </div>
             <div>
-              <label htmlFor="manual-lead-down" className={labelClass}>Down payment</label>
-              <input id="manual-lead-down" name="down_payment" value={formData.down_payment} onChange={handleChange} placeholder="p. ej. $1,500" className={inputClass} />
+              <label htmlFor="manual-lead-down" className={labelClass}>{t.modal.downPayment}</label>
+              <input id="manual-lead-down" name="down_payment" value={formData.down_payment} onChange={handleChange} placeholder={t.modal.placeholders.down} className={inputClass} />
             </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="manual-lead-identification" className={labelClass}>Identificación (ID)</label>
-              <input id="manual-lead-identification" name="identification" value={formData.identification} onChange={handleChange} placeholder="ID / licencia" className={inputClass} />
+              <label htmlFor="manual-lead-identification" className={labelClass}>{t.modal.identification}</label>
+              <input id="manual-lead-identification" name="identification" value={formData.identification} onChange={handleChange} placeholder={t.modal.placeholders.identification} className={inputClass} />
             </div>
             <div>
-              <label htmlFor="manual-lead-bank" className={labelClass}>Cuenta bancaria</label>
-              <input id="manual-lead-bank" name="bank_account" value={formData.bank_account} onChange={handleChange} placeholder="Últimos 4 dígitos" className={inputClass} />
+              <label htmlFor="manual-lead-bank" className={labelClass}>{t.modal.bankAccount}</label>
+              <input id="manual-lead-bank" name="bank_account" value={formData.bank_account} onChange={handleChange} placeholder={t.modal.placeholders.bank} className={inputClass} />
             </div>
           </div>
 
           <div>
-            <label htmlFor="manual-lead-timeline" className={labelClass}>Línea de tiempo de compra</label>
-            <input id="manual-lead-timeline" name="purchase_timeline" value={formData.purchase_timeline} onChange={handleChange} placeholder="p. ej. esta semana" className={inputClass} />
+            <label htmlFor="manual-lead-timeline" className={labelClass}>{t.modal.purchaseTimeline}</label>
+            <input id="manual-lead-timeline" name="purchase_timeline" value={formData.purchase_timeline} onChange={handleChange} placeholder={t.modal.placeholders.timeline} className={inputClass} />
           </div>
 
           <div>
-            <label htmlFor="manual-lead-documents" className={labelClass}>Documentos disponibles</label>
-            <input id="manual-lead-documents" name="documents" value={formData.documents} onChange={handleChange} placeholder="p. ej. pruebas de ingreso" className={inputClass} />
+            <label htmlFor="manual-lead-documents" className={labelClass}>{t.modal.documents}</label>
+            <input id="manual-lead-documents" name="documents" value={formData.documents} onChange={handleChange} placeholder={t.modal.placeholders.documents} className={inputClass} />
           </div>
 
           <div className="flex items-center justify-end gap-3 border-t border-[var(--border)] pt-4">
-            <button type="button" onClick={onClose} disabled={loading} className="rounded border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-50">Cancelar</button>
-            <button type="submit" disabled={loading} className="rounded bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--brand-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] disabled:cursor-not-allowed disabled:opacity-50">{loading ? 'Guardando…' : 'Agregar lead'}</button>
+            <button type="button" onClick={onClose} disabled={loading} className="rounded border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-50">{t.modal.cancel}</button>
+            <button type="submit" disabled={loading} className="rounded bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--brand-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] disabled:cursor-not-allowed disabled:opacity-50">{loading ? t.modal.saving : t.modal.add}</button>
           </div>
         </form>
       </div>
