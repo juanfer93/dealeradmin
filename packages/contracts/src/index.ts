@@ -2,6 +2,16 @@ import { z } from 'zod';
 export { CreateManualLeadSchema } from './leads/manual-lead.schema';
 export type { CreateManualLeadDto } from './leads/manual-lead.schema';
 
+const EasternsDealerSelectedSchema = z.preprocess((value) => {
+  if (value === null || value === undefined || typeof value === 'boolean') return value;
+
+  const values = Array.isArray(value) ? value : [value];
+  return values.some((item) => {
+    if (typeof item !== 'string') return item === true;
+    return ['true', '1', 'yes', 'selected', 'dealer seleccionado'].includes(item.trim().toLowerCase());
+  });
+}, z.boolean().nullable().optional());
+
 export const LeadWebhookSchema = z.object({
   event_id: z.string().min(1),
   event_type: z.string().min(1),
@@ -22,6 +32,7 @@ export const LeadWebhookSchema = z.object({
     purchase_timeline: z.string().nullable().optional(),
     documents: z.string().nullable().optional(),
     easterns_zone: z.string().nullable().optional(),
+    easterns_dealer_selected: EasternsDealerSelectedSchema,
     city: z.string().nullable().optional(),
     state: z.string().nullable().optional(),
     zip_code: z.string().nullable().optional(),

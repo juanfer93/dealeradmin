@@ -48,6 +48,33 @@ describe('Easterns georouting engine', () => {
   });
 
   it.each([
+    ['Quiero mi auto con Easterns Baltimore', EASTERN_DEALER_IDS.rosedale, 'Baltimore → Rosedale'],
+    ['Quiero mi auto con Easterns Laurel', EASTERN_DEALER_IDS.laurel, 'Laurel → Laurel'],
+    ['Quiero mi auto con Easterns Sterling', EASTERN_DEALER_IDS.sterling, 'Sterling → Sterling'],
+  ])('respeta la selección explícita del bot: %s', async (easterns_zone, expectedDealerId, reason) => {
+    const { service } = createService(EASTERN_DEALER_IDS.laurel);
+    const result = await service.resolveDealer({ easterns_zone, easterns_dealer_selected: true });
+    expect(result).toMatchObject({ dealerId: expectedDealerId });
+    expect(result.reason).toContain(reason);
+  });
+
+  it('mantiene el round-robin cuando Baltimore solo llega como zona geográfica', async () => {
+    const { service } = createService(EASTERN_DEALER_IDS.rosedale);
+    await expect(service.resolveDealer({ easterns_zone: 'Baltimore' })).resolves.toMatchObject({
+      dealerId: EASTERN_DEALER_IDS.laurel,
+      reason: 'Baltimore Overlap: Round-Robin (Previous: Rosedale)',
+    });
+  });
+
+  it('no fuerza dealer cuando el booleano explícito es false', async () => {
+    const { service } = createService(EASTERN_DEALER_IDS.rosedale);
+    await expect(service.resolveDealer({ easterns_zone: 'Baltimore', easterns_dealer_selected: false })).resolves.toMatchObject({
+      dealerId: EASTERN_DEALER_IDS.laurel,
+      reason: 'Baltimore Overlap: Round-Robin (Previous: Rosedale)',
+    });
+  });
+
+  it.each([
     [null, EASTERN_DEALER_IDS.laurel, 'Previous: Sterling/None'],
     [EASTERN_DEALER_IDS.laurel, EASTERN_DEALER_IDS.sterling, 'Previous: Laurel'],
     [EASTERN_DEALER_IDS.sterling, EASTERN_DEALER_IDS.laurel, 'Previous: Sterling/None'],

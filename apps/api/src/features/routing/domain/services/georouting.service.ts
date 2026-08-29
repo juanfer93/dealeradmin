@@ -10,6 +10,7 @@ export const EASTERN_DEALER_IDS = {
 
 type LocationPayload = {
   easterns_zone?: string | null;
+  easterns_dealer_selected?: boolean | null;
   state?: string | null;
   city?: string | null;
   zip_code?: string | null;
@@ -64,6 +65,21 @@ export class GeoroutingService {
     const explicitState = STATE_ALIASES[stateValue.toUpperCase()] || stateValue.toUpperCase();
     const city = normalizeText(payload.city);
     const zone = normalizeText(payload.easterns_zone);
+    const explicitDealerSelected = payload.easterns_dealer_selected === true;
+
+    // The boolean is set by the GHL workflow when an ad/button phrase names a
+    // dealer. A plain easterns_zone answer remains geographic input and keeps
+    // Baltimore's round-robin behavior.
+    if (explicitDealerSelected && zone.includes('baltimore')) {
+      return { dealerId: EASTERN_DEALER_IDS.rosedale, reason: 'Explicit Easterns Zone: Baltimore → Rosedale' };
+    }
+    if (explicitDealerSelected && zone.includes('laurel')) {
+      return { dealerId: EASTERN_DEALER_IDS.laurel, reason: 'Explicit Easterns Zone: Laurel → Laurel' };
+    }
+    if (explicitDealerSelected && zone.includes('sterling')) {
+      return { dealerId: EASTERN_DEALER_IDS.sterling, reason: 'Explicit Easterns Zone: Sterling → Sterling' };
+    }
+
     const inferredState = this.inferState(city, zone);
     const state = explicitState || inferredState;
 
