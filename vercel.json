@@ -5,6 +5,6 @@
   "buildCommand": "pnpm build",
   "outputDirectory": "apps/web/.next",
   "functions": {
-    "api/[...path].ts": { "maxDuration": 30 }
+    "api/**/*.ts": { "maxDuration": 30 }
   }
 }
