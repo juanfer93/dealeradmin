@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { verifyHmacSignature } from '../../apps/api/src/features/webhooks/presentation/hmac-signature.guard';
+import { verifyHmacSignature, verifySharedSecret } from '../../apps/api/src/features/webhooks/presentation/hmac-signature.guard';
 
 describe('verifyHmacSignature', () => {
   const body = Buffer.from('{"event_id":"evt-1"}');
@@ -15,5 +15,12 @@ describe('verifyHmacSignature', () => {
     expect(verifyHmacSignature(body, undefined, secret)).toBe(false);
     expect(verifyHmacSignature(body, 'not-a-signature', secret)).toBe(false);
     expect(verifyHmacSignature(body, '00'.repeat(32), secret)).toBe(false);
+  });
+
+  it('accepts the exact shared secret used by native GHL webhooks', () => {
+    expect(verifySharedSecret(secret, secret)).toBe(true);
+    expect(verifySharedSecret(`${secret} `, secret)).toBe(true);
+    expect(verifySharedSecret('wrong-secret', secret)).toBe(false);
+    expect(verifySharedSecret(undefined, secret)).toBe(false);
   });
 });
