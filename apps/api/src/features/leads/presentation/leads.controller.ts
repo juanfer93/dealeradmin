@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -14,7 +15,7 @@ import type { Request } from 'express';
 import { DataSource } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { AuthService } from '../../auth/application/auth.service';
-import { getTestManualLeads, testDealers, testLead, smartMergeTestLead, easternsTestLead, updateTestLeadStatus, reassignTestLead } from '../application/test-lead-store';
+import { deleteTestLead, getTestManualLeads, isTestLeadDeleted, testDealers, testLead, smartMergeTestLead, easternsTestLead, updateTestLeadStatus, reassignTestLead } from '../application/test-lead-store';
 import { EASTERN_DEALER_IDS } from '../../routing/domain/services/georouting.service';
 
 type LeadStatus = 'pending' | 'sent';
@@ -46,7 +47,7 @@ export class LeadsController {
         status === lead.status && matchesDealer(lead.dealerId),
       );
       const fixedLeads = [testLead, smartMergeTestLead, easternsTestLead].filter((lead) =>
-        status === lead.status && matchesDealer(lead.dealerId),
+        !isTestLeadDeleted(lead.id) && status === lead.status && matchesDealer(lead.dealerId),
       );
       const leads = [...fixedLeads, ...manualLeads];
       return { dealers: testDealers, leads };
@@ -134,6 +135,82 @@ export class LeadsController {
       throw new BadRequestException('Lead not found or already sent');
     }
     return { success: true };
+  }
+
+  @Delete(':id')
+  async delete(
+    @Req() request: Request,
+    @Param('id') leadId: string,
+    @Query('dealerId') dealerIdQuery?: string,
+  ) {
+    this.requireSession(request);
+    if (!dealerIdQuery) {
+      throw new BadRequestException('Dealer is required to delete the lead relationship');
+    }
+
+    if (process.env.NODE_ENV === 'test') {
+      if (!deleteTestLead(leadId, dealerIdQuery)) {
+        throw new BadRequestException('Lead not found or cannot be deleted');
+      }
+      return { success: true, deletedLead: true };
+    }
+
+    if (!this.dataSource) {
+      throw new UnauthorizedException('Lead data is unavailable');
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const existingLeads = await queryRunner.query(
+        `SELECT id
+         FROM leads
+         WHERE id = $1
+         FOR UPDATE`,
+        [leadId],
+      ) as Array<{ id: string }>;
+      if (existingLeads.length === 0) {
+        throw new BadRequestException('Lead not found or cannot be deleted');
+      }
+
+      const deletedRelationships = await queryRunner.query(
+        `DELETE FROM lead_dealers
+         WHERE lead_id = $1
+           AND COALESCE(assigned_dealer_id, dealer_id) = $2
+         RETURNING lead_id`,
+        [leadId, dealerIdQuery],
+      ) as Array<{ lead_id: string }>;
+      if (deletedRelationships.length === 0) {
+        throw new BadRequestException('Lead not found or cannot be deleted');
+      }
+
+      const remainingRelationships = await queryRunner.query(
+        `SELECT COUNT(*)::int AS count
+         FROM lead_dealers
+         WHERE lead_id = $1`,
+        [leadId],
+      ) as Array<{ count: number }>;
+      let deletedLead = false;
+      if (Number(remainingRelationships[0]?.count ?? 0) === 0) {
+        const deletedLeads = await queryRunner.query(
+          `DELETE FROM leads
+           WHERE id = $1
+           RETURNING id`,
+          [leadId],
+        ) as Array<{ id: string }>;
+        deletedLead = deletedLeads.length > 0;
+      }
+
+      await queryRunner.commitTransaction();
+      return { success: true, deletedLead };
+    } catch (error) {
+      if (queryRunner.isTransactionActive) await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   @Patch(':id/reassign')

@@ -36,4 +36,31 @@ test.describe('Día 4 E2E Tests - Dashboard & Queue Operation', () => {
     await mariaRow.getByRole('button', { name: 'Marcar enviado' }).click();
     await expect(mariaRow).not.toBeVisible();
   });
+
+  test('El operador puede borrar un lead y la acción llega al endpoint persistente', async ({ page }) => {
+    await page.goto('/login');
+    await page.fill('input[name="username"]', 'operator');
+    await page.fill('input[name="password"]', 'test-password');
+    await page.click('button[type="submit"]');
+    await expect(page).toHaveURL(/\/app$/);
+
+    await page.getByRole('button', { name: /Offlease Motors Stafford\s+\d+/ }).click();
+    await page.getByRole('button', { name: /Agregar lead manual/i }).click();
+    const modal = page.getByRole('dialog', { name: 'Agregar lead manual' });
+    await modal.getByLabel(/Nombre completo/).fill('Lead para borrar E2E');
+    await modal.getByLabel(/Teléfono móvil/).fill('3019876501');
+    await modal.getByRole('button', { name: 'Agregar lead' }).click();
+
+    const row = page.locator('tr').filter({ hasText: 'Lead para borrar E2E' });
+    await expect(row).toBeVisible();
+
+    const deleteRequest = page.waitForRequest((request) => request.method() === 'DELETE' && request.url().includes('/api/leads/'));
+    await row.getByRole('button', { name: 'Eliminar' }).click();
+    const warning = page.getByRole('dialog', { name: 'Eliminar lead de la base de datos' });
+    await expect(warning).toBeVisible();
+    await warning.getByRole('button', { name: 'Eliminar de la BD' }).click();
+    const request = await deleteRequest;
+    expect(new URL(request.url()).searchParams.get('dealerId')).toBe('dealer-stafford');
+    await expect(row).not.toBeVisible();
+  });
 });

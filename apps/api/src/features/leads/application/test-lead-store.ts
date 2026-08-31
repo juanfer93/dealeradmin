@@ -91,6 +91,7 @@ export const easternsTestLead: TestLead = {
 };
 
 const manualTestLeads: TestLead[] = [];
+const deletedTestLeadIds = new Set<string>();
 
 export function getTestDealer(dealerId: string): TestDealer | undefined {
   return testDealers.find((dealer) => dealer.id === dealerId);
@@ -98,6 +99,10 @@ export function getTestDealer(dealerId: string): TestDealer | undefined {
 
 export function getTestManualLeads(): TestLead[] {
   return [...manualTestLeads];
+}
+
+export function isTestLeadDeleted(leadId: string): boolean {
+  return deletedTestLeadIds.has(leadId);
 }
 
 export function addTestManualLead(
@@ -131,11 +136,27 @@ export function addTestManualLead(
 }
 
 export function updateTestLeadStatus(leadId: string, status: 'sent'): boolean {
-  const lead = [testLead, smartMergeTestLead, easternsTestLead, ...manualTestLeads].find((item) => item.id === leadId);
+  const lead = [testLead, smartMergeTestLead, easternsTestLead, ...manualTestLeads].find((item) => item.id === leadId && !isTestLeadDeleted(item.id));
   if (!lead || lead.status === status) return false;
   lead.status = status;
   const dealer = getTestDealer(lead.dealerId);
   if (dealer) dealer.pendingCount = Math.max(0, dealer.pendingCount - 1);
+  return true;
+}
+
+export function deleteTestLead(leadId: string, dealerId: string): boolean {
+  const lead = [testLead, smartMergeTestLead, easternsTestLead, ...manualTestLeads].find(
+    (item) => item.id === leadId && !isTestLeadDeleted(item.id),
+  );
+  if (!lead || lead.dealerId !== dealerId) return false;
+
+  deletedTestLeadIds.add(leadId);
+  const manualIndex = manualTestLeads.findIndex((item) => item.id === leadId);
+  if (manualIndex >= 0) manualTestLeads.splice(manualIndex, 1);
+  if (lead.status === 'pending') {
+    const dealer = getTestDealer(dealerId);
+    if (dealer) dealer.pendingCount = Math.max(0, dealer.pendingCount - 1);
+  }
   return true;
 }
 
@@ -165,7 +186,7 @@ export function applyTestWebhookLead(payload: LeadWebhookDto): boolean {
   }
 
   const lead = [testLead, smartMergeTestLead, ...manualTestLeads].find(
-    (item) => item.dealerId === dealer.id && item.phone === canonicalPhone,
+    (item) => !isTestLeadDeleted(item.id) && item.dealerId === dealer.id && item.phone === canonicalPhone,
   );
   if (!lead) return false;
 
