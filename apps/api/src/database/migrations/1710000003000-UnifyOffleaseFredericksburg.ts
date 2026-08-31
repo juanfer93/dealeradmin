@@ -20,38 +20,37 @@ export class UnifyOffleaseFredericksburg1710000003000 implements MigrationInterf
       BEGIN
         SELECT id INTO canonical_id
         FROM dealers
-        WHERE ghl_location_id IN ('MyxWNKacThim798E8KC6', 'bAuMEQeH48xAtu9tAMFf')
-           OR code IN ('FRED', 'FRED-2')
-           OR LOWER(name) IN ('offlease fredericksburg', 'offlease fredericksburg 2')
-        ORDER BY CASE
-          WHEN ghl_location_id = 'MyxWNKacThim798E8KC6' THEN 0
-          WHEN code = 'FRED' OR LOWER(name) = 'offlease fredericksburg' THEN 1
-          ELSE 2
-        END, created_at, id
+        WHERE code = 'FRED' OR LOWER(name) = 'offlease fredericksburg'
+        ORDER BY created_at, id
         LIMIT 1;
+
+        IF canonical_id IS NULL THEN
+          SELECT id INTO canonical_id
+          FROM dealers
+          WHERE ghl_location_id = 'MyxWNKacThim798E8KC6'
+             OR code = 'FRED-2'
+             OR LOWER(name) = 'offlease fredericksburg 2'
+          ORDER BY CASE WHEN ghl_location_id = 'MyxWNKacThim798E8KC6' THEN 0 ELSE 1 END, created_at, id
+          LIMIT 1;
+        END IF;
 
         IF canonical_id IS NULL THEN
           INSERT INTO dealers (code, name, ghl_location_id, timezone, active, routing_config)
           VALUES ('FRED', 'Offlease Fredericksburg', 'MyxWNKacThim798E8KC6', 'America/New_York', true, '{}'::jsonb)
           RETURNING id INTO canonical_id;
-        ELSE
-          UPDATE dealers
-          SET code = 'FRED',
-              name = 'Offlease Fredericksburg',
-              ghl_location_id = 'MyxWNKacThim798E8KC6',
-              active = true,
-              updated_at = CURRENT_TIMESTAMP
-          WHERE id = canonical_id;
         END IF;
 
-        SELECT id INTO duplicate_id
-        FROM dealers
-        WHERE id <> canonical_id
-          AND (ghl_location_id = 'bAuMEQeH48xAtu9tAMFf' OR code = 'FRED-2' OR LOWER(name) = 'offlease fredericksburg 2')
-        ORDER BY created_at, id
-        LIMIT 1;
-
-        IF duplicate_id IS NOT NULL THEN
+        FOR duplicate_id IN
+          SELECT id
+          FROM dealers
+          WHERE id <> canonical_id
+            AND (
+              ghl_location_id IN ('MyxWNKacThim798E8KC6', 'bAuMEQeH48xAtu9tAMFf')
+              OR code IN ('FRED', 'FRED-2')
+              OR LOWER(name) IN ('offlease fredericksburg', 'offlease fredericksburg 2')
+            )
+          ORDER BY created_at, id
+        LOOP
           UPDATE lead_dealers
           SET assigned_dealer_id = canonical_id,
               updated_at = CURRENT_TIMESTAMP
@@ -92,7 +91,14 @@ export class UnifyOffleaseFredericksburg1710000003000 implements MigrationInterf
           SET active = false,
               updated_at = CURRENT_TIMESTAMP
           WHERE id = duplicate_id;
-        END IF;
+        END LOOP;
+
+        UPDATE dealers
+        SET code = 'FRED',
+            name = 'Offlease Fredericksburg',
+            active = true,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = canonical_id;
 
         INSERT INTO dealer_location_aliases (ghl_location_id, dealer_id)
         VALUES
