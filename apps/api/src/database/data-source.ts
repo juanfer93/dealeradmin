@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import { InitialSchema1710000000000 } from './migrations/1710000000000-InitialSchema';
 import { AddLeadFinancialDetails1710000001000 } from './migrations/1710000001000-AddLeadFinancialDetails';
 import { Day5EasternsRouting1710000002000 } from './migrations/1710000002000-Day5EasternsRouting';
+import { UnifyOffleaseFredericksburg1710000003000 } from './migrations/1710000003000-UnifyOffleaseFredericksburg';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -17,6 +18,7 @@ export const AppDataSource = new DataSource({
     InitialSchema1710000000000,
     AddLeadFinancialDetails1710000001000,
     Day5EasternsRouting1710000002000,
+    UnifyOffleaseFredericksburg1710000003000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,

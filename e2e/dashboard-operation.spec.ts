@@ -15,7 +15,7 @@ test.describe('Día 4 E2E Tests - Dashboard & Queue Operation', () => {
     const sidebar = page.locator('aside, [role="navigation"]');
     await expect(sidebar).toBeVisible();
     await expect(sidebar).toContainText('Offlease Fredericksburg');
-    await page.getByRole('button', { name: /Offlease Fredericksburg\s+1/ }).click();
+    await page.getByRole('button', { name: /^Offlease Fredericksburg/ }).click();
 
     const mariaRow = page.locator('tr').filter({ hasText: 'Maria Lopez' });
     await expect(mariaRow).toBeVisible();

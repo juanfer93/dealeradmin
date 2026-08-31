@@ -91,9 +91,10 @@ export class WebhookService {
       }
 
       let dealers = (await queryRunner.query(
-        `SELECT id
-         FROM dealers
-         WHERE ghl_location_id = $1 AND active = true
+        `SELECT d.id
+         FROM dealers d
+         LEFT JOIN dealer_location_aliases dla ON dla.dealer_id = d.id
+         WHERE (d.ghl_location_id = $1 OR dla.ghl_location_id = $1) AND d.active = true
          LIMIT 1`,
         [payload.ghl_location_id],
       )) as DealerRow[];

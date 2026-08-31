@@ -30,9 +30,17 @@ export type TestLead = {
   createdAt: string;
 };
 
+export const OFFLEASE_FREDERICKSBURG_LOCATION_IDS = {
+  primary: 'MyxWNKacThim798E8KC6',
+  alias: 'bAuMEQeH48xAtu9tAMFf',
+} as const;
+
+const TEST_DEALER_ALIASES: Record<string, string> = {
+  'dealer-fredericksburg-2': 'dealer-fredericksburg',
+};
+
 export const testDealers: TestDealer[] = [
-  { id: 'dealer-fredericksburg', code: 'FRED', name: 'Offlease Fredericksburg', pendingCount: 1 },
-  { id: 'dealer-fredericksburg-2', code: 'FRED-2', name: 'Offlease Fredericksburg 2', pendingCount: 0 },
+  { id: 'dealer-fredericksburg', code: 'FRED', name: 'Offlease Fredericksburg', pendingCount: 1, ghlLocationId: OFFLEASE_FREDERICKSBURG_LOCATION_IDS.primary },
   { id: 'dealer-stafford', code: 'STAFFORD', name: 'Offlease Motors Stafford', pendingCount: 1, ghlLocationId: 'loc_stafford_789' },
   { id: EASTERN_DEALER_IDS.rosedale, code: 'DLR-EAST-ROSE', name: 'Easterns Rosedale', pendingCount: 0 },
   { id: EASTERN_DEALER_IDS.laurel, code: 'DLR-EAST-LAUR', name: 'Easterns Laurel', pendingCount: 1 },
@@ -94,7 +102,7 @@ const manualTestLeads: TestLead[] = [];
 const deletedTestLeadIds = new Set<string>();
 
 export function getTestDealer(dealerId: string): TestDealer | undefined {
-  return testDealers.find((dealer) => dealer.id === dealerId);
+  return testDealers.find((dealer) => dealer.id === (TEST_DEALER_ALIASES[dealerId] ?? dealerId));
 }
 
 export function getTestManualLeads(): TestLead[] {
@@ -145,16 +153,17 @@ export function updateTestLeadStatus(leadId: string, status: 'sent'): boolean {
 }
 
 export function deleteTestLead(leadId: string, dealerId: string): boolean {
+  const canonicalDealerId = TEST_DEALER_ALIASES[dealerId] ?? dealerId;
   const lead = [testLead, smartMergeTestLead, easternsTestLead, ...manualTestLeads].find(
     (item) => item.id === leadId && !isTestLeadDeleted(item.id),
   );
-  if (!lead || lead.dealerId !== dealerId) return false;
+  if (!lead || lead.dealerId !== canonicalDealerId) return false;
 
   deletedTestLeadIds.add(leadId);
   const manualIndex = manualTestLeads.findIndex((item) => item.id === leadId);
   if (manualIndex >= 0) manualTestLeads.splice(manualIndex, 1);
   if (lead.status === 'pending') {
-    const dealer = getTestDealer(dealerId);
+    const dealer = getTestDealer(canonicalDealerId);
     if (dealer) dealer.pendingCount = Math.max(0, dealer.pendingCount - 1);
   }
   return true;
@@ -175,7 +184,10 @@ export function reassignTestLead(leadId: string, currentDealerId: string, target
 }
 
 export function applyTestWebhookLead(payload: LeadWebhookDto): boolean {
-  const dealer = testDealers.find((item) => item.ghlLocationId === payload.ghl_location_id);
+  const dealer = testDealers.find(
+    (item) => item.ghlLocationId === payload.ghl_location_id
+      || (item.id === 'dealer-fredericksburg' && payload.ghl_location_id === OFFLEASE_FREDERICKSBURG_LOCATION_IDS.alias),
+  );
   if (!dealer) return false;
 
   let canonicalPhone: string;
