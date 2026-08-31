@@ -38,6 +38,7 @@ function normalizeAmount(value: string): string {
   if (/\b(?:cash|contado|efectivo|paid in full|paga(?:r)? de contado)\b/i.test(source)) return 'Cash';
 
   const compact = source.replace(/\$/g, '').replace(/,/g, '').trim();
+  if (!compact || /^[.]+$/.test(compact)) return EMPTY;
   const kMatch = compact.match(/^(\d+(?:\.\d+)?)\s*k$/i);
   if (kMatch) return String(Math.round(Number(kMatch[1]) * 1000));
 
@@ -124,7 +125,7 @@ function mergeDocuments(current: string, message: string): { value: string; id: 
   const answer = (documentPattern: string): 'yes' | 'no' | '' => {
     const positive = 'yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available';
     const negative = "no|nó|dont|don't|no tengo|i do not|do not have|don't have|not available";
-    const context = source.match(new RegExp(`(?:${positive}|${negative})[^.;,!?]{0,40}(?:${documentPattern})|(?:${documentPattern})[^.;,!?]{0,40}(?:${positive}|${negative})`, 'i'))?.[0] ?? '';
+    const context = source.match(new RegExp(`(?:${positive}|${negative})[^.;!?]{0,60}(?:${documentPattern})|(?:${documentPattern})[^.;!?]{0,60}(?:${positive}|${negative})`, 'i'))?.[0] ?? '';
     return yesNo(context);
   };
   const id = answer('id|identification|identificación|license|licencia');
@@ -147,7 +148,7 @@ function mergeMemory(current: string, values: Record<string, string>): string {
 export function normalizeCollectorInput(input: CollectorInput): CollectorOutput {
   const message = clean(input.message);
   const vehicle = normalizeVehicle(firstNonEmpty(input.vehicle_type, extractVehicle(message)));
-  const down = normalizeAmount(firstNonEmpty(input.down_payment, extractDownPayment(message)));
+  const down = normalizeAmount(firstNonEmpty(extractDownPayment(message), input.down_payment));
   const timeline = normalizeTimeline(firstNonEmpty(input.purchase_timeline, extractTimeline(message)));
   const docs = mergeDocuments(clean(input.documents), message);
   const identification = firstNonEmpty(input.identification, docs.id);

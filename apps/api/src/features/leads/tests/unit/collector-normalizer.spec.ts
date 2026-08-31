@@ -21,6 +21,17 @@ describe('normalizeCollectorInput', () => {
     expect(result.next_question).toBe('Do you have proof of income?');
   });
 
+  it('captures affirmative document answers before the document name', () => {
+    const result = normalizeCollectorInput({
+      message: "Yes, I have my driver's license and proof of income",
+      down_payment: ',',
+    });
+    expect(result.documents).toContain('identification: yes');
+    expect(result.documents).toContain('proof of income: yes');
+    expect(result.down_payment).toBe('');
+    expect(result.next_question).toBe('');
+  });
+
   it('keeps existing memory and does not erase valid fields with an empty reply', () => {
     const result = normalizeCollectorInput({
       message: '',
