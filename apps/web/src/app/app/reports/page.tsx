@@ -128,7 +128,7 @@ export default function ReportsPage() {
 
   return (
     <main className="min-h-screen bg-[var(--page)]">
-      <header className="flex min-h-14 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-3 sm:px-5">
+      <header className="flex min-h-16 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-3 sm:px-5">
         <div className="flex items-center gap-3">
           <Logo size={32} />
           <span className="text-[15px] font-semibold tracking-[-0.02em]">dealerADMIN</span>
@@ -140,17 +140,17 @@ export default function ReportsPage() {
         </nav>
       </header>
 
-      <section className="mx-auto max-w-5xl px-3 py-6 sm:px-6 sm:py-9" aria-labelledby="reports-title">
+      <section className="mx-auto max-w-6xl px-3 py-7 sm:px-6 sm:py-10" aria-labelledby="reports-title">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--brand)]">{t.reports.eyebrow}</p>
             <h1 id="reports-title" className="text-2xl font-semibold tracking-[-0.035em] sm:text-3xl">{t.reports.title}</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">{t.reports.description}</p>
           </div>
-          <span className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs text-[var(--text-muted)]">{t.reports.memory}</span>
+          <span className="rounded-[4px] border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs text-[var(--text-muted)]">{t.reports.memory}</span>
         </div>
 
-        <div className="overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--surface)] shadow-[0_12px_32px_rgba(19,32,29,0.05)]">
+        <div className="overflow-hidden rounded-[8px] border border-[var(--border)] bg-[var(--surface)] shadow-[0_10px_24px_rgba(19,32,29,0.04)]">
           <div className="border-b border-[var(--border)] px-4 py-4 sm:px-6">
             <h2 className="text-base font-semibold">{t.reports.define}</h2>
             <p className="mt-1 text-sm text-[var(--text-muted)]">{t.reports.rangeHelp}</p>

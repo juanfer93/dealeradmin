@@ -61,15 +61,31 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--brand); outline
 .tabular-nums { font-variant-numeric: tabular-nums; }
 
 .landing-grid {
-  background-image: linear-gradient(rgba(94, 213, 170, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(94, 213, 170, 0.05) 1px, transparent 1px);
-  background-size: 48px 48px;
-  background-position: center top;
+  /* Keep the class hook without decorative grid texture. */
+  background-image: none;
 }
 
 img[src="/captures/ghl-workflow.svg"] {
   display: block;
   height: min(52.78vw, 633px) !important;
   object-fit: cover;
+}
+
+.operator-shell > div > aside {
+  background: var(--surface);
+}
+
+.operator-shell > div {
+  min-height: calc(100vh - 64px);
+}
+
+.operator-shell section > div > .overflow-hidden {
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(19, 32, 29, 0.04);
+}
+
+.operator-shell [role="tablist"] {
+  border-radius: 4px;
 }
 
 section[aria-labelledby="workflow-title"] > div > .landing-reveal:nth-child(2) {
