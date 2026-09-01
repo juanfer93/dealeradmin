@@ -1,11 +1,13 @@
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
   Delete,
   Get,
   Param,
   Patch,
+  Post,
   Query,
   Req,
   UnauthorizedException,
@@ -15,19 +17,22 @@ import type { Request } from 'express';
 import { DataSource } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { AuthService } from '../../auth/application/auth.service';
-import { deleteTestLead, getTestManualLeads, isTestLeadDeleted, testDealers, testLead, smartMergeTestLead, easternsTestLead, updateTestLeadStatus, reassignTestLead } from '../application/test-lead-store';
+import { copyTestLead, deleteTestLead, getTestManualLeads, isTestLeadDeleted, testDealers, testLead, smartMergeTestLead, easternsTestLead, updateTestLeadStatus, reassignTestLead } from '../application/test-lead-store';
+import { CopyLeadService } from '../application/copy-lead.service';
 import { EASTERN_DEALER_IDS } from '../../routing/domain/services/georouting.service';
 
 type LeadStatus = 'pending' | 'sent';
 
 type StatusBody = { status?: unknown; dealerId?: unknown };
 type ReassignBody = { currentDealerId?: unknown; targetDealerId?: unknown };
+type CopyBody = { sourceDealerId?: unknown; targetDealerId?: unknown };
 
 @Controller('leads')
 export class LeadsController {
   constructor(
     @Optional() @InjectDataSource() private readonly dataSource: DataSource | undefined,
     private readonly authService: AuthService,
+    @Optional() private readonly copyLeadService: CopyLeadService | undefined,
   ) {}
 
   @Get()
@@ -263,6 +268,38 @@ export class LeadsController {
     );
     if (result.length === 0) throw new BadRequestException('Lead not found or cannot be reassigned');
     return { success: true, message: 'Lead reasignado exitosamente.' };
+  }
+
+  @Post(':id/copy')
+  async copy(
+    @Req() request: Request,
+    @Param('id') leadId: string,
+    @Body() body: CopyBody,
+  ) {
+    this.requireSession(request);
+    if (typeof body.sourceDealerId !== 'string' || typeof body.targetDealerId !== 'string' || !body.sourceDealerId || !body.targetDealerId) {
+      throw new BadRequestException('El dealer origen y el dealer destino son obligatorios');
+    }
+    if (body.sourceDealerId === body.targetDealerId) {
+      throw new BadRequestException('El dealer destino debe ser diferente al dealer origen');
+    }
+
+    if (process.env.NODE_ENV === 'test') {
+      const result = copyTestLead(leadId, body.sourceDealerId, body.targetDealerId);
+      if (!result.ok) {
+        if (result.reason === 'duplicate') {
+          throw new ConflictException('No se puede copiar: ya existe un lead con el mismo nombre y teléfono en la base de datos.');
+        }
+        throw new BadRequestException('Lead origen no encontrado o dealer destino inválido');
+      }
+      return { success: true, leadId, sourceDealerId: body.sourceDealerId, targetDealerId: body.targetDealerId };
+    }
+
+    if (!this.copyLeadService) throw new UnauthorizedException('Lead copy service is unavailable');
+    return this.copyLeadService.execute(leadId, {
+      sourceDealerId: body.sourceDealerId,
+      targetDealerId: body.targetDealerId,
+    });
   }
 
   private parseStatus(status?: string): LeadStatus {

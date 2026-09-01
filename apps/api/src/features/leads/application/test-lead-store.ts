@@ -183,6 +183,36 @@ export function reassignTestLead(leadId: string, currentDealerId: string, target
   return true;
 }
 
+export type TestCopyLeadResult = { ok: true } | { ok: false; reason: 'not_found' | 'duplicate' };
+
+export function copyTestLead(leadId: string, sourceDealerId: string, targetDealerId: string): TestCopyLeadResult {
+  const source = [testLead, smartMergeTestLead, easternsTestLead, ...manualTestLeads].find(
+    (item) => item.id === leadId && !isTestLeadDeleted(item.id) && item.dealerId === sourceDealerId,
+  );
+  const targetDealer = getTestDealer(targetDealerId);
+  if (!source || !targetDealer || sourceDealerId === targetDealer.id) return { ok: false, reason: 'not_found' };
+
+  const duplicate = [testLead, smartMergeTestLead, easternsTestLead, ...manualTestLeads].some(
+    (item) => item.id !== source.id
+      && !isTestLeadDeleted(item.id)
+      && item.name.trim().toLowerCase() === source.name.trim().toLowerCase()
+      && item.phone === source.phone,
+  );
+  if (duplicate) return { ok: false, reason: 'duplicate' };
+
+  const copiedLead: TestLead = {
+    ...source,
+    id: `${source.id}-copy-${targetDealer.id}`,
+    dealerId: targetDealer.id,
+    dealerName: targetDealer.name,
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  };
+  manualTestLeads.push(copiedLead);
+  targetDealer.pendingCount += 1;
+  return { ok: true };
+}
+
 export function applyTestWebhookLead(payload: LeadWebhookDto): boolean {
   const dealer = testDealers.find(
     (item) => item.ghlLocationId === payload.ghl_location_id
