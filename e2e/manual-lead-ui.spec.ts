@@ -1,14 +1,14 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test';
 
 test('el operador puede crear un lead manual y verlo en la cola del dealer activo', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.goto('/login');
-  await page.getByLabel('Username').fill('operator');
-  await page.getByLabel('Password').fill('test-password');
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.fill('input[name="username"]', 'operator');
+  await page.fill('input[name="password"]', 'test-password');
+  await page.getByRole('button', { name: 'Ingresar' }).click();
   await expect(page).toHaveURL(/\/app$/);
 
-  await page.getByRole('button', { name: /Offlease Motors Stafford/ }).click();
+  await page.getByRole('button', { name: /^Offlease Motors Stafford\s+\d+$/ }).click();
   await page.getByRole('button', { name: /Agregar lead manual/i }).click();
 
   const modal = page.getByRole('dialog', { name: 'Agregar lead manual' });

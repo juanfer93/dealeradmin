@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
@@ -19,7 +19,13 @@ const child = spawn(process.execPath, ['apps/api/dist/apps/api/src/main.js'], {
   },
 });
 
-const stop = () => child.kill('SIGTERM');
+const stop = () => {
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+    return;
+  }
+  child.kill('SIGTERM');
+};
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
 child.on('exit', (code) => process.exit(code ?? 1));

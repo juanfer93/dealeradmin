@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test';
 
 const payload = JSON.stringify({
   event_id: 'evt-e2e-1',
@@ -32,10 +32,11 @@ test('accepts a webhook signed over the exact raw body', async ({ request }) => 
 
 test('logs in and reaches the protected dashboard', async ({ page }) => {
   await page.goto('/login');
+  await page.getByRole('button', { name: 'EN', exact: true }).click();
   await page.getByLabel('Username').fill('operator');
   await page.getByLabel('Password').fill('test-password');
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/app$/);
   await expect(page.getByRole('heading', { name: 'Lead work queue' })).toBeVisible();
-  await expect(page.getByText('Webhook: Active')).toBeVisible();
+  await expect(page.getByText('Webhook active')).toBeVisible();
 });

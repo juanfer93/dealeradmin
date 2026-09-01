@@ -6,6 +6,7 @@ import { WebhooksModule } from './features/webhooks/presentation/webhooks.module
 import { LeadsModule } from './features/leads/presentation/leads.module';
 import { RoutingModule } from './features/routing/presentation/routing.module';
 import { ReportsModule } from './features/reports/presentation/reports.module';
+import { TestFixturesModule } from './features/test-fixtures/presentation/test-fixtures.module';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -29,6 +30,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
     LeadsModule,
     RoutingModule,
     ReportsModule,
+    ...(process.env.NODE_ENV === 'test' ? [TestFixturesModule] : []),
   ],
 })
 export class AppModule {}

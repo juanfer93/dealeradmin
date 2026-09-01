@@ -1,19 +1,20 @@
 import { createHmac } from 'node:crypto';
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../../../e2e/test';
 
 test('un lead enviado no reaparece en pendientes tras un webhook enriquecido', async ({ page, request }) => {
   await page.goto('/login');
+  await page.getByRole('button', { name: 'EN', exact: true }).click();
   await page.getByLabel('Username').fill('operator');
   await page.getByLabel('Password').fill('test-password');
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/app$/);
 
-  const stafford = page.getByRole('button', { name: /Offlease Motors Stafford/ });
+  const stafford = page.getByRole('button', { name: /^Offlease Motors Stafford\s+\d+$/ });
   await stafford.click();
 
   const pendingRow = page.locator('tr').filter({ hasText: 'Carlos Mendoza' });
   await expect(pendingRow).toBeVisible();
-  await pendingRow.getByRole('button', { name: 'Marcar enviado' }).click();
+  await pendingRow.getByRole('button', { name: 'Mark sent' }).click();
   await expect(pendingRow).not.toBeVisible();
 
   const updatedLeadPayload = {
@@ -42,7 +43,7 @@ test('un lead enviado no reaparece en pendientes tras un webhook enriquecido', a
   expect(response.status()).toBe(201);
 
   await page.reload();
-  await page.getByRole('button', { name: /Offlease Motors Stafford/ }).click();
+  await page.getByRole('button', { name: /^Offlease Motors Stafford\s+\d+$/ }).click();
   await expect(page.locator('tr').filter({ hasText: 'Carlos Mendoza' })).not.toBeVisible();
 
   await page.getByRole('tab', { name: 'Sent' }).click();

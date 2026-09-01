@@ -101,6 +101,16 @@ export const easternsTestLead: TestLead = {
 const manualTestLeads: TestLead[] = [];
 const deletedTestLeadIds = new Set<string>();
 
+const initialTestDealers = testDealers.map((dealer) => ({ ...dealer }));
+const initialTestLeads = [testLead, smartMergeTestLead, easternsTestLead].map((lead) => ({ ...lead }));
+
+export function resetTestLeadStore(): void {
+  testDealers.forEach((dealer, index) => Object.assign(dealer, initialTestDealers[index]));
+  [testLead, smartMergeTestLead, easternsTestLead].forEach((lead, index) => Object.assign(lead, initialTestLeads[index]));
+  manualTestLeads.splice(0, manualTestLeads.length);
+  deletedTestLeadIds.clear();
+}
+
 export function getTestDealer(dealerId: string): TestDealer | undefined {
   return testDealers.find((dealer) => dealer.id === (TEST_DEALER_ALIASES[dealerId] ?? dealerId));
 }
