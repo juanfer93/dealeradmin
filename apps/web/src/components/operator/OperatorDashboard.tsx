@@ -137,15 +137,27 @@ export default function OperatorDashboard() {
     const lead = leadPendingDelete;
     if (!lead) return;
     setDeletingLeadId(lead.id); setError('');
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 10000);
     try {
-      const response = await fetch(`/api/leads/${lead.id}?dealerId=${encodeURIComponent(lead.dealerId)}`, { method: 'DELETE', credentials: 'include' });
-      if (!response.ok) throw new Error(t.app.errors.deleteLead);
+      const response = await fetch(`/api/leads/${lead.id}?dealerId=${encodeURIComponent(lead.dealerId)}`, { method: 'DELETE', credentials: 'include', signal: controller.signal });
+      if (response.status === 401) { router.replace('/login'); return; }
+      if (!response.ok) {
+        let message: string = t.app.errors.deleteLead;
+        try {
+          const payload = await response.json() as { message?: string | string[] };
+          if (typeof payload.message === 'string') message = payload.message;
+          else if (Array.isArray(payload.message)) message = payload.message.join(', ');
+        } catch { /* Keep the translated fallback when the API has no JSON body. */ }
+        throw new Error(message);
+      }
       setLeads((current) => current.filter((item) => item.id !== lead.id));
       setSelectedLeadIds((current) => current.filter((id) => id !== lead.id));
       if (lead.status === 'pending') setDealers((current) => current.map((dealer) => dealer.id === lead.dealerId ? { ...dealer, pendingCount: Math.max(0, dealer.pendingCount - 1) } : dealer));
       setLeadPendingDelete(null);
-    } catch (deleteError) { setError(deleteError instanceof Error ? deleteError.message : t.app.errors.deleteLead); }
-    finally { setDeletingLeadId(null); }
+      await refreshQueue();
+    } catch (deleteError) { setError(deleteError instanceof DOMException && deleteError.name === 'AbortError' ? t.app.errors.deleteLeadTimeout : deleteError instanceof Error ? deleteError.message : t.app.errors.deleteLead); }
+    finally { window.clearTimeout(timeout); setDeletingLeadId(null); }
   }
   function requestCopyLead(lead: Lead, targetDealerId: string) {
     if (isPortfolioMode) { setError(language === 'es' ? portfolioWriteBlockedMessage : 'Demo mode: this action is disabled to protect production data.'); return; }

@@ -25,6 +25,14 @@ describe('parseBulkLeads', () => {
     expect(lead.dto?.documents).toContain('prueba de ingresos');
   });
 
+  it('removes WhatsApp export metadata before assigning lead fields', () => {
+    const [lead] = parseBulkLeads('[8:27 a. m., 2/9/2026] JFPI: Abraham Agosto 540 773 9959 Truck, $2500 de down, id y cuenta bancaria, quiere comprar lo más pronto posible');
+    expect(lead).toMatchObject({ name: 'Abraham Agosto', phone: '+15407739959' });
+    expect(lead.rawLine).not.toContain('JFPI');
+    expect(lead.rawLine).not.toContain('8:27');
+    expect(lead.dto).toMatchObject({ vehicle_type: 'Truck', down_payment: '2500', identification: 'yes', bank_account: 'yes', purchase_timeline: 'today' });
+  });
+
   it('reports malformed rows without stopping the batch', () => {
     expect(parseBulkLeads('Sin teléfono | SUV')).toMatchObject([{ rowNumber: 1, error: 'Falta el teléfono.' }]);
   });

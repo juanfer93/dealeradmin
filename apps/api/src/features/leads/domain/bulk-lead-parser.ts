@@ -12,6 +12,10 @@ export type ParsedBulkLead = {
 };
 
 const PHONE = /(?:\+?\d[\d().\s-]{8,}\d)/;
+const WHATSAPP_METADATA = [
+  /^\[\s*\d{1,2}:\d{2}\s*(?:a\.?\s*m\.?|p\.?\s*m\.?|AM|PM)?\s*,\s*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\s*\]\s*[^:\n]{1,80}:\s*/i,
+  /^\s*\d{1,2}:\d{2}\s*(?:a\.?\s*m\.?|p\.?\s*m\.?|AM|PM)?\s*,\s*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\s*[-–]\s*[^:\n]{1,80}:\s*/i,
+];
 const LABELS: Record<string, keyof CreateManualLeadDto> = {
   name: 'name',
   nombre: 'name',
@@ -41,6 +45,10 @@ function clean(value: string | undefined): string {
   return value?.replace(/\s+/g, ' ').trim() ?? '';
 }
 
+function stripWhatsAppMetadata(value: string): string {
+  return clean(WHATSAPP_METADATA.reduce((current, pattern) => current.replace(pattern, ''), value));
+}
+
 function parseLabeled(line: string): Partial<Record<keyof CreateManualLeadDto, string>> {
   const values: Partial<Record<keyof CreateManualLeadDto, string>> = {};
   const pattern = Object.keys(LABELS).map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
@@ -64,7 +72,7 @@ function parseNaturalIdentity(line: string, phoneMatch: RegExpMatchArray | null)
 }
 
 function parseLine(line: string, rowNumber: number): ParsedBulkLead {
-  const rawLine = clean(line);
+  const rawLine = stripWhatsAppMetadata(line);
   const labeled = parseLabeled(rawLine);
   const columns = rawLine.split(/\s*[|\t;]\s*/).map(clean).filter(Boolean);
   const phoneMatch = rawLine.match(PHONE);

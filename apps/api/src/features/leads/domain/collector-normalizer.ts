@@ -114,14 +114,14 @@ function extractStandaloneDownPayment(message: string): string {
 function extractTimeline(message: string): string {
   const source = clean(message);
   if (!source) return EMPTY;
-  const match = source.match(/\b(?:today|hoy|asap|immediately|inmediato|para ya|ahora mismo|de inmediato|this week|esta semana|this month|este mes|esta mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|within \d+ days?|en \d+ d[ií]as?)\b/i)?.[0];
+  const match = source.match(/\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|esta mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|within \d+ days?|en \d+ d[ií]as?)\b/i)?.[0];
   return match ? normalizeTimeline(match) : /\b(?:solo|sólo|just|only)\b.*\b(?:mirando|viendo|looking|browsing)\b/i.test(source) ? 'exploring options' : EMPTY;
 }
 
 function normalizeTimeline(value: string): string {
   const source = clean(value).toLowerCase();
   if (!source) return EMPTY;
-  if (/\b(today|hoy|asap|immediately|inmediato|para ya|ahora mismo|de inmediato)\b/i.test(source)) return 'today';
+  if (/\b(today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda)\b/i.test(source)) return 'today';
   if (/\b(this|esta)\s+(week|semana)\b/i.test(source)) return 'this week';
   if (/\b(this|este|esta)\s+(month|mes)\b/i.test(source)) return 'this month';
   if (/\b(next|proximo|próximo)\s+(week|semana)\b/i.test(source)) return 'next week';
