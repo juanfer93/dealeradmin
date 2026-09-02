@@ -71,11 +71,11 @@ img[src="/captures/ghl-workflow.svg"] {
   object-fit: cover;
 }
 
-.operator-shell > div > aside {
+.operator-shell > .operator-layout > aside {
   background: var(--surface);
 }
 
-.operator-shell > div {
+.operator-shell > .operator-layout {
   min-height: calc(100vh - 64px);
 }
 
