@@ -13,6 +13,7 @@ import { normalizePhone } from '../../leads/domain/phone-normalizer';
 import { normalizeDownPayment } from '../../leads/domain/down-payment';
 import { applyTestWebhookLead } from '../../leads/application/test-lead-store';
 import { GeoroutingService } from '../../routing/domain/services/georouting.service';
+import { normalizeCollectorInput } from '../../leads/domain/collector-normalizer';
 
 type PersistedWebhookResponse = {
   accepted: true;
@@ -171,16 +172,27 @@ export class WebhookService {
         [leadId],
       )) as LeadDealerRow[];
       const currentLeadDealer = currentLeadDealers[0];
-      const identification = payload.lead.identification ?? payload.lead.id_number ?? payload.lead.id ?? '';
-      const purchaseTimeline = normalizePurchaseTimeline(payload.lead.purchase_timeline) ?? '';
+      const normalized = normalizeCollectorInput({
+        message: payload.lead.message ?? payload.lead.chat_history_log,
+        chat_history_log: payload.lead.chat_history_log,
+        vehicle_type: payload.lead.vehicle_type,
+        down_payment: payload.lead.down_payment,
+        identification: payload.lead.identification ?? payload.lead.id_number ?? payload.lead.id,
+        bank_account: payload.lead.bank_account,
+        purchase_timeline: payload.lead.purchase_timeline,
+        documents: payload.lead.documents,
+        qualification_memory: payload.lead.qualification_memory,
+      });
+      const identification = normalized.identification;
+      const purchaseTimeline = normalizePurchaseTimeline(normalized.purchase_timeline) ?? '';
       const messageText = buildWhatsAppMessage(payload.lead.name, canonicalPhone, {
         ...payload.lead,
-        vehicle_type: payload.lead.vehicle_type?.trim() || currentLeadDealer?.vehicle_type || '',
-        down_payment: normalizeDownPayment(payload.lead.down_payment) || currentLeadDealer?.down_payment || '',
+        vehicle_type: normalized.vehicle_type || currentLeadDealer?.vehicle_type || '',
+        down_payment: normalizeDownPayment(normalized.down_payment) || currentLeadDealer?.down_payment || '',
         identification: identification.trim() || currentLeadDealer?.identification || '',
-        bank_account: payload.lead.bank_account?.trim() || currentLeadDealer?.bank_account || '',
-        purchase_timeline: payload.lead.purchase_timeline?.trim() || currentLeadDealer?.purchase_timeline || '',
-        documents: payload.lead.documents?.trim() || currentLeadDealer?.documents || '',
+        bank_account: normalized.bank_account || currentLeadDealer?.bank_account || '',
+        purchase_timeline: normalized.purchase_timeline || currentLeadDealer?.purchase_timeline || '',
+        documents: normalized.documents || currentLeadDealer?.documents || '',
       });
       const isAlreadySent = currentLeadDealer?.status === 'sent';
       const routing = isEasternsPayload
@@ -226,12 +238,12 @@ export class WebhookService {
         [
           leadId,
           dealers[0].id,
-          payload.lead.vehicle_type?.trim() || '',
-          normalizeDownPayment(payload.lead.down_payment),
+          normalized.vehicle_type,
+          normalizeDownPayment(normalized.down_payment),
           identification.trim(),
-          payload.lead.bank_account?.trim() || '',
+          normalized.bank_account,
           purchaseTimeline,
-          payload.lead.documents?.trim() || '',
+          normalized.documents,
           payload.lead.easterns_zone?.trim() || '',
           targetDealerId,
           targetRoutingOverride,

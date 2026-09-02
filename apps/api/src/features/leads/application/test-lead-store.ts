@@ -119,6 +119,17 @@ export function getTestManualLeads(): TestLead[] {
   return [...manualTestLeads];
 }
 
+export function hasTestDealerLeadDuplicate(dealerId: string, name: string, phone: string): boolean {
+  const canonicalDealerId = TEST_DEALER_ALIASES[dealerId] ?? dealerId;
+  const normalizedName = name.trim().toLowerCase();
+  return [testLead, smartMergeTestLead, easternsTestLead, ...manualTestLeads].some(
+    (lead) => !isTestLeadDeleted(lead.id)
+      && lead.dealerId === canonicalDealerId
+      && lead.phone === phone
+      && lead.name.trim().toLowerCase() === normalizedName,
+  );
+}
+
 export function isTestLeadDeleted(leadId: string): boolean {
   return deletedTestLeadIds.has(leadId);
 }
@@ -134,7 +145,7 @@ export function addTestManualLead(
 
   const lead: TestLead = {
     id: `lead-manual-${randomUUID()}`,
-    dealerId,
+    dealerId: dealer.id,
     dealerName: dealer.name,
     name: dto.name.trim(),
     phone,

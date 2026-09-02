@@ -12,7 +12,7 @@ describe('normalizeGhlOutboundPayload', () => {
       location: { id: 'location-123', name: 'Easterns Automotive Group' },
       customData: {
         vehicle_interest: 'truck',
-        down_payment: '$1,500',
+        down_payment: '1500',
         identification: 'ID',
         documents_available: 'proof of income',
         purchase_timeline: 'this week',
@@ -30,7 +30,7 @@ describe('normalizeGhlOutboundPayload', () => {
         name: 'Alexander Freez',
         phone: '+13215550199',
         vehicle_type: 'truck',
-        down_payment: '$1,500',
+        down_payment: '1500',
         identification: 'ID',
         documents: 'proof of income',
         purchase_timeline: 'this week',
@@ -53,5 +53,28 @@ describe('normalizeGhlOutboundPayload', () => {
     };
 
     expect(normalizeGhlOutboundPayload(payload)).toBe(payload);
+  });
+
+  it('reads nested custom fields and normalizes a partial GHL payload from memory', () => {
+    const result = normalizeGhlOutboundPayload({
+      id: 'contact-456',
+      locationId: 'location-456',
+      first_name: 'Jamie',
+      last_name: 'Rojas',
+      phone: '787-232-7024',
+      contact: {
+        customFields: {
+          qualification_memory: 'vehicle: Suv',
+        },
+      },
+      customData: { message_body: '2,000' },
+    }) as Record<string, any>;
+
+    expect(result.lead).toMatchObject({
+      name: 'Jamie Rojas',
+      down_payment: '2000',
+      vehicle_type: 'Suv',
+      qualification_memory: expect.stringContaining('down payment: 2000'),
+    });
   });
 });

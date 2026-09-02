@@ -12,3 +12,9 @@ export const CreateManualLeadSchema = z.object({
 });
 
 export type CreateManualLeadDto = z.infer<typeof CreateManualLeadSchema>;
+
+export const BulkLeadImportSchema = z.object({
+  text: z.string().min(1, 'Pega al menos un lead').max(100_000, 'El texto es demasiado grande'),
+});
+
+export type BulkLeadImportDto = z.infer<typeof BulkLeadImportSchema>;

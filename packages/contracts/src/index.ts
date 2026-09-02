@@ -1,6 +1,6 @@
 import { z } from 'zod';
-export { CreateManualLeadSchema } from './leads/manual-lead.schema';
-export type { CreateManualLeadDto } from './leads/manual-lead.schema';
+export { BulkLeadImportSchema, CreateManualLeadSchema } from './leads/manual-lead.schema';
+export type { BulkLeadImportDto, CreateManualLeadDto } from './leads/manual-lead.schema';
 
 const EasternsDealerSelectedSchema = z.preprocess((value) => {
   if (value === null || value === undefined || typeof value === 'boolean') return value;
@@ -31,6 +31,9 @@ export const LeadWebhookSchema = z.object({
     bank_account: z.string().nullable().optional(),
     purchase_timeline: z.string().nullable().optional(),
     documents: z.string().nullable().optional(),
+    message: z.string().nullable().optional(),
+    qualification_memory: z.string().nullable().optional(),
+    chat_history_log: z.string().nullable().optional(),
     easterns_zone: z.string().nullable().optional(),
     easterns_dealer_selected: EasternsDealerSelectedSchema,
     city: z.string().nullable().optional(),

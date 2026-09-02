@@ -11,3 +11,7 @@ Monorepo for the dealerADMIN operator console. The workspace contains a NestJS A
 5. Use `pnpm dev` from each app while developing, or run `pnpm build` for a production compilation check.
 
 The API rejects invalid configuration at startup. The webhook endpoint accepts only a valid `X-GHL-Signature` HMAC over the raw request body.
+
+## Production migrations
+
+Vercel runs `pnpm --filter api migrate` before `pnpm build`, so every production deployment applies pending TypeORM migrations against the configured `DATABASE_URL` (Neon). Configure `DATABASE_URL` in Vercel for the Production environment before deploying. The command is idempotent: already-applied migrations are skipped.

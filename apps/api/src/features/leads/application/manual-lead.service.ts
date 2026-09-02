@@ -1,6 +1,7 @@
 import { CreateManualLeadDto } from '@dealeradmin/contracts';
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
   Optional,
@@ -13,6 +14,8 @@ import { buildManualLeadMessage } from '../domain/manual-message-builder';
 import { normalizePhone } from '../domain/phone-normalizer';
 import { normalizeDownPayment } from '../domain/down-payment';
 import { addTestManualLead, getTestDealer } from './test-lead-store';
+import { hasTestDealerLeadDuplicate } from './test-lead-store';
+import { findDealerLeadDuplicate } from '../domain/lead-duplicate';
 
 type DealerRow = { id: string; ghl_location_id: string };
 type LeadRow = { id: string };
@@ -41,6 +44,9 @@ export class ManualLeadService {
     if (!this.dataSource && process.env.NODE_ENV === 'test') {
       const dealer = getTestDealer(dealerId);
       if (!dealer) throw new NotFoundException('Dealer no encontrado o inactivo');
+      if (hasTestDealerLeadDuplicate(dealer.id, name, canonicalPhone)) {
+        throw new ConflictException(`No se puede subir ${name} con ${canonicalPhone} porque este dato ya existe en el dealer.`);
+      }
       const lead = addTestManualLead(dealerId, dto, canonicalPhone, messageText);
       return { success: true, leadId: lead.id, message: 'Lead manual agregado correctamente.' };
     }
@@ -64,6 +70,10 @@ export class ManualLeadService {
       if (dealers.length === 0) throw new NotFoundException('Dealer no encontrado o inactivo');
 
       const dealer = dealers[0];
+      const duplicate = await findDealerLeadDuplicate(queryRunner, dealer.id, name, canonicalPhone);
+      if (duplicate) {
+        throw new ConflictException(`No se puede subir ${name} con ${canonicalPhone} porque este dato ya existe en el dealer.`);
+      }
       const names = name.split(/\s+/).filter(Boolean);
       const firstName = names[0] ?? 'Lead';
       const lastName = names.slice(1).join(' ');

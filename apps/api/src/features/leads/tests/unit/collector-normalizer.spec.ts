@@ -43,4 +43,27 @@ describe('normalizeCollectorInput', () => {
     expect(result.down_payment).toBe('1500');
     expect(result.qualification_memory).toContain('vehicle: SUV');
   });
+
+  it('uses a standalone numeric reply as the pending down payment and normalizes urgent Spanish timing', () => {
+    const result = normalizeCollectorInput({
+      message: '2,000',
+      vehicle_type: '',
+      qualification_memory: 'vehicle: Suv',
+    });
+    expect(result.down_payment).toBe('2000');
+    expect(result.vehicle_type).toBe('Suv');
+
+    expect(normalizeCollectorInput({ message: 'Para ya' }).purchase_timeline).toBe('today');
+  });
+
+  it('merges conversation history and replaces stale keyed facts without duplicating them', () => {
+    const result = normalizeCollectorInput({
+      message: 'I have proof of income',
+      chat_history_log: 'I want a Toyota RAV4 SUV this week; down payment is 1K',
+      qualification_memory: 'vehicle: Suv; down payment: 500',
+    });
+    expect(result.vehicle_type).toContain('Toyota RAV4 SUV');
+    expect(result.down_payment).toBe('1000');
+    expect(result.qualification_memory.match(/down payment:/g)).toHaveLength(1);
+  });
 });
