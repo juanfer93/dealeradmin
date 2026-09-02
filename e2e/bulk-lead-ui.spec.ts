@@ -8,12 +8,14 @@ test('el operador puede subir leads masivos, ver duplicados y conservar los nuev
   await expect(page).toHaveURL(/\/app$/);
 
   await page.getByRole('button', { name: /^Offlease Motors Stafford\s+\d+$/ }).click();
+  await expect(page.getByLabel('Dealer activo')).toContainText('Offlease Motors');
+  await expect(page.getByLabel('Dealer activo')).toContainText('Stafford');
   await page.getByRole('button', { name: /Carga masiva/i }).click();
   const modal = page.getByRole('dialog', { name: 'Subir leads masivamente' });
   await expect(modal).toBeVisible();
   await modal.getByLabel('Leads para procesar').fill([
-    'Carlos Mendoza | +15551234567 | SUV | 2,000',
-    'Lucia Gomez | 3019876548 | SUV | 2,000 | prueba de ingresos | esta semana',
+    'Carlos Mendoza +15551234567 SUV, 2,000 de down',
+    'Lucia Gomez 3019876548 SUV, 2,000 de down, prueba de ingresos, quiere comprar esta semana',
   ].join('\n'));
   await modal.getByRole('button', { name: 'Subir leads' }).click();
 

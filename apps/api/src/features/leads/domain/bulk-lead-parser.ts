@@ -50,13 +50,27 @@ function parseLabeled(line: string): Partial<Record<keyof CreateManualLeadDto, s
   return values;
 }
 
+function parseNaturalIdentity(line: string, phoneMatch: RegExpMatchArray | null): Partial<Record<keyof CreateManualLeadDto, string>> {
+  if (!phoneMatch || phoneMatch.index === undefined || /[|\t;]/.test(line)) return {};
+  const values: Partial<Record<keyof CreateManualLeadDto, string>> = {};
+  const name = clean(line.slice(0, phoneMatch.index)).replace(/^(?:name|nombre)\s*[:,-]?\s*/i, '');
+  const afterPhone = clean(line.slice(phoneMatch.index + phoneMatch[0].length)).replace(/^[,;:\s-]+/, '');
+  const firstClause = clean(afterPhone.split(/[,.!?]/, 1)[0]);
+  const isFactClause = /^(?:down|enganche|inicial|deposit|dep[oó]sito|id|identification|identificación|license|licencia|bank account|cuenta bancaria|cuenta|documents?|documentos?|proof of income|income proof|prueba de ingresos|comprobante de ingresos|wants? to buy|quiere comprar|looking for|busco|quiero|want)\b/i.test(firstClause);
+
+  if (name) values.name = name;
+  if (firstClause && !isFactClause) values.vehicle_type = firstClause;
+  return values;
+}
+
 function parseLine(line: string, rowNumber: number): ParsedBulkLead {
   const rawLine = clean(line);
   const labeled = parseLabeled(rawLine);
   const columns = rawLine.split(/\s*[|\t;]\s*/).map(clean).filter(Boolean);
   const phoneMatch = rawLine.match(PHONE);
+  const natural = parseNaturalIdentity(rawLine, phoneMatch);
   const phoneText = labeled.phone ?? phoneMatch?.[0] ?? (columns[1] && /\d/.test(columns[1]) ? columns[1] : '') ?? '';
-  const name = labeled.name ?? (phoneMatch ? clean(rawLine.slice(0, phoneMatch.index)) : columns[0] ?? '');
+  const name = labeled.name ?? natural.name ?? (phoneMatch ? clean(rawLine.slice(0, phoneMatch.index)) : columns[0] ?? '');
   const positional = columns.length >= 3 ? {
     vehicle_type: columns[2],
     down_payment: columns[3],
@@ -65,14 +79,18 @@ function parseLine(line: string, rowNumber: number): ParsedBulkLead {
     identification: columns[6],
     bank_account: columns[7],
   } : {};
-  const values = { ...positional, ...labeled };
-  if (!values.name) values.name = name.replace(/[|,:-]+$/, '').trim();
+  const values = { ...positional, ...natural, ...labeled };
+  if (!values.name) values.name = name.replace(/^(?:name|nombre)\s*[:,-]?\s*/i, '').replace(/[|,:-]+$/, '').trim();
   else values.name = values.name.replace(/[|,:-]+$/, '').trim();
   if (!values.down_payment) {
     const withoutPhone = rawLine.replace(phoneText, ' ');
     const amount = withoutPhone.match(/(?:^|[\s,])\$?(?:\d{1,2}(?:,\d{3})+|\d{3,5})(?:\.\d+)?\s*(?:k)?\b/i)?.[0];
     if (amount) values.down_payment = amount.trim();
   }
+  const context = rawLine.replace(phoneText, ' ').replace(values.name ?? '', ' ');
+  if (!values.identification && /\b(?:id|identification|identificación|license|licencia)\b/i.test(context)) values.identification = 'yes';
+  if (!values.bank_account && /\b(?:bank account|cuenta bancaria|cuenta)\b/i.test(context)) values.bank_account = 'yes';
+  if (!values.documents && /\b(?:proof of income|income proof|prueba de ingresos|comprobante de ingresos|documentos?)\b/i.test(context)) values.documents = context.match(/(?:proof of income|income proof|prueba de ingresos|comprobante de ingresos|documentos?)[^,.;]*/i)?.[0] ?? 'yes';
 
   if (!values.name) return { rowNumber, rawLine, name: '', phone: phoneText, error: 'Falta el nombre.' };
   if (!phoneText) return { rowNumber, rawLine, name: values.name, phone: '', error: 'Falta el teléfono.' };

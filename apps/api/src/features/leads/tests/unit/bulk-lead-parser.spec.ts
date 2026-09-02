@@ -12,6 +12,19 @@ describe('parseBulkLeads', () => {
     expect(lead.dto).toMatchObject({ name: 'Luis Perez', phone: '+13019876548', vehicle_type: 'Toyota RAV4', down_payment: '2000', purchase_timeline: 'today' });
   });
 
+  it('assigns each fact in the natural-language format used by operators', () => {
+    const [lead] = parseBulkLeads('Juan Perez 3212343213 sedan, 1500 de down, id y cuenta bancaria, quiere comprar este mes, prueba de ingresos');
+    expect(lead).toMatchObject({ name: 'Juan Perez', phone: '+13212343213' });
+    expect(lead.dto).toMatchObject({
+      vehicle_type: 'sedan',
+      down_payment: '1500',
+      purchase_timeline: 'this month',
+      identification: 'yes',
+      bank_account: 'yes',
+    });
+    expect(lead.dto?.documents).toContain('prueba de ingresos');
+  });
+
   it('reports malformed rows without stopping the batch', () => {
     expect(parseBulkLeads('Sin teléfono | SUV')).toMatchObject([{ rowNumber: 1, error: 'Falta el teléfono.' }]);
   });
