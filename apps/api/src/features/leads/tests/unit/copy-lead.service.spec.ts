@@ -49,6 +49,7 @@ describe('CopyLeadService', () => {
     expect(runner.query).toHaveBeenCalledTimes(3);
     expect(calls[2]?.[0]).toContain('canonical_phone');
     expect(calls[2]?.[0]).toContain('ld.dealer_id = $3');
+    expect(calls[2]?.[0]).toContain('ld.assigned_dealer_id = $3');
     expect(calls[2]?.[1]).toEqual(['lead-1', sourceRow.canonical_phone, 'dealer-target']);
     expect(runner.rollbackTransaction).toHaveBeenCalledOnce();
     expect(runner.release).toHaveBeenCalledOnce();

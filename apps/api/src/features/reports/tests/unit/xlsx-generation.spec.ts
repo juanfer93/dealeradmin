@@ -55,10 +55,39 @@ describe('Día 6 - generación de reportes XLSX', () => {
 
     expect(detailRow?.getCell(1).value).toBe(1);
     expect(detailRow?.getCell(2).value).toBe('Maria Lopez');
-    expect(detailRow?.getCell(3).value).toBe('+15559876543');
+    expect(detailRow?.getCell(3).value).toBe('5559876543');
     expect(detailRow?.getCell(4).value).toBe('SUV, $1000 de down, ID y prueba de ingresos, quiere comprar este mes');
     expect(detailRow?.getCell(4).value).not.toContain('ID-77');
     expect([1, 2, 3, 4].every((column) => detailRow?.getCell(column).value !== null && detailRow?.getCell(column).value !== undefined)).toBe(true);
+  });
+
+  it('conserva el indicativo internacional y elimina solo el 1 de Estados Unidos', async () => {
+    mockQuery
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          dealer_id: 'dealer-1',
+          dealer_name: 'Dealer Uno',
+          received_at: '2026-08-23T12:00:00.000Z',
+          name: 'Juan Perez',
+          phone: '+573233321701',
+          vehicle_type: null,
+          down_payment: null,
+          purchase_timeline: null,
+          documents: null,
+          identification: null,
+          bank_account: null,
+          status: 'pending',
+          sent_at: null,
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const result = await service.generateXlsx('all', new Date('2026-08-01T00:00:00.000Z'), new Date('2026-08-31T23:59:59.999Z'));
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(result as unknown as Parameters<typeof workbook.xlsx.load>[0]);
+
+    expect(workbook.getWorksheet('Dealer Uno')?.getRow(2).getCell(3).value).toBe('573233321701');
   });
 
   it('resume ID y cuenta bancaria sin exponer el identificador de la persona', async () => {

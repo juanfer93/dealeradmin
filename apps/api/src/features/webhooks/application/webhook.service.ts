@@ -126,12 +126,20 @@ export class WebhookService {
       const leads = (await queryRunner.query(
         `SELECT id
          FROM leads
-         WHERE canonical_phone = $1
+         WHERE (
+             canonical_phone = $1
+             AND EXISTS (
+               SELECT 1
+               FROM lead_dealers scoped_ld
+               WHERE scoped_ld.lead_id = leads.id
+                 AND (scoped_ld.dealer_id = $4 OR scoped_ld.assigned_dealer_id = $4)
+             )
+           )
             OR (ghl_contact_id = $2 AND ghl_location_id = $3)
          ORDER BY CASE WHEN canonical_phone = $1 THEN 0 ELSE 1 END
          LIMIT 1
          FOR UPDATE`,
-        [canonicalPhone, payload.ghl_contact_id, payload.ghl_location_id],
+        [canonicalPhone, payload.ghl_contact_id, payload.ghl_location_id, dealers[0].id],
       )) as LeadRow[];
 
       const nameParts = payload.lead.name.trim().split(/\s+/).filter(Boolean);

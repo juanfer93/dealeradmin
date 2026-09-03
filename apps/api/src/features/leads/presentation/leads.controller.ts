@@ -288,7 +288,7 @@ export class LeadsController {
       const result = copyTestLead(leadId, body.sourceDealerId, body.targetDealerId);
       if (!result.ok) {
         if (result.reason === 'duplicate') {
-          throw new ConflictException('No se puede copiar: ya existe un lead con el mismo nombre y teléfono en la base de datos.');
+          throw new ConflictException('No se puede copiar: ya existe un lead con el mismo teléfono en el dealer destino.');
         }
         throw new BadRequestException('Lead origen no encontrado o dealer destino inválido');
       }

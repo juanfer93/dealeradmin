@@ -40,6 +40,15 @@ type DetailRow = {
   sent_at: string | Date | null;
 };
 
+function formatExportPhone(value: string | null | undefined): string {
+  const digits = (value ?? '').replace(/\D/g, '');
+  if (!digits) return '';
+
+  // Export US/NANP numbers without the country code, while preserving
+  // international country codes because the workbook has no '+' prefix.
+  return digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+}
+
 @Injectable()
 export class ExportReportService {
   constructor(@Optional() @InjectDataSource() private readonly dataSource?: DataSource) {}
@@ -208,7 +217,7 @@ export class ExportReportService {
   private buildTestDetails(leads: ReportLead[]): Array<Record<string, string | Date>> {
     return leads.map((lead) => ({
       name: lead.name ?? '',
-      phone: lead.phone ?? '',
+      phone: formatExportPhone(lead.phone),
       comments: [lead.vehicleType, lead.downPayment, lead.purchaseTimeline].filter(Boolean).join(', '),
     }));
   }
@@ -216,7 +225,7 @@ export class ExportReportService {
   private toDetailRow(row: DetailRow): Record<string, string | Date> {
     return {
       name: this.clean(row.name),
-      phone: this.clean(row.phone),
+      phone: formatExportPhone(row.phone),
       comments: this.buildComments(row),
     };
   }

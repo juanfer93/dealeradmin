@@ -6,7 +6,7 @@ import { CSSProperties, ReactNode, useEffect, useRef, useState } from 'react';
 import { Logo } from '../components/ui/logo';
 import { LanguageSwitch, useLanguage } from '../lib/i18n';
 
-type FlowStage = 'ghl' | 'api' | 'queue';
+type FlowStage = 'collector' | 'ghl' | 'api' | 'queue';
 
 function Reveal({ children, delay = 0, className = '' }: { children: ReactNode; delay?: number; className?: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -33,7 +33,7 @@ function Reveal({ children, delay = 0, className = '' }: { children: ReactNode; 
 
 function FlowDiagram() {
   const { t } = useLanguage();
-  const [activeStage, setActiveStage] = useState<FlowStage>('api');
+  const [activeStage, setActiveStage] = useState<FlowStage>('collector');
   const active = t.landing.flow[activeStage];
 
   return (
@@ -42,9 +42,9 @@ function FlowDiagram() {
         <span className="font-semibold text-[#F1F7F4]">{t.landing.liveModel}</span>
         <span className="inline-flex items-center gap-2 text-[#AFC1B9]"><span className="h-2 w-2 rounded-full bg-[#5ED5AA]" />{t.landing.signedPath}</span>
       </div>
-      <div className="relative grid gap-3 sm:grid-cols-3 sm:gap-2">
-        <div className="pointer-events-none absolute left-[16%] right-[16%] top-[52px] hidden h-px bg-[#5ED5AA]/35 sm:block" aria-hidden="true" />
-        {(['ghl', 'api', 'queue'] as FlowStage[]).map((stage) => {
+      <div className="relative grid gap-3 sm:grid-cols-4 sm:gap-2">
+        <div className="pointer-events-none absolute left-[12%] right-[12%] top-[52px] hidden h-px bg-[#5ED5AA]/35 sm:block" aria-hidden="true" />
+        {(['collector', 'ghl', 'api', 'queue'] as FlowStage[]).map((stage) => {
           const item = t.landing.flow[stage];
           const isActive = activeStage === stage;
           return <button key={stage} type="button" onClick={() => setActiveStage(stage)} aria-pressed={isActive} className={`relative z-10 min-h-[126px] rounded-[12px] border p-4 text-left transition-[background-color,border-color,transform] duration-200 ${isActive ? 'border-[#5ED5AA]/70 bg-[#193A30] -translate-y-0.5' : 'border-white/10 bg-[#111815] hover:border-white/25'}`}><span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5ED5AA]">{item[0]}</span><span className="mt-3 block text-sm font-semibold text-[#F1F7F4]">{item[1]}</span><span className="mt-2 block text-xs leading-5 text-[#AFC1B9]">{item[3]}</span></button>;
@@ -57,11 +57,21 @@ function FlowDiagram() {
 
 function CollectorWorkflowDiagram() {
   const { language } = useLanguage();
-  const steps = language === 'es'
-    ? [['01', 'Entrada', 'Cliente responde o cambia un campo'], ['02', 'Extracción', 'Reglas rápidas + AI cuando hace falta'], ['03', 'Memoria', 'Consolida datos válidos sin duplicados'], ['04', 'Decisión', 'Completo, parcial o sin teléfono'], ['05', 'Listo para disparar', 'Deja el contacto preparado para el webhook']]
-    : [['01', 'Intake', 'Customer replies or changes a field'], ['02', 'Extraction', 'Fast rules + AI when needed'], ['03', 'Memory', 'Consolidates valid data without duplicates'], ['04', 'Decision', 'Complete, partial, or no phone'], ['05', 'Ready to trigger', 'Leaves the contact ready for the webhook']];
+  const steps: Array<[string, string, string]> = language === 'es'
+    ? [['01', 'Entrada', 'Cliente responde'], ['01', 'Cambio de contacto', 'Se actualiza un campo'], ['02', 'Extracción', 'Reglas rápidas + AI cuando hace falta'], ['03', 'Memoria', 'Consolida datos válidos sin duplicados'], ['04', 'Decisión', 'Completo, parcial o sin teléfono'], ['05', 'Listo para disparar', 'Deja el contacto preparado para el webhook']]
+    : [['01', 'Intake', 'Customer replies'], ['01', 'Contact changed', 'A field is updated'], ['02', 'Extraction', 'Fast rules + AI when needed'], ['03', 'Memory', 'Consolidates valid data without duplicates'], ['04', 'Decision', 'Complete, partial, or no phone'], ['05', 'Ready to trigger', 'Leaves the contact ready for the webhook']];
+  const [intake, changed, ...mainSteps] = steps;
 
-  return <div className="landing-flow rounded-[10px] border border-white/10 bg-[#17231D]/95 p-4 shadow-[0_22px_60px_rgba(0,0,0,0.28)] sm:p-6"><div className="mb-6 flex items-center justify-between gap-4 text-xs"><span className="font-semibold text-[#F1F7F4]">{language === 'es' ? 'Workflow recolector' : 'Collector workflow'}</span><span className="inline-flex items-center gap-2 text-[#AFC1B9]"><span className="h-2 w-2 rounded-full bg-[#5ED5AA]" />{language === 'es' ? 'Antes del disparador' : 'Before the trigger'}</span></div><div className="relative grid gap-3 sm:grid-cols-5 sm:gap-2"><div className="pointer-events-none absolute left-[8%] right-[8%] top-[52px] hidden h-px bg-[#5ED5AA]/35 sm:block" aria-hidden="true" />{steps.map(([number, title, detail]) => <div key={number} className="relative z-10 min-h-[126px] rounded-[12px] border border-white/10 bg-[#111815] p-4"><span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5ED5AA]">{number}</span><span className="mt-3 block text-sm font-semibold text-[#F1F7F4]">{title}</span><span className="mt-2 block text-xs leading-5 text-[#AFC1B9]">{detail}</span></div>)}</div></div>;
+  return <div className="landing-flow rounded-[10px] border border-white/10 bg-[#17231D]/95 p-4 shadow-[0_22px_60px_rgba(0,0,0,0.28)] sm:p-6">
+    <div className="mb-6 flex items-center justify-between gap-4 text-xs"><span className="font-semibold text-[#F1F7F4]">{language === 'es' ? 'Workflow recolector' : 'Collector workflow'}</span><span className="inline-flex items-center gap-2 text-[#AFC1B9]"><span className="h-2 w-2 rounded-full bg-[#5ED5AA]" />{language === 'es' ? 'Antes del disparador' : 'Before the trigger'}</span></div>
+    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_28px_minmax(0,1fr)_28px_minmax(0,1fr)_28px_minmax(0,1fr)_28px_minmax(0,1fr)] lg:items-center lg:gap-0">
+      <div className="grid gap-2">
+        {[intake, changed].map(([number, title, detail]) => <div key={title} className="relative z-10 min-h-[88px] rounded-[12px] border border-[#5ED5AA]/45 bg-[#111815] p-3"><span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5ED5AA]">{number} · TRIGGER</span><span className="mt-2 block text-sm font-semibold text-[#F1F7F4]">{title}</span><span className="mt-1 block text-xs leading-5 text-[#AFC1B9]">{detail}</span></div>)}
+      </div>
+      <div className="flex h-5 items-center justify-center lg:h-auto"><span className="block h-full w-px bg-[#5ED5AA]/35 lg:h-px lg:w-full" aria-hidden="true" /></div>
+      {mainSteps.map(([number, title, detail], index) => <div key={title} className="contents"><div className={`relative z-10 min-h-[126px] rounded-[12px] border p-4 ${index === mainSteps.length - 1 ? 'border-[#5ED5AA]/70 bg-[#193A30]' : 'border-white/10 bg-[#111815]'}`}><span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5ED5AA]">{number} · {index === mainSteps.length - 1 ? (language === 'es' ? 'READY' : 'READY') : language === 'es' ? 'WORKFLOW' : 'WORKFLOW'}</span><span className="mt-3 block text-sm font-semibold text-[#F1F7F4]">{title}</span><span className="mt-2 block text-xs leading-5 text-[#AFC1B9]">{detail}</span></div>{index < mainSteps.length - 1 && <div className="flex h-5 items-center justify-center lg:h-auto"><span className="block h-full w-px bg-[#5ED5AA]/35 lg:h-px lg:w-full" aria-hidden="true" /></div>}</div>)}
+    </div>
+  </div>;
 }
 
 export default function HomePage() {

@@ -214,6 +214,7 @@ export function copyTestLead(leadId: string, sourceDealerId: string, targetDeale
   const duplicate = [testLead, smartMergeTestLead, easternsTestLead, ...manualTestLeads].some(
     (item) => item.id !== source.id
       && !isTestLeadDeleted(item.id)
+      && item.dealerId === targetDealer.id
       && item.name.trim().toLowerCase() === source.name.trim().toLowerCase()
       && item.phone === source.phone,
   );
