@@ -171,12 +171,17 @@ export function updateTestLeadStatus(leadId: string, status: 'sent'): boolean {
   return true;
 }
 
-export function deleteTestLead(leadId: string, dealerId: string): boolean {
+export type TestDeleteLeadResult =
+  | { ok: true; deletedLead: boolean; deletedRelationship: boolean }
+  | { ok: false; reason: 'wrong_dealer' };
+
+export function deleteTestLead(leadId: string, dealerId: string): TestDeleteLeadResult {
   const canonicalDealerId = TEST_DEALER_ALIASES[dealerId] ?? dealerId;
   const lead = [testLead, smartMergeTestLead, easternsTestLead, ...manualTestLeads].find(
     (item) => item.id === leadId && !isTestLeadDeleted(item.id),
   );
-  if (!lead || lead.dealerId !== canonicalDealerId) return false;
+  if (!lead) return { ok: true, deletedLead: false, deletedRelationship: false };
+  if (lead.dealerId !== canonicalDealerId) return { ok: false, reason: 'wrong_dealer' };
 
   deletedTestLeadIds.add(leadId);
   const manualIndex = manualTestLeads.findIndex((item) => item.id === leadId);
@@ -185,7 +190,7 @@ export function deleteTestLead(leadId: string, dealerId: string): boolean {
     const dealer = getTestDealer(canonicalDealerId);
     if (dealer) dealer.pendingCount = Math.max(0, dealer.pendingCount - 1);
   }
-  return true;
+  return { ok: true, deletedLead: true, deletedRelationship: true };
 }
 
 export function reassignTestLead(leadId: string, currentDealerId: string, targetDealerId: string): boolean {

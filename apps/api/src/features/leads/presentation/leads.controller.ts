@@ -32,7 +32,7 @@ export class LeadsController {
   constructor(
     @Optional() @InjectDataSource() private readonly dataSource: DataSource | undefined,
     private readonly authService: AuthService,
-    @Optional() private readonly copyLeadService: CopyLeadService | undefined,
+    private readonly copyLeadService: CopyLeadService,
   ) {}
 
   @Get()
@@ -154,10 +154,11 @@ export class LeadsController {
     }
 
     if (process.env.NODE_ENV === 'test') {
-      if (!deleteTestLead(leadId, dealerIdQuery)) {
+      const result = deleteTestLead(leadId, dealerIdQuery);
+      if (!result.ok) {
         throw new BadRequestException('Lead not found or cannot be deleted');
       }
-      return { success: true, deletedLead: true };
+      return { success: true, ...result };
     }
 
     if (!this.dataSource) {
@@ -177,7 +178,8 @@ export class LeadsController {
         [leadId],
       ) as Array<{ id: string }>;
       if (existingLeads.length === 0) {
-        throw new BadRequestException('Lead not found or cannot be deleted');
+        await queryRunner.commitTransaction();
+        return { success: true, deletedLead: false, deletedRelationship: false };
       }
 
       const deletedRelationships = await queryRunner.query(
@@ -187,10 +189,6 @@ export class LeadsController {
          RETURNING lead_id`,
         [leadId, dealerIdQuery],
       ) as Array<{ lead_id: string }>;
-      if (deletedRelationships.length === 0) {
-        throw new BadRequestException('Lead not found or cannot be deleted');
-      }
-
       const remainingRelationships = await queryRunner.query(
         `SELECT COUNT(*)::int AS count
          FROM lead_dealers
@@ -199,17 +197,28 @@ export class LeadsController {
       ) as Array<{ count: number }>;
       let deletedLead = false;
       if (Number(remainingRelationships[0]?.count ?? 0) === 0) {
-        const deletedLeads = await queryRunner.query(
-          `DELETE FROM leads
-           WHERE id = $1
-           RETURNING id`,
+        // Bulk-ingestion rows are audit history and reference the lead without
+        // ON DELETE CASCADE. Keep that history and remove only the queue row.
+        const ingestionRows = await queryRunner.query(
+          `SELECT id
+           FROM lead_ingestion_rows
+           WHERE lead_id = $1
+           LIMIT 1`,
           [leadId],
         ) as Array<{ id: string }>;
-        deletedLead = deletedLeads.length > 0;
+        if (ingestionRows.length === 0) {
+          const deletedLeads = await queryRunner.query(
+            `DELETE FROM leads
+             WHERE id = $1
+             RETURNING id`,
+            [leadId],
+          ) as Array<{ id: string }>;
+          deletedLead = deletedLeads.length > 0;
+        }
       }
 
       await queryRunner.commitTransaction();
-      return { success: true, deletedLead };
+      return { success: true, deletedLead, deletedRelationship: deletedRelationships.length > 0 };
     } catch (error) {
       if (queryRunner.isTransactionActive) await queryRunner.rollbackTransaction();
       throw error;
@@ -295,7 +304,6 @@ export class LeadsController {
       return { success: true, leadId, sourceDealerId: body.sourceDealerId, targetDealerId: body.targetDealerId };
     }
 
-    if (!this.copyLeadService) throw new UnauthorizedException('Lead copy service is unavailable');
     return this.copyLeadService.execute(leadId, {
       sourceDealerId: body.sourceDealerId,
       targetDealerId: body.targetDealerId,
