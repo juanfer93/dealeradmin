@@ -23,6 +23,7 @@ const STATE_ALIASES: Record<string, string> = {
   'PENNSYLVANIA': 'PA',
   'NEW YORK': 'NY',
   'NEW JERSEY': 'NJ',
+  'NUEVA JERSEY': 'NJ',
   'VIRGINIA': 'VA',
   'MARYLAND': 'MD',
   'DISTRICT OF COLUMBIA': 'DC',
@@ -62,7 +63,7 @@ export class GeoroutingService {
 
   async resolveDealer(payload: LocationPayload, queryClient: QueryClient = this.dataSource): Promise<{ dealerId: string; reason: string }> {
     const stateValue = normalizeText(payload.state);
-    const explicitState = STATE_ALIASES[stateValue.toUpperCase()] || stateValue.toUpperCase();
+    const explicitState = this.resolveState(stateValue);
     const city = normalizeText(payload.city);
     const zone = normalizeText(payload.easterns_zone);
     const explicitDealerSelected = payload.easterns_dealer_selected === true;
@@ -80,7 +81,7 @@ export class GeoroutingService {
       return { dealerId: EASTERN_DEALER_IDS.sterling, reason: 'Explicit Easterns Zone: Sterling → Sterling' };
     }
 
-    const inferredState = this.inferState(city, zone);
+    const inferredState = this.resolveState(zone) || this.inferState(city, zone);
     const state = explicitState || inferredState;
 
     if (['DE', 'PA', 'NY', 'NJ'].includes(state)) {
@@ -158,5 +159,15 @@ export class GeoroutingService {
     if (direct) return direct;
     const zoneEntry = Object.entries(CITY_STATE_ALIASES).find(([cityName]) => zone.includes(cityName));
     return zoneEntry?.[1] || '';
+  }
+
+  private resolveState(value: string): string {
+    if (!value) return '';
+    const upper = value.toUpperCase();
+    const exact = STATE_ALIASES[upper];
+    if (exact) return exact;
+    const abbreviation = upper.match(/\b(DE|PA|NY|NJ|VA|MD|DC)\b/)?.[1];
+    if (abbreviation) return abbreviation;
+    return Object.entries(STATE_ALIASES).find(([name]) => upper.includes(name))?.[1] || '';
   }
 }

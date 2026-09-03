@@ -20,6 +20,15 @@ import { findDealerLeadDuplicate } from '../domain/lead-duplicate';
 type DealerRow = { id: string; ghl_location_id: string };
 type LeadRow = { id: string };
 
+type ManualLeadResult = {
+  success: true;
+  leadId: string;
+  message: string;
+  alreadySent?: boolean;
+  leadName?: string;
+  leadPhone?: string;
+};
+
 function clean(value: string): string {
   return value.trim();
 }
@@ -28,7 +37,7 @@ function clean(value: string): string {
 export class ManualLeadService {
   constructor(@Optional() @InjectDataSource() private readonly dataSource?: DataSource) {}
 
-  async execute(dealerId: string, dto: CreateManualLeadDto): Promise<{ success: true; leadId: string; message: string }> {
+  async execute(dealerId: string, dto: CreateManualLeadDto): Promise<ManualLeadResult> {
     const name = clean(dto.name);
     if (!name) throw new BadRequestException('El nombre es obligatorio');
 
@@ -72,45 +81,37 @@ export class ManualLeadService {
       const dealer = dealers[0];
       const duplicate = await findDealerLeadDuplicate(queryRunner, dealer.id, name, canonicalPhone);
       if (duplicate) {
+        if (duplicate.status === 'sent') {
+          await queryRunner.rollbackTransaction();
+          return {
+            success: true,
+            leadId: duplicate.id,
+            message: 'El lead ya fue enviado.',
+            alreadySent: true,
+            leadName: [duplicate.first_name, duplicate.last_name].filter(Boolean).join(' ').trim() || name,
+            leadPhone: duplicate.canonical_phone || canonicalPhone,
+          };
+        }
         throw new ConflictException(`No se puede subir ${name} con ${canonicalPhone} porque este dato ya existe en el dealer.`);
       }
       const names = name.split(/\s+/).filter(Boolean);
       const firstName = names[0] ?? 'Lead';
       const lastName = names.slice(1).join(' ');
-      const existingLeads = (await queryRunner.query(
-        `SELECT id
-         FROM leads
-         WHERE canonical_phone = $1
-         LIMIT 1
-         FOR UPDATE`,
-        [canonicalPhone],
-      )) as LeadRow[];
-
       let leadId: string;
-      if (existingLeads.length === 0) {
-        const insertedLeads = (await queryRunner.query(
-          `INSERT INTO leads
-            (canonical_phone, first_name, last_name, ghl_contact_id, ghl_location_id, source)
-           VALUES ($1, $2, $3, $4, $5, 'Manual Console')
-           RETURNING id`,
-          [
-            canonicalPhone,
-            firstName,
-            lastName,
-            `manual_${randomBytes(4).toString('hex')}`,
-            dealer.ghl_location_id,
-          ],
-        )) as LeadRow[];
-        leadId = insertedLeads[0].id;
-      } else {
-        leadId = existingLeads[0].id;
-        await queryRunner.query(
-          `UPDATE leads
-           SET first_name = $1, last_name = $2, updated_at = CURRENT_TIMESTAMP
-           WHERE id = $3`,
-          [firstName, lastName, leadId],
-        );
-      }
+      const insertedLeads = (await queryRunner.query(
+        `INSERT INTO leads
+          (canonical_phone, first_name, last_name, ghl_contact_id, ghl_location_id, source)
+         VALUES ($1, $2, $3, $4, $5, 'Manual Console')
+         RETURNING id`,
+        [
+          canonicalPhone,
+          firstName,
+          lastName,
+          `manual_${randomBytes(4).toString('hex')}`,
+          dealer.ghl_location_id,
+        ],
+      )) as LeadRow[];
+      leadId = insertedLeads[0].id;
 
       await queryRunner.query(
         `INSERT INTO lead_dealers

@@ -15,6 +15,8 @@ type ManualLeadForm = {
   bank_account: string;
 };
 
+type AlreadySentLead = { name: string; phone: string };
+
 interface AddLeadModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -42,11 +44,20 @@ function getResponseMessage(body: unknown, fallback: string): string {
   return fallback;
 }
 
+function getBodyString(body: unknown, key: string, fallback: string): string {
+  if (typeof body === 'object' && body !== null && key in body) {
+    const value = (body as Record<string, unknown>)[key];
+    return typeof value === 'string' && value.trim() ? value : fallback;
+  }
+  return fallback;
+}
+
 export function AddLeadModal({ isOpen, onClose, dealerId, onLeadAdded }: AddLeadModalProps) {
   const { language, t } = useLanguage();
   const [formData, setFormData] = useState<ManualLeadForm>(initialForm);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [alreadySentLead, setAlreadySentLead] = useState<AlreadySentLead | null>(null);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -56,6 +67,13 @@ export function AddLeadModal({ isOpen, onClose, dealerId, onLeadAdded }: AddLead
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, loading, onClose]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setAlreadySentLead(null);
+      setError('');
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -82,6 +100,15 @@ export function AddLeadModal({ isOpen, onClose, dealerId, onLeadAdded }: AddLead
       const body: unknown = await response.json().catch(() => undefined);
       if (!response.ok) throw new Error(getResponseMessage(body, t.modal.errors.save));
 
+      if (typeof body === 'object' && body !== null && 'alreadySent' in body && body.alreadySent === true) {
+        setAlreadySentLead({
+          name: getBodyString(body, 'leadName', formData.name),
+          phone: getBodyString(body, 'leadPhone', formData.phone),
+        });
+        setFormData(initialForm);
+        return;
+      }
+
       setFormData(initialForm);
       onClose();
       onLeadAdded();
@@ -94,6 +121,12 @@ export function AddLeadModal({ isOpen, onClose, dealerId, onLeadAdded }: AddLead
 
   const inputClass = 'w-full rounded border border-[var(--border)] bg-[var(--page)] px-3 py-2 text-sm text-[var(--text)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/15';
   const labelClass = 'mb-1 block text-xs font-semibold text-[var(--text-muted)]';
+
+  function acknowledgeAlreadySent() {
+    setAlreadySentLead(null);
+    onClose();
+    onLeadAdded();
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm" role="presentation">
@@ -112,6 +145,18 @@ export function AddLeadModal({ isOpen, onClose, dealerId, onLeadAdded }: AddLead
           <button type="button" onClick={onClose} disabled={loading} aria-label={t.modal.close} className="rounded p-1 text-xl leading-none text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-raised)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50">×</button>
         </div>
 
+        {alreadySentLead ? <section className="space-y-5" aria-live="polite" aria-labelledby="already-sent-lead-title">
+          <div className="flex items-start gap-3 rounded border border-[var(--brand)]/30 bg-[var(--brand-soft)]/45 p-4">
+            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--brand)] text-white" aria-hidden="true">✓</span>
+            <div>
+              <h3 id="already-sent-lead-title" className="text-base font-semibold text-[var(--text)]">{t.modal.alreadySentTitle}</h3>
+              <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">{t.modal.alreadySentBody(alreadySentLead.name, alreadySentLead.phone)}</p>
+            </div>
+          </div>
+          <div className="flex justify-end border-t border-[var(--border)] pt-4">
+            <button type="button" onClick={acknowledgeAlreadySent} className="min-h-11 rounded bg-[var(--brand)] px-5 py-2 text-sm font-semibold text-white hover:bg-[var(--brand-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">{t.modal.accept}</button>
+          </div>
+        </section> : <>
         {error && <div role="alert" className="mb-4 rounded border border-[var(--error)]/30 bg-[var(--error)]/10 px-3 py-2 text-sm text-[var(--error)]">{error}</div>}
 
         <form onSubmit={(event) => void handleSubmit(event)} className="space-y-4" id="manual-lead-form">
@@ -163,6 +208,7 @@ export function AddLeadModal({ isOpen, onClose, dealerId, onLeadAdded }: AddLead
             <button type="submit" disabled={loading} className="rounded bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--brand-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] disabled:cursor-not-allowed disabled:opacity-50">{loading ? t.modal.saving : t.modal.add}</button>
           </div>
         </form>
+        </>}
       </div>
     </div>
   );

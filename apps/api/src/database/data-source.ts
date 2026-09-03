@@ -5,6 +5,7 @@ import { Day5EasternsRouting1710000002000 } from './migrations/1710000002000-Day
 import { UnifyOffleaseFredericksburg1710000003000 } from './migrations/1710000003000-UnifyOffleaseFredericksburg';
 import { BulkLeadIngestion1710000004000 } from './migrations/1710000004000-BulkLeadIngestion';
 import { ReportExportHistory1710000005000 } from './migrations/1710000005000-ReportExportHistory';
+import { DealerScopedLeadIdentity1710000006000 } from './migrations/1710000006000-DealerScopedLeadIdentity';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -23,6 +24,7 @@ export const AppDataSource = new DataSource({
     UnifyOffleaseFredericksburg1710000003000,
     BulkLeadIngestion1710000004000,
     ReportExportHistory1710000005000,
+    DealerScopedLeadIdentity1710000006000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,

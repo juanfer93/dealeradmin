@@ -120,19 +120,6 @@ export class BulkLeadService {
     }
 
     const names = item.dto.name.trim().split(/\s+/).filter(Boolean);
-    const existing = await queryRunner.query(
-      `SELECT id, first_name, last_name, canonical_phone
-       FROM leads
-       WHERE canonical_phone = $1
-       LIMIT 1
-       FOR UPDATE`,
-      [item.dto.phone],
-    ) as LeadRow[];
-    if (existing.length) {
-      const reason = duplicateReason(item.dto.name, item.dto.phone, existing[0]);
-      await this.recordRow(queryRunner, _batchId, item, 'duplicate', reason, existing[0].id);
-      return { rowNumber: item.rowNumber, name: item.dto.name, phone: item.dto.phone, status: 'duplicate', reason, leadId: existing[0].id };
-    }
     let leadId: string;
     const inserted = await queryRunner.query(
       `INSERT INTO leads (canonical_phone, first_name, last_name, ghl_contact_id, ghl_location_id, source)

@@ -119,14 +119,12 @@ export function getTestManualLeads(): TestLead[] {
   return [...manualTestLeads];
 }
 
-export function hasTestDealerLeadDuplicate(dealerId: string, name: string, phone: string): boolean {
+export function hasTestDealerLeadDuplicate(dealerId: string, _name: string, phone: string): boolean {
   const canonicalDealerId = TEST_DEALER_ALIASES[dealerId] ?? dealerId;
-  const normalizedName = name.trim().toLowerCase();
   return [testLead, smartMergeTestLead, easternsTestLead, ...manualTestLeads].some(
     (lead) => !isTestLeadDeleted(lead.id)
       && lead.dealerId === canonicalDealerId
-      && lead.phone === phone
-      && lead.name.trim().toLowerCase() === normalizedName,
+      && lead.phone === phone,
   );
 }
 

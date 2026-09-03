@@ -86,12 +86,13 @@ export class CopyLeadService {
       const duplicateRows = (await queryRunner.query(
         `SELECT l.id
          FROM leads l
+         INNER JOIN lead_dealers ld ON ld.lead_id = l.id
          WHERE l.id <> $1
+           AND (ld.dealer_id = $3 OR ld.assigned_dealer_id = $3)
            AND l.canonical_phone IS NOT NULL
            AND l.canonical_phone = $2
-           AND LOWER(TRIM(CONCAT_WS(' ', l.first_name, l.last_name))) = LOWER(TRIM($3))
-         LIMIT 1`,
-        [leadId, source.canonical_phone, [source.first_name, source.last_name].filter(Boolean).join(' ')],
+           LIMIT 1`,
+        [leadId, source.canonical_phone, input.targetDealerId],
       )) as Array<{ id: string }>;
       if (duplicateRows.length > 0) {
         throw new ConflictException('No se puede copiar: ya existe un lead con el mismo nombre y teléfono en la base de datos.');

@@ -34,7 +34,7 @@ const sourceRow = {
 };
 
 describe('CopyLeadService', () => {
-  it('blocks a copy only when the existing database lead matches both name and phone', async () => {
+  it('blocks a copy when the phone is already used in the target dealer', async () => {
     const runner = createRunner([
       [sourceRow],
       [{ id: 'dealer-target', name: 'Dealer Target' }],
@@ -48,7 +48,8 @@ describe('CopyLeadService', () => {
       .rejects.toBeInstanceOf(ConflictException);
     expect(runner.query).toHaveBeenCalledTimes(3);
     expect(calls[2]?.[0]).toContain('canonical_phone');
-    expect(calls[2]?.[0]).toContain('LOWER(TRIM(CONCAT_WS');
+    expect(calls[2]?.[0]).toContain('ld.dealer_id = $3');
+    expect(calls[2]?.[1]).toEqual(['lead-1', sourceRow.canonical_phone, 'dealer-target']);
     expect(runner.rollbackTransaction).toHaveBeenCalledOnce();
     expect(runner.release).toHaveBeenCalledOnce();
   });

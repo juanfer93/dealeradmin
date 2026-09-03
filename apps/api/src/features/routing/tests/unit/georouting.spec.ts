@@ -31,6 +31,11 @@ describe('Easterns georouting engine', () => {
     await expect(service.resolveDealer({ state: 'VA', city: 'Baltimore' })).resolves.toMatchObject({ dealerId: EASTERN_DEALER_IDS.sterling });
   });
 
+  it.each(['NJ', 'New Jersey', 'Nueva Jersey', 'OM NJ'])('reconoce un estado explícito aunque venga acompañado por texto: %s', async (state) => {
+    const { service } = createService();
+    await expect(service.resolveDealer({ state, city: 'Laurel' })).resolves.toMatchObject({ dealerId: EASTERN_DEALER_IDS.rosedale });
+  });
+
   it.each([
     [null, EASTERN_DEALER_IDS.rosedale, 'Previous: Laurel/None'],
     [EASTERN_DEALER_IDS.rosedale, EASTERN_DEALER_IDS.laurel, 'Previous: Rosedale'],

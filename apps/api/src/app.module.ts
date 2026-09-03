@@ -13,6 +13,7 @@ import { Day5EasternsRouting1710000002000 } from './database/migrations/17100000
 import { UnifyOffleaseFredericksburg1710000003000 } from './database/migrations/1710000003000-UnifyOffleaseFredericksburg';
 import { BulkLeadIngestion1710000004000 } from './database/migrations/1710000004000-BulkLeadIngestion';
 import { ReportExportHistory1710000005000 } from './database/migrations/1710000005000-ReportExportHistory';
+import { DealerScopedLeadIdentity1710000006000 } from './database/migrations/1710000006000-DealerScopedLeadIdentity';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -29,6 +30,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             UnifyOffleaseFredericksburg1710000003000,
             BulkLeadIngestion1710000004000,
             ReportExportHistory1710000005000,
+            DealerScopedLeadIdentity1710000006000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,
