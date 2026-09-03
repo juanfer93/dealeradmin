@@ -13,6 +13,12 @@ export const CreateManualLeadSchema = z.object({
 
 export type CreateManualLeadDto = z.infer<typeof CreateManualLeadSchema>;
 
+// Editing uses the same complete field set as manual intake so the operator
+// can correct any value the collector stored without introducing a second
+// validation contract.
+export const UpdateLeadSchema = CreateManualLeadSchema;
+export type UpdateLeadDto = z.infer<typeof UpdateLeadSchema>;
+
 export const BulkLeadImportSchema = z.object({
   text: z.string().min(1, 'Pega al menos un lead').max(100_000, 'El texto es demasiado grande'),
 });

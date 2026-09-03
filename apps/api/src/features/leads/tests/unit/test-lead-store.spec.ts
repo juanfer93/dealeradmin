@@ -5,6 +5,8 @@ import {
   deleteTestLead,
   resetTestLeadStore,
   testLead,
+  smartMergeTestLead,
+  updateTestLead,
 } from '../../application/test-lead-store';
 import { EASTERN_DEALER_IDS } from '../../../routing/domain/services/georouting.service';
 
@@ -37,5 +39,45 @@ describe('Identidad de lead por dealer en fixtures', () => {
     expect(deleteTestLead('missing-lead', 'dealer-fredericksburg')).toEqual({ ok: true, deletedLead: false, deletedRelationship: false });
     expect(deleteTestLead(testLead.id, 'dealer-fredericksburg')).toEqual({ ok: true, deletedLead: true, deletedRelationship: true });
     expect(deleteTestLead(testLead.id, 'dealer-fredericksburg')).toEqual({ ok: true, deletedLead: false, deletedRelationship: false });
+  });
+
+  it('edita los datos del lead dentro de su dealer y regenera el mensaje', () => {
+    const result = updateTestLead(testLead.id, testLead.dealerId, {
+      name: 'Maria Lopez Corregida',
+      phone: '3011234567',
+      vehicle_type: 'Honda Civic',
+      down_payment: '$1,500',
+      identification: 'yes',
+      bank_account: 'yes',
+      documents: 'proof of income',
+      purchase_timeline: 'this week',
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.lead).toMatchObject({
+        name: 'Maria Lopez Corregida',
+        phone: '+13011234567',
+        vehicleType: 'Honda Civic',
+        downPayment: '$1,500',
+      });
+      expect(result.lead.messageText).toContain('Honda Civic');
+      expect(result.lead.messageText).toContain('$1,500');
+    }
+  });
+
+  it('no bloquea una edición por el mismo número existente en otro dealer', () => {
+    const result = updateTestLead(testLead.id, testLead.dealerId, {
+      name: 'Maria Lopez',
+      phone: smartMergeTestLead.phone,
+      vehicle_type: 'Sedan',
+      down_payment: '',
+      identification: '',
+      bank_account: '',
+      documents: '',
+      purchase_timeline: '',
+    });
+
+    expect(result.ok).toBe(true);
   });
 });

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import type { CreateManualLeadDto, LeadWebhookDto } from '@dealeradmin/contracts';
+import type { CreateManualLeadDto, LeadWebhookDto, UpdateLeadDto } from '@dealeradmin/contracts';
 import { buildWhatsAppMessage, normalizePurchaseTimeline } from '../domain/message-builder';
+import { buildManualLeadMessage } from '../domain/manual-message-builder';
 import { normalizePhone } from '../domain/phone-normalizer';
 import { normalizeDownPayment } from '../domain/down-payment';
 import { EASTERN_DEALER_IDS } from '../../routing/domain/services/georouting.service';
@@ -169,6 +170,44 @@ export function updateTestLeadStatus(leadId: string, status: 'sent'): boolean {
   const dealer = getTestDealer(lead.dealerId);
   if (dealer) dealer.pendingCount = Math.max(0, dealer.pendingCount - 1);
   return true;
+}
+
+export type TestUpdateLeadResult =
+  | { ok: true; lead: TestLead }
+  | { ok: false; reason: 'not_found' | 'duplicate' };
+
+export function updateTestLead(leadId: string, dealerId: string, dto: UpdateLeadDto): TestUpdateLeadResult {
+  const canonicalDealerId = TEST_DEALER_ALIASES[dealerId] ?? dealerId;
+  const lead = [testLead, smartMergeTestLead, easternsTestLead, ...manualTestLeads].find(
+    (item) => item.id === leadId && !isTestLeadDeleted(item.id) && item.dealerId === canonicalDealerId,
+  );
+  if (!lead) return { ok: false, reason: 'not_found' };
+
+  let phone: string;
+  try {
+    phone = normalizePhone(dto.phone);
+  } catch {
+    return { ok: false, reason: 'not_found' };
+  }
+
+  const duplicate = [testLead, smartMergeTestLead, easternsTestLead, ...manualTestLeads].some(
+    (item) => item.id !== lead.id
+      && !isTestLeadDeleted(item.id)
+      && item.dealerId === canonicalDealerId
+      && item.phone === phone,
+  );
+  if (duplicate) return { ok: false, reason: 'duplicate' };
+
+  lead.name = dto.name.trim();
+  lead.phone = phone;
+  lead.vehicleType = dto.vehicle_type.trim();
+  lead.downPayment = normalizeDownPayment(dto.down_payment);
+  lead.identification = dto.identification.trim();
+  lead.bankAccount = dto.bank_account.trim();
+  lead.documents = dto.documents.trim();
+  lead.purchaseTimeline = dto.purchase_timeline.trim();
+  lead.messageText = buildManualLeadMessage(lead.name, phone, dto);
+  return { ok: true, lead };
 }
 
 export type TestDeleteLeadResult =

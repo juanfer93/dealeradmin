@@ -17,11 +17,26 @@ type ManualLeadForm = {
 
 type AlreadySentLead = { name: string; phone: string };
 
+export type EditableLead = {
+  id: string;
+  dealerId: string;
+  name: string;
+  phone: string;
+  vehicleType: string | null;
+  downPayment: string | null;
+  identification: string | null;
+  bankAccount: string | null;
+  documents: string | null;
+  purchaseTimeline: string | null;
+};
+
 interface AddLeadModalProps {
   isOpen: boolean;
   onClose: () => void;
   dealerId: string;
   onLeadAdded: () => void;
+  editingLead?: EditableLead | null;
+  onLeadUpdated?: () => void;
 }
 
 const initialForm: ManualLeadForm = {
@@ -52,12 +67,13 @@ function getBodyString(body: unknown, key: string, fallback: string): string {
   return fallback;
 }
 
-export function AddLeadModal({ isOpen, onClose, dealerId, onLeadAdded }: AddLeadModalProps) {
+export function AddLeadModal({ isOpen, onClose, dealerId, onLeadAdded, editingLead, onLeadUpdated }: AddLeadModalProps) {
   const { language, t } = useLanguage();
   const [formData, setFormData] = useState<ManualLeadForm>(initialForm);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [alreadySentLead, setAlreadySentLead] = useState<AlreadySentLead | null>(null);
+  const isEditMode = Boolean(editingLead);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -67,6 +83,23 @@ export function AddLeadModal({ isOpen, onClose, dealerId, onLeadAdded }: AddLead
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, loading, onClose]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setAlreadySentLead(null);
+      setError('');
+      setFormData(editingLead ? {
+        name: editingLead.name,
+        phone: editingLead.phone,
+        vehicle_type: editingLead.vehicleType ?? '',
+        down_payment: editingLead.downPayment ?? '',
+        purchase_timeline: editingLead.purchaseTimeline ?? '',
+        documents: editingLead.documents ?? '',
+        identification: editingLead.identification ?? '',
+        bank_account: editingLead.bankAccount ?? '',
+      } : initialForm);
+    }
+  }, [editingLead, isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -91,16 +124,16 @@ export function AddLeadModal({ isOpen, onClose, dealerId, onLeadAdded }: AddLead
     setLoading(true);
 
     try {
-      const response = await fetch(`/api/dealers/${dealerId}/leads`, {
-        method: 'POST',
+      const response = await fetch(isEditMode && editingLead ? `/api/leads/${editingLead.id}` : `/api/dealers/${dealerId}/leads`, {
+        method: isEditMode ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(formData),
+        body: JSON.stringify(isEditMode ? { dealerId, ...formData } : formData),
       });
       const body: unknown = await response.json().catch(() => undefined);
       if (!response.ok) throw new Error(getResponseMessage(body, t.modal.errors.save));
 
-      if (typeof body === 'object' && body !== null && 'alreadySent' in body && body.alreadySent === true) {
+      if (!isEditMode && typeof body === 'object' && body !== null && 'alreadySent' in body && body.alreadySent === true) {
         setAlreadySentLead({
           name: getBodyString(body, 'leadName', formData.name),
           phone: getBodyString(body, 'leadPhone', formData.phone),
@@ -111,7 +144,8 @@ export function AddLeadModal({ isOpen, onClose, dealerId, onLeadAdded }: AddLead
 
       setFormData(initialForm);
       onClose();
-      onLeadAdded();
+      if (isEditMode) onLeadUpdated?.();
+      else onLeadAdded();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : t.modal.errors.connection);
     } finally {
@@ -138,8 +172,8 @@ export function AddLeadModal({ isOpen, onClose, dealerId, onLeadAdded }: AddLead
       >
         <div className="mb-5 flex items-start justify-between gap-4 border-b border-[var(--border)] pb-4">
           <div>
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--brand)]">{t.modal.eyebrow}</p>
-            <h2 id="add-lead-modal-title" className="text-lg font-semibold tracking-[-0.02em] text-[var(--text)]">{t.modal.title}</h2>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--brand)]">{isEditMode ? t.modal.editEyebrow : t.modal.eyebrow}</p>
+            <h2 id="add-lead-modal-title" className="text-lg font-semibold tracking-[-0.02em] text-[var(--text)]">{isEditMode ? t.modal.editTitle : t.modal.title}</h2>
             <p className="mt-1 text-xs text-[var(--text-muted)]">{t.modal.optional}</p>
           </div>
           <button type="button" onClick={onClose} disabled={loading} aria-label={t.modal.close} className="rounded p-1 text-xl leading-none text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-raised)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50">×</button>
@@ -205,7 +239,7 @@ export function AddLeadModal({ isOpen, onClose, dealerId, onLeadAdded }: AddLead
 
           <div className="flex items-center justify-end gap-3 border-t border-[var(--border)] pt-4">
             <button type="button" onClick={onClose} disabled={loading} className="rounded border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--surface-raised)] disabled:cursor-not-allowed disabled:opacity-50">{t.modal.cancel}</button>
-            <button type="submit" disabled={loading} className="rounded bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--brand-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] disabled:cursor-not-allowed disabled:opacity-50">{loading ? t.modal.saving : t.modal.add}</button>
+            <button type="submit" disabled={loading} className="rounded bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--brand-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] disabled:cursor-not-allowed disabled:opacity-50">{loading ? t.modal.saving : isEditMode ? t.modal.saveEdit : t.modal.add}</button>
           </div>
         </form>
         </>}

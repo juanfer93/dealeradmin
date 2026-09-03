@@ -1,6 +1,6 @@
 import { z } from 'zod';
-export { BulkLeadImportSchema, CreateManualLeadSchema } from './leads/manual-lead.schema';
-export type { BulkLeadImportDto, CreateManualLeadDto } from './leads/manual-lead.schema';
+export { BulkLeadImportSchema, CreateManualLeadSchema, UpdateLeadSchema } from './leads/manual-lead.schema';
+export type { BulkLeadImportDto, CreateManualLeadDto, UpdateLeadDto } from './leads/manual-lead.schema';
 
 const EasternsDealerSelectedSchema = z.preprocess((value) => {
   if (value === null || value === undefined || typeof value === 'boolean') return value;

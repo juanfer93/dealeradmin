@@ -16,16 +16,22 @@ import {
 import type { Request } from 'express';
 import { DataSource } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
+import { UpdateLeadSchema, type UpdateLeadDto } from '@dealeradmin/contracts';
 import { AuthService } from '../../auth/application/auth.service';
-import { copyTestLead, deleteTestLead, getTestManualLeads, isTestLeadDeleted, testDealers, testLead, smartMergeTestLead, easternsTestLead, updateTestLeadStatus, reassignTestLead } from '../application/test-lead-store';
+import { copyTestLead, deleteTestLead, getTestManualLeads, isTestLeadDeleted, testDealers, testLead, smartMergeTestLead, easternsTestLead, updateTestLeadStatus, reassignTestLead, updateTestLead } from '../application/test-lead-store';
 import { CopyLeadService } from '../application/copy-lead.service';
 import { EASTERN_DEALER_IDS } from '../../routing/domain/services/georouting.service';
+import { buildManualLeadMessage } from '../domain/manual-message-builder';
+import { normalizeDownPayment } from '../domain/down-payment';
+import { normalizePhone } from '../domain/phone-normalizer';
+import { findDealerLeadDuplicate } from '../domain/lead-duplicate';
 
 type LeadStatus = 'pending' | 'sent';
 
 type StatusBody = { status?: unknown; dealerId?: unknown };
 type ReassignBody = { currentDealerId?: unknown; targetDealerId?: unknown };
 type CopyBody = { sourceDealerId?: unknown; targetDealerId?: unknown };
+type EditLeadBody = UpdateLeadDto & { dealerId?: unknown };
 
 @Controller('leads')
 export class LeadsController {
@@ -140,6 +146,135 @@ export class LeadsController {
       throw new BadRequestException('Lead not found or already sent');
     }
     return { success: true };
+  }
+
+  @Patch(':id')
+  async updateLead(
+    @Req() request: Request,
+    @Param('id') leadId: string,
+    @Body() body: unknown,
+  ) {
+    this.requireSession(request);
+    const input = (typeof body === 'object' && body !== null ? body : {}) as Partial<EditLeadBody>;
+    if (typeof input.dealerId !== 'string' || !input.dealerId) {
+      throw new BadRequestException('Dealer is required to edit the lead');
+    }
+    const parsed = UpdateLeadSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({ message: 'Datos del lead inválidos', issues: parsed.error.issues });
+    }
+
+    const name = parsed.data.name.trim();
+    let canonicalPhone: string;
+    try {
+      canonicalPhone = normalizePhone(parsed.data.phone);
+    } catch {
+      throw new BadRequestException('El teléfono no tiene un formato válido');
+    }
+    const messageText = buildManualLeadMessage(name, canonicalPhone, parsed.data);
+
+    if (process.env.NODE_ENV === 'test') {
+      const result = updateTestLead(leadId, input.dealerId, parsed.data);
+      if (!result.ok) {
+        if (result.reason === 'duplicate') {
+          throw new ConflictException('No se puede guardar: ya existe un lead con el mismo teléfono en este dealer.');
+        }
+        throw new BadRequestException('Lead no encontrado en el dealer seleccionado');
+      }
+      return { success: true, lead: result.lead };
+    }
+
+    if (!this.dataSource) throw new UnauthorizedException('Lead data is unavailable');
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const duplicate = await findDealerLeadDuplicate(queryRunner, input.dealerId, name, canonicalPhone, leadId);
+      if (duplicate) {
+        throw new ConflictException('No se puede guardar: ya existe un lead con el mismo teléfono en este dealer.');
+      }
+
+      const names = name.split(/\s+/).filter(Boolean);
+      const updatedLeads = await queryRunner.query(
+        `UPDATE leads
+         SET canonical_phone = $1,
+             first_name = $2,
+             last_name = $3,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $4
+           AND EXISTS (
+             SELECT 1 FROM lead_dealers
+             WHERE lead_id = $4
+               AND COALESCE(assigned_dealer_id, dealer_id) = $5
+           )
+         RETURNING id`,
+        [canonicalPhone, names[0] ?? 'Lead', names.slice(1).join(' '), leadId, input.dealerId],
+      ) as Array<{ id: string }>;
+      if (updatedLeads.length === 0) throw new BadRequestException('Lead no encontrado en el dealer seleccionado');
+
+      const updatedRelationships = await queryRunner.query(
+        `UPDATE lead_dealers
+         SET vehicle_type = $1,
+             down_payment = $2,
+             purchase_timeline = $3,
+             documents = $4,
+             identification = $5,
+             bank_account = $6,
+             message_text = $7,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE lead_id = $8
+           AND COALESCE(assigned_dealer_id, dealer_id) = $9
+         RETURNING lead_id`,
+        [
+          parsed.data.vehicle_type.trim(),
+          normalizeDownPayment(parsed.data.down_payment),
+          parsed.data.purchase_timeline.trim(),
+          parsed.data.documents.trim(),
+          parsed.data.identification.trim(),
+          parsed.data.bank_account.trim(),
+          messageText,
+          leadId,
+          input.dealerId,
+        ],
+      ) as Array<{ lead_id: string }>;
+      if (updatedRelationships.length === 0) throw new BadRequestException('Lead no encontrado en el dealer seleccionado');
+
+      const rows = await queryRunner.query(
+        `SELECT
+           ld.lead_id AS id,
+           d.id AS "dealerId",
+           d.name AS "dealerName",
+           CONCAT_WS(' ', l.first_name, l.last_name) AS name,
+           l.canonical_phone AS phone,
+           ld.vehicle_type AS "vehicleType",
+           ld.down_payment AS "downPayment",
+           ld.identification,
+           ld.bank_account AS "bankAccount",
+           ld.documents,
+           ld.purchase_timeline AS "purchaseTimeline",
+           ld.status,
+           ld.message_text AS "messageText",
+           ld.created_at AS "createdAt",
+           ld.routing_override AS "routingOverride",
+           ld.routing_reason AS "routingReason"
+         FROM lead_dealers ld
+         INNER JOIN leads l ON l.id = ld.lead_id
+         INNER JOIN dealers d ON d.id = COALESCE(ld.assigned_dealer_id, ld.dealer_id)
+         WHERE ld.lead_id = $1
+           AND COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $2
+         LIMIT 1`,
+        [leadId, input.dealerId],
+      );
+
+      await queryRunner.commitTransaction();
+      return { success: true, lead: rows[0] };
+    } catch (error) {
+      if (queryRunner.isTransactionActive) await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   @Delete(':id')

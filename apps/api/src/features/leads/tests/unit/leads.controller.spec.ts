@@ -78,3 +78,44 @@ describe('LeadsController deletion', () => {
     expect(runner.commitTransaction).toHaveBeenCalledOnce();
   });
 });
+
+describe('LeadsController lead editing', () => {
+  afterEach(() => {
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+  });
+
+  it('updates the lead and its dealer relationship in one transaction', async () => {
+    process.env.NODE_ENV = 'production';
+    const runner = createRunner([
+      [],
+      [],
+      [{ id: 'lead-1' }],
+      [{ lead_id: 'lead-1' }],
+      [{ id: 'lead-1', dealerId: 'dealer-1', name: 'Ana Corregida', phone: '+13019876543' }],
+    ]);
+    const controller = createController(runner);
+
+    await expect(controller.updateLead({ cookies: {} } as never, 'lead-1', {
+      dealerId: 'dealer-1',
+      name: 'Ana Corregida',
+      phone: '3019876543',
+      vehicle_type: 'Honda Civic',
+      down_payment: '1500',
+      identification: 'yes',
+      bank_account: 'yes',
+      documents: 'proof of income',
+      purchase_timeline: 'this week',
+    })).resolves.toEqual({
+      success: true,
+      lead: { id: 'lead-1', dealerId: 'dealer-1', name: 'Ana Corregida', phone: '+13019876543' },
+    });
+
+    const calls = runner.query.mock.calls as unknown[][];
+    expect(calls[1]?.[0]).toContain('FROM leads l');
+    expect(calls[2]?.[0]).toContain('UPDATE leads');
+    expect(calls[3]?.[0]).toContain('UPDATE lead_dealers');
+    expect(runner.commitTransaction).toHaveBeenCalledOnce();
+    expect(runner.release).toHaveBeenCalledOnce();
+  });
+});
