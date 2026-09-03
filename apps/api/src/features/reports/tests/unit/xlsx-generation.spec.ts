@@ -19,6 +19,7 @@ describe('Día 6 - generación de reportes XLSX', () => {
     expect(result).toBeInstanceOf(Buffer);
     expect(result.length).toBeGreaterThan(0);
     expect(mockQuery).toHaveBeenCalledTimes(3);
+    expect(mockQuery.mock.calls.every(([query]) => query.includes("NULLIF($3, 'all')::uuid"))).toBe(true);
 
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(result as unknown as Parameters<typeof workbook.xlsx.load>[0]);

@@ -50,7 +50,7 @@ export class ExportReportService {
       `SELECT COUNT(*)::int AS count
        FROM lead_dealers ld
        WHERE ld.created_at BETWEEN $1 AND $2
-         AND ($3 = 'all' OR COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $3)`,
+         AND ($3 = 'all' OR COALESCE(ld.assigned_dealer_id, ld.dealer_id) = NULLIF($3, 'all')::uuid)`,
       [range.from, range.to, dealerId],
     )) as Array<{ count: number | string }>;
     return Number(rows[0]?.count ?? 0);
@@ -85,7 +85,7 @@ export class ExportReportService {
          JOIN dealers d ON d.id = COALESCE(ld.assigned_dealer_id, ld.dealer_id)
          JOIN leads l ON l.id = ld.lead_id
          WHERE ld.created_at BETWEEN $1 AND $2
-           AND ($3 = 'all' OR COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $3)
+           AND ($3 = 'all' OR COALESCE(ld.assigned_dealer_id, ld.dealer_id) = NULLIF($3, 'all')::uuid)
          GROUP BY d.id, d.name
          ORDER BY d.name ASC`,
         [from, to, dealerId],
@@ -122,7 +122,7 @@ export class ExportReportService {
          JOIN dealers d ON d.id = COALESCE(ld.assigned_dealer_id, ld.dealer_id)
          JOIN leads l ON l.id = ld.lead_id
          WHERE ld.created_at BETWEEN $1 AND $2
-           AND ($3 = 'all' OR COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $3)
+           AND ($3 = 'all' OR COALESCE(ld.assigned_dealer_id, ld.dealer_id) = NULLIF($3, 'all')::uuid)
          ORDER BY ld.created_at DESC`,
         [from, to, dealerId],
       );
@@ -149,7 +149,7 @@ export class ExportReportService {
          LEFT JOIN dealers d ON d.ghl_location_id = we.ghl_location_id
          WHERE we.received_at BETWEEN $1 AND $2
            AND we.status = 'failed'
-           AND ($3 = 'all' OR d.id = $3)
+           AND ($3 = 'all' OR d.id = NULLIF($3, 'all')::uuid)
          ORDER BY we.received_at DESC`,
         [from, to, dealerId],
       );
