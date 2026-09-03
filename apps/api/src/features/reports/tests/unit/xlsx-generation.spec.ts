@@ -13,30 +13,27 @@ describe('Día 6 - generación de reportes XLSX', () => {
     service = new ExportReportService(mockDataSource);
   });
 
-  it('retorna un XLSX binario con Resumen, Detalle y Errores, sin usar cron ni disco', async () => {
+  it('retorna un XLSX binario con leads listados en pestañas por dealer, sin usar cron ni disco', async () => {
     const result = await service.generateXlsx('all', new Date('2026-08-01T00:00:00.000Z'), new Date('2026-08-31T23:59:59.999Z'));
 
     expect(result).toBeInstanceOf(Buffer);
     expect(result.length).toBeGreaterThan(0);
     expect(mockQuery).toHaveBeenCalledTimes(3);
-    expect(mockQuery.mock.calls.every(([query]) => query.includes("NULLIF($3, 'all')::uuid"))).toBe(true);
+    expect(mockQuery.mock.calls.filter(([query]) => typeof query === 'string' && query.includes("NULLIF($3, 'all')::uuid")).length).toBe(1);
 
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(result as unknown as Parameters<typeof workbook.xlsx.load>[0]);
-    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual(['Resumen', 'Detalle', 'Errores']);
-    expect(workbook.getWorksheet('Detalle')?.getRow(1).values).toEqual([undefined, 'Nombre', 'Número', 'Comentarios', 'Fecha de llegada a dealerADMIN']);
-    for (const sheet of workbook.worksheets) {
-      const fill = sheet.getRow(1).fill;
-      expect(fill.type).toBe('pattern');
-      if (fill.type === 'pattern') expect(fill.fgColor?.argb).toMatch(/0B817A$/i);
-      expect(sheet.views[0]?.state).toBe('frozen');
-    }
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual(['Sin leads']);
+    expect(workbook.getWorksheet('Sin leads')?.getRow(1).values).toEqual([undefined, 'Ref', 'Nombre', 'Número', 'Comentarios']);
+    expect(workbook.getWorksheet('Sin leads')?.views[0]?.state).toBe('normal');
   });
 
-  it('exporta comentarios con solo las opciones disponibles y la fecha de llegada', async () => {
+  it('exporta comentarios con solo las opciones disponibles', async () => {
     mockQuery
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{
+        dealer_id: 'dealer-1',
+        dealer_name: 'Dealer Uno',
         received_at: '2026-08-21T12:00:00.000Z',
         name: 'Maria Lopez',
         phone: '+15559876543',
@@ -54,13 +51,13 @@ describe('Día 6 - generación de reportes XLSX', () => {
     const result = await service.generateXlsx('all', new Date('2026-08-01T00:00:00.000Z'), new Date('2026-08-31T23:59:59.999Z'));
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(result as unknown as Parameters<typeof workbook.xlsx.load>[0]);
-    const detailRow = workbook.getWorksheet('Detalle')?.getRow(2);
+    const detailRow = workbook.getWorksheet('Dealer Uno')?.getRow(2);
 
-    expect(detailRow?.getCell(1).value).toBe('Maria Lopez');
-    expect(detailRow?.getCell(2).value).toBe('+15559876543');
-    expect(detailRow?.getCell(3).value).toBe('SUV, $1000 de down, ID y prueba de ingresos, quiere comprar este mes');
-    expect(detailRow?.getCell(3).value).not.toContain('ID-77');
-    expect(detailRow?.getCell(4).value).toEqual(new Date('2026-08-21T12:00:00.000Z'));
+    expect(detailRow?.getCell(1).value).toBe(1);
+    expect(detailRow?.getCell(2).value).toBe('Maria Lopez');
+    expect(detailRow?.getCell(3).value).toBe('+15559876543');
+    expect(detailRow?.getCell(4).value).toBe('SUV, $1000 de down, ID y prueba de ingresos, quiere comprar este mes');
+    expect(detailRow?.getCell(4).value).not.toContain('ID-77');
     expect([1, 2, 3, 4].every((column) => detailRow?.getCell(column).value !== null && detailRow?.getCell(column).value !== undefined)).toBe(true);
   });
 
@@ -68,6 +65,8 @@ describe('Día 6 - generación de reportes XLSX', () => {
     mockQuery
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{
+        dealer_id: 'dealer-1',
+        dealer_name: 'Dealer Uno',
         received_at: '2026-08-22T12:00:00.000Z',
         name: 'Jose Ramirez',
         phone: '+15550002222',
@@ -85,10 +84,10 @@ describe('Día 6 - generación de reportes XLSX', () => {
     const result = await service.generateXlsx('all', new Date('2026-08-01T00:00:00.000Z'), new Date('2026-08-31T23:59:59.999Z'));
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(result as unknown as Parameters<typeof workbook.xlsx.load>[0]);
-    const detailRow = workbook.getWorksheet('Detalle')?.getRow(2);
+    const detailRow = workbook.getWorksheet('Dealer Uno')?.getRow(2);
 
-    expect(detailRow?.getCell(3).value).toBe('Sedan, ID y cuenta bancaria, quiere comprar este mes');
-    expect(detailRow?.getCell(3).value).not.toContain('PASSPORT-44');
+    expect(detailRow?.getCell(4).value).toBe('Sedan, ID y cuenta bancaria, quiere comprar este mes');
+    expect(detailRow?.getCell(4).value).not.toContain('PASSPORT-44');
   });
 
   it('cuenta únicamente la relación lead-dealer del rango y dealer solicitado', async () => {

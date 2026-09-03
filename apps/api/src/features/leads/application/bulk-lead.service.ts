@@ -9,11 +9,13 @@ import { findDealerLeadDuplicate } from '../domain/lead-duplicate';
 import { addTestManualLead, getTestDealer, hasTestDealerLeadDuplicate } from './test-lead-store';
 
 type DealerRow = { id: string; ghl_location_id: string };
-type LeadRow = { id: string };
+type LeadRow = { id: string; first_name?: string | null; last_name?: string | null; canonical_phone?: string | null };
 type BulkRowResult = { rowNumber: number; name: string; phone: string; status: 'inserted' | 'duplicate' | 'invalid'; reason?: string; leadId?: string };
 
-function duplicateReason(name: string, phone: string): string {
-  return `No se puede subir ${name} con ${phone} porque este dato ya existe en el dealer.`;
+function duplicateReason(name: string, phone: string, existing?: LeadRow): string {
+  const existingName = [existing?.first_name, existing?.last_name].filter(Boolean).join(' ').trim();
+  const existingLead = existingName ? ` Lead existente: ${existingName} · ${existing?.canonical_phone ?? phone}.` : '';
+  return `No se puede subir ${name} con ${phone} porque el teléfono ya pertenece a un lead repetido.${existingLead}`;
 }
 
 function lineHash(line: string): string {
@@ -112,25 +114,32 @@ export class BulkLeadService {
 
     const duplicate = await findDealerLeadDuplicate(queryRunner, dealer.id, item.dto.name, item.dto.phone);
     if (duplicate) {
-      const reason = duplicateReason(item.dto.name, item.dto.phone);
+      const reason = duplicateReason(item.dto.name, item.dto.phone, duplicate);
       await this.recordRow(queryRunner, _batchId, item, 'duplicate', reason, duplicate.id);
       return { rowNumber: item.rowNumber, name: item.dto.name, phone: item.dto.phone, status: 'duplicate', reason, leadId: duplicate.id };
     }
 
     const names = item.dto.name.trim().split(/\s+/).filter(Boolean);
-    const existing = await queryRunner.query(`SELECT id FROM leads WHERE canonical_phone = $1 LIMIT 1 FOR UPDATE`, [item.dto.phone]) as LeadRow[];
-    let leadId: string;
+    const existing = await queryRunner.query(
+      `SELECT id, first_name, last_name, canonical_phone
+       FROM leads
+       WHERE canonical_phone = $1
+       LIMIT 1
+       FOR UPDATE`,
+      [item.dto.phone],
+    ) as LeadRow[];
     if (existing.length) {
-      leadId = existing[0].id;
-      await queryRunner.query(`UPDATE leads SET first_name = $1, last_name = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`, [names[0], names.slice(1).join(' '), leadId]);
-    } else {
-      const inserted = await queryRunner.query(
-        `INSERT INTO leads (canonical_phone, first_name, last_name, ghl_contact_id, ghl_location_id, source)
-         VALUES ($1, $2, $3, $4, $5, 'Manual Bulk Console') RETURNING id`,
-        [item.dto.phone, names[0], names.slice(1).join(' '), `bulk_${randomBytes(4).toString('hex')}`, dealer.ghl_location_id],
-      ) as LeadRow[];
-      leadId = inserted[0].id;
+      const reason = duplicateReason(item.dto.name, item.dto.phone, existing[0]);
+      await this.recordRow(queryRunner, _batchId, item, 'duplicate', reason, existing[0].id);
+      return { rowNumber: item.rowNumber, name: item.dto.name, phone: item.dto.phone, status: 'duplicate', reason, leadId: existing[0].id };
     }
+    let leadId: string;
+    const inserted = await queryRunner.query(
+      `INSERT INTO leads (canonical_phone, first_name, last_name, ghl_contact_id, ghl_location_id, source)
+       VALUES ($1, $2, $3, $4, $5, 'Manual Bulk Console') RETURNING id`,
+      [item.dto.phone, names[0], names.slice(1).join(' '), `bulk_${randomBytes(4).toString('hex')}`, dealer.ghl_location_id],
+    ) as LeadRow[];
+    leadId = inserted[0].id;
     const message = buildManualLeadMessage(item.dto.name, item.dto.phone, item.dto);
     await queryRunner.query(
       `INSERT INTO lead_dealers

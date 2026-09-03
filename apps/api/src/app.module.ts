@@ -7,6 +7,12 @@ import { LeadsModule } from './features/leads/presentation/leads.module';
 import { RoutingModule } from './features/routing/presentation/routing.module';
 import { ReportsModule } from './features/reports/presentation/reports.module';
 import { TestFixturesModule } from './features/test-fixtures/presentation/test-fixtures.module';
+import { InitialSchema1710000000000 } from './database/migrations/1710000000000-InitialSchema';
+import { AddLeadFinancialDetails1710000001000 } from './database/migrations/1710000001000-AddLeadFinancialDetails';
+import { Day5EasternsRouting1710000002000 } from './database/migrations/1710000002000-Day5EasternsRouting';
+import { UnifyOffleaseFredericksburg1710000003000 } from './database/migrations/1710000003000-UnifyOffleaseFredericksburg';
+import { BulkLeadIngestion1710000004000 } from './database/migrations/1710000004000-BulkLeadIngestion';
+import { ReportExportHistory1710000005000 } from './database/migrations/1710000005000-ReportExportHistory';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -16,7 +22,15 @@ const databaseModule = TypeOrmModule.forRootAsync({
           url: env.DATABASE_URL,
           autoLoadEntities: true,
           synchronize: false,
-          migrationsRun: false,
+          migrations: [
+            InitialSchema1710000000000,
+            AddLeadFinancialDetails1710000001000,
+            Day5EasternsRouting1710000002000,
+            UnifyOffleaseFredericksburg1710000003000,
+            BulkLeadIngestion1710000004000,
+            ReportExportHistory1710000005000,
+          ],
+          migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,
         };
       },

@@ -42,13 +42,14 @@ export class ReportsController {
   ): Promise<void> {
     this.requireSession(request);
     const range = this.parseRange(fromStr, toStr);
-    const buffer = await this.exportReportService.generateXlsx(dealerId, range.from, range.to);
     const safeDealerId = dealerId.replace(/[^a-zA-Z0-9_-]/g, '-');
+    const fileName = `dealerADMIN-leads-${safeDealerId}-${fromStr}-to-${toStr}.xlsx`;
+    const buffer = await this.exportReportService.generateXlsx(dealerId, range.from, range.to, fileName);
 
     response.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     response.setHeader(
       'Content-Disposition',
-      `attachment; filename="dealerADMIN-leads-${safeDealerId}-${fromStr}-to-${toStr}.xlsx"`,
+      `attachment; filename="${fileName}"`,
     );
     response.send(buffer);
   }
