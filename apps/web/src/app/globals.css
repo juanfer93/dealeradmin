@@ -67,8 +67,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--brand); outline
 
 img[src="/captures/ghl-workflow.svg"] {
   display: block;
-  height: min(52.78vw, 633px) !important;
-  object-fit: cover;
+  height: auto !important;
+  object-fit: contain;
 }
 
 .operator-shell > .operator-layout > aside {
@@ -88,15 +88,11 @@ img[src="/captures/ghl-workflow.svg"] {
   border-radius: 4px;
 }
 
-section[aria-labelledby="workflow-title"] > div > .landing-reveal:nth-child(2) {
-  min-height: calc(min(52.78vw, 633px) + 48px);
-}
-
 section[aria-labelledby="workflow-title"] img {
   display: block;
   width: 100%;
-  height: min(52.78vw, 633px) !important;
-  object-fit: cover;
+  height: auto !important;
+  object-fit: contain;
 }
 
 @keyframes landing-rise-in {

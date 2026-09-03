@@ -38,16 +38,13 @@ function FlowDiagram() {
 
   return (
     <div className="landing-flow rounded-[10px] border border-white/10 bg-[#17231D]/95 p-4 shadow-[0_22px_60px_rgba(0,0,0,0.28)] sm:p-6">
-      <div className="mb-6 flex items-center justify-between gap-4 text-xs">
-        <span className="font-semibold text-[#F1F7F4]">{t.landing.liveModel}</span>
-        <span className="inline-flex items-center gap-2 text-[#AFC1B9]"><span className="h-2 w-2 rounded-full bg-[#5ED5AA]" />{t.landing.signedPath}</span>
-      </div>
-      <div className="relative grid gap-3 sm:grid-cols-4 sm:gap-2">
-        <div className="pointer-events-none absolute left-[12%] right-[12%] top-[52px] hidden h-px bg-[#5ED5AA]/35 sm:block" aria-hidden="true" />
+      <div className="mb-6 flex items-center justify-between gap-4 text-xs"><span className="font-semibold text-[#F1F7F4]">{t.landing.liveModel}</span><span className="inline-flex items-center gap-2 text-[#AFC1B9]"><span className="h-2 w-2 rounded-full bg-[#5ED5AA]" />{t.landing.signedPath}</span></div>
+      <div className="relative grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-2">
+        <div className="pointer-events-none absolute left-[12%] right-[12%] top-[74px] hidden h-px bg-[#5ED5AA]/30 lg:block" aria-hidden="true" />
         {(['collector', 'ghl', 'api', 'queue'] as FlowStage[]).map((stage) => {
           const item = t.landing.flow[stage];
           const isActive = activeStage === stage;
-          return <button key={stage} type="button" onClick={() => setActiveStage(stage)} aria-pressed={isActive} className={`relative z-10 min-h-[126px] rounded-[12px] border p-4 text-left transition-[background-color,border-color,transform] duration-200 ${isActive ? 'border-[#5ED5AA]/70 bg-[#193A30] -translate-y-0.5' : 'border-white/10 bg-[#111815] hover:border-white/25'}`}><span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5ED5AA]">{item[0]}</span><span className="mt-3 block text-sm font-semibold text-[#F1F7F4]">{item[1]}</span><span className="mt-2 block text-xs leading-5 text-[#AFC1B9]">{item[3]}</span></button>;
+          return <button key={stage} type="button" onClick={() => setActiveStage(stage)} aria-pressed={isActive} className={`relative z-10 min-h-[158px] rounded-[12px] border p-4 text-left transition-[background-color,border-color,transform,box-shadow] duration-200 ${isActive ? 'border-[#5ED5AA]/70 bg-[#193A30] -translate-y-0.5 shadow-[0_12px_30px_rgba(0,0,0,0.16)]' : 'border-white/10 bg-[#111815] hover:-translate-y-px hover:border-white/25'}`}><span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5ED5AA]">{item[0]}</span><span className="mt-3 block text-sm font-semibold leading-5 text-[#F1F7F4]">{item[1]}</span><span className="mt-2 block text-xs leading-5 text-[#AFC1B9]">{item[3]}</span></button>;
         })}
       </div>
       <div className="mt-4 rounded-[10px] border border-white/10 bg-[#111815] px-4 py-3" aria-live="polite"><p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5ED5AA]">{active[0]}</p><p className="mt-1 text-sm text-[#F1F7F4]">{active[2]}</p></div>
@@ -90,13 +87,13 @@ export default function HomePage() {
         </nav>
       </header>
 
-      <section className="landing-grid relative mx-auto grid max-w-7xl items-center gap-12 px-5 pb-24 pt-24 sm:px-8 sm:pt-32 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16 lg:px-10 lg:pb-36">
-        <div className="relative z-10 max-w-xl">
+      <section className="landing-grid relative mx-auto max-w-7xl px-5 pb-20 pt-20 sm:px-8 sm:pb-24 sm:pt-28 lg:px-10 lg:pb-28">
+        <div className="relative z-10 max-w-5xl">
           <p className="landing-rise landing-rise-1 mb-6 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#5ED5AA]">{t.landing.heroEyebrow}</p>
-          <h1 className="landing-rise landing-rise-2 max-w-[620px] text-[clamp(2.75rem,5.5vw,4.75rem)] font-semibold leading-[0.98] tracking-[-0.065em]">{t.landing.heroTitle}</h1>
-          <div className="landing-rise landing-rise-3"><p className="mt-7 max-w-md text-base leading-7 text-[#AFC1B9]">{t.landing.heroDescription}</p><div className="mt-9 flex flex-wrap items-center gap-3"><Link href="/app" className="rounded-[7px] bg-[#5ED5AA] px-5 py-3.5 text-sm font-semibold text-[#0B0F0D] transition-[background-color,transform] duration-150 hover:bg-[#7AE1BF] active:scale-[0.98]">{t.landing.openOperator}</Link><a href="#flow" className="rounded-[7px] border border-white/15 px-5 py-3.5 text-sm font-semibold text-[#F1F7F4] transition-colors hover:border-white/35">{t.landing.seeFlow}</a></div><p className="mt-6 text-xs text-[#7F948A]">{t.landing.trustLine}</p></div>
+          <h1 className="landing-rise landing-rise-2 max-w-[920px] text-[clamp(3.25rem,7.2vw,6.5rem)] font-semibold leading-[0.94] tracking-[-0.075em]">{t.landing.heroTitle}</h1>
+          <div className="landing-rise landing-rise-3"><p className="mt-7 max-w-2xl text-base leading-7 text-[#AFC1B9]">{t.landing.heroDescription}</p><div className="mt-9 flex flex-wrap items-center gap-3"><Link href="/app" className="rounded-[7px] bg-[#5ED5AA] px-5 py-3.5 text-sm font-semibold text-[#0B0F0D] transition-[background-color,transform] duration-150 hover:bg-[#7AE1BF] active:scale-[0.98]">{t.landing.openOperator}</Link><a href="#flow" className="rounded-[7px] border border-white/15 px-5 py-3.5 text-sm font-semibold text-[#F1F7F4] transition-colors hover:border-white/35">{t.landing.seeFlow}</a></div><p className="mt-6 text-xs text-[#7F948A]">{t.landing.trustLine}</p></div>
         </div>
-        <div id="flow" className="landing-rise landing-rise-2 relative z-10 scroll-mt-8"><FlowDiagram /></div>
+        <div id="flow" className="landing-rise landing-rise-2 relative z-10 mt-12 scroll-mt-8 sm:mt-14"><FlowDiagram /></div>
       </section>
 
       <section className="landing-rise landing-rise-section-1 border-y border-white/10 bg-[#0D1310]" aria-label={t.landing.principlesLabel}><div className="mx-auto grid max-w-7xl gap-px bg-white/10 sm:grid-cols-3">{t.landing.principles.map(([title, detail], index) => <Reveal key={title} delay={index * 70}><div className="h-full bg-[#0D1310] px-5 py-8 sm:px-8 lg:px-10"><h2 className="text-sm font-semibold text-[#F1F7F4]">{title}</h2><p className="mt-2 max-w-xs text-sm leading-6 text-[#7F948A]">{detail}</p></div></Reveal>)}</div></section>
