@@ -79,6 +79,25 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message: 'Para ya' }).purchase_timeline).toBe('today');
   });
 
+  it('removes campaign-button suffix contamination and captures a numeric reply followed by tengo', () => {
+    expect(normalizeCollectorInput({ message: 'Quiero mi Auto con Eastern!10', down_payment: '10' })).toMatchObject({
+      vehicle_type: '',
+      down_payment: '',
+    });
+    expect(normalizeCollectorInput({ message: '900 tengo10' }).down_payment).toBe('900');
+    expect(normalizeCollectorInput({ message: '900 tengo' }).down_payment).toBe('900');
+  });
+
+  it('reads keyed facts from contaminated workflow memory without preserving the boundary digits', () => {
+    const result = normalizeCollectorInput({
+      message: '900 tengo10',
+      qualification_memory: '2down payment: 10 + trade-in0; vehicle: SUV',
+    });
+    expect(result.down_payment).toBe('900');
+    expect(result.vehicle_type).toBe('SUV');
+    expect(result.qualification_memory).not.toContain('trade-in0');
+  });
+
   it('merges conversation history and replaces stale keyed facts without duplicating them', () => {
     const result = normalizeCollectorInput({
       message: 'I have proof of income',

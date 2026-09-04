@@ -39,19 +39,32 @@ function firstNonEmpty(...values: Array<string | null | undefined>): string {
 }
 
 function memoryValue(memory: string, aliases: string[]): string {
-  const normalizedAliases = aliases.map((alias) => alias.toLowerCase().replace(/[^a-z0-9]/g, ''));
-  for (const segment of memory.split(';')) {
-    const match = segment.trim().match(/^([^:]+):\s*(.+)$/);
+  const normalized = clean(memory);
+  for (const alias of aliases) {
+    const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\ /g, '\\s+');
+    const match = normalized.match(new RegExp(`(?:^|[^a-z0-9])${escaped}\\s*:\\s*([^;]*)`, 'i'));
     if (!match) continue;
-    const key = match[1].toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (normalizedAliases.includes(key)) return clean(match[2]);
+    return clean(match[1]).replace(/(trade[- ]?in)\d+$/i, '$1');
   }
   return EMPTY;
+}
+
+function isCampaignButton(value: string): boolean {
+  const normalized = clean(value)
+    .replace(/([!?])\s*\d{1,3}$/, '$1')
+    .replace(/[!?.,]/g, '')
+    .toLowerCase();
+  return /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today)$/.test(normalized);
 }
 
 function normalizeAmount(value: string): string {
   const source = clean(value).toLowerCase();
   if (!source || isEmptyMarker(source)) return EMPTY;
+  const tradeIn = source.match(/^(.+?)\s*\+\s*trade[- ]?in\d*$/i);
+  if (tradeIn) {
+    const base = normalizeAmount(tradeIn[1]);
+    return base ? `${base} + trade-in` : EMPTY;
+  }
   // A 10-15 digit value is a phone-shaped value, not a realistic down payment.
   // This guard also covers phone numbers accidentally copied into the GHL
   // down_payment field or into qualification memory.
@@ -101,7 +114,7 @@ function normalizeVehicle(value: string): string {
 
 function extractVehicle(message: string): string {
   const source = clean(message);
-  if (!source) return EMPTY;
+  if (!source || isCampaignButton(source)) return EMPTY;
   const withoutOtherFacts = source
     .replace(/(?:down|enganche|inicial|deposit|dep[oó]sito)\s*(?:payment|pago)?\s*(?:is|es|de|:)?\s*\$?\s*[\d,.]+\s*k?/gi, '')
     .replace(/\b(?:today|hoy|asap|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes)\b/gi, '')
@@ -115,7 +128,7 @@ function extractVehicle(message: string): string {
 
 function extractDownPayment(message: string): string {
   const source = clean(message);
-  if (!source) return EMPTY;
+  if (!source || isCampaignButton(source)) return EMPTY;
   if (/\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b/i.test(source)) return 'Cash';
   const amount = source.match(/(?:down|enganche|inicial|deposit|dep[oó]sito)\s*(?:payment|pago)?\s*(?:is|es|de|:)?\s*\$?\s*([\d,.]+\s*k?)/i)?.[1]
     ?? source.match(/\$?\s*(\d+(?:[,.]\d+)?\s*k?)\s*(?:(?:for|para|as|on|de|del)\s*)?(?:down|enganche|inicial)/i)?.[1];
@@ -124,7 +137,7 @@ function extractDownPayment(message: string): string {
 
 function extractTradeInDownPayment(message: string): string {
   const source = clean(message);
-  if (!source) return EMPTY;
+  if (!source || isCampaignButton(source)) return EMPTY;
 
   const amountPattern = '(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?)';
   const tradeInPattern = '(?:trade[- ]?in|my car|my vehicle|mi carro|mi auto|carro como enganche)';
@@ -137,8 +150,8 @@ function extractTradeInDownPayment(message: string): string {
 
 function extractStandaloneDownPayment(message: string): string {
   const source = clean(message);
-  if (!source) return EMPTY;
-  const standalone = source.match(/^\$?\s*(\d+(?:[,.]\d+)?\s*k?)\s*\.?$/i);
+  if (!source || isCampaignButton(source)) return EMPTY;
+  const standalone = source.match(/^\$?\s*(\d{1,3}(?:[,.]\d{3})+|\d+(?:[,.]\d+)?\s*k?)\s*(?:tengo|have|available|disponible|i have|i can put)?\s*\d{0,2}\s*\.?$/i);
   return standalone ? normalizeAmount(standalone[1]) : EMPTY;
 }
 
@@ -195,7 +208,7 @@ function mergeMemory(current: string, values: Record<string, string>): string {
   for (const [key, value] of currentFacts) {
     const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
     for (let index = segments.length - 1; index >= 0; index -= 1) {
-      const segmentKey = segments[index].match(/^([^:]+):/)?.[1]?.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const segmentKey = segments[index].match(/^([^:]+):/)?.[1]?.toLowerCase().replace(/^[^a-z]+/, '').replace(/[^a-z0-9]/g, '');
       if (segmentKey === normalizedKey) segments.splice(index, 1);
     }
     segments.push(`${key}: ${clean(value)}`);
@@ -215,7 +228,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     memoryValue(memory, ['vehicle', 'vehicle_type']),
   ));
   const baseDown = firstValidAmount(
-    input.down_payment,
+    isCampaignButton(message) ? EMPTY : input.down_payment,
     extractTradeInDownPayment(message),
     extractDownPayment(message),
     extractStandaloneDownPayment(message),

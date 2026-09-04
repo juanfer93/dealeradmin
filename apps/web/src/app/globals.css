@@ -114,6 +114,7 @@ img[src="/captures/ghl-workflow.svg"] {
   min-height: 0;
   flex: 1 1 auto;
   flex-direction: column;
+  width: 100%;
 }
 
 .operator-shell section > div > .overflow-hidden {
@@ -128,7 +129,7 @@ img[src="/captures/ghl-workflow.svg"] {
 
 @media (min-width: 768px) {
   .operator-shell > .operator-layout > section {
-    padding-top: 0;
+    padding-top: 1.25rem;
     padding-bottom: 0.75rem;
     padding-left: 0;
     padding-right: 0;
@@ -137,13 +138,17 @@ img[src="/captures/ghl-workflow.svg"] {
   .operator-shell > .operator-layout > section > div > .mb-6 {
     align-items: center;
     margin-bottom: 0.75rem;
+    padding-inline: 0.75rem;
+    row-gap: 1rem;
   }
 
   .operator-shell > .operator-layout > section > div > .mb-6 > div:first-child {
     min-width: 0;
+    padding-block: 0.25rem;
   }
 
   .operator-shell > .operator-layout > section > div > .mb-6 p:first-child {
+    margin-bottom: 0.75rem;
     line-height: 1.25;
   }
 
@@ -152,6 +157,7 @@ img[src="/captures/ghl-workflow.svg"] {
   }
 
   .operator-shell > .operator-layout > section > div > .mb-6 h1 + p {
+    margin-top: 0.75rem;
     line-height: 1.45;
   }
 
