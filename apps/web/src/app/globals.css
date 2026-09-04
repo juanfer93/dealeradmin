@@ -82,6 +82,19 @@ img[src="/captures/ghl-workflow.svg"] {
 .operator-shell section > div > .overflow-hidden {
   border-radius: 10px;
   box-shadow: 0 10px 24px rgba(19, 32, 29, 0.04);
+  max-height: calc(100vh - 270px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (min-width: 768px) {
+  .operator-shell > .operator-layout > aside nav {
+    max-height: calc(100vh - 190px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 0.25rem;
+  }
 }
 
 .operator-shell [role="tablist"] {
