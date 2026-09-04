@@ -77,4 +77,17 @@ describe('normalizeGhlOutboundPayload', () => {
       qualification_memory: expect.stringContaining('down payment: 2000'),
     });
   });
+
+  it('drops a phone accidentally received in the GHL down payment field', () => {
+    const result = normalizeGhlOutboundPayload({
+      id: 'contact-phone-as-down',
+      locationId: 'location-phone-as-down',
+      first_name: 'Phone',
+      last_name: 'Test',
+      phone: '3019876543',
+      customData: { down_payment: '3019876543' },
+    }) as Record<string, any>;
+
+    expect(result.lead.down_payment).toBe('');
+  });
 });

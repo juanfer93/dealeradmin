@@ -189,6 +189,7 @@ export class WebhookService {
       const currentLeadDealer = currentLeadDealers[0];
       const normalized = normalizeCollectorInput({
         message: payload.lead.message ?? payload.lead.chat_history_log,
+        phone: canonicalPhone,
         chat_history_log: payload.lead.chat_history_log,
         vehicle_type: payload.lead.vehicle_type,
         down_payment: payload.lead.down_payment,

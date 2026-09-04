@@ -1,5 +1,6 @@
 export type CollectorInput = {
   message?: string | null;
+  phone?: string | null;
   vehicle_type?: string | null;
   down_payment?: string | null;
   purchase_timeline?: string | null;
@@ -47,6 +48,11 @@ function memoryValue(memory: string, aliases: string[]): string {
 function normalizeAmount(value: string): string {
   const source = clean(value).toLowerCase();
   if (!source) return EMPTY;
+  // A 10-15 digit value is a phone-shaped value, not a realistic down payment.
+  // This guard also covers phone numbers accidentally copied into the GHL
+  // down_payment field or into qualification memory.
+  const digits = source.replace(/\D/g, '');
+  if (digits.length >= 10 && digits.length <= 15) return EMPTY;
   if (/\b(?:cash|contado|efectivo|paid in full|paga(?:r)? de contado)\b/i.test(source)) return 'Cash';
 
   const compact = source.replace(/\$/g, '').replace(/,/g, '').trim();
@@ -69,6 +75,14 @@ function normalizeAmount(value: string): string {
     if (source.includes(phrase)) return String(amount);
   }
   return clean(value);
+}
+
+function firstValidAmount(...values: Array<string | null | undefined>): string {
+  for (const value of values) {
+    const normalized = normalizeAmount(value ?? EMPTY);
+    if (normalized) return normalized;
+  }
+  return EMPTY;
 }
 
 function normalizeVehicle(value: string): string {
@@ -156,7 +170,10 @@ function mergeDocuments(current: string, message: string): { value: string; id: 
 }
 
 function mergeMemory(current: string, values: Record<string, string>): string {
-  const segments = current.split(';').map(clean).filter(Boolean);
+  let segments = current.split(';').map(clean).filter(Boolean);
+  if (!clean(values['down payment'])) {
+    segments = segments.filter((segment) => segment.match(/^([^:]+):/)?.[1]?.toLowerCase().replace(/[^a-z0-9]/g, '') !== 'downpayment');
+  }
   const currentFacts = Object.entries(values).filter(([, value]) => Boolean(clean(value)));
   for (const [key, value] of currentFacts) {
     const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -180,13 +197,13 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     extractVehicle(history),
     memoryValue(memory, ['vehicle', 'vehicle_type']),
   ));
-  const down = normalizeAmount(firstNonEmpty(
+  const down = firstValidAmount(
     input.down_payment,
     extractDownPayment(message),
     extractStandaloneDownPayment(message),
     extractDownPayment(history),
     memoryValue(memory, ['down payment', 'down_payment', 'downpayment']),
-  ));
+  );
   const timeline = normalizeTimeline(firstNonEmpty(
     input.purchase_timeline,
     extractTimeline(message),

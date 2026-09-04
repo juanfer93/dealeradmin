@@ -94,7 +94,7 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
     lead: {
       ...lead,
       vehicle_type: normalized.vehicle_type || lead.vehicle_type,
-      down_payment: normalized.down_payment || lead.down_payment,
+      down_payment: normalized.down_payment,
       purchase_timeline: normalized.purchase_timeline || lead.purchase_timeline,
       documents: normalized.documents || lead.documents,
       identification: normalized.identification || lead.identification,

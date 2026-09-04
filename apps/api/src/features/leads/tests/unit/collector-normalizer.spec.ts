@@ -8,6 +8,17 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message: 'I have 1000 for down' }).down_payment).toBe('1000');
   });
 
+  it('never stores a phone-shaped value as down payment', () => {
+    const result = normalizeCollectorInput({
+      phone: '3019876543',
+      down_payment: '3019876543',
+      qualification_memory: 'down payment: 3019876543',
+    });
+
+    expect(result.down_payment).toBe('');
+    expect(result.qualification_memory).not.toContain('down payment: 3019876543');
+  });
+
   it('preserves the vehicle description and identifies the purchase timeline', () => {
     const result = normalizeCollectorInput({ message: 'I want a Toyota RAV4 SUV this week' });
     expect(result.vehicle_type).toContain('Toyota RAV4 SUV');
