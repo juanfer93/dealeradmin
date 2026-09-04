@@ -130,10 +130,29 @@ img[src="/captures/ghl-workflow.svg"] {
   .operator-shell > .operator-layout > section {
     padding-top: 0;
     padding-bottom: 0.75rem;
+    padding-left: 0;
+    padding-right: 0;
   }
 
   .operator-shell > .operator-layout > section > div > .mb-6 {
-    margin-bottom: 0;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+
+  .operator-shell > .operator-layout > section > div > .mb-6 > div:first-child {
+    min-width: 0;
+  }
+
+  .operator-shell > .operator-layout > section > div > .mb-6 p:first-child {
+    line-height: 1.25;
+  }
+
+  .operator-shell > .operator-layout > section > div > .mb-6 h1 {
+    line-height: 1.15;
+  }
+
+  .operator-shell > .operator-layout > section > div > .mb-6 h1 + p {
+    line-height: 1.45;
   }
 
   .operator-shell > .operator-layout > aside {
