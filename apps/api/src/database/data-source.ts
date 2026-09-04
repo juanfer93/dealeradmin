@@ -6,6 +6,7 @@ import { UnifyOffleaseFredericksburg1710000003000 } from './migrations/171000000
 import { BulkLeadIngestion1710000004000 } from './migrations/1710000004000-BulkLeadIngestion';
 import { ReportExportHistory1710000005000 } from './migrations/1710000005000-ReportExportHistory';
 import { DealerScopedLeadIdentity1710000006000 } from './migrations/1710000006000-DealerScopedLeadIdentity';
+import { GhlLocationRouting1710000007000 } from './migrations/1710000007000-GhlLocationRouting';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -25,6 +26,7 @@ export const AppDataSource = new DataSource({
     BulkLeadIngestion1710000004000,
     ReportExportHistory1710000005000,
     DealerScopedLeadIdentity1710000006000,
+    GhlLocationRouting1710000007000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,

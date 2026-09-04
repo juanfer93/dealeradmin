@@ -29,7 +29,10 @@ type TestWebhookResponse = {
 
 type WebhookResponse = PersistedWebhookResponse | TestWebhookResponse;
 type LeadRow = { id: string };
-type DealerRow = { id: string };
+type DealerRow = {
+  id: string;
+  routing_config?: { group?: string } | null;
+};
 type EventRow = { event_id: string };
 type LeadDealerRow = {
   vehicle_type: string | null;
@@ -92,8 +95,8 @@ export class WebhookService {
         return { accepted: true, eventId: payload.event_id, status: 'duplicate_ignored' };
       }
 
-      let dealers = (await queryRunner.query(
-        `SELECT d.id
+      const dealers = (await queryRunner.query(
+        `SELECT d.id, d.routing_config
          FROM dealers d
          LEFT JOIN dealer_location_aliases dla ON dla.dealer_id = d.id
          WHERE (d.ghl_location_id = $1 OR dla.ghl_location_id = $1) AND d.active = true
@@ -101,21 +104,14 @@ export class WebhookService {
         [payload.ghl_location_id],
       )) as DealerRow[];
 
-      const isEasternsPayload =
-        payload.dealer_name.toLowerCase().includes('easterns') || Boolean(payload.lead.easterns_zone?.trim());
-      if (dealers.length === 0 && isEasternsPayload) {
-        dealers = (await queryRunner.query(
-          `SELECT id
-           FROM dealers
-           WHERE routing_config->>'group' = 'Easterns' AND active = true
-           ORDER BY code ASC
-           LIMIT 1`,
-        )) as DealerRow[];
-      }
-
       if (dealers.length === 0) {
         throw new BadRequestException(`Dealer con Location ID ${payload.ghl_location_id} no encontrado o inactivo`);
       }
+      // The GHL location is authoritative for the source account. Never infer
+      // the dealer group from free-form payload text: copied workflows can
+      // carry a stale dealer_name and must not turn an Offlease lead into an
+      // Easterns lead.
+      const isEasternsPayload = dealers[0].routing_config?.group === 'Easterns';
 
       let canonicalPhone: string;
       try {
