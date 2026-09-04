@@ -128,11 +128,12 @@ img[src="/captures/ghl-workflow.svg"] {
 
 @media (min-width: 768px) {
   .operator-shell > .operator-layout > section {
-    padding-top: 1rem;
+    padding-top: 0;
+    padding-bottom: 0.75rem;
   }
 
   .operator-shell > .operator-layout > section > div > .mb-6 {
-    margin-bottom: 1rem;
+    margin-bottom: 0;
   }
 
   .operator-shell > .operator-layout > aside {
