@@ -127,6 +127,14 @@ img[src="/captures/ghl-workflow.svg"] {
 }
 
 @media (min-width: 768px) {
+  .operator-shell > .operator-layout > section {
+    padding-top: 1rem;
+  }
+
+  .operator-shell > .operator-layout > section > div > .mb-6 {
+    margin-bottom: 1rem;
+  }
+
   .operator-shell > .operator-layout > aside {
     display: flex;
     min-height: 0;
