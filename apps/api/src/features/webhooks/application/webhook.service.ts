@@ -10,6 +10,7 @@ import { createHash } from 'node:crypto';
 import { DataSource } from 'typeorm';
 import { buildWhatsAppMessage, normalizePurchaseTimeline } from '../../leads/domain/message-builder';
 import { normalizePhone } from '../../leads/domain/phone-normalizer';
+import { normalizeLeadName } from '../../leads/domain/lead-duplicate';
 import { normalizeDownPayment } from '../../leads/domain/down-payment';
 import { applyTestWebhookLead } from '../../leads/application/test-lead-store';
 import { GeoroutingService } from '../../routing/domain/services/georouting.service';
@@ -123,28 +124,34 @@ export class WebhookService {
         throw new BadRequestException('El teléfono no tiene un formato válido');
       }
 
+      const nameParts = payload.lead.name.trim().split(/\s+/).filter(Boolean);
+      const firstName = nameParts[0] ?? 'Lead';
+      const lastName = nameParts.slice(1).join(' ');
+
+      await queryRunner.query(
+        `SELECT pg_advisory_xact_lock(hashtext($1))`,
+        [`dealer-lead:${dealers[0].id}:${canonicalPhone}`],
+      );
+
       const leads = (await queryRunner.query(
         `SELECT id
          FROM leads
          WHERE (
              canonical_phone = $1
+             AND LOWER(REGEXP_REPLACE(TRIM(CONCAT_WS(' ', first_name, last_name)), '\\s+', ' ', 'g')) = $2
              AND EXISTS (
                SELECT 1
                FROM lead_dealers scoped_ld
                WHERE scoped_ld.lead_id = leads.id
-                 AND (scoped_ld.dealer_id = $4 OR scoped_ld.assigned_dealer_id = $4)
+                 AND COALESCE(scoped_ld.assigned_dealer_id, scoped_ld.dealer_id) = $5
              )
            )
-            OR (ghl_contact_id = $2 AND ghl_location_id = $3)
+            OR (ghl_contact_id = $3 AND ghl_location_id = $4)
          ORDER BY CASE WHEN canonical_phone = $1 THEN 0 ELSE 1 END
          LIMIT 1
          FOR UPDATE`,
-        [canonicalPhone, payload.ghl_contact_id, payload.ghl_location_id, dealers[0].id],
+        [canonicalPhone, normalizeLeadName(payload.lead.name), payload.ghl_contact_id, payload.ghl_location_id, dealers[0].id],
       )) as LeadRow[];
-
-      const nameParts = payload.lead.name.trim().split(/\s+/).filter(Boolean);
-      const firstName = nameParts[0] ?? 'Lead';
-      const lastName = nameParts.slice(1).join(' ');
       let leadId: string;
 
       if (leads.length === 0) {

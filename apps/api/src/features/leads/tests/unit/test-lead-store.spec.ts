@@ -34,6 +34,26 @@ describe('Identidad de lead por dealer en fixtures', () => {
     expect(copyTestLead(testLead.id, 'dealer-fredericksburg', EASTERN_DEALER_IDS.rosedale)).toEqual({ ok: true });
   });
 
+  it('permite el mismo teléfono en el dealer destino cuando el nombre es diferente', () => {
+    addTestManualLead(
+      'dealer-stafford',
+      {
+        name: 'Otro Cliente',
+        phone: testLead.phone,
+        vehicle_type: 'SUV',
+        down_payment: '',
+        identification: '',
+        bank_account: '',
+        documents: '',
+        purchase_timeline: '',
+      },
+      testLead.phone,
+      'Otro Cliente +15559876543 SUV.',
+    );
+
+    expect(copyTestLead(testLead.id, 'dealer-fredericksburg', 'dealer-stafford')).toEqual({ ok: true });
+  });
+
   it('permite repetir la eliminación de una cola ya vacía sin cruzar dealers', () => {
     expect(deleteTestLead(testLead.id, 'dealer-stafford')).toEqual({ ok: false, reason: 'wrong_dealer' });
     expect(deleteTestLead('missing-lead', 'dealer-fredericksburg')).toEqual({ ok: true, deletedLead: false, deletedRelationship: false });

@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
+import { normalizeLeadName } from '../domain/lead-duplicate';
 
 type LeadCopyInput = { sourceDealerId: string; targetDealerId: string };
 type LeadCopyResult = { success: true; leadId: string; sourceDealerId: string; targetDealerId: string };
@@ -74,6 +75,7 @@ export class CopyLeadService {
       if (sourceRows.length === 0) throw new NotFoundException('Lead origen no encontrado en el dealer seleccionado');
 
       const source = sourceRows[0];
+      const sourceName = [source.first_name, source.last_name].filter(Boolean).join(' ').trim();
       const targetRows = (await queryRunner.query(
         `SELECT id, name
          FROM dealers
@@ -83,26 +85,31 @@ export class CopyLeadService {
       )) as Array<{ id: string; name: string }>;
       if (targetRows.length === 0) throw new NotFoundException('Dealer destino no encontrado o inactivo');
 
+      await queryRunner.query(
+        `SELECT pg_advisory_xact_lock(hashtext($1))`,
+        [`dealer-lead:${input.targetDealerId}:${source.canonical_phone ?? ''}`],
+      );
       const duplicateRows = (await queryRunner.query(
         `SELECT l.id
          FROM leads l
          INNER JOIN lead_dealers ld ON ld.lead_id = l.id
          WHERE l.id <> $1
-           AND (ld.dealer_id = $3 OR ld.assigned_dealer_id = $3)
+           AND COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $3
            AND l.canonical_phone IS NOT NULL
            AND l.canonical_phone = $2
+           AND LOWER(REGEXP_REPLACE(TRIM(CONCAT_WS(' ', l.first_name, l.last_name)), '\\s+', ' ', 'g')) = $4
            LIMIT 1`,
-        [leadId, source.canonical_phone, input.targetDealerId],
+        [leadId, source.canonical_phone, input.targetDealerId, normalizeLeadName(sourceName)],
       )) as Array<{ id: string }>;
       if (duplicateRows.length > 0) {
-        throw new ConflictException('No se puede copiar: ya existe un lead con el mismo nombre y teléfono en la base de datos.');
+        throw new ConflictException('No se puede copiar: ya existe un lead con el mismo nombre y teléfono en el dealer destino.');
       }
 
       const targetRelationship = (await queryRunner.query(
         `SELECT 1 AS exists
          FROM lead_dealers
          WHERE lead_id = $1
-           AND (dealer_id = $2 OR assigned_dealer_id = $2)
+           AND COALESCE(assigned_dealer_id, dealer_id) = $2
          LIMIT 1`,
         [leadId, input.targetDealerId],
       )) as Array<{ exists: number }>;

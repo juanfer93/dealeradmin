@@ -177,7 +177,7 @@ export class LeadsController {
       const result = updateTestLead(leadId, input.dealerId, parsed.data);
       if (!result.ok) {
         if (result.reason === 'duplicate') {
-          throw new ConflictException('No se puede guardar: ya existe un lead con el mismo teléfono en este dealer.');
+          throw new ConflictException('No se puede guardar: ya existe un lead con el mismo nombre y teléfono en este dealer.');
         }
         throw new BadRequestException('Lead no encontrado en el dealer seleccionado');
       }
@@ -192,7 +192,7 @@ export class LeadsController {
     try {
       const duplicate = await findDealerLeadDuplicate(queryRunner, input.dealerId, name, canonicalPhone, leadId);
       if (duplicate) {
-        throw new ConflictException('No se puede guardar: ya existe un lead con el mismo teléfono en este dealer.');
+        throw new ConflictException('No se puede guardar: ya existe un lead con el mismo nombre y teléfono en este dealer.');
       }
 
       const names = name.split(/\s+/).filter(Boolean);
@@ -432,7 +432,7 @@ export class LeadsController {
       const result = copyTestLead(leadId, body.sourceDealerId, body.targetDealerId);
       if (!result.ok) {
         if (result.reason === 'duplicate') {
-          throw new ConflictException('No se puede copiar: ya existe un lead con el mismo teléfono en el dealer destino.');
+          throw new ConflictException('No se puede copiar: ya existe un lead con el mismo nombre y teléfono en el dealer destino.');
         }
         throw new BadRequestException('Lead origen no encontrado o dealer destino inválido');
       }

@@ -54,7 +54,7 @@ export class ManualLeadService {
       const dealer = getTestDealer(dealerId);
       if (!dealer) throw new NotFoundException('Dealer no encontrado o inactivo');
       if (hasTestDealerLeadDuplicate(dealer.id, name, canonicalPhone)) {
-        throw new ConflictException(`No se puede subir ${name} con ${canonicalPhone} porque este dato ya existe en el dealer.`);
+        throw new ConflictException(`No se puede subir ${name} con ${canonicalPhone} porque el nombre y teléfono ya existen en el dealer.`);
       }
       const lead = addTestManualLead(dealerId, dto, canonicalPhone, messageText);
       return { success: true, leadId: lead.id, message: 'Lead manual agregado correctamente.' };
@@ -92,7 +92,7 @@ export class ManualLeadService {
             leadPhone: duplicate.canonical_phone || canonicalPhone,
           };
         }
-        throw new ConflictException(`No se puede subir ${name} con ${canonicalPhone} porque este dato ya existe en el dealer.`);
+        throw new ConflictException(`No se puede subir ${name} con ${canonicalPhone} porque el nombre y teléfono ya existen en el dealer.`);
       }
       const names = name.split(/\s+/).filter(Boolean);
       const firstName = names[0] ?? 'Lead';

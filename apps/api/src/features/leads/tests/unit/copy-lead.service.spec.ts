@@ -38,6 +38,7 @@ describe('CopyLeadService', () => {
     const runner = createRunner([
       [sourceRow],
       [{ id: 'dealer-target', name: 'Dealer Target' }],
+      [],
       [{ id: 'lead-duplicate' }],
     ]);
     const dataSource = { createQueryRunner: vi.fn(() => runner) };
@@ -46,19 +47,36 @@ describe('CopyLeadService', () => {
 
     await expect(service.execute('lead-1', { sourceDealerId: 'dealer-source', targetDealerId: 'dealer-target' }))
       .rejects.toBeInstanceOf(ConflictException);
-    expect(runner.query).toHaveBeenCalledTimes(3);
-    expect(calls[2]?.[0]).toContain('canonical_phone');
-    expect(calls[2]?.[0]).toContain('ld.dealer_id = $3');
-    expect(calls[2]?.[0]).toContain('ld.assigned_dealer_id = $3');
-    expect(calls[2]?.[1]).toEqual(['lead-1', sourceRow.canonical_phone, 'dealer-target']);
+    expect(runner.query).toHaveBeenCalledTimes(4);
+    expect(calls[2]?.[0]).toContain('pg_advisory_xact_lock');
+    expect(calls[3]?.[0]).toContain('canonical_phone');
+    expect(calls[3]?.[0]).toContain('COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $3');
+    expect(calls[3]?.[0]).toContain('CONCAT_WS');
+    expect(calls[3]?.[1]).toEqual(['lead-1', sourceRow.canonical_phone, 'dealer-target', 'jose lopez']);
     expect(runner.rollbackTransaction).toHaveBeenCalledOnce();
     expect(runner.release).toHaveBeenCalledOnce();
+  });
+
+  it('allows the same phone in the target dealer when the name is different', async () => {
+    const runner = createRunner([
+      [sourceRow],
+      [{ id: 'dealer-target', name: 'Dealer Target' }],
+      [],
+      [],
+      [],
+    ]);
+    const dataSource = { createQueryRunner: vi.fn(() => runner) };
+    const service = new CopyLeadService(dataSource as never);
+
+    await expect(service.execute('lead-1', { sourceDealerId: 'dealer-source', targetDealerId: 'dealer-target' }))
+      .resolves.toMatchObject({ success: true, targetDealerId: 'dealer-target' });
   });
 
   it('copies the existing lead relationship to the target dealer after the composite check passes', async () => {
     const runner = createRunner([
       [sourceRow],
       [{ id: 'dealer-target', name: 'Dealer Target' }],
+      [],
       [],
       [],
     ]);
@@ -68,9 +86,9 @@ describe('CopyLeadService', () => {
 
     await expect(service.execute('lead-1', { sourceDealerId: 'dealer-source', targetDealerId: 'dealer-target' }))
       .resolves.toEqual({ success: true, leadId: 'lead-1', sourceDealerId: 'dealer-source', targetDealerId: 'dealer-target' });
-    expect(runner.query).toHaveBeenCalledTimes(5);
-    expect(calls[4]?.[0]).toContain('INSERT INTO lead_dealers');
-    expect(calls[4]?.[1]).toEqual([
+    expect(runner.query).toHaveBeenCalledTimes(6);
+    expect(calls[5]?.[0]).toContain('INSERT INTO lead_dealers');
+    expect(calls[5]?.[1]).toEqual([
       'lead-1', 'dealer-target', 'Honda CR-V', '2000', 'this month', 'proof of income: yes',
       'yes', 'yes', null, 'Copied from Dealer Source', sourceRow.message_text,
     ]);

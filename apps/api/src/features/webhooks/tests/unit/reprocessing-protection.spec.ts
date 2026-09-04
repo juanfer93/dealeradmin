@@ -41,8 +41,8 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
     expect(result).toEqual({ accepted: true, eventId: 'evt-smart-merge-1', status: 'processed' });
 
     const leadLookup = queryRunner.query.mock.calls.find(([sql]) => sql.includes('FROM leads') && sql.includes('scoped_ld')) as [string, unknown[]] | undefined;
-    expect(leadLookup?.[0]).toContain('(scoped_ld.dealer_id = $4 OR scoped_ld.assigned_dealer_id = $4)');
-    expect(leadLookup?.[1]).toEqual(['+15551234567', 'ghl-contact-111', 'loc_stafford_789', 'dealer-222']);
+    expect(leadLookup?.[0]).toContain('COALESCE(scoped_ld.assigned_dealer_id, scoped_ld.dealer_id) = $5');
+    expect(leadLookup?.[1]).toEqual(['+15551234567', 'carlos mendoza', 'ghl-contact-111', 'loc_stafford_789', 'dealer-222']);
 
     const relationUpsert = queryRunner.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO lead_dealers')) as [string, unknown[]] | undefined;
     expect(relationUpsert?.[0]).toContain("status = CASE WHEN lead_dealers.status = 'sent' THEN 'sent' ELSE EXCLUDED.status END");

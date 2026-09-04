@@ -15,7 +15,7 @@ type BulkRowResult = { rowNumber: number; name: string; phone: string; status: '
 function duplicateReason(name: string, phone: string, existing?: LeadRow): string {
   const existingName = [existing?.first_name, existing?.last_name].filter(Boolean).join(' ').trim();
   const existingLead = existingName ? ` Lead existente: ${existingName} · ${existing?.canonical_phone ?? phone}.` : '';
-  return `No se puede subir ${name} con ${phone} porque el teléfono ya pertenece a un lead repetido.${existingLead}`;
+  return `No se puede subir ${name} con ${phone} porque el nombre y teléfono ya pertenecen a un lead repetido en este dealer.${existingLead}`;
 }
 
 function lineHash(line: string): string {

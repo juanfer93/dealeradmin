@@ -3,6 +3,7 @@ import type { CreateManualLeadDto, LeadWebhookDto, UpdateLeadDto } from '@dealer
 import { buildWhatsAppMessage, normalizePurchaseTimeline } from '../domain/message-builder';
 import { buildManualLeadMessage } from '../domain/manual-message-builder';
 import { normalizePhone } from '../domain/phone-normalizer';
+import { normalizeLeadName } from '../domain/lead-duplicate';
 import { normalizeDownPayment } from '../domain/down-payment';
 import { EASTERN_DEALER_IDS } from '../../routing/domain/services/georouting.service';
 
@@ -120,11 +121,13 @@ export function getTestManualLeads(): TestLead[] {
   return [...manualTestLeads];
 }
 
-export function hasTestDealerLeadDuplicate(dealerId: string, _name: string, phone: string): boolean {
+export function hasTestDealerLeadDuplicate(dealerId: string, name: string, phone: string): boolean {
   const canonicalDealerId = TEST_DEALER_ALIASES[dealerId] ?? dealerId;
+  const normalizedName = normalizeLeadName(name);
   return [testLead, smartMergeTestLead, easternsTestLead, ...manualTestLeads].some(
     (lead) => !isTestLeadDeleted(lead.id)
       && lead.dealerId === canonicalDealerId
+      && normalizeLeadName(lead.name) === normalizedName
       && lead.phone === phone,
   );
 }
@@ -194,6 +197,7 @@ export function updateTestLead(leadId: string, dealerId: string, dto: UpdateLead
     (item) => item.id !== lead.id
       && !isTestLeadDeleted(item.id)
       && item.dealerId === canonicalDealerId
+      && normalizeLeadName(item.name) === normalizeLeadName(dto.name)
       && item.phone === phone,
   );
   if (duplicate) return { ok: false, reason: 'duplicate' };
@@ -292,7 +296,10 @@ export function applyTestWebhookLead(payload: LeadWebhookDto): boolean {
   }
 
   const lead = [testLead, smartMergeTestLead, ...manualTestLeads].find(
-    (item) => !isTestLeadDeleted(item.id) && item.dealerId === dealer.id && item.phone === canonicalPhone,
+    (item) => !isTestLeadDeleted(item.id)
+      && item.dealerId === dealer.id
+      && normalizeLeadName(item.name) === normalizeLeadName(payload.lead.name)
+      && item.phone === canonicalPhone,
   );
   if (!lead) return false;
 

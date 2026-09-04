@@ -19,4 +19,13 @@ describe('bulk lead import', () => {
     expect(getTestManualLeads()).toHaveLength(1);
     expect(getTestManualLeads()[0].downPayment).toBe('2000');
   });
+
+  it('allows a repeated phone in the same dealer when the name is different', async () => {
+    const service = new BulkLeadService(undefined);
+
+    const result = await service.execute('dealer-stafford', 'Otro Cliente | +15551234567 | SUV');
+
+    expect(result.summary).toEqual({ received: 1, inserted: 1, duplicates: 0, invalid: 0 });
+    expect(result.rows[0]).toMatchObject({ name: 'Otro Cliente', phone: '+15551234567', status: 'inserted' });
+  });
 });
