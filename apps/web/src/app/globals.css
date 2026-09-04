@@ -75,22 +75,61 @@ img[src="/captures/ghl-workflow.svg"] {
   background: var(--surface);
 }
 
+.operator-shell {
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.operator-shell > header,
+.operator-shell > .border-b {
+  flex: none;
+}
+
 .operator-shell > .operator-layout {
-  min-height: calc(100vh - 64px);
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.operator-shell > .operator-layout > section {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.operator-shell > .operator-layout > section > div {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
 }
 
 .operator-shell section > div > .overflow-hidden {
   border-radius: 10px;
   box-shadow: 0 10px 24px rgba(19, 32, 29, 0.04);
-  max-height: calc(100vh - 270px);
+  min-height: 0;
+  flex: 1 1 auto;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
 @media (min-width: 768px) {
+  .operator-shell > .operator-layout > aside {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
   .operator-shell > .operator-layout > aside nav {
-    max-height: calc(100vh - 190px);
+    min-height: 0;
+    flex: 1 1 auto;
     overflow-y: auto;
     overscroll-behavior: contain;
     padding-right: 0.25rem;
