@@ -30,8 +30,12 @@ function clean(value: string | null | undefined): string {
   return value?.replace(/\s+/g, ' ').trim() ?? EMPTY;
 }
 
+function isEmptyMarker(value: string): boolean {
+  return /^(?:--|-|n\/?a|not indicated|not specified|no indicado|no especificado)$/i.test(value.trim());
+}
+
 function firstNonEmpty(...values: Array<string | null | undefined>): string {
-  return values.map(clean).find(Boolean) ?? EMPTY;
+  return values.map(clean).find((value) => Boolean(value) && !isEmptyMarker(value)) ?? EMPTY;
 }
 
 function memoryValue(memory: string, aliases: string[]): string {
@@ -47,7 +51,7 @@ function memoryValue(memory: string, aliases: string[]): string {
 
 function normalizeAmount(value: string): string {
   const source = clean(value).toLowerCase();
-  if (!source) return EMPTY;
+  if (!source || isEmptyMarker(source)) return EMPTY;
   // A 10-15 digit value is a phone-shaped value, not a realistic down payment.
   // This guard also covers phone numbers accidentally copied into the GHL
   // down_payment field or into qualification memory.
@@ -116,6 +120,19 @@ function extractDownPayment(message: string): string {
   const amount = source.match(/(?:down|enganche|inicial|deposit|dep[oó]sito)\s*(?:payment|pago)?\s*(?:is|es|de|:)?\s*\$?\s*([\d,.]+\s*k?)/i)?.[1]
     ?? source.match(/\$?\s*(\d+(?:[,.]\d+)?\s*k?)\s*(?:(?:for|para|as|on|de|del)\s*)?(?:down|enganche|inicial)/i)?.[1];
   return amount ? normalizeAmount(amount) : EMPTY;
+}
+
+function extractTradeInDownPayment(message: string): string {
+  const source = clean(message);
+  if (!source) return EMPTY;
+
+  const amountPattern = '(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?)';
+  const tradeInPattern = '(?:trade[- ]?in|my car|my vehicle|mi carro|mi auto|carro como enganche)';
+  const beforeTradeIn = source.match(new RegExp(`\\$?\\s*(${amountPattern})\\s*(?:down|payment|enganche|inicial)?\\s*(?:\\+|and|y)\\s*${tradeInPattern}`, 'i'));
+  const afterTradeIn = source.match(new RegExp(`${tradeInPattern}[^0-9]{0,24}\\$?\\s*(${amountPattern})`, 'i'));
+  const amount = beforeTradeIn?.[1] ?? afterTradeIn?.[1];
+  const normalized = amount ? normalizeAmount(amount) : EMPTY;
+  return normalized ? `${normalized} + trade-in` : EMPTY;
 }
 
 function extractStandaloneDownPayment(message: string): string {
@@ -197,13 +214,18 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     extractVehicle(history),
     memoryValue(memory, ['vehicle', 'vehicle_type']),
   ));
-  const down = firstValidAmount(
+  const baseDown = firstValidAmount(
     input.down_payment,
+    extractTradeInDownPayment(message),
     extractDownPayment(message),
     extractStandaloneDownPayment(message),
+    extractTradeInDownPayment(history),
     extractDownPayment(history),
     memoryValue(memory, ['down payment', 'down_payment', 'downpayment']),
   );
+  const down = baseDown && /trade[- ]?in|my car|my vehicle|mi carro|mi auto|carro como enganche/i.test(source) && !/trade[- ]?in/i.test(baseDown)
+    ? `${baseDown} + trade-in`
+    : baseDown;
   const timeline = normalizeTimeline(firstNonEmpty(
     input.purchase_timeline,
     extractTimeline(message),

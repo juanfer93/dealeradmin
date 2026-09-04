@@ -19,6 +19,18 @@ describe('normalizeCollectorInput', () => {
     expect(result.qualification_memory).not.toContain('down payment: 3019876543');
   });
 
+  it('stores the cash portion when the lead combines it with a trade-in', () => {
+    expect(normalizeCollectorInput({ message: 'Dar unos 2000 y mi carro' }).down_payment).toBe('2000 + trade-in');
+    expect(normalizeCollectorInput({ message: 'I can put $2500 down and my car' }).down_payment).toBe('2500 + trade-in');
+    expect(normalizeCollectorInput({ message: 'My car is the trade-in', down_payment: '2500' }).down_payment).toBe('2500 + trade-in');
+  });
+
+  it('does not invent documents from an empty or placeholder value', () => {
+    const result = normalizeCollectorInput({ message: 'I want a Tacoma', documents: '--' });
+    expect(result.documents).toBe('');
+    expect(result.next_question).toBe('Do you have a valid ID or driver license?');
+  });
+
   it('preserves the vehicle description and identifies the purchase timeline', () => {
     const result = normalizeCollectorInput({ message: 'I want a Toyota RAV4 SUV this week' });
     expect(result.vehicle_type).toContain('Toyota RAV4 SUV');
