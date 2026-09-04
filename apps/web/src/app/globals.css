@@ -44,6 +44,12 @@ html { background: var(--page); color-scheme: light; }
 
 html[data-theme="dark"] { color-scheme: dark; }
 
+html:has(.operator-shell),
+body:has(.operator-shell) {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   min-height: 100vh;
   margin: 0;
@@ -100,6 +106,7 @@ img[src="/captures/ghl-workflow.svg"] {
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
+  padding-bottom: 0;
 }
 
 .operator-shell > .operator-layout > section > div {
