@@ -37,6 +37,29 @@ test.describe('Día 4 E2E Tests - Dashboard & Queue Operation', () => {
     await expect(mariaRow).not.toBeVisible();
   });
 
+  test('Aísla la cola inicial y nunca mezcla Fredericksburg con Laurel', async ({ page }) => {
+    await page.goto('/login');
+    await page.fill('input[name="username"]', 'operator');
+    await page.fill('input[name="password"]', 'test-password');
+    await page.click('button[type="submit"]');
+    await expect(page).toHaveURL(/\/app$/);
+
+    const table = page.locator('table');
+    await expect(page.getByRole('button', { name: /^Offlease Fredericksburg\s+\d+$/ })).toBeVisible();
+    await expect(table).toContainText('Maria Lopez');
+    await expect(table).not.toContainText('Andres Felipe');
+    await expect(table).not.toContainText('Carlos Mendoza');
+
+    await page.getByRole('button', { name: /^Easterns Laurel\s+\d+$/ }).click();
+    await expect(page.getByRole('button', { name: /^Easterns Laurel\s+\d+$/ })).toBeVisible();
+    await expect(table).not.toContainText('Maria Lopez');
+
+    await page.getByRole('button', { name: /^Offlease Fredericksburg\s+\d+$/ }).click();
+    await expect(page.getByRole('button', { name: /^Offlease Fredericksburg\s+\d+$/ })).toBeVisible();
+    await expect(table).toContainText('Maria Lopez');
+    await expect(table).not.toContainText('Andres Felipe');
+  });
+
   test('El operador puede borrar un lead y la acción llega al endpoint persistente', async ({ page }) => {
     await page.goto('/login');
     await page.fill('input[name="username"]', 'operator');

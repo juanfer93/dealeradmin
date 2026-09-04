@@ -96,16 +96,25 @@ export class WebhookService {
       }
 
       const dealers = (await queryRunner.query(
-        `SELECT d.id, d.routing_config
-         FROM dealers d
-         LEFT JOIN dealer_location_aliases dla ON dla.dealer_id = d.id
-         WHERE (d.ghl_location_id = $1 OR dla.ghl_location_id = $1) AND d.active = true
-         LIMIT 1`,
+        `SELECT id, routing_config
+         FROM (
+           SELECT d.id, d.routing_config
+           FROM dealers d
+           WHERE d.ghl_location_id = $1 AND d.active = true
+           UNION
+           SELECT d.id, d.routing_config
+           FROM dealer_location_aliases dla
+           INNER JOIN dealers d ON d.id = dla.dealer_id
+           WHERE dla.ghl_location_id = $1 AND d.active = true
+         ) AS matched_dealers`,
         [payload.ghl_location_id],
       )) as DealerRow[];
 
       if (dealers.length === 0) {
         throw new BadRequestException(`Dealer con Location ID ${payload.ghl_location_id} no encontrado o inactivo`);
+      }
+      if (dealers.length > 1) {
+        throw new BadRequestException(`El Location ID ${payload.ghl_location_id} está vinculado a más de un dealer activo`);
       }
       // The GHL location is authoritative for the source account. Never infer
       // the dealer group from free-form payload text: copied workflows can
@@ -178,9 +187,9 @@ export class WebhookService {
         `SELECT status, routing_status, assigned_dealer_id, routing_override, routing_reason,
                 vehicle_type, down_payment, identification, bank_account, purchase_timeline, documents, easterns_zone
          FROM lead_dealers
-         WHERE lead_id = $1
+         WHERE lead_id = $1 AND dealer_id = $2
          FOR UPDATE`,
-        [leadId],
+        [leadId, dealers[0].id],
       )) as LeadDealerRow[];
       const currentLeadDealer = currentLeadDealers[0];
       const normalized = normalizeCollectorInput({

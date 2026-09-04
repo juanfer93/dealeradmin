@@ -21,9 +21,9 @@ describe('borrado persistente de leads', () => {
       'Lead para borrar +13019876500.',
     );
 
-    expect(deleteTestLead(lead.id, dealer.id)).toBe(true);
+    expect(deleteTestLead(lead.id, dealer.id)).toMatchObject({ ok: true, deletedLead: true, deletedRelationship: true });
     expect(getTestManualLeads()).not.toContainEqual(expect.objectContaining({ id: lead.id }));
-    expect(deleteTestLead(lead.id, dealer.id)).toBe(false);
+    expect(deleteTestLead(lead.id, dealer.id)).toMatchObject({ ok: true, deletedLead: false, deletedRelationship: false });
   });
 
   it('borra la relación y el lead principal dentro de una transacción', async () => {
@@ -38,6 +38,7 @@ describe('borrado persistente de leads', () => {
         .mockResolvedValueOnce([{ id: 'lead-1' }])
         .mockResolvedValueOnce([{ lead_id: 'lead-1' }])
         .mockResolvedValueOnce([{ count: 0 }])
+        .mockResolvedValueOnce([])
         .mockResolvedValueOnce([{ id: 'lead-1' }]),
     };
     const controller = new LeadsController(
@@ -48,7 +49,7 @@ describe('borrado persistente de leads', () => {
     process.env.NODE_ENV = 'production';
 
     try {
-      await expect(controller.delete(request(), 'lead-1', 'dealer-1')).resolves.toEqual({ success: true, deletedLead: true });
+      await expect(controller.delete(request(), 'lead-1', 'dealer-1')).resolves.toEqual({ success: true, deletedLead: true, deletedRelationship: true });
     } finally {
       process.env.NODE_ENV = previousNodeEnv;
     }
@@ -57,7 +58,7 @@ describe('borrado persistente de leads', () => {
     expect(queryRunner.commitTransaction).toHaveBeenCalledOnce();
     expect(queryRunner.rollbackTransaction).not.toHaveBeenCalled();
     expect(queryRunner.query).toHaveBeenNthCalledWith(2, expect.stringContaining('DELETE FROM lead_dealers'), ['lead-1', 'dealer-1']);
-    expect(queryRunner.query).toHaveBeenNthCalledWith(4, expect.stringContaining('DELETE FROM leads'), ['lead-1']);
+    expect(queryRunner.query).toHaveBeenNthCalledWith(5, expect.stringContaining('DELETE FROM leads'), ['lead-1']);
   });
 
   it('mantiene el lead principal cuando todavía tiene otra relación de dealer', async () => {
@@ -81,7 +82,7 @@ describe('borrado persistente de leads', () => {
     process.env.NODE_ENV = 'production';
 
     try {
-      await expect(controller.delete(request(), 'lead-shared', 'dealer-1')).resolves.toEqual({ success: true, deletedLead: false });
+      await expect(controller.delete(request(), 'lead-shared', 'dealer-1')).resolves.toEqual({ success: true, deletedLead: false, deletedRelationship: true });
     } finally {
       process.env.NODE_ENV = previousNodeEnv;
     }

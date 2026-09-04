@@ -10,6 +10,7 @@ import { ReassignDropdown } from './ReassignDropdown';
 import { CopyLeadDropdown } from './CopyLeadDropdown';
 import { getPortfolioLeadResponse, isPortfolioMode, portfolioWriteBlockedMessage } from '../../lib/portfolio-mode';
 import { LanguageSwitch, useLanguage } from '../../lib/i18n';
+import { selectInitialQueueLeads } from './queue-selection';
 
 type LeadStatus = 'pending' | 'sent';
 type Dealer = { id: string; code: string; name: string; pendingCount: number };
@@ -91,7 +92,7 @@ export default function OperatorDashboard() {
         if (!response.ok) throw new Error(t.app.errors.loadQueue);
         data = await response.json() as LeadResponse;
       }
-      setDealers(data.dealers); setLeads(data.leads); setSelectedLeadIds([]);
+      setDealers(data.dealers); setLeads(selectInitialQueueLeads(data.leads, data.dealers, dealerId, dealerIds)); setSelectedLeadIds([]);
       setSelectedDealerId((current) => current || data.dealers[0]?.id || '');
       setSelectedDealerIds((current) => current.length ? current : (data.dealers[0]?.id ? [data.dealers[0].id] : []));
     } catch (loadError) { setError(loadError instanceof Error ? loadError.message : t.app.errors.loadQueue); }

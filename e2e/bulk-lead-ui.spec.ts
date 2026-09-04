@@ -20,6 +20,6 @@ test('el operador puede subir leads masivos, ver duplicados y conservar los nuev
   await modal.getByRole('button', { name: 'Subir leads' }).click();
 
   await expect(modal).toContainText('2 recibidos · 1 insertados · 1 duplicados · 0 inválidos');
-  await expect(modal).toContainText('No se puede subir Carlos Mendoza con +15551234567 porque este dato ya existe en el dealer.');
+  await expect(modal).toContainText('No se puede subir Carlos Mendoza con +15551234567 porque el nombre y teléfono ya pertenecen a un lead repetido en este dealer.');
   await expect(page.locator('tr').filter({ hasText: 'Lucia Gomez' })).toContainText('+13019876548');
 });
