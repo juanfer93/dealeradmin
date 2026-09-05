@@ -22,6 +22,50 @@ const text = (value: unknown): string | null => {
   return result || null;
 };
 
+const PHONE_ALIASES = [
+  'phone',
+  'mobile',
+  'mobile_phone',
+  'phone_number',
+  'mobile_phone_number',
+  'contact_phone',
+  'lead_phone',
+  'telephone',
+  'telefono',
+  'tel',
+  'lead_qualifier_phone',
+  'lead_qualificator_phone',
+  'lead_qualifier',
+  'lead_qualificator',
+  'qualifier',
+];
+
+const PHONE_TOKEN = /(?:\+?1[\s().-]*)?(?:\(\d{3}\)|\d{3})[\s.-]?\d{3}[\s.-]?\d{4}|\b\d{10}\b/;
+
+function phoneFromValue(value: unknown): string | null {
+  const candidate = text(value);
+  if (!candidate) return null;
+  const match = candidate.match(PHONE_TOKEN);
+  return match?.[0] || (!/[a-z]/i.test(candidate) && /^\+?[\d\s().-]{10,20}$/.test(candidate) ? candidate : null);
+}
+
+function findPhone(records: UnknownRecord[]): string | null {
+  for (const record of records) {
+    for (const [key, value] of Object.entries(record)) {
+      const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const isPhoneAlias = PHONE_ALIASES.some((alias) => {
+        const normalizedAlias = alias.toLowerCase().replace(/[^a-z0-9]/g, '');
+        return normalizedKey === normalizedAlias || normalizedKey.endsWith(normalizedAlias);
+      });
+      if (isPhoneAlias) {
+        const phone = phoneFromValue(value);
+        if (phone) return phone;
+      }
+    }
+  }
+  return null;
+}
+
 const conversationText = (value: unknown): string | null => {
   const conversation = asRecord(value);
   const messages = Array.isArray(conversation.messages)
@@ -63,7 +107,18 @@ function findField(records: UnknownRecord[], aliases: string[]): string | null {
  */
 export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | unknown {
   const payload = asRecord(input);
-  if (payload.lead && payload.event_id) return input;
+  if (payload.lead && payload.event_id) {
+    const lead = asRecord(payload.lead);
+    const phone = phoneFromValue(lead.phone) || findPhone([
+      lead,
+      asRecord(lead.contact),
+      asRecord(payload.contact),
+      asRecord(payload.customData ?? payload.custom_data),
+      payload,
+    ]);
+    if (!phone || phone === text(lead.phone)) return input;
+    return { ...payload, lead: { ...lead, phone } };
+  }
 
   const customData = asRecord(payload.customData ?? payload.custom_data);
   const contact = asRecord(payload.contact);
@@ -79,7 +134,7 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
     [text(firstValue(records, ['first_name', 'firstName'])), text(firstValue(records, ['last_name', 'lastName']))]
       .filter(Boolean)
       .join(' ');
-  const phone = text(firstValue(records, ['phone', 'mobile', 'mobile_phone']));
+  const phone = findPhone(records);
   const dealerName = text(firstValue(records, ['dealer_name', 'dealerName'])) || text(location.name) || 'GHL dealer';
 
   const lead = {

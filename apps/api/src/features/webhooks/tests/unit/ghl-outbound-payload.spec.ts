@@ -80,6 +80,41 @@ describe('normalizeGhlOutboundPayload', () => {
     expect(result.lead.message).toBe('Dónde están ubicados');
   });
 
+  it('falls back to a phone stored in a lead qualifier field', () => {
+    const result = normalizeGhlOutboundPayload({
+      id: 'contact-qualifier-phone',
+      locationId: 'location-qualifier-phone',
+      first_name: 'Qualifier',
+      last_name: 'Phone',
+      phone: '',
+      customData: {
+        lead_qualifier: 'telefono del lead: (240) 705-4501; vehicle: SUV',
+      },
+    }) as Record<string, any>;
+
+    expect(result.lead.phone).toBe('(240) 705-4501');
+  });
+
+  it('repairs an internal payload before the contract requires lead.phone', () => {
+    const payload = {
+      event_id: 'evt-phone-fallback',
+      event_type: 'lead.ready_for_whatsapp',
+      occurred_at: '2026-09-05T20:00:00.000Z',
+      dealer_id: 'dealer-1',
+      dealer_name: 'Offlease Motors',
+      ghl_location_id: 'location-1',
+      ghl_contact_id: 'contact-phone-fallback',
+      lead: {
+        name: 'Phone Fallback',
+        phone: '',
+        lead_qualificator: 'Lead phone: 2407054502',
+      },
+    };
+
+    const result = normalizeGhlOutboundPayload(payload) as Record<string, any>;
+    expect(result.lead.phone).toBe('2407054502');
+  });
+
   it('keeps the internal contract unchanged', () => {
     const payload = {
       event_id: 'evt-1',
