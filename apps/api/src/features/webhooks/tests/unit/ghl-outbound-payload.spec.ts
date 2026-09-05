@@ -19,6 +19,12 @@ describe('normalizeGhlOutboundPayload', () => {
         easterns_zone: 'Baltimore',
         easterns_dealer_selected: 'true',
       },
+      conversation: {
+        messages: [
+          { body: 'I am looking for a truck this week.' },
+          { body: 'I have my ID and proof of income.' },
+        ],
+      },
     }) as Record<string, any>;
 
     expect(result).toMatchObject({
@@ -31,13 +37,34 @@ describe('normalizeGhlOutboundPayload', () => {
         phone: '+13215550199',
         vehicle_type: 'truck',
         down_payment: '1500',
-        identification: 'ID',
-        documents: 'proof of income',
+        identification: 'yes',
+        documents: 'proof of income; identification: yes',
         purchase_timeline: 'this week',
         easterns_zone: 'Baltimore',
         easterns_dealer_selected: true,
+        message: 'I am looking for a truck this week.\nI have my ID and proof of income.',
       },
     });
+  });
+
+  it('reads an embedded GHL conversation when no flat message alias exists', () => {
+    const result = normalizeGhlOutboundPayload({
+      id: 'contact-conversation',
+      locationId: 'location-conversation',
+      first_name: 'Conversation',
+      conversation: {
+        messages: [
+          { text: 'I need an SUV.' },
+          { content: 'I can put down $2,000 and want to buy this month.' },
+        ],
+      },
+      customData: {
+        qualification_memory: 'vehicle_type: SUV; down payment: $2,000; documents: ID and proof of income; purchase_timeline: this month',
+      },
+    }) as Record<string, any>;
+
+    expect(result.lead.message).toBe('I need an SUV.\nI can put down $2,000 and want to buy this month.');
+    expect(result.lead.qualification_complete).toBe(true);
   });
 
   it('keeps the internal contract unchanged', () => {

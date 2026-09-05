@@ -22,6 +22,26 @@ const text = (value: unknown): string | null => {
   return result || null;
 };
 
+const conversationText = (value: unknown): string | null => {
+  const conversation = asRecord(value);
+  const messages = Array.isArray(conversation.messages)
+    ? conversation.messages
+    : Array.isArray(conversation.history)
+      ? conversation.history
+      : [];
+
+  const result = messages
+    .map((message) => {
+      if (typeof message === 'string') return message;
+      const record = asRecord(message);
+      return text(firstValue([record], ['body', 'message', 'text', 'content']) || '');
+    })
+    .filter((message): message is string => Boolean(message))
+    .join('\n');
+
+  return result || null;
+};
+
 function findField(records: UnknownRecord[], aliases: string[]): string | null {
   const normalizedAliases = aliases.map((alias) => alias.toLowerCase().replace(/[^a-z0-9]/g, ''));
   for (const record of records) {
@@ -50,6 +70,7 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
   const contactCustomFields = asRecord(contact.customFields ?? contact.custom_fields);
   const payloadCustomFields = asRecord(payload.customFields ?? payload.custom_fields);
   const location = asRecord(payload.location);
+  const nestedConversationText = conversationText(payload.conversation);
   const records = [customData, contactCustomFields, payloadCustomFields, contact, payload];
 
   const contactId = text(firstValue(records, ['ghl_contact_id', 'contactId', 'contact_id', 'id']));
@@ -70,7 +91,7 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
     bank_account: findField(records, ['bank_account', 'bankaccount', 'bank', 'account_last4']),
     purchase_timeline: findField(records, ['purchase_timeline', 'timeline', 'buying_timeline']),
     documents: findField(records, ['documents', 'documents_available', 'proof_of_income']),
-    message: text(firstValue(records, ['message', 'message_body', 'messageBody', 'last_message', 'lastMessage', 'body'])),
+    message: nestedConversationText || text(firstValue(records, ['message', 'message_body', 'messageBody', 'last_message', 'lastMessage', 'body'])),
     qualification_memory: findField(records, ['qualification_memory', 'qualificationMemory']),
     chat_history_log: findField(records, ['chat_history_log', 'chatHistoryLog', 'conversation_history', 'conversationHistory']),
     easterns_zone: findField(records, ['easterns_zone', 'location_zone', 'zone']),
