@@ -80,7 +80,10 @@ export class GeoroutingService {
     const explicitState = this.resolveState(stateValue);
     const city = normalizeText(payload.city);
     const memoryZone = locationFromQualificationMemory(payload.qualification_memory);
-    const zone = normalizeText(payload.easterns_zone) || memoryZone;
+    // A stale/partial custom field must not override an explicit ad/location
+    // phrase captured in qualification_memory. GHL can send fragments such as
+    // "f" in easterns_zone while the canonical answer is in memory.
+    const zone = memoryZone || normalizeText(payload.easterns_zone);
     const explicitDealerSelected = payload.easterns_dealer_selected === true || Boolean(memoryZone);
 
     // The boolean is set by the GHL workflow when an ad/button phrase names a
