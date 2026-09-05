@@ -8,6 +8,7 @@ import { ReportExportHistory1710000005000 } from './migrations/1710000005000-Rep
 import { DealerScopedLeadIdentity1710000006000 } from './migrations/1710000006000-DealerScopedLeadIdentity';
 import { GhlLocationRouting1710000007000 } from './migrations/1710000007000-GhlLocationRouting';
 import { LocationCatalog1710000008000 } from './migrations/1710000008000-LocationCatalog';
+import { LocationCatalogSeed1710000009000 } from './migrations/1710000009000-LocationCatalogSeed';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -29,6 +30,7 @@ export const AppDataSource = new DataSource({
     DealerScopedLeadIdentity1710000006000,
     GhlLocationRouting1710000007000,
     LocationCatalog1710000008000,
+    LocationCatalogSeed1710000009000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,

@@ -16,6 +16,7 @@ import { ReportExportHistory1710000005000 } from './database/migrations/17100000
 import { DealerScopedLeadIdentity1710000006000 } from './database/migrations/1710000006000-DealerScopedLeadIdentity';
 import { GhlLocationRouting1710000007000 } from './database/migrations/1710000007000-GhlLocationRouting';
 import { LocationCatalog1710000008000 } from './database/migrations/1710000008000-LocationCatalog';
+import { LocationCatalogSeed1710000009000 } from './database/migrations/1710000009000-LocationCatalogSeed';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -35,6 +36,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             DealerScopedLeadIdentity1710000006000,
             GhlLocationRouting1710000007000,
             LocationCatalog1710000008000,
+            LocationCatalogSeed1710000009000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,
