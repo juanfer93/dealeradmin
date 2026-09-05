@@ -213,9 +213,9 @@ function normalizeTimeline(value: string): string {
   if (/\b(next|proximo|próximo)\s+(week|semana)\b/i.test(source)) return 'next week';
   if (/\b(next|proximo|próximo)\s+(month|mes)\b/i.test(source)) return 'next month';
   if (/\b(30|thirty)\s+days?\b/i.test(source)) return 'within 30 days';
-  if (/\b(?:in|en)\s+(?:a|un|\d+)\s+(?:days?|d[ií]as?|weeks?|semanas?|months?|mes(?:es)?)\b/i.test(source)) return clean(value).toLowerCase();
+  if (/\b(?:in|en)\s+(?:a|un|one|uno|two|dos|\d+)\s+(?:days?|d[ií]as?|weeks?|semanas?|months?|mes(?:es)?)\b/i.test(source)) return clean(value).toLowerCase();
   if (/\b(solo|sólo|just|only)\b.*\b(mirando|viendo|looking|browsing)\b/i.test(source)) return 'exploring options';
-  return clean(value);
+  return EMPTY;
 }
 
 function yesNo(value: string): 'yes' | 'no' | '' {
@@ -282,13 +282,15 @@ export function isQualificationComplete(input: {
   purchase_timeline?: string | null;
   has_identification?: string | null;
   has_income_proof?: string | null;
+  bank_account?: string | null;
 }): boolean {
   return Boolean(
     clean(input.vehicle_type) &&
     clean(input.down_payment) &&
     clean(input.purchase_timeline) &&
     input.has_identification === 'yes' &&
-    input.has_income_proof === 'yes',
+    input.has_income_proof === 'yes' &&
+    input.bank_account === 'yes',
   );
 }
 
@@ -336,6 +338,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     extractTradeInDownPayment(history),
     extractDownPayment(history),
     normalizeMemoryDownPayment(memoryValue(memory, ['down payment', 'down_payment', 'downpayment'])),
+    extractTradeInDownPayment(memoryText(memory)),
     campaignReply ? EMPTY : input.down_payment,
   );
   const conversationalSource = [history, message].filter(Boolean).join('; ');
@@ -345,15 +348,22 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const timeline = normalizeTimeline(firstNonEmpty(
     extractTimeline(messageForExtraction),
     extractTimeline(history),
+    extractTimeline(memoryText(memory)),
     memoryValue(memory, ['timeline', 'purchase timeline', 'purchase_timeline']),
     input.purchase_timeline,
   ));
   const docs = mergeDocuments(firstNonEmpty(memoryValue(memory, ['documents']), input.documents), source);
   const identification = firstNonEmpty(docs.id, memoryValue(memory, ['identification', 'id']), input.identification);
-  const bankAccount = firstNonEmpty(
+  const bankAccountRaw = firstNonEmpty(
     input.bank_account,
     source.match(/(?:bank account|cuenta bancaria)[^.!?]*/i)?.[0],
     memoryValue(memory, ['bank account', 'bank_account']),
+  );
+  const bankAccount = yesNo(bankAccountRaw) || (
+    /(?:bank account|cuenta bancaria)/i.test(bankAccountRaw) &&
+    !/\b(?:no|not|sin|dont|don't)\b/i.test(bankAccountRaw)
+      ? 'yes'
+      : EMPTY
   );
   const mergedMemory = mergeMemory(memory, {
     vehicle,
@@ -366,6 +376,8 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     ? 'Do you have a valid ID or driver license?'
     : !docs.income
       ? 'Do you have proof of income?'
+      : !bankAccount
+        ? 'Do you have a bank account?'
       : EMPTY;
   const qualificationComplete = isQualificationComplete({
     vehicle_type: vehicle,
@@ -373,6 +385,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     purchase_timeline: timeline,
     has_identification: docs.id,
     has_income_proof: docs.income,
+    bank_account: bankAccount,
   });
   const missingQualification = [
     !vehicle ? 'vehicle_type' : EMPTY,
@@ -380,6 +393,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     !timeline ? 'purchase_timeline' : EMPTY,
     docs.id !== 'yes' ? 'identification' : EMPTY,
     docs.income !== 'yes' ? 'proof_of_income' : EMPTY,
+    bankAccount !== 'yes' ? 'bank_account' : EMPTY,
   ].filter(Boolean);
 
   return {

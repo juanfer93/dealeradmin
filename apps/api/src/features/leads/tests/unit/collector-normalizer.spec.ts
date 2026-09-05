@@ -26,7 +26,7 @@ describe('normalizeCollectorInput', () => {
   });
 
   it('accepts a trade-in as the down payment even without a cash amount', () => {
-    expect(normalizeCollectorInput({ qualification_memory: 'make: Toyota; model: RAV4; down payment: trade-in; timeline: today; documents: driver license and proof of income' })).toMatchObject({
+    expect(normalizeCollectorInput({ qualification_memory: 'make: Toyota; model: RAV4; down payment: trade-in; timeline: today; documents: driver license and proof of income; bank account: yes' })).toMatchObject({
       vehicle_type: 'Toyota RAV4',
       down_payment: 'trade-in',
       qualification_complete: true,
@@ -47,7 +47,7 @@ describe('normalizeCollectorInput', () => {
   });
 
   it('combines a trade-in and cash amount when both are stored in memory', () => {
-    expect(normalizeCollectorInput({ qualification_memory: 'make: Honda; model: Civic; down payment: trade-in + 2K; timeline: today; documents: ID and proof of income' })).toMatchObject({
+    expect(normalizeCollectorInput({ qualification_memory: 'make: Honda; model: Civic; down payment: trade-in + 2K; timeline: today; documents: ID and proof of income; bank account: yes' })).toMatchObject({
       vehicle_type: 'Honda Civic',
       down_payment: '2000 + trade-in',
       qualification_complete: true,
@@ -93,7 +93,7 @@ describe('normalizeCollectorInput', () => {
     expect(result.documents).toContain('identification: yes');
     expect(result.documents).toContain('proof of income: yes');
     expect(result.down_payment).toBe('');
-    expect(result.next_question).toBe('');
+    expect(result.next_question).toBe('Do you have a bank account?');
   });
 
   it('keeps existing memory and does not erase valid fields with an empty reply', () => {
@@ -151,9 +151,9 @@ describe('normalizeCollectorInput', () => {
   });
 
   it.each([
-    'vehicle_type = SUV\ndown_payment: $2,000\ndocuments: driver license, proof of income\npurchase_timeline: this week',
-    '{"vehicle_type":"SUV","down_payment":"2K","documents":"ID and proof of income","purchase_timeline":"this week"}',
-    '• vehicle: SUV | • down payment: 2000 | • identification: yes | • proof of income: yes | • timeline: this week',
+    'vehicle_type = SUV\ndown_payment: $2,000\ndocuments: driver license, proof of income\npurchase_timeline: this week\nbank account: yes',
+    '{"vehicle_type":"SUV","down_payment":"2K","documents":"ID and proof of income","purchase_timeline":"this week","bank_account":"yes"}',
+    '• vehicle: SUV | • down payment: 2000 | • identification: yes | • proof of income: yes | • timeline: this week | • bank account: yes',
   ])('promotes complete qualification memory into normalized fields: %s', (qualification_memory) => {
     const result = normalizeCollectorInput({ qualification_memory });
     expect(result).toMatchObject({
@@ -172,14 +172,14 @@ describe('normalizeCollectorInput', () => {
       qualification_memory: 'vehicle: SUV; down payment: 2K; documents: identification: yes',
     });
     expect(result.qualification_complete).toBe(false);
-    expect(result.missing_qualification).toEqual(['purchase_timeline', 'proof_of_income']);
+    expect(result.missing_qualification).toEqual(['purchase_timeline', 'proof_of_income', 'bank_account']);
     expect(result.next_question).toBe('Do you have proof of income?');
   });
 
   it('uses qualification memory as the canonical document value when a custom field is stale', () => {
     const result = normalizeCollectorInput({
       documents: 'not specified',
-      qualification_memory: 'vehicle: SUV; down payment: 2K; documents: driver license and proof of income; timeline: today',
+      qualification_memory: 'vehicle: SUV; down payment: 2K; documents: driver license and proof of income; timeline: today; bank account: yes',
     });
     expect(result.documents).toContain('driver license and proof of income');
     expect(result.qualification_complete).toBe(true);
@@ -193,6 +193,7 @@ describe('normalizeCollectorInput', () => {
       purchase_timeline: 'today',
       has_identification: 'yes',
       has_income_proof: 'yes',
+      bank_account: 'yes',
     })).toBe(true);
     expect(isQualificationComplete({
       vehicle_type: 'SUV',
@@ -201,6 +202,20 @@ describe('normalizeCollectorInput', () => {
       has_identification: 'yes',
       has_income_proof: '',
     })).toBe(false);
+  });
+
+  it('does not treat campaign or intent text as a purchase timeline', () => {
+    expect(normalizeCollectorInput({ purchase_timeline: 'Quiero Financiar!' }).purchase_timeline).toBe('');
+    expect(normalizeCollectorInput({ qualification_memory: 'timeline: Dónde están ubicados102020' }).purchase_timeline).toBe('');
+    expect(normalizeCollectorInput({ message: 'Hoy mismo' }).purchase_timeline).toBe('today');
+  });
+
+  it('normalizes free-form Spanish memory without requiring keyed fields', () => {
+    const result = normalizeCollectorInput({
+      qualification_memory: 'El lead tiene una troca para trade-in y quiere el vehículo hoy mismo.',
+    });
+    expect(result.down_payment).toBe('trade-in');
+    expect(result.purchase_timeline).toBe('today');
   });
 
   it.each([

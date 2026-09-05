@@ -59,12 +59,25 @@ describe('normalizeGhlOutboundPayload', () => {
         ],
       },
       customData: {
-        qualification_memory: 'vehicle_type: SUV; down payment: $2,000; documents: ID and proof of income; purchase_timeline: this month',
+        qualification_memory: 'vehicle_type: SUV; down payment: $2,000; documents: ID and proof of income; purchase_timeline: this month; bank account: yes',
       },
     }) as Record<string, any>;
 
     expect(result.lead.message).toBe('I need an SUV.\nI can put down $2,000 and want to buy this month.');
     expect(result.lead.qualification_complete).toBe(true);
+  });
+
+  it('preserves the original Spanish inbound response for the backend', () => {
+    const result = normalizeGhlOutboundPayload({
+      id: 'contact-spanish',
+      locationId: 'location-spanish',
+      first_name: 'Respuesta',
+      last_name: 'Española',
+      message: 'Dónde están ubicados',
+      customData: { qualification_memory: 'vehicle: SUV' },
+    }) as Record<string, any>;
+
+    expect(result.lead.message).toBe('Dónde están ubicados');
   });
 
   it('keeps the internal contract unchanged', () => {
@@ -133,6 +146,7 @@ describe('normalizeGhlOutboundPayload', () => {
           identification: 'yes',
           documents: 'ID and proof of income',
           purchase_timeline: 'today',
+          bank_account: 'yes',
           message: 'I want a Toyota RAV4',
         },
       },
@@ -154,12 +168,13 @@ describe('normalizeGhlOutboundPayload', () => {
         phone: '',
         contact: {
           customFields: {
-            qualification_memory: 'vehicle_type: SUV; make: Toyota; model: RAV4; down payment: trade-in + 2K; documents: ID and proof of income; purchase_timeline: in 2 weeks',
+            qualification_memory: 'vehicle_type: SUV; make: Toyota; model: RAV4; down payment: trade-in + 2K; documents: ID and proof of income; purchase_timeline: in 2 weeks; bank account: yes',
             vehicle_type: '',
             down_payment: '',
             identification: '',
             documents: '',
             purchase_timeline: '',
+            bank_account: '',
           },
         },
         message: 'QA conversation captured in qualification memory',
@@ -189,7 +204,7 @@ describe('normalizeGhlOutboundPayload', () => {
         },
         contact: {
           customFields: {
-            qualification_memory: 'vehicle: SUV; make: Honda; model: CR-V; down payment: $1,500 and I want to change my vehicle; documents: driver license and proof of income; timeline: this month',
+            qualification_memory: 'vehicle: SUV; make: Honda; model: CR-V; down payment: $1,500 and I want to change my vehicle; documents: driver license and proof of income; timeline: this month; bank account: yes',
           },
         },
       },
