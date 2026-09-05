@@ -96,6 +96,10 @@ function parseLine(line: string, rowNumber: number): ParsedBulkLead {
     if (amount) values.down_payment = amount.trim();
   }
   const context = rawLine.replace(phoneText, ' ').replace(values.name ?? '', ' ');
+  if (!values.purchase_timeline) {
+    const timeline = context.match(/\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo m[aá]s pronto posible|lo antes posible|this week|esta semana|this month|este mes|esta mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|within \d+ days?|en \d+ d[ií]as?)\b/i)?.[0];
+    if (timeline) values.purchase_timeline = timeline;
+  }
   if (!values.identification && /\b(?:id|identification|identificación|license|licencia)\b/i.test(context)) values.identification = 'yes';
   if (!values.bank_account && /\b(?:bank account|cuenta bancaria|cuenta)\b/i.test(context)) values.bank_account = 'yes';
   if (!values.documents && /\b(?:proof of income|income proof|prueba de ingresos|comprobante de ingresos|documentos?)\b/i.test(context)) values.documents = context.match(/(?:proof of income|income proof|prueba de ingresos|comprobante de ingresos|documentos?)[^,.;]*/i)?.[0] ?? 'yes';
@@ -111,7 +115,10 @@ function parseLine(line: string, rowNumber: number): ParsedBulkLead {
   }
 
   const normalized = normalizeCollectorInput({
-    message: rawLine,
+    // Bulk rows have already been decomposed into explicit fields. Passing the
+    // whole row as a conversational message would make the normalizer treat
+    // the lead name/phone/pipe separators as part of vehicle_type.
+    message: '',
     vehicle_type: values.vehicle_type,
     down_payment: values.down_payment,
     purchase_timeline: values.purchase_timeline,

@@ -55,7 +55,7 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
       'dealer-222',
       'Troca',
       '3500',
-      '',
+      'yes',
       '',
       'exploring options',
       'Pasaporte e ID',
@@ -65,7 +65,7 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
       'Source dealer from GHL location',
       'resolved',
       'sent',
-      'Carlos Mendoza +15551234567 Troca, 3500 de down, documentos Pasaporte e ID, quiere comprar exploring options.',
+      'Carlos Mendoza +15551234567 Troca, 3500 de down, ID yes, documentos Pasaporte e ID, quiere comprar exploring options.',
     ]);
   });
 
