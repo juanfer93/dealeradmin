@@ -90,4 +90,93 @@ describe('normalizeGhlOutboundPayload', () => {
 
     expect(result.lead.down_payment).toBe('');
   });
+
+  it.each([
+    {
+      name: 'custom fields complete',
+      payload: {
+        id: 'qa-custom-fields',
+        locationId: 'easterns-qa-location',
+        first_name: 'QA',
+        last_name: 'Custom Fields',
+        phone: '',
+        customData: {
+          vehicle_type: 'SUV',
+          down_payment: '$2,000',
+          identification: 'yes',
+          documents: 'ID and proof of income',
+          purchase_timeline: 'today',
+          message: 'I want a Toyota RAV4',
+        },
+      },
+      expected: {
+        qualification_source: 'custom_fields',
+        qualification_complete: true,
+        vehicle_type: 'Toyota RAV4',
+        down_payment: '2000',
+        purchase_timeline: 'today',
+      },
+    },
+    {
+      name: 'qualification memory complete with custom fields empty',
+      payload: {
+        id: 'qa-memory-only',
+        locationId: 'easterns-qa-location',
+        first_name: 'QA',
+        last_name: 'Memory Only',
+        phone: '',
+        contact: {
+          customFields: {
+            qualification_memory: 'vehicle_type: SUV; make: Toyota; model: RAV4; down payment: trade-in + 2K; documents: ID and proof of income; purchase_timeline: in 2 weeks',
+            vehicle_type: '',
+            down_payment: '',
+            identification: '',
+            documents: '',
+            purchase_timeline: '',
+          },
+        },
+        message: 'QA conversation captured in qualification memory',
+      },
+      expected: {
+        qualification_source: 'qualification_memory',
+        qualification_complete: true,
+        vehicle_type: 'SUV — Toyota RAV4',
+        down_payment: '2000 + trade-in',
+        purchase_timeline: 'in 2 weeks',
+      },
+    },
+    {
+      name: 'memory wins when custom fields are partially filled',
+      payload: {
+        id: 'qa-memory-precedence',
+        locationId: 'easterns-qa-location',
+        first_name: 'QA',
+        last_name: 'Memory Precedence',
+        phone: '',
+        customData: {
+          vehicle_type: 'Sedan',
+          down_payment: '',
+          identification: 'yes',
+          documents: '',
+          purchase_timeline: '',
+        },
+        contact: {
+          customFields: {
+            qualification_memory: 'vehicle: SUV; make: Honda; model: CR-V; down payment: $1,500 and I want to change my vehicle; documents: driver license and proof of income; timeline: this month',
+          },
+        },
+      },
+      expected: {
+        qualification_source: 'both',
+        qualification_complete: true,
+        vehicle_type: 'SUV — Honda CR-V',
+        down_payment: '1500 + trade-in',
+        purchase_timeline: 'this month',
+      },
+    },
+  ])('$name', ({ payload, expected }) => {
+    const result = normalizeGhlOutboundPayload(payload) as Record<string, any>;
+    expect(result.ghl_location_id).toBe('easterns-qa-location');
+    expect(result.lead).toMatchObject(expected);
+  });
 });

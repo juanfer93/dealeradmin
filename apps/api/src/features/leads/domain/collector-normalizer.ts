@@ -125,6 +125,16 @@ function normalizeAmount(value: string): string {
   return clean(value);
 }
 
+function normalizeMemoryDownPayment(value: string): string {
+  const source = clean(value);
+  if (!source) return EMPTY;
+  const tradeIn = /\btrade[- ]?in\b|\bmy (?:car|vehicle)\b|\bmi (?:carro|auto)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b|\bchange\s+(?:my\s+)?(?:vehicle|car)\b/i.test(source);
+  const amount = source.match(/\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?)\b/i)?.[1];
+  const normalized = amount ? normalizeAmount(amount) : normalizeAmount(source);
+  if (!normalized) return tradeIn ? 'trade-in' : EMPTY;
+  return tradeIn && !/trade[- ]?in/i.test(normalized) ? `${normalized} + trade-in` : normalized;
+}
+
 function firstValidAmount(...values: Array<string | null | undefined>): string {
   for (const value of values) {
     const normalized = normalizeAmount(value ?? EMPTY);
@@ -136,6 +146,7 @@ function firstValidAmount(...values: Array<string | null | undefined>): string {
 function normalizeVehicle(value: string): string {
   const source = clean(value);
   if (!source) return EMPTY;
+  if (source.includes('—')) return source;
   const lower = source.toLowerCase();
   const category = lower.match(/\b(suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto)\b/i)?.[1];
   const brand = source.match(/\b(toyota|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla)\b/i)?.[1];
@@ -308,9 +319,12 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     extractVehicle(messageForExtraction),
     extractVehicle(history),
     [
-      memoryValue(memory, ['make', 'brand', 'marca']),
-      memoryValue(memory, ['model', 'vehicle_model', 'modelo']),
-    ].filter(Boolean).join(' '),
+      memoryValue(memory, ['vehicle_type', 'vehicle', 'type']),
+      [
+        memoryValue(memory, ['make', 'brand', 'marca']),
+        memoryValue(memory, ['model', 'vehicle_model', 'modelo']),
+      ].filter(Boolean).join(' '),
+    ].filter(Boolean).join(' — '),
     memoryValue(memory, ['vehicle', 'vehicle_type']),
     input.vehicle_type,
   ));
@@ -321,7 +335,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     extractStandaloneDownPayment(messageForExtraction),
     extractTradeInDownPayment(history),
     extractDownPayment(history),
-    memoryValue(memory, ['down payment', 'down_payment', 'downpayment']),
+    normalizeMemoryDownPayment(memoryValue(memory, ['down payment', 'down_payment', 'downpayment'])),
     campaignReply ? EMPTY : input.down_payment,
   );
   const conversationalSource = [history, message].filter(Boolean).join('; ');

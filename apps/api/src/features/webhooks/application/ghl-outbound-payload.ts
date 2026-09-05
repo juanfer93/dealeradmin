@@ -101,6 +101,8 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
       bank_account: normalized.bank_account || lead.bank_account,
       qualification_memory: normalized.qualification_memory || lead.qualification_memory,
       qualification_source: normalized.qualification_source,
+      qualification_complete: normalized.qualification_complete,
+      missing_qualification: normalized.missing_qualification,
     },
   };
 }
