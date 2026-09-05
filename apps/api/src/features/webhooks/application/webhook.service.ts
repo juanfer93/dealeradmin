@@ -14,7 +14,7 @@ import { normalizeLeadName } from '../../leads/domain/lead-duplicate';
 import { normalizeDownPayment } from '../../leads/domain/down-payment';
 import { applyTestWebhookLead } from '../../leads/application/test-lead-store';
 import { GeoroutingService } from '../../routing/domain/services/georouting.service';
-import { normalizeCollectorInput } from '../../leads/domain/collector-normalizer';
+import { hasMinimumRoutingQualification, normalizeCollectorInput } from '../../leads/domain/collector-normalizer';
 
 type PersistedWebhookResponse = {
   accepted: true;
@@ -129,6 +129,35 @@ export class WebhookService {
         throw new BadRequestException('El teléfono no tiene un formato válido');
       }
 
+      const normalized = normalizeCollectorInput({
+        message: payload.lead.message ?? payload.lead.chat_history_log,
+        phone: canonicalPhone,
+        chat_history_log: payload.lead.chat_history_log,
+        vehicle_type: payload.lead.vehicle_type,
+        down_payment: payload.lead.down_payment,
+        identification: payload.lead.identification ?? payload.lead.id_number ?? payload.lead.id,
+        bank_account: payload.lead.bank_account,
+        purchase_timeline: payload.lead.purchase_timeline,
+        documents: payload.lead.documents,
+        qualification_memory: payload.lead.qualification_memory,
+      });
+      if (!hasMinimumRoutingQualification({
+        vehicle_type: payload.lead.vehicle_type,
+        qualification_memory: payload.lead.qualification_memory,
+      })) {
+        throw new UnprocessableEntityException({
+          code: 'INSUFFICIENT_LEAD_QUALIFICATION',
+          message: 'El lead requiere teléfono, vehículo en custom fields y vehículo en qualification memory antes de entrar a WhatsApp',
+          issues: [
+            ...(!payload.lead.vehicle_type?.trim() ? [{ path: ['lead', 'vehicle_type'], message: 'El vehículo no puede estar vacío' }] : []),
+            ...(!payload.lead.qualification_memory?.trim() ? [{ path: ['lead', 'qualification_memory'], message: 'La qualification memory no puede estar vacía' }] : []),
+            ...(payload.lead.qualification_memory?.trim() && !normalizeCollectorInput({ qualification_memory: payload.lead.qualification_memory }).vehicle_type
+              ? [{ path: ['lead', 'qualification_memory'], message: 'La qualification memory debe contener datos del vehículo' }]
+              : []),
+          ],
+        });
+      }
+
       const nameParts = payload.lead.name.trim().split(/\s+/).filter(Boolean);
       const firstName = nameParts[0] ?? 'Lead';
       const lastName = nameParts.slice(1).join(' ');
@@ -192,18 +221,6 @@ export class WebhookService {
         [leadId, dealers[0].id],
       )) as LeadDealerRow[];
       const currentLeadDealer = currentLeadDealers[0];
-      const normalized = normalizeCollectorInput({
-        message: payload.lead.message ?? payload.lead.chat_history_log,
-        phone: canonicalPhone,
-        chat_history_log: payload.lead.chat_history_log,
-        vehicle_type: payload.lead.vehicle_type,
-        down_payment: payload.lead.down_payment,
-        identification: payload.lead.identification ?? payload.lead.id_number ?? payload.lead.id,
-        bank_account: payload.lead.bank_account,
-        purchase_timeline: payload.lead.purchase_timeline,
-        documents: payload.lead.documents,
-        qualification_memory: payload.lead.qualification_memory,
-      });
       const identification = normalized.identification;
       const purchaseTimeline = normalizePurchaseTimeline(normalized.purchase_timeline) ?? '';
       const messageText = buildWhatsAppMessage(payload.lead.name, canonicalPhone, {

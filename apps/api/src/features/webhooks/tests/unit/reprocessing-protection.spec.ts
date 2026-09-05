@@ -35,6 +35,7 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
         down_payment: '$3,500',
         purchase_timeline: 'Solo estoy mirando',
         documents: 'Pasaporte e ID',
+        qualification_memory: 'vehicle: Troca',
       },
     });
 
@@ -97,7 +98,12 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
       dealer_name: 'Easterns Laurel',
       ghl_location_id: 'ghl-fredericksburg-location',
       ghl_contact_id: 'ghl-fred-contact',
-      lead: { name: 'Emil Gonzales', phone: '+18045042746', vehicle_type: 'Troca' },
+      lead: {
+        name: 'Emil Gonzales',
+        phone: '+18045042746',
+        vehicle_type: 'Troca',
+        qualification_memory: 'vehicle: Troca',
+      },
     });
 
     expect(resolveDealer).not.toHaveBeenCalled();
@@ -138,5 +144,37 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
     })).rejects.toThrow('más de un dealer activo');
 
     expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO lead_dealers'))).toBe(false);
+  });
+
+  it('rechaza un lead con solo teléfono antes de insertar cualquier lead', async () => {
+    const queryRunner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [{ event_id: 'evt-phone-only' }];
+        if (sql.includes('FROM dealers')) return [{ id: 'dealer-stafford', routing_config: {} }];
+        return [];
+      }),
+    };
+    const service = new WebhookService({ createQueryRunner: () => queryRunner } as never);
+
+    await expect(service.acceptLead({
+      event_id: 'evt-phone-only',
+      event_type: 'lead.ready_for_whatsapp',
+      occurred_at: '2026-09-05T21:00:00.000Z',
+      dealer_id: 'STAFFORD',
+      dealer_name: 'Offlease Motors Stafford',
+      ghl_location_id: 'loc_stafford_phone_only',
+      ghl_contact_id: 'ghl-phone-only',
+      lead: { name: 'Phone Only', phone: '+15551234567' },
+    })).rejects.toThrow('El lead requiere teléfono, vehículo en custom fields y vehículo en qualification memory');
+
+    expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO leads'))).toBe(false);
+    expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO lead_dealers'))).toBe(false);
+    expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
   });
 });

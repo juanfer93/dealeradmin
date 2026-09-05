@@ -38,6 +38,19 @@ const PHONE_ALIASES = [
   'lead_qualifier',
   'lead_qualificator',
   'qualifier',
+  'qualification_memory',
+  'qualificationMemory',
+  'message',
+  'message_body',
+  'messageBody',
+  'last_message',
+  'lastMessage',
+  'body',
+  'chat_history_log',
+  'chatHistoryLog',
+  'conversation_history',
+  'conversationHistory',
+  'conversation_text',
 ];
 
 const PHONE_TOKEN = /(?:\+?1[\s().-]*)?(?:\(\d{3}\)|\d{3})[\s.-]?\d{3}[\s.-]?\d{4}|\b\d{10}\b/;
@@ -115,6 +128,7 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
       asRecord(payload.contact),
       asRecord(payload.customData ?? payload.custom_data),
       payload,
+      { conversation_text: conversationText(lead.conversation) },
     ]);
     if (!phone || phone === text(lead.phone)) return input;
     return { ...payload, lead: { ...lead, phone } };
@@ -134,7 +148,10 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
     [text(firstValue(records, ['first_name', 'firstName'])), text(firstValue(records, ['last_name', 'lastName']))]
       .filter(Boolean)
       .join(' ');
-  const phone = findPhone(records);
+  const phone = findPhone([
+    ...records,
+    { conversation_text: nestedConversationText },
+  ]);
   const dealerName = text(firstValue(records, ['dealer_name', 'dealerName'])) || text(location.name) || 'GHL dealer';
 
   const lead = {

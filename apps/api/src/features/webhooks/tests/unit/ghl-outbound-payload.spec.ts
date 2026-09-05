@@ -115,6 +115,37 @@ describe('normalizeGhlOutboundPayload', () => {
     expect(result.lead.phone).toBe('2407054502');
   });
 
+  it('recovers a phone written in the inbound message when contact.phone is empty', () => {
+    const result = normalizeGhlOutboundPayload({
+      id: 'contact-message-phone',
+      locationId: 'location-message-phone',
+      contact: {
+        firstName: 'Isabel',
+        phone: '',
+        customFields: {
+          vehicle_type: 'Sedán económico Toyota',
+          qualification_memory: 'Vehículo: sedán económico Toyota',
+        },
+      },
+      last_message: 'Mi mejor número es 804-309-2531',
+    }) as Record<string, any>;
+
+    expect(result.lead.phone).toBe('804-309-2531');
+  });
+
+  it('recovers a phone from nested conversation history', () => {
+    const result = normalizeGhlOutboundPayload({
+      id: 'contact-conversation-phone',
+      locationId: 'location-conversation-phone',
+      contact: { firstName: 'Isabel', phone: '' },
+      conversation: {
+        messages: [{ body: 'Puedes llamarme al (804) 309-2531' }],
+      },
+    }) as Record<string, any>;
+
+    expect(result.lead.phone).toBe('(804) 309-2531');
+  });
+
   it('keeps the internal contract unchanged', () => {
     const payload = {
       event_id: 'evt-1',

@@ -294,6 +294,20 @@ export function isQualificationComplete(input: {
   );
 }
 
+/**
+ * Minimum data required before a GHL collector may route a lead to WhatsApp.
+ * The workflow checks the same three signals, but the backend must enforce the
+ * rule as well because webhook callers can bypass GHL entirely.
+ */
+export function hasMinimumRoutingQualification(input: Pick<CollectorInput, 'vehicle_type' | 'qualification_memory'>): boolean {
+  const vehicleField = firstNonEmpty(input.vehicle_type);
+  const memory = clean(input.qualification_memory);
+  if (!vehicleField || !memory) return false;
+
+  const memoryQualification = normalizeCollectorInput({ qualification_memory: memory });
+  return Boolean(memoryQualification.vehicle_type);
+}
+
 export function normalizeCollectorInput(input: CollectorInput): CollectorOutput {
   const message = clean(input.message);
   const history = clean(input.chat_history_log);
