@@ -91,6 +91,16 @@ describe('Easterns georouting engine', () => {
     expect(result.reason).toContain(reason);
   });
 
+  it('extrae la sede desde la frase de Easterns guardada en qualification_memory', async () => {
+    const { service } = createService(EASTERN_DEALER_IDS.laurel);
+    await expect(service.resolveDealer({
+      qualification_memory: 'vehicle: SUV; timeline: this week; quiero mi auto con easterns BALTIMORE',
+    })).resolves.toMatchObject({
+      dealerId: EASTERN_DEALER_IDS.rosedale,
+      reason: 'Explicit Easterns Zone: Baltimore → Rosedale',
+    });
+  });
+
   it('mantiene el round-robin cuando Baltimore solo llega como zona geográfica', async () => {
     const { service } = createService(EASTERN_DEALER_IDS.rosedale);
     await expect(service.resolveDealer({ easterns_zone: 'Baltimore' })).resolves.toMatchObject({

@@ -11,6 +11,7 @@ export const EASTERN_DEALER_IDS = {
 type LocationPayload = {
   easterns_zone?: string | null;
   easterns_dealer_selected?: boolean | null;
+  qualification_memory?: string | null;
   state?: string | null;
   city?: string | null;
   zip_code?: string | null;
@@ -63,6 +64,13 @@ function stripPlaceSuffix(value: string): string {
     .trim();
 }
 
+function locationFromQualificationMemory(value: string | null | undefined): string {
+  const memory = normalizeText(value);
+  if (!memory) return '';
+  const match = memory.match(/(?:quiero\s+mi\s+auto\s+con\s+easterns|i\s+want\s+my\s+(?:car|vehicle)\s+with\s+easterns|easterns)\s+(baltimore|laurel|sterling)\b/i);
+  return match?.[1] || '';
+}
+
 @Injectable()
 export class GeoroutingService {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
@@ -71,8 +79,9 @@ export class GeoroutingService {
     const stateValue = normalizeText(payload.state);
     const explicitState = this.resolveState(stateValue);
     const city = normalizeText(payload.city);
-    const zone = normalizeText(payload.easterns_zone);
-    const explicitDealerSelected = payload.easterns_dealer_selected === true;
+    const memoryZone = locationFromQualificationMemory(payload.qualification_memory);
+    const zone = normalizeText(payload.easterns_zone) || memoryZone;
+    const explicitDealerSelected = payload.easterns_dealer_selected === true || Boolean(memoryZone);
 
     // The boolean is set by the GHL workflow when an ad/button phrase names a
     // dealer. A plain easterns_zone answer remains geographic input and keeps
