@@ -15,6 +15,7 @@ import { BulkLeadIngestion1710000004000 } from './database/migrations/1710000004
 import { ReportExportHistory1710000005000 } from './database/migrations/1710000005000-ReportExportHistory';
 import { DealerScopedLeadIdentity1710000006000 } from './database/migrations/1710000006000-DealerScopedLeadIdentity';
 import { GhlLocationRouting1710000007000 } from './database/migrations/1710000007000-GhlLocationRouting';
+import { LocationCatalog1710000008000 } from './database/migrations/1710000008000-LocationCatalog';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -33,6 +34,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             ReportExportHistory1710000005000,
             DealerScopedLeadIdentity1710000006000,
             GhlLocationRouting1710000007000,
+            LocationCatalog1710000008000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,

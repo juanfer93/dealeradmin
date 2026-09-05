@@ -57,6 +57,12 @@ function normalizeText(value: string | null | undefined): string {
     .replace(/\s+/g, ' ');
 }
 
+function stripPlaceSuffix(value: string): string {
+  return normalizeText(value)
+    .replace(/\s+(?:city|town|village|borough|municipality|plantation|cdp|census[- ]designated place)$/i, '')
+    .trim();
+}
+
 @Injectable()
 export class GeoroutingService {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
@@ -81,7 +87,8 @@ export class GeoroutingService {
       return { dealerId: EASTERN_DEALER_IDS.sterling, reason: 'Explicit Easterns Zone: Sterling → Sterling' };
     }
 
-    const inferredState = this.resolveState(zone) || this.inferState(city, zone);
+    const databaseState = !explicitState ? await this.lookupStateByCity(city, queryClient) : '';
+    const inferredState = this.resolveState(zone) || databaseState || this.inferState(city, zone);
     const state = explicitState || inferredState;
 
     if (['DE', 'PA', 'NY', 'NJ'].includes(state)) {
@@ -146,6 +153,19 @@ export class GeoroutingService {
       [dealerIds, `${reasonPrefix}:%`],
     )) as Array<{ assigned_dealer_id: string | null }>;
     return rows[0]?.assigned_dealer_id ?? null;
+  }
+
+  private async lookupStateByCity(city: string, queryClient: QueryClient): Promise<string> {
+    if (!city) return '';
+    const rows = (await queryClient.query(
+      `SELECT DISTINCT state_code
+       FROM locations
+       WHERE normalized_name = ANY($1::text[])
+       ORDER BY state_code`,
+      [[city, stripPlaceSuffix(city)].filter((value, index, all) => value && all.indexOf(value) === index)],
+    )) as Array<{ state_code: string }>;
+    const states = [...new Set(rows.map((row) => row.state_code.trim().toUpperCase()).filter(Boolean))];
+    return states.length === 1 ? states[0] : '';
   }
 
   private isSouthernMarylandCity(city: string): boolean {

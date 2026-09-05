@@ -10,6 +10,34 @@ describe('Easterns georouting engine', () => {
     return { service: new GeoroutingService({ query } as never), query };
   }
 
+  it('consulta locations para inferir el estado de una ciudad completa que no estaba en el mapa corto', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('locations')) return [{ state_code: 'VA' }];
+      if (sql.includes('assigned_dealer_id = ANY')) return [];
+      return [];
+    });
+    const service = new GeoroutingService({ query } as never);
+    await expect(service.resolveDealer({ city: 'Chantilly city' })).resolves.toMatchObject({
+      dealerId: EASTERN_DEALER_IDS.sterling,
+      reason: 'Exclusive Zone: State Virginia',
+    });
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('FROM locations'), [['chantilly city', 'chantilly']]);
+  });
+
+  it.each([
+    ['Rehoboth Beach', 'DE', EASTERN_DEALER_IDS.rosedale],
+    ['Sykesville', 'MD', EASTERN_DEALER_IDS.laurel],
+    ['Hoboken', 'NJ', EASTERN_DEALER_IDS.rosedale],
+    ['Schenectady', 'NY', EASTERN_DEALER_IDS.rosedale],
+    ['State College', 'PA', EASTERN_DEALER_IDS.rosedale],
+    ['Chantilly', 'VA', EASTERN_DEALER_IDS.sterling],
+  ])('usa el estado devuelto por locations para %s (%s)', async (city, state, expectedDealerId) => {
+    const query = vi.fn(async (sql: string) => sql.includes('locations') ? [{ state_code: state }] : []);
+    const service = new GeoroutingService({ query } as never);
+    await expect(service.resolveDealer({ city })).resolves.toMatchObject({ dealerId: expectedDealerId });
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('FROM locations'), [[city.toLowerCase()]]);
+  });
+
   it.each([
     ['DE', EASTERN_DEALER_IDS.rosedale], ['Pennsylvania', EASTERN_DEALER_IDS.rosedale], ['NY', EASTERN_DEALER_IDS.rosedale], ['New Jersey', EASTERN_DEALER_IDS.rosedale],
     ['VA', EASTERN_DEALER_IDS.sterling],

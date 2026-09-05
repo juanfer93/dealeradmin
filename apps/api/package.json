@@ -5,6 +5,7 @@
   "scripts": {
     "build": "nest build",
     "migrate": "tsx scripts/migrate.ts",
+    "seed:locations": "tsx scripts/seed-locations.ts",
     "start": "node dist/apps/api/src/main.js",
     "start:dev": "nest start --watch"
   },

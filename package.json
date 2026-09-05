@@ -8,7 +8,8 @@
     "typecheck": "pnpm -r exec tsc --noEmit",
     "lint": "pnpm -r exec eslint .",
     "test:unit": "pnpm build && vitest run",
-    "test:e2e": "cross-env API_URL=http://127.0.0.1:3010 pnpm build && playwright test"
+    "test:e2e": "cross-env API_URL=http://127.0.0.1:3010 pnpm build && playwright test",
+    "seed:locations": "pnpm --filter api seed:locations"
   },
   "devDependencies": {
     "@playwright/test": "^1.51.1",

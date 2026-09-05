@@ -7,6 +7,7 @@ import { BulkLeadIngestion1710000004000 } from './migrations/1710000004000-BulkL
 import { ReportExportHistory1710000005000 } from './migrations/1710000005000-ReportExportHistory';
 import { DealerScopedLeadIdentity1710000006000 } from './migrations/1710000006000-DealerScopedLeadIdentity';
 import { GhlLocationRouting1710000007000 } from './migrations/1710000007000-GhlLocationRouting';
+import { LocationCatalog1710000008000 } from './migrations/1710000008000-LocationCatalog';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -27,6 +28,7 @@ export const AppDataSource = new DataSource({
     ReportExportHistory1710000005000,
     DealerScopedLeadIdentity1710000006000,
     GhlLocationRouting1710000007000,
+    LocationCatalog1710000008000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,

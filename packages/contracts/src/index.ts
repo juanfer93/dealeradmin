@@ -33,6 +33,7 @@ export const LeadWebhookSchema = z.object({
     documents: z.string().nullable().optional(),
     message: z.string().nullable().optional(),
     qualification_memory: z.string().nullable().optional(),
+    qualification_source: z.enum(['custom_fields', 'qualification_memory', 'both', 'none']).nullable().optional(),
     chat_history_log: z.string().nullable().optional(),
     easterns_zone: z.string().nullable().optional(),
     easterns_dealer_selected: EasternsDealerSelectedSchema,
