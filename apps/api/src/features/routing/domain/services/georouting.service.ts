@@ -71,6 +71,22 @@ function locationFromQualificationMemory(value: string | null | undefined): stri
   return match?.[1] || '';
 }
 
+function cityFromQualificationMemory(value: string | null | undefined): string {
+  const memory = normalizeText(value);
+  if (!memory) return '';
+  const keyed = memory.match(/(?:location|city|sede|ubicacion|zona)\s*[:=-]\s*([^;|]+)/i)?.[1];
+  const conversational = memory.match(/(?:estoy|me\s+encuentro|vivo)\s+en\s+([^;|]+)/i)?.[1]
+    ?? memory.match(/(?:located|live)\s+in\s+([^;|]+)/i)?.[1];
+  const candidate = (keyed || conversational || '')
+    .replace(/[,.]+/g, ' ')
+    .replace(/\b(?:de|del|in|en)\s+(?:md|maryland|va|virginia|dc|de|delaware|pa|pennsylvania|ny|new york|nj|new jersey)\b/gi, '')
+    .replace(/\b(?:md|maryland|va|virginia|dc|de|delaware|pa|pennsylvania|ny|new york|nj|new jersey)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!candidate) return '';
+  return candidate.match(/\b(baltimore|laurel|sterling)\b/i)?.[1] || candidate;
+}
+
 @Injectable()
 export class GeoroutingService {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
@@ -78,7 +94,7 @@ export class GeoroutingService {
   async resolveDealer(payload: LocationPayload, queryClient: QueryClient = this.dataSource): Promise<{ dealerId: string; reason: string }> {
     const stateValue = normalizeText(payload.state);
     const explicitState = this.resolveState(stateValue);
-    const city = normalizeText(payload.city);
+    const city = normalizeText(payload.city) || cityFromQualificationMemory(payload.qualification_memory);
     const memoryZone = locationFromQualificationMemory(payload.qualification_memory);
     // A stale/partial custom field must not override an explicit ad/location
     // phrase captured in qualification_memory. GHL can send fragments such as

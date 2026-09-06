@@ -112,6 +112,16 @@ describe('Easterns georouting engine', () => {
     });
   });
 
+  it('usa la ciudad de qualification_memory cuando GHL no envía city/easterns_zone', async () => {
+    const { service } = createService();
+    await expect(service.resolveDealer({
+      qualification_memory: 'vehicle: Sedan; location: Baltimore; timeline: today',
+    })).resolves.toMatchObject({
+      dealerId: EASTERN_DEALER_IDS.rosedale,
+      reason: 'Baltimore Overlap: Round-Robin (Previous: Laurel/None)',
+    });
+  });
+
   it('mantiene el round-robin cuando Baltimore solo llega como zona geográfica', async () => {
     const { service } = createService(EASTERN_DEALER_IDS.rosedale);
     await expect(service.resolveDealer({ easterns_zone: 'Baltimore' })).resolves.toMatchObject({
