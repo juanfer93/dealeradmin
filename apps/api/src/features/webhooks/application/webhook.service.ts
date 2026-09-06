@@ -33,7 +33,7 @@ type DealerRow = {
   id: string;
   routing_config?: { group?: string } | null;
 };
-type EventRow = { event_id: string };
+type EventRow = { event_id: string; status?: string };
 type LeadDealerRow = {
   vehicle_type: string | null;
   down_payment: string | null;
@@ -91,8 +91,29 @@ export class WebhookService {
       )) as EventRow[];
 
       if (insertedEvents.length === 0) {
-        await queryRunner.rollbackTransaction();
-        return { accepted: true, eventId: payload.event_id, status: 'duplicate_ignored' };
+        const existingEvents = (await queryRunner.query(
+          `SELECT status
+           FROM webhook_events
+           WHERE event_id = $1
+           FOR UPDATE`,
+          [payload.event_id],
+        )) as Array<{ status: string }>;
+
+        // A failed event is retryable: GHL may re-send the same event_id after
+        // the contact has been repaired. Already processed events remain
+        // idempotent and are ignored.
+        if (existingEvents[0]?.status !== 'failed') {
+          await queryRunner.rollbackTransaction();
+          return { accepted: true, eventId: payload.event_id, status: 'duplicate_ignored' };
+        }
+
+        await queryRunner.query(
+          `UPDATE webhook_events
+           SET status = 'pending', error_code = NULL, processed_at = NULL,
+               payload_hash = $2, received_at = CURRENT_TIMESTAMP
+           WHERE event_id = $1`,
+          [payload.event_id, payloadHash],
+        );
       }
 
       const dealers = (await queryRunner.query(

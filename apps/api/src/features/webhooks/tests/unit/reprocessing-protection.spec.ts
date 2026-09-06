@@ -177,4 +177,49 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
     expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO lead_dealers'))).toBe(false);
     expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
   });
+
+  it('reintenta un evento fallido con el mismo event_id después de reparar el contacto', async () => {
+    const queryRunner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [];
+        if (sql.includes('FROM webhook_events') && sql.includes('FOR UPDATE')) return [{ status: 'failed' }];
+        if (sql.includes('FROM dealers')) return [{ id: 'dealer-easterns', routing_config: { group: 'Easterns' } }];
+        if (sql.includes('FROM leads') && sql.includes('scoped_ld')) return [];
+        if (sql.includes('INSERT INTO leads')) return [{ id: 'lead-retried' }];
+        return [];
+      }),
+    };
+    const resolveDealer = vi.fn(async () => ({ dealerId: 'dealer-rosedale', reason: 'Matched Baltimore location' }));
+    const service = new WebhookService(
+      { createQueryRunner: () => queryRunner, query: vi.fn() } as never,
+      { resolveDealer } as never,
+    );
+
+    const result = await service.acceptLead({
+      event_id: 'evt-retryable-failure',
+      event_type: 'lead.ready_for_whatsapp',
+      occurred_at: '2026-09-05T22:07:46.222Z',
+      dealer_id: 'EASTERNS',
+      dealer_name: 'Easterns Automotive Group',
+      ghl_location_id: 'loc-easterns',
+      ghl_contact_id: 'ghl-repaired-contact',
+      lead: {
+        name: 'Esau Valle',
+        phone: '+15159495755',
+        vehicle_type: 'Sedan',
+        qualification_memory: 'vehicle: Sedan; proof of income: yes; identification: yes; timeline: today; location: BALTIMORE',
+      },
+    });
+
+    expect(result).toEqual({ accepted: true, eventId: 'evt-retryable-failure', status: 'processed' });
+    expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes("SET status = 'pending'"))).toBe(true);
+    expect(queryRunner.commitTransaction).toHaveBeenCalled();
+    expect(resolveDealer).toHaveBeenCalled();
+  });
 });
