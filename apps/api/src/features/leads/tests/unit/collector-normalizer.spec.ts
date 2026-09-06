@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isQualificationComplete, normalizeCollectorInput } from '../../domain/collector-normalizer';
+import { hasMinimumRoutingQualification, isQualificationComplete, normalizeCollectorInput } from '../../domain/collector-normalizer';
 
 describe('normalizeCollectorInput', () => {
   it('normalizes dollar, plain-number, and k down-payment formats', () => {
@@ -204,6 +204,11 @@ describe('normalizeCollectorInput', () => {
     })).toBe(false);
   });
 
+  it('supports the Stafford WhatsApp guard requiring a real name as well as vehicle data', () => {
+    expect(hasMinimumRoutingQualification({ vehicle_type: 'SUV', qualification_memory: 'vehicle: SUV' }, { requireRealName: true })).toBe(false);
+    expect(hasMinimumRoutingQualification({ vehicle_type: 'SUV', qualification_memory: 'real_name: Maria Lopez; vehicle: SUV' }, { requireRealName: true })).toBe(true);
+  });
+
   it('does not treat campaign or intent text as a purchase timeline', () => {
     expect(normalizeCollectorInput({ purchase_timeline: 'Quiero Financiar!' }).purchase_timeline).toBe('');
     expect(normalizeCollectorInput({ qualification_memory: 'timeline: Dónde están ubicados102020' }).purchase_timeline).toBe('');
@@ -216,6 +221,13 @@ describe('normalizeCollectorInput', () => {
     });
     expect(result.down_payment).toBe('trade-in');
     expect(result.purchase_timeline).toBe('today');
+  });
+
+  it.each([
+    ['real_name: Maria Lopez; vehicle: SUV', '.', 'Maria Lopez'],
+    ['nombre completo: Juan Pérez; vehículo: Sedan', 'Thu Chikitha Linda', 'Juan Pérez'],
+  ])('uses the real name from memory when the contact name is invalid: %s', (memory, field, expected) => {
+    expect(normalizeCollectorInput({ real_name: field, qualification_memory: memory }).real_name).toBe(expected);
   });
 
   it.each([

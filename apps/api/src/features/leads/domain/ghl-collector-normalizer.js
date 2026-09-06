@@ -31,6 +31,20 @@ const memoryValue = (aliases) => {
   const match = normalizedMemory.match(new RegExp(`(?:^|[^a-z])(?:${pattern})\\s*(?::|=|-|\\bis\\b|\\bare\\b)\\s*([^;]+)`, 'i'));
   return clean(match?.[1]).replace(/(trade[- ]?in)\d+$/i, '$1');
 };
+const invalidRealNames = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'thu chikitha linda']);
+const normalizeRealName = (value) => {
+  const candidate = clean(value);
+  if (!candidate || invalidRealNames.has(candidate.toLowerCase()) || !/[a-záéíóúüñ]/i.test(candidate) || /^[\W_\d]+$/u.test(candidate)) return '';
+  if (candidate.length > 100 || candidate.split(/\s+/).length > 8) return '';
+  return candidate;
+};
+const nameFromText = (value) => normalizeRealName(clean(value).match(/(?:me llamo|mi nombre es|soy|my name is|this is)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i)?.[1]?.split(/[.!?,;]/, 1)[0]);
+const realName = [
+  inputData.real_name,
+  memoryValue(['real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name', 'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre']),
+  nameFromText(message),
+  nameFromText(history),
+].map(normalizeRealName).find(Boolean) || '';
 const campaign = /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today)$/i.test(message.replace(/([!?])\s*\d{1,3}$/, '$1').replace(/[!?.,]/g, '').trim());
 const amount = (value) => {
   const source = clean(value).toLowerCase();
@@ -125,10 +139,11 @@ const customPresent = [inputData.vehicle_type, inputData.down_payment, inputData
 const qualificationSource = rawMemory && customPresent ? 'both' : rawMemory ? 'qualification_memory' : customPresent ? 'custom_fields' : 'none';
 const missing = [!vehicle ? 'vehicle_type' : '', !down ? 'down_payment' : '', !timeline ? 'purchase_timeline' : '', identification !== 'yes' ? 'identification' : '', income !== 'yes' ? 'proof_of_income' : ''].filter(Boolean);
 const parts = memoryText(rawMemory).split(';').map((part) => clean(part).replace(/^\d+(?=(?:vehicle|vehicle[_ ]?type|down|down[_ ]?payment|documents?|timeline)\b)/i, '')).filter(Boolean);
-const canonical = [['vehicle', vehicle], ['down payment', down], ['documents', documents], ['timeline', timeline]].filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).replace(/\s*;\s*/g, ', ')}`);
-const qualificationMemory = [...new Set([...parts.filter((part) => !/^(?:vehicle|vehicle_type|down|down payment|down_payment|documents?|docs|timeline|purchase timeline|purchase_timeline)\s*(?::|=|-)/i.test(part)), ...canonical])].join('; ');
+const canonical = [['real_name', realName], ['vehicle', vehicle], ['down payment', down], ['documents', documents], ['timeline', timeline]].filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).replace(/\s*;\s*/g, ', ')}`);
+const qualificationMemory = [...new Set([...parts.filter((part) => !/^(?:real_name|real name|name|nombre|nombre real|nombre completo|vehicle|vehicle_type|down|down payment|down_payment|documents?|docs|timeline|purchase timeline|purchase_timeline)\s*(?::|=|-)/i.test(part)), ...canonical])].join('; ');
 const phone = phoneFrom(inputData.phone, inputData.contact_phone, inputData.lead_phone, inputData.lead_qualificator, message, history, rawMemory);
 return {
+  real_name: realName,
   vehicle_type: vehicle,
   down_payment: down,
   purchase_timeline: timeline,

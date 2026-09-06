@@ -1,4 +1,5 @@
 export type CollectorInput = {
+  real_name?: string | null;
   message?: string | null;
   phone?: string | null;
   vehicle_type?: string | null;
@@ -12,6 +13,7 @@ export type CollectorInput = {
 };
 
 export type CollectorOutput = {
+  real_name: string;
   vehicle_type: string;
   down_payment: string;
   purchase_timeline: string;
@@ -69,6 +71,30 @@ function memoryValue(memory: string, aliases: string[]): string {
     .join('|');
   const match = normalized.match(new RegExp(`(?:^|[^a-z])(?:${escapedAliases})\\s*(?::|=|-|\\bis\\b|\\bare\\b)\\s*([^;]+)`, 'i'));
   return clean(match?.[1]).replace(/(trade[- ]?in)\d+$/i, '$1');
+}
+
+const INVALID_REAL_NAMES = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'thu chikitha linda']);
+
+export function normalizeRealName(value: string | null | undefined): string {
+  const candidate = clean(value);
+  if (!candidate || INVALID_REAL_NAMES.has(candidate.toLowerCase())) return EMPTY;
+  if (!/[a-záéíóúüñ]/i.test(candidate) || /^[\W_\d]+$/u.test(candidate)) return EMPTY;
+  if (candidate.length > 100 || candidate.split(/\s+/).length > 8) return EMPTY;
+  return candidate;
+}
+
+function extractRealNameFromText(value: string): string {
+  const source = clean(value);
+  if (!source) return EMPTY;
+  const match = source.match(/(?:me llamo|mi nombre es|soy|my name is|this is)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i);
+  return normalizeRealName(match?.[1]?.split(/[.!?,;]/, 1)[0]);
+}
+
+export function realNameFromQualificationMemory(memory: string | null | undefined): string {
+  return normalizeRealName(memoryValue(memory ?? EMPTY, [
+    'real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name',
+    'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre',
+  ]));
 }
 
 function isCampaignButton(value: string): boolean {
@@ -272,6 +298,7 @@ function mergeMemory(current: string, values: Record<string, string>): string {
         || normalizedKey === 'downpayment' && ['downpayment', 'down', 'enganche'].includes(segmentKey || '')
         || normalizedKey === 'timeline' && ['timeline', 'purchasetimeline', 'buyingtimeline'].includes(segmentKey || '')
         || normalizedKey === 'documents' && ['documents', 'docs', 'documentos'].includes(segmentKey || '')
+        || normalizedKey === 'realname' && ['realname', 'name', 'fullname', 'customername', 'contactname', 'nombrereal', 'nombre', 'nombrecompleto'].includes(segmentKey || '')
         || segmentKey === normalizedKey;
       if (isAlias) segments.splice(index, 1);
     }
@@ -303,10 +330,14 @@ export function isQualificationComplete(input: {
  * The workflow checks the same three signals, but the backend must enforce the
  * rule as well because webhook callers can bypass GHL entirely.
  */
-export function hasMinimumRoutingQualification(input: Pick<CollectorInput, 'vehicle_type' | 'qualification_memory'>): boolean {
+export function hasMinimumRoutingQualification(
+  input: Pick<CollectorInput, 'vehicle_type' | 'qualification_memory' | 'real_name'>,
+  options: { requireRealName?: boolean } = {},
+): boolean {
   const vehicleField = firstNonEmpty(input.vehicle_type);
   const memory = clean(input.qualification_memory);
   if (!vehicleField || !memory) return false;
+  if (options.requireRealName && !normalizeRealName(firstNonEmpty(input.real_name, realNameFromQualificationMemory(memory)))) return false;
 
   const memoryQualification = normalizeCollectorInput({ qualification_memory: memory });
   return Boolean(memoryQualification.vehicle_type);
@@ -324,6 +355,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     input.documents,
     input.identification,
     input.bank_account,
+    input.real_name,
   ].some((value) => Boolean(firstNonEmpty(value)));
   const qualificationSource = hasMemory && hasCustomFields
     ? 'both'
@@ -335,6 +367,12 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const campaignReply = isCampaignButton(message);
   const messageForExtraction = campaignReply ? EMPTY : message;
   const source = [history, message, memory].filter(Boolean).join('; ');
+  const realName = [
+    input.real_name,
+    realNameFromQualificationMemory(memory),
+    extractRealNameFromText(message),
+    extractRealNameFromText(history),
+  ].map(normalizeRealName).find(Boolean) ?? EMPTY;
   const vehicle = normalizeVehicle(firstNonEmpty(
     extractVehicle(messageForExtraction),
     extractVehicle(history),
@@ -384,6 +422,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
       : EMPTY
   );
   const mergedMemory = mergeMemory(memory, {
+    real_name: realName,
     vehicle,
     'down payment': down,
     documents: docs.value,
@@ -415,6 +454,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   ].filter(Boolean);
 
   return {
+    real_name: realName,
     vehicle_type: vehicle,
     down_payment: down,
     purchase_timeline: timeline,

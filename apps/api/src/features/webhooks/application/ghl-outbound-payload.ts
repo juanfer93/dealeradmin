@@ -1,5 +1,5 @@
 import type { LeadWebhookDto } from '@dealeradmin/contracts';
-import { normalizeCollectorInput } from '../../leads/domain/collector-normalizer';
+import { normalizeCollectorInput, normalizeRealName } from '../../leads/domain/collector-normalizer';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -122,6 +122,12 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
   const payload = asRecord(input);
   if (payload.lead && payload.event_id) {
     const lead = asRecord(payload.lead);
+    const normalizedLead = normalizeCollectorInput({
+      real_name: text(lead.real_name),
+      qualification_memory: text(lead.qualification_memory),
+      message: text(lead.message),
+      chat_history_log: text(lead.chat_history_log),
+    });
     const phone = phoneFromValue(lead.phone) || findPhone([
       lead,
       asRecord(lead.contact),
@@ -130,8 +136,10 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
       payload,
       { conversation_text: conversationText(lead.conversation) },
     ]);
-    if (!phone || phone === text(lead.phone)) return input;
-    return { ...payload, lead: { ...lead, phone } };
+    const normalizedName = normalizedLead.real_name || normalizeRealName(text(lead.name)) || 'Lead';
+    const currentRealName = text(lead.real_name);
+    if ((!phone || phone === text(lead.phone)) && normalizedName === text(lead.name) && (currentRealName === normalizedLead.real_name || !normalizedLead.real_name)) return input;
+    return { ...payload, lead: { ...lead, name: normalizedName, real_name: normalizedLead.real_name || text(lead.real_name) || null, ...(phone ? { phone } : {}) } };
   }
 
   const customData = asRecord(payload.customData ?? payload.custom_data);
@@ -144,7 +152,7 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
 
   const contactId = text(firstValue(records, ['ghl_contact_id', 'contactId', 'contact_id', 'id']));
   const locationId = text(firstValue(records, ['ghl_location_id', 'locationId', 'location_id'])) || text(location.id);
-  const name = text(firstValue(records, ['name', 'full_name', 'fullName'])) ||
+  const displayName = text(firstValue(records, ['name', 'full_name', 'fullName'])) ||
     [text(firstValue(records, ['first_name', 'firstName'])), text(firstValue(records, ['last_name', 'lastName']))]
       .filter(Boolean)
       .join(' ');
@@ -155,7 +163,8 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
   const dealerName = text(firstValue(records, ['dealer_name', 'dealerName'])) || text(location.name) || 'GHL dealer';
 
   const lead = {
-    name: name || 'Lead',
+    name: normalizeRealName(displayName) || displayName || 'Lead',
+    real_name: findField(records, ['real_name', 'realName', 'customer_name', 'contact_name', 'nombre_real', 'nombre_completo']),
     phone: phone || '',
     vehicle_type: findField(records, ['vehicle_type', 'vehicle_interest', 'vehicle', 'car', 'truck', 'suv']),
     down_payment: findField(records, ['down_payment', 'downpayment', 'down'] ),
@@ -174,6 +183,7 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
   };
 
   const normalized = normalizeCollectorInput(lead);
+  const realName = normalized.real_name || normalizeRealName(lead.name) || 'Lead';
 
   return {
     event_id: text(firstValue(records, ['event_id', 'eventId', 'webhook_id', 'webhookId'])) ||
@@ -186,6 +196,8 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
     ghl_contact_id: contactId || 'unknown-contact',
     lead: {
       ...lead,
+      name: realName,
+      real_name: normalized.real_name || null,
       vehicle_type: normalized.vehicle_type || lead.vehicle_type,
       down_payment: normalized.down_payment,
       purchase_timeline: normalized.purchase_timeline || lead.purchase_timeline,

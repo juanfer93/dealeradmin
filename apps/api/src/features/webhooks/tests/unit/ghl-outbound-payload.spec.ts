@@ -161,6 +161,38 @@ describe('normalizeGhlOutboundPayload', () => {
     expect(normalizeGhlOutboundPayload(payload)).toBe(payload);
   });
 
+  it('uses the real name stored in qualification memory when GHL sends a placeholder', () => {
+    const result = normalizeGhlOutboundPayload({
+      id: 'contact-real-name',
+      locationId: 'location-stafford',
+      first_name: '.',
+      last_name: '',
+      phone: '+18043092531',
+      customData: {
+        real_name: '.',
+        qualification_memory: 'real_name: Maria López; vehicle: SUV',
+      },
+    }) as Record<string, any>;
+
+    expect(result.lead).toMatchObject({
+      name: 'Maria López',
+      real_name: 'Maria López',
+    });
+  });
+
+  it('rejects known WhatsApp placeholder names instead of persisting them', () => {
+    const result = normalizeGhlOutboundPayload({
+      id: 'contact-placeholder-name',
+      locationId: 'location-stafford',
+      name: 'Thu Chikitha Linda',
+      phone: '+18043092531',
+      customData: { qualification_memory: 'vehicle: Sedan' },
+    }) as Record<string, any>;
+
+    expect(result.lead.name).toBe('Lead');
+    expect(result.lead.real_name).toBeNull();
+  });
+
   it('reads nested custom fields and normalizes a partial GHL payload from memory', () => {
     const result = normalizeGhlOutboundPayload({
       id: 'contact-456',

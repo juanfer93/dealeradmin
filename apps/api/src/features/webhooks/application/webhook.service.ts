@@ -31,6 +31,7 @@ type WebhookResponse = PersistedWebhookResponse | TestWebhookResponse;
 type LeadRow = { id: string };
 type DealerRow = {
   id: string;
+  code?: string | null;
   routing_config?: { group?: string } | null;
 };
 type EventRow = { event_id: string; status?: string };
@@ -117,13 +118,13 @@ export class WebhookService {
       }
 
       const dealers = (await queryRunner.query(
-        `SELECT id, routing_config
+        `SELECT id, code, routing_config
          FROM (
-           SELECT d.id, d.routing_config
+           SELECT d.id, d.code, d.routing_config
            FROM dealers d
            WHERE d.ghl_location_id = $1 AND d.active = true
            UNION
-           SELECT d.id, d.routing_config
+           SELECT d.id, d.code, d.routing_config
            FROM dealer_location_aliases dla
            INNER JOIN dealers d ON d.id = dla.dealer_id
            WHERE dla.ghl_location_id = $1 AND d.active = true
@@ -142,6 +143,7 @@ export class WebhookService {
       // carry a stale dealer_name and must not turn an Offlease lead into an
       // Easterns lead.
       const isEasternsPayload = dealers[0].routing_config?.group === 'Easterns';
+      const requiresStaffordRealName = dealers[0].code === 'STAFFORD';
 
       let canonicalPhone: string;
       try {
@@ -151,6 +153,7 @@ export class WebhookService {
       }
 
       const normalized = normalizeCollectorInput({
+        real_name: payload.lead.real_name ?? payload.lead.name,
         message: payload.lead.message ?? payload.lead.chat_history_log,
         phone: canonicalPhone,
         chat_history_log: payload.lead.chat_history_log,
@@ -162,10 +165,12 @@ export class WebhookService {
         documents: payload.lead.documents,
         qualification_memory: payload.lead.qualification_memory,
       });
+      const leadName = normalized.real_name || payload.lead.name;
       if (!hasMinimumRoutingQualification({
         vehicle_type: payload.lead.vehicle_type,
         qualification_memory: payload.lead.qualification_memory,
-      })) {
+        real_name: normalized.real_name || payload.lead.real_name || payload.lead.name,
+      }, { requireRealName: requiresStaffordRealName })) {
         throw new UnprocessableEntityException({
           code: 'INSUFFICIENT_LEAD_QUALIFICATION',
           message: 'El lead requiere teléfono, vehículo en custom fields y vehículo en qualification memory antes de entrar a WhatsApp',
@@ -175,11 +180,14 @@ export class WebhookService {
             ...(payload.lead.qualification_memory?.trim() && !normalizeCollectorInput({ qualification_memory: payload.lead.qualification_memory }).vehicle_type
               ? [{ path: ['lead', 'qualification_memory'], message: 'La qualification memory debe contener datos del vehículo' }]
               : []),
+            ...(requiresStaffordRealName && !normalized.real_name
+              ? [{ path: ['lead', 'real_name'], message: 'Stafford requiere el nombre real en el custom field o en qualification memory' }]
+              : []),
           ],
         });
       }
 
-      const nameParts = payload.lead.name.trim().split(/\s+/).filter(Boolean);
+      const nameParts = leadName.trim().split(/\s+/).filter(Boolean);
       const firstName = nameParts[0] ?? 'Lead';
       const lastName = nameParts.slice(1).join(' ');
 
@@ -205,7 +213,7 @@ export class WebhookService {
          ORDER BY CASE WHEN canonical_phone = $1 THEN 0 ELSE 1 END
          LIMIT 1
          FOR UPDATE`,
-        [canonicalPhone, normalizeLeadName(payload.lead.name), payload.ghl_contact_id, payload.ghl_location_id, dealers[0].id],
+        [canonicalPhone, normalizeLeadName(leadName), payload.ghl_contact_id, payload.ghl_location_id, dealers[0].id],
       )) as LeadRow[];
       let leadId: string;
 
@@ -244,7 +252,7 @@ export class WebhookService {
       const currentLeadDealer = currentLeadDealers[0];
       const identification = normalized.identification;
       const purchaseTimeline = normalizePurchaseTimeline(normalized.purchase_timeline) ?? '';
-      const messageText = buildWhatsAppMessage(payload.lead.name, canonicalPhone, {
+      const messageText = buildWhatsAppMessage(leadName, canonicalPhone, {
         ...payload.lead,
         vehicle_type: normalized.vehicle_type || currentLeadDealer?.vehicle_type || '',
         down_payment: normalizeDownPayment(normalized.down_payment) || currentLeadDealer?.down_payment || '',
