@@ -6,6 +6,16 @@ const first = (...values) => values.map(clean).find((value) => value && !emptyMa
 const rawMemory = String(inputData.qualification_memory ?? '').trim();
 const message = clean(inputData.message);
 const history = clean(inputData.chat_history_log);
+const phoneFrom = (...values) => {
+  const source = values.map((value) => String(value ?? '')).join(' ');
+  const matches = source.match(/(?:\+?1[\s().-]*)?(?:\(?[2-9]\d{2}\)?[\s.-]*)\d{3}[\s.-]?\d{4}/g) || [];
+  for (const candidate of matches) {
+    const digits = candidate.replace(/\D/g, '');
+    if (digits.length === 10) return `+1${digits}`;
+    if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  }
+  return '';
+};
 const memoryText = (value) => {
   const source = String(value ?? '').trim();
   if (!source) return '';
@@ -62,10 +72,17 @@ const downFrom = (text) => {
 const vehicleFrom = (text) => {
   const source = clean(text);
   if (!source || campaign) return '';
-  const cleaned = source.replace(/(?:down|enganche|inicial|deposit|dep[oó]sito)\s*(?:payment|pago)?\s*(?:is|es|de|:)?\s*\$?[\d,.]+\s*k?/gi, '').replace(/\b(?:today|hoy|asap|immediately|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes)\b/gi, '').trim();
+  const cleaned = source
+    .replace(/(?:\+?1[\s().-]*)?(?:\(?[2-9]\d{2}\)?[\s.-]*)\d{3}[\s.-]?\d{4}/g, ' ')
+    .replace(/(?:down|enganche|inicial|deposit|dep[oó]sito)\s*(?:payment|pago)?\s*(?:is|es|de|:)?\s*\$?[\d,.]+\s*k?/gi, '')
+    .replace(/\b(?:today|hoy|asap|immediately|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes)\b/gi, '')
+    .split(/[;,]/, 1)[0]
+    .trim();
   const requested = cleaned.match(/(?:looking for|busco|quiero|want|interested in|interesado en)\s+(?:a|an|un|una)?\s*([^.!?]+)/i)?.[1];
   if (requested && /\b(?:suv|sedan|truck|troca|pickup|van|minivan|crossover|coupe|hatchback|toyota|honda|ford|nissan|chevrolet|hyundai|kia|mazda|subaru|volkswagen|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|tacoma|rav4|civic|accord|camry|corolla|f-?150|explorer|cr-v|pilot|sierra|silverado|wrangler)\b/i.test(requested)) return clean(requested);
   const hit = cleaned.match(/\b(?:suv|sedan|truck|troca|pickup|van|minivan|crossover|coupe|hatchback|toyota|honda|ford|nissan|chevrolet|hyundai|kia|mazda|subaru|volkswagen|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|tacoma|rav4|civic|accord|camry|corolla|f-?150|explorer|cr-v|pilot|sierra|silverado|wrangler)\b[^.!?]*/i)?.[0];
+  const categoryOnly = cleaned.match(/^\s*(suv|sedan|truck|troca|pickup|van|minivan|crossover|coupe|hatchback)\b/i)?.[1];
+  if (categoryOnly) return categoryOnly;
   return clean(hit?.replace(/\b(?:19|20)\d{2}\b/g, '').replace(/\d+$/g, ''));
 };
 const timelineFrom = (text) => {
@@ -110,6 +127,7 @@ const missing = [!vehicle ? 'vehicle_type' : '', !down ? 'down_payment' : '', !t
 const parts = memoryText(rawMemory).split(';').map((part) => clean(part).replace(/^\d+(?=(?:vehicle|vehicle[_ ]?type|down|down[_ ]?payment|documents?|timeline)\b)/i, '')).filter(Boolean);
 const canonical = [['vehicle', vehicle], ['down payment', down], ['documents', documents], ['timeline', timeline]].filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).replace(/\s*;\s*/g, ', ')}`);
 const qualificationMemory = [...new Set([...parts.filter((part) => !/^(?:vehicle|vehicle_type|down|down payment|down_payment|documents?|docs|timeline|purchase timeline|purchase_timeline)\s*(?::|=|-)/i.test(part)), ...canonical])].join('; ');
+const phone = phoneFrom(inputData.phone, inputData.contact_phone, inputData.lead_phone, inputData.lead_qualificator, message, history, rawMemory);
 return {
   vehicle_type: vehicle,
   down_payment: down,
@@ -118,6 +136,7 @@ return {
   identification,
   bank_account: bankAccount,
   qualification_memory: qualificationMemory,
+  phone,
   has_identification: identification,
   has_income_proof: income,
   next_question: !identification ? 'Do you have a valid ID or driver license?' : !income ? 'Do you have proof of income?' : !bankAccount ? 'Do you have a bank account?' : '',

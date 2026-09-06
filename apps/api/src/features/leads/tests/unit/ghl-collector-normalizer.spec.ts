@@ -56,4 +56,13 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.qualification_complete).toBe(false);
     expect(result.missing_qualification).toEqual(['purchase_timeline', 'proof_of_income']);
   });
+
+  it('normalizes an explicit phone from the inbound message for the GHL contact phone output', () => {
+    const result = execute({
+      message: 'Sedan, mi numero de telefono es (804) 309-2531',
+      qualification_memory: 'documents: identification: yes; proof of income: yes',
+    });
+    expect(result).toMatchObject({ vehicle_type: 'Sedan', phone: '+18043092531' });
+    expect(result.qualification_memory).toContain('vehicle: Sedan');
+  });
 });
