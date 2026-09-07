@@ -65,4 +65,13 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result).toMatchObject({ vehicle_type: 'Sedan', phone: '+18043092531' });
     expect(result.qualification_memory).toContain('vehicle: Sedan');
   });
+
+  it('does not convert vehicle digits in qualification memory into a phone', () => {
+    const result = execute({
+      qualification_memory: 'real_name: Stefanni.veliz; vehicle: SUV20202020202020; timeline: today',
+    });
+
+    expect(result.phone).toBe('');
+    expect(result.vehicle_type).toBe('SUV');
+  });
 });

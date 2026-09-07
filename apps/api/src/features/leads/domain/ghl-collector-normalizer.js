@@ -99,6 +99,7 @@ const vehicleFrom = (text) => {
   if (categoryOnly) return categoryOnly;
   return clean(hit?.replace(/\b(?:19|20)\d{2}\b/g, '').replace(/\d+$/g, ''));
 };
+const cleanVehicleValue = (value) => clean(value).replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
 const timelineFrom = (text) => {
   const hit = clean(text).match(/\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo m[aá]s pronto posible|lo antes posible|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|within \d+ days?|en \d+ d[ií]as?)\b/i)?.[0] || '';
   if (/today|hoy|asap|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes/i.test(hit)) return 'today';
@@ -127,7 +128,12 @@ const documentStatus = (pattern, memoryAliases, custom) => {
   }
   return '';
 };
-const vehicle = first(campaign ? '' : vehicleFrom(message), vehicleFrom(history), memoryValue(['vehicle', 'vehicle_type']), inputData.vehicle_type);
+const vehicle = first(
+  campaign ? '' : cleanVehicleValue(vehicleFrom(message)),
+  cleanVehicleValue(vehicleFrom(history)),
+  cleanVehicleValue(memoryValue(['vehicle', 'vehicle_type'])),
+  cleanVehicleValue(inputData.vehicle_type),
+);
 const downCandidate = campaign ? '' : first(tradeIn(message), downFrom(message), downFrom(history), memoryValue(['down payment', 'down_payment', 'downpayment']), validAmount(inputData.down_payment));
 const down = validAmount(downCandidate);
 const timeline = first(timelineFrom(message), timelineFrom(history), memoryValue(['timeline', 'purchase timeline', 'purchase_timeline']), inputData.purchase_timeline);
@@ -141,7 +147,10 @@ const missing = [!vehicle ? 'vehicle_type' : '', !down ? 'down_payment' : '', !t
 const parts = memoryText(rawMemory).split(';').map((part) => clean(part).replace(/^\d+(?=(?:vehicle|vehicle[_ ]?type|down|down[_ ]?payment|documents?|timeline)\b)/i, '')).filter(Boolean);
 const canonical = [['real_name', realName], ['vehicle', vehicle], ['down payment', down], ['documents', documents], ['timeline', timeline]].filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).replace(/\s*;\s*/g, ', ')}`);
 const qualificationMemory = [...new Set([...parts.filter((part) => !/^(?:real_name|real name|name|nombre|nombre real|nombre completo|vehicle|vehicle_type|down|down payment|down_payment|documents?|docs|timeline|purchase timeline|purchase_timeline)\s*(?::|=|-)/i.test(part)), ...canonical])].join('; ');
-const phone = phoneFrom(inputData.phone, inputData.contact_phone, inputData.lead_phone, inputData.lead_qualificator, message, history, rawMemory);
+// Only use explicit phone fields or a phone written in the conversation.
+// Never scan qualification_memory/qualifier text: vehicle values such as
+// "SUV20202020202020" must not become a lead phone.
+const phone = phoneFrom(inputData.phone, inputData.contact_phone, inputData.lead_phone, message, history);
 return {
   real_name: realName,
   vehicle_type: vehicle,

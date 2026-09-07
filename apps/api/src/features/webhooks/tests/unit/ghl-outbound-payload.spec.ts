@@ -88,7 +88,7 @@ describe('normalizeGhlOutboundPayload', () => {
       last_name: 'Phone',
       phone: '',
       customData: {
-        lead_qualifier: 'telefono del lead: (240) 705-4501; vehicle: SUV',
+        lead_qualifier_phone: '(240) 705-4501',
       },
     }) as Record<string, any>;
 
@@ -107,7 +107,7 @@ describe('normalizeGhlOutboundPayload', () => {
       lead: {
         name: 'Phone Fallback',
         phone: '',
-        lead_qualificator: 'Lead phone: 2407054502',
+        lead_qualifier_phone: '2407054502',
       },
     };
 
@@ -131,6 +131,22 @@ describe('normalizeGhlOutboundPayload', () => {
     }) as Record<string, any>;
 
     expect(result.lead.phone).toBe('804-309-2531');
+  });
+
+  it('does not derive a phone from vehicle digits in qualification memory', () => {
+    const result = normalizeGhlOutboundPayload({
+      id: 'contact-contaminated-memory',
+      locationId: 'location-stafford',
+      first_name: 'Stefanni',
+      last_name: 'Veliz',
+      phone: '',
+      customData: {
+        qualification_memory: 'real_name: Stefanni.veliz; vehicle: SUV20202020202020; timeline: today',
+      },
+    }) as Record<string, any>;
+
+    expect(result.lead.phone).toBe('');
+    expect(result.lead.vehicle_type).toBe('SUV');
   });
 
   it('recovers a phone from nested conversation history', () => {

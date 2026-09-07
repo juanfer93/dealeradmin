@@ -170,7 +170,7 @@ function firstValidAmount(...values: Array<string | null | undefined>): string {
 }
 
 function normalizeVehicle(value: string): string {
-  const source = clean(value);
+  const source = clean(value).replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
   if (!source) return EMPTY;
   if (source.includes('—')) return source;
   const lower = source.toLowerCase();
