@@ -166,4 +166,20 @@ describe('Easterns georouting engine', () => {
     const { service } = createService();
     await expect(service.resolveDealer({})).resolves.toEqual({ dealerId: EASTERN_DEALER_IDS.laurel, reason: 'Fallback Default' });
   });
+
+  it('usa el dealer de origen como fallback cuando GHL identifica la cuenta Rosedale', async () => {
+    const { service } = createService();
+    await expect(service.resolveDealer({}, undefined as never, EASTERN_DEALER_IDS.rosedale)).resolves.toEqual({
+      dealerId: EASTERN_DEALER_IDS.rosedale,
+      reason: 'Source dealer from GHL location (fallback)',
+    });
+  });
+
+  it('mantiene la rotación Laurel/Sterling cuando la cuenta de origen es Sterling', async () => {
+    const { service } = createService(EASTERN_DEALER_IDS.laurel);
+    await expect(service.resolveDealer({ state: 'DC', city: 'Washington' }, undefined as never, EASTERN_DEALER_IDS.sterling)).resolves.toMatchObject({
+      dealerId: EASTERN_DEALER_IDS.sterling,
+      reason: 'Southern MD/DC Overlap: Round-Robin (Previous: Laurel)',
+    });
+  });
 });

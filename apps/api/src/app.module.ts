@@ -15,6 +15,7 @@ import { BulkLeadIngestion1710000004000 } from './database/migrations/1710000004
 import { ReportExportHistory1710000005000 } from './database/migrations/1710000005000-ReportExportHistory';
 import { DealerScopedLeadIdentity1710000006000 } from './database/migrations/1710000006000-DealerScopedLeadIdentity';
 import { GhlLocationRouting1710000007000 } from './database/migrations/1710000007000-GhlLocationRouting';
+import { CorrectEasternsRosedaleRouting1710000010000 } from './database/migrations/1710000010000-CorrectEasternsRosedaleRouting';
 import { LocationCatalog1710000008000 } from './database/migrations/1710000008000-LocationCatalog';
 import { LocationCatalogSeed1710000009000 } from './database/migrations/1710000009000-LocationCatalogSeed';
 
@@ -37,6 +38,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             GhlLocationRouting1710000007000,
             LocationCatalog1710000008000,
             LocationCatalogSeed1710000009000,
+            CorrectEasternsRosedaleRouting1710000010000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,

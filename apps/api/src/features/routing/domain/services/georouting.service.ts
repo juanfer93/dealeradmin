@@ -91,7 +91,11 @@ function cityFromQualificationMemory(value: string | null | undefined): string {
 export class GeoroutingService {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
 
-  async resolveDealer(payload: LocationPayload, queryClient: QueryClient = this.dataSource): Promise<{ dealerId: string; reason: string }> {
+  async resolveDealer(
+    payload: LocationPayload,
+    queryClient: QueryClient = this.dataSource,
+    sourceDealerId?: string,
+  ): Promise<{ dealerId: string; reason: string }> {
     const stateValue = normalizeText(payload.state);
     const explicitState = this.resolveState(stateValue);
     const city = normalizeText(payload.city) || cityFromQualificationMemory(payload.qualification_memory);
@@ -161,7 +165,10 @@ export class GeoroutingService {
       return { dealerId: EASTERN_DEALER_IDS.laurel, reason: 'Exclusive Zone: Central Maryland' };
     }
 
-    return { dealerId: EASTERN_DEALER_IDS.laurel, reason: 'Fallback Default' };
+    return {
+      dealerId: sourceDealerId ?? EASTERN_DEALER_IDS.laurel,
+      reason: sourceDealerId ? 'Source dealer from GHL location (fallback)' : 'Fallback Default',
+    };
   }
 
   private async getLastAssignedInOverlap(

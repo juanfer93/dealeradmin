@@ -263,7 +263,7 @@ export class WebhookService {
       });
       const isAlreadySent = currentLeadDealer?.status === 'sent';
       const routing = isEasternsPayload
-        ? await this.georoutingService?.resolveDealer(payload.lead, queryRunner)
+        ? await this.georoutingService?.resolveDealer(payload.lead, queryRunner, dealers[0].id)
         : { dealerId: dealers[0].id, reason: 'Source dealer from GHL location' };
       if (!routing) throw new ServiceUnavailableException('Georouting service is not available');
       const hasPersistentAssignment = Boolean(currentLeadDealer?.assigned_dealer_id);

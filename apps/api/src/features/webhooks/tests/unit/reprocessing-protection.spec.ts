@@ -220,6 +220,10 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
     expect(result).toEqual({ accepted: true, eventId: 'evt-retryable-failure', status: 'processed' });
     expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes("SET status = 'pending'"))).toBe(true);
     expect(queryRunner.commitTransaction).toHaveBeenCalled();
-    expect(resolveDealer).toHaveBeenCalled();
+    expect(resolveDealer).toHaveBeenCalledWith(
+      expect.objectContaining({ qualification_memory: expect.stringContaining('BALTIMORE') }),
+      queryRunner,
+      'dealer-easterns',
+    );
   });
 });
