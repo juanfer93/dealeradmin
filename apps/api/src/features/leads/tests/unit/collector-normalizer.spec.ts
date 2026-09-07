@@ -96,6 +96,16 @@ describe('normalizeCollectorInput', () => {
     expect(result.next_question).toBe('Do you have a bank account?');
   });
 
+  it('deduplicates repeated document facts before persistence', () => {
+    const result = normalizeCollectorInput({
+      documents: 'identification: yes; identification: yes; proof of income: yes; identification: yes',
+      qualification_memory: 'vehicle: Ford; down payment: 2000; timeline: today; bank account: yes',
+    });
+
+    expect(result.documents.match(/identification: yes/g)).toHaveLength(1);
+    expect(result.documents.match(/proof of income: yes/g)).toHaveLength(1);
+  });
+
   it('keeps existing memory and does not erase valid fields with an empty reply', () => {
     const result = normalizeCollectorInput({
       message: '',

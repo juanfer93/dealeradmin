@@ -271,7 +271,7 @@ function mergeDocuments(current: string, message: string): { value: string; id: 
   };
   const id = answer('id|identification|identificación|license|licencia');
   const income = answer('proof of income|income proof|prueba de ingresos|comprobante de ingresos');
-  const parts = [clean(current)];
+  const parts = [...new Set(clean(current).split(';').map(clean).filter(Boolean))];
   if (id && !/\b(?:id|identification|identificación|license|licencia)\s*:/i.test(current) && !/\b(?:id|identification|identificación|license|licencia)\b/i.test(current)) {
     parts.push(`identification: ${id}`);
   }

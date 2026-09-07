@@ -10,6 +10,7 @@ import { GhlLocationRouting1710000007000 } from './migrations/1710000007000-GhlL
 import { CorrectEasternsRosedaleRouting1710000010000 } from './migrations/1710000010000-CorrectEasternsRosedaleRouting';
 import { LocationCatalog1710000008000 } from './migrations/1710000008000-LocationCatalog';
 import { LocationCatalogSeed1710000009000 } from './migrations/1710000009000-LocationCatalogSeed';
+import { WidenLeadDealerDocuments1710000011000 } from './migrations/1710000011000-WidenLeadDealerDocuments';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -33,6 +34,7 @@ export const AppDataSource = new DataSource({
     LocationCatalog1710000008000,
     LocationCatalogSeed1710000009000,
     CorrectEasternsRosedaleRouting1710000010000,
+    WidenLeadDealerDocuments1710000011000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,

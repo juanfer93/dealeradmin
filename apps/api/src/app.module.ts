@@ -18,6 +18,7 @@ import { GhlLocationRouting1710000007000 } from './database/migrations/171000000
 import { CorrectEasternsRosedaleRouting1710000010000 } from './database/migrations/1710000010000-CorrectEasternsRosedaleRouting';
 import { LocationCatalog1710000008000 } from './database/migrations/1710000008000-LocationCatalog';
 import { LocationCatalogSeed1710000009000 } from './database/migrations/1710000009000-LocationCatalogSeed';
+import { WidenLeadDealerDocuments1710000011000 } from './database/migrations/1710000011000-WidenLeadDealerDocuments';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -39,6 +40,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             LocationCatalog1710000008000,
             LocationCatalogSeed1710000009000,
             CorrectEasternsRosedaleRouting1710000010000,
+            WidenLeadDealerDocuments1710000011000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,
