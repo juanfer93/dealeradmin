@@ -73,8 +73,11 @@ function findConversationPhone(records: UnknownRecord[]): string | null {
  * customData or arbitrary fields: those can contain stale or contaminated
  * values (for example digits from a vehicle or a down payment).
  */
-function findContactPhone(payload: UnknownRecord, contact: UnknownRecord): string | null {
-  for (const value of [contact.phone, payload.phone]) {
+function findContactPhone(payload: UnknownRecord, contact: UnknownRecord, customData: UnknownRecord): string | null {
+  // The published main workflows map customData.phone directly from
+  // {{contact.phone}}. Accept that exact key only as a compatibility fallback;
+  // arbitrary qualifier fields remain ineligible as phone sources.
+  for (const value of [contact.phone, payload.phone, customData.phone]) {
     const phone = phoneFromValue(value);
     if (phone) return phone;
   }
@@ -164,7 +167,7 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
   // Prefer a number explicitly present in the conversation. When the native
   // action sends no transcript, contact.phone is the value written by the
   // collector from that same user message.
-  const phone = conversationPhone || findContactPhone(payload, contact);
+  const phone = conversationPhone || findContactPhone(payload, contact, customData);
   const dealerName = text(firstValue(records, ['dealer_name', 'dealerName'])) || text(location.name) || 'GHL dealer';
 
   const lead = {

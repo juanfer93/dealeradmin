@@ -162,7 +162,7 @@ describe('normalizeGhlOutboundPayload', () => {
     expect(result.lead.phone).toBe('804-970-1204');
   });
 
-  it('does not use customData.phone when contact.phone is absent', () => {
+  it('uses the workflow-mapped customData.phone when contact.phone is absent', () => {
     const result = normalizeGhlOutboundPayload({
       id: 'contact-custom-phone-only',
       locationId: 'location-custom-phone-only',
@@ -174,7 +174,7 @@ describe('normalizeGhlOutboundPayload', () => {
       },
     }) as Record<string, any>;
 
-    expect(result.lead.phone).toBe('');
+    expect(result.lead.phone).toBe('240-705-4501');
   });
 
   it('prefers the inbound message phone over a stale contact.phone', () => {
