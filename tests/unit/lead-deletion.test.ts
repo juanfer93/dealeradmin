@@ -90,4 +90,44 @@ describe('borrado persistente de leads', () => {
     expect(queryRunner.query).toHaveBeenCalledTimes(3);
     expect(queryRunner.commitTransaction).toHaveBeenCalledOnce();
   });
+
+  it('elimina varios leads seleccionados desde la cola de prueba', async () => {
+    const dealer = getTestDealer('dealer-stafford')!;
+    const first = addTestManualLead(
+      dealer.id,
+      CreateManualLeadSchema.parse({ name: 'Lead masivo uno', phone: '3019876502' }),
+      '+13019876502',
+      'Lead masivo uno +13019876502.',
+    );
+    const second = addTestManualLead(
+      dealer.id,
+      CreateManualLeadSchema.parse({ name: 'Lead masivo dos', phone: '3019876503' }),
+      '+13019876503',
+      'Lead masivo dos +13019876503.',
+    );
+    const controller = new LeadsController(
+      undefined,
+      { verifySession: vi.fn().mockReturnValue(true) } as never,
+    );
+    const previousNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'test';
+
+    try {
+      await expect(controller.deleteSelected(request(), {
+        items: [
+          { leadId: first.id, dealerId: dealer.id },
+          { leadId: second.id, dealerId: dealer.id },
+        ],
+      })).resolves.toMatchObject({
+        success: true,
+        requestedCount: 2,
+        deletedLeadCount: 2,
+        deletedRelationshipCount: 2,
+      });
+    } finally {
+      process.env.NODE_ENV = previousNodeEnv;
+    }
+
+    expect(getTestManualLeads()).not.toEqual(expect.arrayContaining([first, second]));
+  });
 });

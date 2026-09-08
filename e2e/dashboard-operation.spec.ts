@@ -86,4 +86,40 @@ test.describe('Día 4 E2E Tests - Dashboard & Queue Operation', () => {
     expect(new URL(request.url()).searchParams.get('dealerId')).toBe('dealer-stafford');
     await expect(row).not.toBeVisible();
   });
+
+  test('El operador puede borrar varios leads seleccionados con confirmación irreversible', async ({ page }) => {
+    await page.goto('/login');
+    await page.fill('input[name="username"]', 'operator');
+    await page.fill('input[name="password"]', 'test-password');
+    await page.click('button[type="submit"]');
+    await expect(page).toHaveURL(/\/app$/);
+
+    await page.getByRole('button', { name: /Offlease Motors Stafford\s+\d+/ }).click();
+    for (const [name, phone] of [['Lead masivo uno E2E', '3019876502'], ['Lead masivo dos E2E', '3019876503']]) {
+      await page.getByRole('button', { name: /Agregar lead manual/i }).click();
+      const modal = page.getByRole('dialog', { name: 'Agregar lead manual' });
+      await modal.getByLabel(/Nombre completo/).fill(name);
+      await modal.getByLabel(/Teléfono móvil/).fill(phone);
+      await modal.getByRole('button', { name: 'Agregar lead' }).click();
+      await expect(page.locator('tr').filter({ hasText: name })).toBeVisible();
+    }
+
+    const firstRow = page.locator('tr').filter({ hasText: 'Lead masivo uno E2E' });
+    const secondRow = page.locator('tr').filter({ hasText: 'Lead masivo dos E2E' });
+    await firstRow.getByRole('checkbox').check();
+    await secondRow.getByRole('checkbox').check();
+    const deleteRequest = page.waitForRequest((request) => request.method() === 'DELETE' && new URL(request.url()).pathname.endsWith('/api/leads'));
+    await page.getByRole('button', { name: 'Eliminar seleccionados' }).click();
+
+    const warning = page.getByRole('dialog', { name: 'Eliminar leads seleccionados de la base de datos' });
+    await expect(warning).toContainText('2 leads seleccionados');
+    await expect(warning).toContainText('no hay marcha atrás');
+    await warning.getByRole('button', { name: 'Eliminar seleccionados de la BD' }).click();
+
+    const request = await deleteRequest;
+    expect(request.postDataJSON().items).toHaveLength(2);
+    expect(request.postDataJSON().items.every((item: { dealerId: string }) => item.dealerId === 'dealer-stafford')).toBe(true);
+    await expect(firstRow).not.toBeVisible();
+    await expect(secondRow).not.toBeVisible();
+  });
 });

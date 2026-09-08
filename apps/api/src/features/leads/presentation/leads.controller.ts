@@ -32,6 +32,8 @@ type StatusBody = { status?: unknown; dealerId?: unknown };
 type ReassignBody = { currentDealerId?: unknown; targetDealerId?: unknown };
 type CopyBody = { sourceDealerId?: unknown; targetDealerId?: unknown };
 type EditLeadBody = UpdateLeadDto & { dealerId?: unknown };
+type BulkDeleteItem = { leadId?: unknown; dealerId?: unknown };
+type BulkDeleteBody = { items?: unknown };
 
 @Controller('leads')
 export class LeadsController {
@@ -269,6 +271,94 @@ export class LeadsController {
 
       await queryRunner.commitTransaction();
       return { success: true, lead: rows[0] };
+    } catch (error) {
+      if (queryRunner.isTransactionActive) await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  @Delete()
+  async deleteSelected(
+    @Req() request: Request,
+    @Body() body: BulkDeleteBody,
+  ) {
+    this.requireSession(request);
+    if (!Array.isArray(body.items) || body.items.length === 0) {
+      throw new BadRequestException('Selecciona al menos un lead para eliminar');
+    }
+    if (body.items.length > 500) {
+      throw new BadRequestException('No se pueden eliminar más de 500 leads a la vez');
+    }
+
+    const items = body.items.map((item) => {
+      const candidate = (item && typeof item === 'object' ? item : {}) as BulkDeleteItem;
+      if (typeof candidate.leadId !== 'string' || !candidate.leadId.trim() || typeof candidate.dealerId !== 'string' || !candidate.dealerId.trim()) {
+        throw new BadRequestException('Cada lead seleccionado debe incluir leadId y dealerId');
+      }
+      return { leadId: candidate.leadId.trim(), dealerId: candidate.dealerId.trim() };
+    });
+    const uniqueItems = Array.from(new Map(items.map((item) => [`${item.leadId}:${item.dealerId}`, item])).values());
+
+    if (process.env.NODE_ENV === 'test') {
+      let deletedLeadCount = 0;
+      let deletedRelationshipCount = 0;
+      for (const item of uniqueItems) {
+        const result = deleteTestLead(item.leadId, item.dealerId);
+        if (!result.ok) throw new BadRequestException('Lead no encontrado o dealer inválido');
+        if (result.deletedLead) deletedLeadCount += 1;
+        if (result.deletedRelationship) deletedRelationshipCount += 1;
+      }
+      return { success: true, requestedCount: uniqueItems.length, deletedLeadCount, deletedRelationshipCount };
+    }
+
+    if (!this.dataSource) {
+      throw new UnauthorizedException('Lead data is unavailable');
+    }
+
+    const leadIds = [...new Set(uniqueItems.map((item) => item.leadId))];
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      await queryRunner.query(
+        `SELECT id
+         FROM leads
+         WHERE id = ANY($1::uuid[])
+         FOR UPDATE`,
+        [leadIds],
+      );
+
+      let deletedRelationshipCount = 0;
+      for (const item of uniqueItems) {
+        const deletedRelationships = await queryRunner.query(
+          `DELETE FROM lead_dealers
+           WHERE lead_id = $1
+             AND COALESCE(assigned_dealer_id, dealer_id) = $2
+           RETURNING lead_id`,
+          [item.leadId, item.dealerId],
+        ) as Array<{ lead_id: string }>;
+        deletedRelationshipCount += deletedRelationships.length;
+      }
+
+      const deletedLeads = await queryRunner.query(
+        `DELETE FROM leads
+         WHERE id = ANY($1::uuid[])
+           AND NOT EXISTS (SELECT 1 FROM lead_dealers WHERE lead_id = leads.id)
+           AND NOT EXISTS (SELECT 1 FROM lead_ingestion_rows WHERE lead_id = leads.id)
+         RETURNING id`,
+        [leadIds],
+      ) as Array<{ id: string }>;
+
+      await queryRunner.commitTransaction();
+      return {
+        success: true,
+        requestedCount: uniqueItems.length,
+        deletedLeadCount: deletedLeads.length,
+        deletedRelationshipCount,
+      };
     } catch (error) {
       if (queryRunner.isTransactionActive) await queryRunner.rollbackTransaction();
       throw error;
