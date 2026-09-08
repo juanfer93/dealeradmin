@@ -21,7 +21,7 @@ describe('normalizeGhlOutboundPayload', () => {
       },
       conversation: {
         messages: [
-          { body: 'I am looking for a truck this week.' },
+          { body: 'I am looking for a truck this week. Call me at +13215550199.' },
           { body: 'I have my ID and proof of income.' },
         ],
       },
@@ -42,7 +42,7 @@ describe('normalizeGhlOutboundPayload', () => {
         purchase_timeline: 'this week',
         easterns_zone: 'Baltimore',
         easterns_dealer_selected: true,
-        message: 'I am looking for a truck this week.\nI have my ID and proof of income.',
+        message: 'I am looking for a truck this week. Call me at +13215550199.\nI have my ID and proof of income.',
       },
     });
   });
@@ -80,7 +80,7 @@ describe('normalizeGhlOutboundPayload', () => {
     expect(result.lead.message).toBe('Dónde están ubicados');
   });
 
-  it('falls back to a phone stored in a lead qualifier field', () => {
+  it('does not use a phone stored only in a lead qualifier field', () => {
     const result = normalizeGhlOutboundPayload({
       id: 'contact-qualifier-phone',
       locationId: 'location-qualifier-phone',
@@ -92,10 +92,10 @@ describe('normalizeGhlOutboundPayload', () => {
       },
     }) as Record<string, any>;
 
-    expect(result.lead.phone).toBe('(240) 705-4501');
+    expect(result.lead.phone).toBe('');
   });
 
-  it('repairs an internal payload before the contract requires lead.phone', () => {
+  it('clears a phone from an internal payload when no conversation supplies it', () => {
     const payload = {
       event_id: 'evt-phone-fallback',
       event_type: 'lead.ready_for_whatsapp',
@@ -112,7 +112,7 @@ describe('normalizeGhlOutboundPayload', () => {
     };
 
     const result = normalizeGhlOutboundPayload(payload) as Record<string, any>;
-    expect(result.lead.phone).toBe('2407054502');
+    expect(result.lead.phone).toBe('');
   });
 
   it('recovers a phone written in the inbound message when contact.phone is empty', () => {
@@ -131,6 +131,19 @@ describe('normalizeGhlOutboundPayload', () => {
     }) as Record<string, any>;
 
     expect(result.lead.phone).toBe('804-309-2531');
+  });
+
+  it('prefers the inbound message phone over a stale contact.phone', () => {
+    const result = normalizeGhlOutboundPayload({
+      id: 'contact-stale-phone',
+      locationId: 'location-message-phone',
+      phone: '+14970120410',
+      first_name: 'Deymi',
+      last_name: 'Pacheco',
+      message: 'Mi número es 8049701204',
+    }) as Record<string, any>;
+
+    expect(result.lead.phone).toBe('8049701204');
   });
 
   it('does not derive a phone from vehicle digits in qualification memory', () => {
@@ -171,10 +184,10 @@ describe('normalizeGhlOutboundPayload', () => {
       dealer_name: 'Offlease Motors Stafford',
       ghl_location_id: 'location-1',
       ghl_contact_id: 'contact-1',
-      lead: { name: 'Test Lead', phone: '+13215550100' },
+      lead: { name: 'Test Lead', phone: '+13215550100', message: 'Call me at +13215550100', real_name: null },
     };
 
-    expect(normalizeGhlOutboundPayload(payload)).toBe(payload);
+    expect(normalizeGhlOutboundPayload(payload)).toStrictEqual(payload);
   });
 
   it('uses the real name stored in qualification memory when GHL sends a placeholder', () => {

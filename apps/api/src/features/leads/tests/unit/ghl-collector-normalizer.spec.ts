@@ -66,6 +66,24 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.qualification_memory).toContain('vehicle: Sedan');
   });
 
+  it('prefers the phone written in the message and ignores a stale contact phone', () => {
+    const result = execute({
+      phone: '+14970120410',
+      message: 'Mi número es 8049701204',
+    });
+
+    expect(result.phone).toBe('+18049701204');
+  });
+
+  it('does not copy contact.phone when the conversation has no phone', () => {
+    const result = execute({
+      phone: '+14970120410',
+      message: 'Estoy buscando una SUV',
+    });
+
+    expect(result.phone).toBe('');
+  });
+
   it('does not convert vehicle digits in qualification memory into a phone', () => {
     const result = execute({
       qualification_memory: 'real_name: Stefanni.veliz; vehicle: SUV20202020202020; timeline: today',

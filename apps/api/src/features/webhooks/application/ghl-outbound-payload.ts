@@ -22,19 +22,7 @@ const text = (value: unknown): string | null => {
   return result || null;
 };
 
-const PHONE_ALIASES = [
-  'phone',
-  'mobile',
-  'mobile_phone',
-  'phone_number',
-  'mobile_phone_number',
-  'contact_phone',
-  'lead_phone',
-  'telephone',
-  'telefono',
-  'tel',
-  'lead_qualifier_phone',
-  'lead_qualificator_phone',
+const CONVERSATION_PHONE_ALIASES = [
   'message',
   'message_body',
   'messageBody',
@@ -46,6 +34,7 @@ const PHONE_ALIASES = [
   'conversation_history',
   'conversationHistory',
   'conversation_text',
+  'conversationText',
 ];
 
 const PHONE_TOKEN = /(?:\+?1[\s().-]*)?(?:\(\d{3}\)|\d{3})[\s.-]?\d{3}[\s.-]?\d{4}|\b\d{10}\b/;
@@ -57,15 +46,15 @@ function phoneFromValue(value: unknown): string | null {
   return match?.[0] || (!/[a-z]/i.test(candidate) && /^\+?[\d\s().-]{10,20}$/.test(candidate) ? candidate : null);
 }
 
-function findPhone(records: UnknownRecord[]): string | null {
+function findConversationPhone(records: UnknownRecord[]): string | null {
   for (const record of records) {
     for (const [key, value] of Object.entries(record)) {
       const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const isPhoneAlias = PHONE_ALIASES.some((alias) => {
+      const isConversationAlias = CONVERSATION_PHONE_ALIASES.some((alias) => {
         const normalizedAlias = alias.toLowerCase().replace(/[^a-z0-9]/g, '');
         return normalizedKey === normalizedAlias || normalizedKey.endsWith(normalizedAlias);
       });
-      if (isPhoneAlias) {
+      if (isConversationAlias) {
         const phone = phoneFromValue(value);
         if (phone) return phone;
       }
@@ -123,18 +112,14 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
       message: text(lead.message),
       chat_history_log: text(lead.chat_history_log),
     });
-    const phone = phoneFromValue(lead.phone) || findPhone([
+    const phone = findConversationPhone([
       lead,
-      asRecord(lead.contact),
-      asRecord(payload.contact),
-      asRecord(payload.customData ?? payload.custom_data),
-      payload,
       { conversation_text: conversationText(lead.conversation) },
-    ]);
+    ]) || '';
     const normalizedName = normalizedLead.real_name || normalizeRealName(text(lead.name)) || 'Lead';
     const currentRealName = text(lead.real_name);
-    if ((!phone || phone === text(lead.phone)) && normalizedName === text(lead.name) && (currentRealName === normalizedLead.real_name || !normalizedLead.real_name)) return input;
-    return { ...payload, lead: { ...lead, name: normalizedName, real_name: normalizedLead.real_name || text(lead.real_name) || null, ...(phone ? { phone } : {}) } };
+    if (phone === text(lead.phone) && normalizedName === text(lead.name) && (currentRealName === normalizedLead.real_name || !normalizedLead.real_name)) return input;
+    return { ...payload, lead: { ...lead, name: normalizedName, real_name: normalizedLead.real_name || text(lead.real_name) || null, phone } };
   }
 
   const customData = asRecord(payload.customData ?? payload.custom_data);
@@ -151,7 +136,10 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
     [text(firstValue(records, ['first_name', 'firstName'])), text(firstValue(records, ['last_name', 'lastName']))]
       .filter(Boolean)
       .join(' ');
-  const phone = findPhone([
+  // Only a number written in the conversation may populate lead.phone. Never
+  // fall back to contact.phone or custom fields because GHL can send stale or
+  // incorrectly parsed values there.
+  const phone = findConversationPhone([
     ...records,
     { conversation_text: nestedConversationText },
   ]);

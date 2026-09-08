@@ -147,10 +147,13 @@ const missing = [!vehicle ? 'vehicle_type' : '', !down ? 'down_payment' : '', !t
 const parts = memoryText(rawMemory).split(';').map((part) => clean(part).replace(/^\d+(?=(?:vehicle|vehicle[_ ]?type|down|down[_ ]?payment|documents?|timeline)\b)/i, '')).filter(Boolean);
 const canonical = [['real_name', realName], ['vehicle', vehicle], ['down payment', down], ['documents', documents], ['timeline', timeline]].filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).replace(/\s*;\s*/g, ', ')}`);
 const qualificationMemory = [...new Set([...parts.filter((part) => !/^(?:real_name|real name|name|nombre|nombre real|nombre completo|vehicle|vehicle_type|down|down payment|down_payment|documents?|docs|timeline|purchase timeline|purchase_timeline)\s*(?::|=|-)/i.test(part)), ...canonical])].join('; ');
-// Only use explicit phone fields or a phone written in the conversation.
-// Never scan qualification_memory/qualifier text: vehicle values such as
+// The contact phone is an output of this collector, not an authoritative
+// input. GHL can carry a stale or misparsed value there, so never copy it
+// back into the normalized result. Only a number written in the person's
+// message/conversation may populate contact.phone. Never scan
+// qualification_memory/qualifier text: vehicle values such as
 // "SUV20202020202020" must not become a lead phone.
-const phone = phoneFrom(inputData.phone, inputData.contact_phone, inputData.lead_phone, message, history);
+const phone = phoneFrom(message, history);
 return {
   real_name: realName,
   vehicle_type: vehicle,
