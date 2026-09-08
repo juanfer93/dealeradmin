@@ -133,6 +133,50 @@ describe('normalizeGhlOutboundPayload', () => {
     expect(result.lead.phone).toBe('804-309-2531');
   });
 
+  it('uses contact.phone when the native webhook omits the conversation transcript', () => {
+    const result = normalizeGhlOutboundPayload({
+      id: 'contact-phone-written-by-collector',
+      locationId: 'location-phone-written-by-collector',
+      contact: {
+        phone: '240-705-4501',
+        firstName: 'Collector',
+      },
+      customData: {
+        vehicle_type: 'SUV',
+      },
+    }) as Record<string, any>;
+
+    expect(result.lead.phone).toBe('240-705-4501');
+  });
+
+  it('prefers the number in the message over contact.phone', () => {
+    const result = normalizeGhlOutboundPayload({
+      id: 'contact-message-wins',
+      locationId: 'location-message-wins',
+      contact: {
+        phone: '240-705-4501',
+      },
+      message: 'Mi número es 804-970-1204',
+    }) as Record<string, any>;
+
+    expect(result.lead.phone).toBe('804-970-1204');
+  });
+
+  it('does not use customData.phone when contact.phone is absent', () => {
+    const result = normalizeGhlOutboundPayload({
+      id: 'contact-custom-phone-only',
+      locationId: 'location-custom-phone-only',
+      contact: {
+        phone: '',
+      },
+      customData: {
+        phone: '240-705-4501',
+      },
+    }) as Record<string, any>;
+
+    expect(result.lead.phone).toBe('');
+  });
+
   it('prefers the inbound message phone over a stale contact.phone', () => {
     const result = normalizeGhlOutboundPayload({
       id: 'contact-stale-phone',

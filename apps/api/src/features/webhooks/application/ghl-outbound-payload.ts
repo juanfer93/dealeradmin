@@ -63,6 +63,24 @@ function findConversationPhone(records: UnknownRecord[]): string | null {
   return null;
 }
 
+/**
+ * Native HighLevel webhooks flatten the contact object in different ways
+ * depending on the action version. The collector writes the number extracted
+ * from the user's message to contact.phone, so this is the safe fallback when
+ * HighLevel omits the conversation transcript from the outbound webhook.
+ *
+ * Deliberately read only the contact phone/root phone here. Do not inspect
+ * customData or arbitrary fields: those can contain stale or contaminated
+ * values (for example digits from a vehicle or a down payment).
+ */
+function findContactPhone(payload: UnknownRecord, contact: UnknownRecord): string | null {
+  for (const value of [contact.phone, payload.phone]) {
+    const phone = phoneFromValue(value);
+    if (phone) return phone;
+  }
+  return null;
+}
+
 const conversationText = (value: unknown): string | null => {
   const conversation = asRecord(value);
   const messages = Array.isArray(conversation.messages)
@@ -136,13 +154,17 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
     [text(firstValue(records, ['first_name', 'firstName'])), text(firstValue(records, ['last_name', 'lastName']))]
       .filter(Boolean)
       .join(' ');
-  // Only a number written in the conversation may populate lead.phone. Never
-  // fall back to contact.phone or custom fields because GHL can send stale or
-  // incorrectly parsed values there.
-  const phone = findConversationPhone([
+  // A number written in the conversation wins. If HighLevel omits the
+  // transcript, the collector-written contact.phone is the only fallback;
+  // custom fields are never treated as a phone source.
+  const conversationPhone = findConversationPhone([
     ...records,
     { conversation_text: nestedConversationText },
   ]);
+  // Prefer a number explicitly present in the conversation. When the native
+  // action sends no transcript, contact.phone is the value written by the
+  // collector from that same user message.
+  const phone = conversationPhone || findContactPhone(payload, contact);
   const dealerName = text(firstValue(records, ['dealer_name', 'dealerName'])) || text(location.name) || 'GHL dealer';
 
   const lead = {
