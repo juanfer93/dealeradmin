@@ -214,9 +214,9 @@ describe('normalizeCollectorInput', () => {
     })).toBe(false);
   });
 
-  it('supports the Stafford WhatsApp guard requiring a real name as well as vehicle data', () => {
-    expect(hasMinimumRoutingQualification({ vehicle_type: 'SUV', qualification_memory: 'vehicle: SUV' }, { requireRealName: true })).toBe(false);
-    expect(hasMinimumRoutingQualification({ vehicle_type: 'SUV', qualification_memory: 'real_name: Maria Lopez; vehicle: SUV' }, { requireRealName: true })).toBe(true);
+  it('requires only a phone before a lead enters dealerADMIN', () => {
+    expect(hasMinimumRoutingQualification({ phone: '+15551234567' })).toBe(true);
+    expect(hasMinimumRoutingQualification({ phone: '' })).toBe(false);
   });
 
   it('does not treat campaign or intent text as a purchase timeline', () => {

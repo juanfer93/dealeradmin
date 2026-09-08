@@ -146,7 +146,7 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
     expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO lead_dealers'))).toBe(false);
   });
 
-  it('rechaza un lead con solo teléfono antes de insertar cualquier lead', async () => {
+  it('acepta un lead con solo teléfono y conserva la relación pendiente', async () => {
     const queryRunner = {
       connect: vi.fn(),
       startTransaction: vi.fn(),
@@ -157,12 +157,14 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
       query: vi.fn(async (sql: string) => {
         if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [{ event_id: 'evt-phone-only' }];
         if (sql.includes('FROM dealers')) return [{ id: 'dealer-stafford', routing_config: {} }];
+        if (sql.includes('FROM leads') && sql.includes('scoped_ld')) return [];
+        if (sql.includes('INSERT INTO leads')) return [{ id: 'lead-phone-only' }];
         return [];
       }),
     };
     const service = new WebhookService({ createQueryRunner: () => queryRunner } as never);
 
-    await expect(service.acceptLead({
+    const result = await service.acceptLead({
       event_id: 'evt-phone-only',
       event_type: 'lead.ready_for_whatsapp',
       occurred_at: '2026-09-05T21:00:00.000Z',
@@ -171,11 +173,12 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
       ghl_location_id: 'loc_stafford_phone_only',
       ghl_contact_id: 'ghl-phone-only',
       lead: { name: 'Phone Only', phone: '+15551234567' },
-    })).rejects.toThrow('El lead requiere teléfono, vehículo en custom fields y vehículo en qualification memory');
+    });
 
-    expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO leads'))).toBe(false);
-    expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO lead_dealers'))).toBe(false);
-    expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
+    expect(result).toEqual({ accepted: true, eventId: 'evt-phone-only', status: 'processed' });
+    expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO leads'))).toBe(true);
+    expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO lead_dealers'))).toBe(true);
+    expect(queryRunner.commitTransaction).toHaveBeenCalled();
   });
 
   it('reintenta un evento fallido con el mismo event_id después de reparar el contacto', async () => {

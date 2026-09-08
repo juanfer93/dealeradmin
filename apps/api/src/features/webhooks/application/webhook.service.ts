@@ -157,8 +157,6 @@ export class WebhookService {
       // carry a stale dealer_name and must not turn an Offlease lead into an
       // Easterns lead.
       const isEasternsPayload = dealers[0].routing_config?.group === 'Easterns';
-      const requiresStaffordRealName = dealers[0].code === 'STAFFORD';
-
       let canonicalPhone: string;
       try {
         canonicalPhone = normalizePhone(payload.lead.phone);
@@ -180,24 +178,11 @@ export class WebhookService {
         qualification_memory: payload.lead.qualification_memory,
       });
       const leadName = normalized.real_name || payload.lead.name;
-      if (!hasMinimumRoutingQualification({
-        vehicle_type: payload.lead.vehicle_type,
-        qualification_memory: payload.lead.qualification_memory,
-        real_name: normalized.real_name || payload.lead.real_name || payload.lead.name,
-      }, { requireRealName: requiresStaffordRealName })) {
+      if (!hasMinimumRoutingQualification({ phone: canonicalPhone })) {
         throw new UnprocessableEntityException({
-          code: 'INSUFFICIENT_LEAD_QUALIFICATION',
-          message: 'El lead requiere teléfono, vehículo en custom fields y vehículo en qualification memory antes de entrar a WhatsApp',
-          issues: [
-            ...(!payload.lead.vehicle_type?.trim() ? [{ path: ['lead', 'vehicle_type'], message: 'El vehículo no puede estar vacío' }] : []),
-            ...(!payload.lead.qualification_memory?.trim() ? [{ path: ['lead', 'qualification_memory'], message: 'La qualification memory no puede estar vacía' }] : []),
-            ...(payload.lead.qualification_memory?.trim() && !normalizeCollectorInput({ qualification_memory: payload.lead.qualification_memory }).vehicle_type
-              ? [{ path: ['lead', 'qualification_memory'], message: 'La qualification memory debe contener datos del vehículo' }]
-              : []),
-            ...(requiresStaffordRealName && !normalized.real_name
-              ? [{ path: ['lead', 'real_name'], message: 'Stafford requiere el nombre real en el custom field o en qualification memory' }]
-              : []),
-          ],
+          code: 'MISSING_LEAD_PHONE',
+          message: 'El lead requiere un teléfono válido para entrar a dealerADMIN',
+          issues: [{ path: ['lead', 'phone'], message: 'El teléfono no puede estar vacío' }],
         });
       }
 

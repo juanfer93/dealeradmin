@@ -326,21 +326,16 @@ export function isQualificationComplete(input: {
 }
 
 /**
- * Minimum data required before a GHL collector may route a lead to WhatsApp.
- * The workflow checks the same three signals, but the backend must enforce the
- * rule as well because webhook callers can bypass GHL entirely.
+ * Minimum data required before a lead may enter dealerADMIN.
+ *
+ * Qualification fields are optional at intake. They are preserved and
+ * normalized when present, but a lead must not be discarded just because the
+ * person has only supplied a phone number yet.
  */
 export function hasMinimumRoutingQualification(
-  input: Pick<CollectorInput, 'vehicle_type' | 'qualification_memory' | 'real_name'>,
-  options: { requireRealName?: boolean } = {},
+  input: Pick<CollectorInput, 'phone'>,
 ): boolean {
-  const vehicleField = firstNonEmpty(input.vehicle_type);
-  const memory = clean(input.qualification_memory);
-  if (!vehicleField || !memory) return false;
-  if (options.requireRealName && !normalizeRealName(firstNonEmpty(input.real_name, realNameFromQualificationMemory(memory)))) return false;
-
-  const memoryQualification = normalizeCollectorInput({ qualification_memory: memory });
-  return Boolean(memoryQualification.vehicle_type);
+  return Boolean(firstNonEmpty(input.phone));
 }
 
 export function normalizeCollectorInput(input: CollectorInput): CollectorOutput {

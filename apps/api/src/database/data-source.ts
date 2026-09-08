@@ -11,6 +11,7 @@ import { CorrectEasternsRosedaleRouting1710000010000 } from './migrations/171000
 import { LocationCatalog1710000008000 } from './migrations/1710000008000-LocationCatalog';
 import { LocationCatalogSeed1710000009000 } from './migrations/1710000009000-LocationCatalogSeed';
 import { WidenLeadDealerDocuments1710000011000 } from './migrations/1710000011000-WidenLeadDealerDocuments';
+import { WidenLeadDealerQualification1710000012000 } from './migrations/1710000012000-WidenLeadDealerQualification';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -35,6 +36,7 @@ export const AppDataSource = new DataSource({
     LocationCatalogSeed1710000009000,
     CorrectEasternsRosedaleRouting1710000010000,
     WidenLeadDealerDocuments1710000011000,
+    WidenLeadDealerQualification1710000012000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,
