@@ -93,17 +93,31 @@ export class WebhookService {
 
       if (insertedEvents.length === 0) {
         const existingEvents = (await queryRunner.query(
-          `SELECT status
+          `SELECT status, payload_hash
            FROM webhook_events
            WHERE event_id = $1
            FOR UPDATE`,
           [payload.event_id],
-        )) as Array<{ status: string }>;
+        )) as Array<{ status: string; payload_hash?: string | null }>;
 
         // A failed event is retryable: GHL may re-send the same event_id after
         // the contact has been repaired. Already processed events remain
-        // idempotent and are ignored.
-        if (existingEvents[0]?.status !== 'failed') {
+        // idempotent and are ignored while their lead still exists. If the
+        // operator deliberately deleted that lead (for example, to remove a
+        // contaminated record), allow the repaired GHL delivery to rebuild it
+        // instead of silently acknowledging it as a duplicate forever.
+        let canReplayProcessedEvent = false;
+        if (existingEvents[0]?.status === 'processed') {
+          const liveLeads = (await queryRunner.query(
+            `SELECT id
+             FROM leads
+             WHERE ghl_contact_id = $1 AND ghl_location_id = $2
+             LIMIT 1`,
+            [payload.ghl_contact_id, payload.ghl_location_id],
+          )) as LeadRow[];
+          canReplayProcessedEvent = liveLeads.length === 0;
+        }
+        if (existingEvents[0]?.status !== 'failed' && !canReplayProcessedEvent) {
           await queryRunner.rollbackTransaction();
           return { accepted: true, eventId: payload.event_id, status: 'duplicate_ignored' };
         }

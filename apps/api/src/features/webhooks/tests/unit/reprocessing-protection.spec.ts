@@ -226,4 +226,47 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
       'dealer-easterns',
     );
   });
+
+  it('reconstruye un lead borrado aunque su evento anterior figure como processed', async () => {
+    const queryRunner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [];
+        if (sql.includes('FROM webhook_events') && sql.includes('FOR UPDATE')) return [{ status: 'processed' }];
+        if (sql.includes('WHERE ghl_contact_id = $1 AND ghl_location_id = $2')) return [];
+        if (sql.includes('FROM dealers')) return [{ id: 'dealer-stafford', code: 'STAFFORD', routing_config: {} }];
+        if (sql.includes('FROM leads') && sql.includes('scoped_ld')) return [];
+        if (sql.includes('INSERT INTO leads')) return [{ id: 'lead-replayed' }];
+        return [];
+      }),
+    };
+    const service = new WebhookService({ createQueryRunner: () => queryRunner } as never);
+
+    const result = await service.acceptLead({
+      event_id: 'evt-deleted-lead-replay',
+      event_type: 'lead.ready_for_whatsapp',
+      occurred_at: '2026-09-07T23:00:00.000Z',
+      dealer_id: 'STAFFORD',
+      dealer_name: 'Offlease Motors Stafford',
+      ghl_location_id: 'loc_stafford_replay',
+      ghl_contact_id: 'ghl-deleted-lead',
+      lead: {
+        name: 'Juan Perez',
+        real_name: 'Juan Perez',
+        phone: '+15551234567',
+        vehicle_type: 'Sedan',
+        qualification_memory: 'real_name: Juan Perez; vehicle: Sedan',
+      },
+    });
+
+    expect(result).toEqual({ accepted: true, eventId: 'evt-deleted-lead-replay', status: 'processed' });
+    expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes("SET status = 'pending'"))).toBe(true);
+    expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes('WHERE ghl_contact_id = $1 AND ghl_location_id = $2'))).toBe(true);
+    expect(queryRunner.commitTransaction).toHaveBeenCalled();
+  });
 });
