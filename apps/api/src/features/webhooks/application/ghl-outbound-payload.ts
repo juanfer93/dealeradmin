@@ -125,6 +125,8 @@ function findField(records: UnknownRecord[], aliases: string[]): string | null {
  */
 export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | unknown {
   const payload = asRecord(input);
+  const customData = asRecord(payload.customData ?? payload.custom_data);
+  const contact = asRecord(payload.contact);
   if (payload.lead && payload.event_id) {
     const lead = asRecord(payload.lead);
     const normalizedLead = normalizeCollectorInput({
@@ -136,15 +138,13 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
     const phone = findConversationPhone([
       lead,
       { conversation_text: conversationText(lead.conversation) },
-    ]) || '';
+    ]) || findContactPhone(payload, contact, customData) || '';
     const normalizedName = normalizedLead.real_name || normalizeRealName(text(lead.name)) || 'Lead';
     const currentRealName = text(lead.real_name);
     if (phone === text(lead.phone) && normalizedName === text(lead.name) && (currentRealName === normalizedLead.real_name || !normalizedLead.real_name)) return input;
     return { ...payload, lead: { ...lead, name: normalizedName, real_name: normalizedLead.real_name || text(lead.real_name) || null, phone } };
   }
 
-  const customData = asRecord(payload.customData ?? payload.custom_data);
-  const contact = asRecord(payload.contact);
   const contactCustomFields = asRecord(contact.customFields ?? contact.custom_fields);
   const payloadCustomFields = asRecord(payload.customFields ?? payload.custom_fields);
   const location = asRecord(payload.location);

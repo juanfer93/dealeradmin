@@ -234,6 +234,26 @@ describe('normalizeGhlOutboundPayload', () => {
     expect(normalizeGhlOutboundPayload(payload)).toStrictEqual(payload);
   });
 
+  it('recovers the workflow-mapped customData.phone from a nested GHL lead payload', () => {
+    const result = normalizeGhlOutboundPayload({
+      event_id: 'evt-nested-custom-phone',
+      event_type: 'lead.ready_for_whatsapp',
+      occurred_at: '2026-09-08T19:28:45.000Z',
+      ghl_location_id: 'location-fredericksburg-2',
+      ghl_contact_id: 'contact-bryan-espinal',
+      lead: {
+        name: 'Bryan Espinal',
+        phone: '',
+        vehicle_type: 'sedan',
+      },
+      customData: {
+        phone: '+15715847229',
+      },
+    }) as Record<string, any>;
+
+    expect(result.lead.phone).toBe('+15715847229');
+  });
+
   it('uses the real name stored in qualification memory when GHL sends a placeholder', () => {
     const result = normalizeGhlOutboundPayload({
       id: 'contact-real-name',
