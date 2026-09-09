@@ -89,6 +89,11 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(execute({ message: 'Quiero una camioneta' }).real_name).toBe('');
   });
 
+  it('prefers a declared personal name over a commercial profile, while retaining it as fallback', () => {
+    expect(execute({ real_name: 'Tatuajes y operaciones', message: 'Juan Andino' }).real_name).toBe('Juan Andino');
+    expect(execute({ real_name: 'Tatuajes y operaciones', message: 'Quiero una camioneta' }).real_name).toBe('Tatuajes y operaciones');
+  });
+
   it('does not convert vehicle digits in qualification memory into a phone', () => {
     const result = execute({
       qualification_memory: 'real_name: Stefanni.veliz; vehicle: SUV20202020202020; timeline: today',

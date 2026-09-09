@@ -74,6 +74,7 @@ function memoryValue(memory: string, aliases: string[]): string {
 }
 
 const INVALID_REAL_NAMES = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'thu chikitha linda']);
+const BUSINESS_NAME_MARKERS = /\b(?:auto\s*sales|motors?|dealership|dealer|llc|inc(?:orporated)?|corp(?:oration)?|company|tatuajes?|tattoos?|operaciones?|operations?|transport(?:ation)?|logistics|construction|remodeling|roofing|realty|consulting|services?|servicios?|shop|tienda|salon|barbershop|restaurant)\b/i;
 
 export function normalizeRealName(value: string | null | undefined): string {
   const candidate = clean(value);
@@ -81,6 +82,15 @@ export function normalizeRealName(value: string | null | undefined): string {
   if (!/[a-záéíóúüñ]/i.test(candidate) || /^[\W_\d]+$/u.test(candidate)) return EMPTY;
   if (candidate.length > 100 || candidate.split(/\s+/).length > 8) return EMPTY;
   return candidate;
+}
+
+/**
+ * GHL/Messenger contacts can use a business profile as their visible name.
+ * Keep it as a useful fallback, but do not let it override a person who
+ * identifies themselves in the conversation.
+ */
+export function isLikelyBusinessName(value: string | null | undefined): boolean {
+  return BUSINESS_NAME_MARKERS.test(clean(value));
 }
 
 function extractRealNameFromText(value: string): string {
@@ -371,12 +381,16 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const campaignReply = isCampaignButton(message);
   const messageForExtraction = campaignReply ? EMPTY : message;
   const source = [history, message, memory].filter(Boolean).join('; ');
-  const realName = [
-    input.real_name,
+  const suppliedName = normalizeRealName(input.real_name);
+  const extractedNames = [
     realNameFromQualificationMemory(memory),
     extractRealNameFromText(message),
     extractRealNameFromText(history),
-  ].map(normalizeRealName).find(Boolean) ?? EMPTY;
+  ];
+  const realName = (isLikelyBusinessName(suppliedName)
+    ? [...extractedNames, suppliedName]
+    : [suppliedName, ...extractedNames]
+  ).map(normalizeRealName).find(Boolean) ?? EMPTY;
   const vehicle = normalizeVehicle(firstNonEmpty(
     extractVehicle(messageForExtraction),
     extractVehicle(history),

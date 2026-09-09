@@ -38,6 +38,7 @@ const normalizeRealName = (value) => {
   if (candidate.length > 100 || candidate.split(/\s+/).length > 8) return '';
   return candidate;
 };
+const isBusinessName = (value) => /\b(?:auto\s*sales|motors?|dealership|dealer|llc|inc(?:orporated)?|corp(?:oration)?|company|tatuajes?|tattoos?|operaciones?|operations?|transport(?:ation)?|logistics|construction|remodeling|roofing|realty|consulting|services?|servicios?|shop|tienda|salon|barbershop|restaurant)\b/i.test(clean(value));
 const nameFromText = (value) => {
   const source = clean(value);
   const named = normalizeRealName(source.match(/(?:me llamo|mi nombre es|soy|my name is|this is)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i)?.[1]?.split(/[.!?,;]/, 1)[0]);
@@ -47,12 +48,13 @@ const nameFromText = (value) => {
   if (/\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) return '';
   return normalizeRealName(candidate);
 };
-const realName = [
-  inputData.real_name,
+const suppliedName = normalizeRealName(inputData.real_name);
+const extractedNames = [
   memoryValue(['real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name', 'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre']),
   nameFromText(message),
   nameFromText(history),
-].map(normalizeRealName).find(Boolean) || '';
+];
+const realName = (isBusinessName(suppliedName) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) || '';
 const campaign = /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today)$/i.test(message.replace(/([!?])\s*\d{1,3}$/, '$1').replace(/[!?.,]/g, '').trim());
 const amount = (value) => {
   const source = clean(value).toLowerCase();

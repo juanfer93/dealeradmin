@@ -165,7 +165,10 @@ export class WebhookService {
       }
 
       const normalized = normalizeCollectorInput({
-        real_name: payload.lead.real_name ?? payload.lead.name,
+        // `lead.name` is the Messenger/GHL profile label and may be a
+        // business. It remains a display fallback below, never a claimed
+        // personal name that can override the conversation.
+        real_name: payload.lead.real_name,
         message: payload.lead.message ?? payload.lead.chat_history_log,
         phone: canonicalPhone,
         chat_history_log: payload.lead.chat_history_log,

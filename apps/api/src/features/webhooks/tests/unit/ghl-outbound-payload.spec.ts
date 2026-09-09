@@ -273,6 +273,20 @@ describe('normalizeGhlOutboundPayload', () => {
     });
   });
 
+  it('uses a declared personal name instead of a commercial GHL profile name', () => {
+    const result = normalizeGhlOutboundPayload({
+      id: 'contact-commercial-profile',
+      locationId: 'location-fredericksburg',
+      contact: { name: 'Tatuajes y operaciones', phone: '+18043092531' },
+      customData: { message: 'Juan Andino' },
+    }) as Record<string, any>;
+
+    expect(result.lead).toMatchObject({
+      name: 'Juan Andino',
+      real_name: 'Juan Andino',
+    });
+  });
+
   it('rejects known WhatsApp placeholder names instead of persisting them', () => {
     const result = normalizeGhlOutboundPayload({
       id: 'contact-placeholder-name',

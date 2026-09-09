@@ -245,6 +245,11 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message: 'Quiero una camioneta' }).real_name).toBe('');
   });
 
+  it('prefers a declared personal name over a commercial Messenger profile, while retaining it as fallback', () => {
+    expect(normalizeCollectorInput({ real_name: 'Tatuajes y operaciones', message: 'Juan Andino' }).real_name).toBe('Juan Andino');
+    expect(normalizeCollectorInput({ real_name: 'Tatuajes y operaciones', message: 'Quiero una camioneta' }).real_name).toBe('Tatuajes y operaciones');
+  });
+
   it.each([
     [{ vehicle_type: 'SUV' }, 'custom_fields'],
     [{ qualification_memory: 'vehicle: SUV' }, 'qualification_memory'],
