@@ -8,7 +8,7 @@ const execute = (inputData: Record<string, unknown>) => new Function('inputData'
 describe('HighLevel collector custom-code normalizer', () => {
   it('promotes a complete qualification memory without custom fields', () => {
     const result = execute({
-      qualification_memory: 'vehicle_type = SUV\ndown_payment: 2000\ndocuments: driver license, proof of income\npurchase_timeline: this week',
+      qualification_memory: 'vehicle_type = SUV\ndown_payment: 2000\ndocuments: driver license, proof of income\npurchase_timeline: this week\nbank_account: yes',
     });
     expect(result).toMatchObject({
       vehicle_type: 'SUV',
@@ -27,7 +27,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       vehicle_type: 'Truck',
       down_payment: '10',
       documents: 'not specified',
-      qualification_memory: 'vehicle: SUV; down payment: 2K; documents: ID and proof of income; timeline: today',
+      qualification_memory: 'vehicle: SUV; down payment: 2K; documents: ID and proof of income; timeline: today; bank account: yes',
     });
     expect(result).toMatchObject({
       vehicle_type: 'SUV',
@@ -54,7 +54,7 @@ describe('HighLevel collector custom-code normalizer', () => {
   it('keeps an incomplete memory on the collector branch and names what is missing', () => {
     const result = execute({ qualification_memory: 'vehicle: SUV; down payment: 2K; documents: identification: yes' });
     expect(result.qualification_complete).toBe(false);
-    expect(result.missing_qualification).toEqual(['purchase_timeline', 'proof_of_income']);
+    expect(result.missing_qualification).toEqual(['purchase_timeline', 'proof_of_income', 'bank_account']);
   });
 
   it('normalizes an explicit phone from the inbound message for the GHL contact phone output', () => {
@@ -92,6 +92,31 @@ describe('HighLevel collector custom-code normalizer', () => {
   it('prefers a declared personal name over a commercial profile, while retaining it as fallback', () => {
     expect(execute({ real_name: 'Tatuajes y operaciones', message: 'Juan Andino' }).real_name).toBe('Juan Andino');
     expect(execute({ real_name: 'Tatuajes y operaciones', message: 'Quiero una camioneta' }).real_name).toBe('Tatuajes y operaciones');
+  });
+
+  it('rejects a timeline as a name, cleans contaminated memory, and requires bank account confirmation', () => {
+    const result = execute({
+      real_name: 'En este mes',
+      qualification_memory: '20; real_name: En este mes; vehicle: sedan; timeline: este mes',
+      message: 'Giovanni Amador',
+    });
+
+    expect(result.real_name).toBe('Giovanni Amador');
+    expect(result.qualification_memory).not.toContain('real_name: En este mes');
+    expect(result.qualification_memory).not.toMatch(/(?:^|;)\s*20(?:;|$)/);
+    expect(result.missing_qualification).toContain('bank_account');
+    expect(result.qualification_complete).toBe(false);
+  });
+
+  it('does not treat a document confirmation as bank-account confirmation', () => {
+    const result = execute({
+      message: 'Sí, sí tengo',
+      documents: 'identification: yes, proof of income: yes',
+    });
+
+    expect(result.identification).toBe('yes');
+    expect(result.has_income_proof).toBe('yes');
+    expect(result.bank_account).toBe('');
   });
 
   it('does not convert vehicle digits in qualification memory into a phone', () => {

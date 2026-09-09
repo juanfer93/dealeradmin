@@ -250,6 +250,29 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ real_name: 'Tatuajes y operaciones', message: 'Quiero una camioneta' }).real_name).toBe('Tatuajes y operaciones');
   });
 
+  it('rejects qualification answers as names and removes contaminated name memory', () => {
+    const result = normalizeCollectorInput({
+      real_name: 'En este mes',
+      qualification_memory: '20; real_name: En este mes; vehicle: sedan; timeline: este mes',
+      message: 'Giovanni Amador',
+    });
+
+    expect(result.real_name).toBe('Giovanni Amador');
+    expect(result.qualification_memory).not.toContain('real_name: En este mes');
+    expect(result.qualification_memory).not.toMatch(/(?:^|;)\s*20(?:;|$)/);
+  });
+
+  it('does not treat a document confirmation as bank-account confirmation', () => {
+    const result = normalizeCollectorInput({
+      message: 'Sí, sí tengo',
+      documents: 'identification: yes, proof of income: yes',
+    });
+
+    expect(result.identification).toBe('yes');
+    expect(result.has_income_proof).toBe('yes');
+    expect(result.bank_account).toBe('');
+  });
+
   it.each([
     [{ vehicle_type: 'SUV' }, 'custom_fields'],
     [{ qualification_memory: 'vehicle: SUV' }, 'qualification_memory'],

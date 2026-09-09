@@ -32,9 +32,10 @@ const memoryValue = (aliases) => {
   return clean(match?.[1]).replace(/(trade[- ]?in)\d+$/i, '$1');
 };
 const invalidRealNames = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'thu chikitha linda']);
+const qualificationResponseMarkers = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|baltimore|maryland|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|yes|yeah|yep|correct|tengo|have it|i have|si|sí|no|no tengo)\b/i;
 const normalizeRealName = (value) => {
   const candidate = clean(value);
-  if (!candidate || invalidRealNames.has(candidate.toLowerCase()) || !/[a-záéíóúüñ]/i.test(candidate) || /^[\W_\d]+$/u.test(candidate)) return '';
+  if (!candidate || invalidRealNames.has(candidate.toLowerCase()) || !/[a-záéíóúüñ]/i.test(candidate) || /^[\W_\d]+$/u.test(candidate) || qualificationResponseMarkers.test(candidate)) return '';
   if (candidate.length > 100 || candidate.split(/\s+/).length > 8) return '';
   return candidate;
 };
@@ -149,12 +150,13 @@ const down = validAmount(downCandidate);
 const timeline = first(timelineFrom(message), timelineFrom(history), memoryValue(['timeline', 'purchase timeline', 'purchase_timeline']), inputData.purchase_timeline);
 const identification = documentStatus('id\\b|identification|identificación|driver.?s license|license|licencia', ['identification', 'id'], inputData.identification || inputData.documents);
 const income = documentStatus('proof of income|income proof|prueba de ingresos|comprobante de ingresos', ['income', 'proof of income'], inputData.documents);
-const bankAccount = first(yesNo(inputData.bank_account), yesNo(message), yesNo(memoryValue(['bank account', 'bank_account', 'cuenta bancaria'])));
+const bankContext = `${message}; ${history}`.match(/(?:bank account|cuenta bancaria)[^;]*(?:yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available|no|not|sin|dont|don't|no tengo|i do not|do not have|not available)/i)?.[0] || '';
+const bankAccount = first(yesNo(inputData.bank_account), yesNo(bankContext), yesNo(memoryValue(['bank account', 'bank_account', 'cuenta bancaria'])));
 const documents = first(memoryValue(['documents', 'docs', 'documentos']), inputData.documents, [identification === 'yes' ? 'identification: yes' : '', income === 'yes' ? 'proof of income: yes' : ''].filter(Boolean).join(', '));
 const customPresent = [inputData.vehicle_type, inputData.down_payment, inputData.purchase_timeline, inputData.documents, inputData.identification, inputData.bank_account].some((value) => clean(value) && !emptyMarker(value));
 const qualificationSource = rawMemory && customPresent ? 'both' : rawMemory ? 'qualification_memory' : customPresent ? 'custom_fields' : 'none';
-const missing = [!vehicle ? 'vehicle_type' : '', !down ? 'down_payment' : '', !timeline ? 'purchase_timeline' : '', identification !== 'yes' ? 'identification' : '', income !== 'yes' ? 'proof_of_income' : ''].filter(Boolean);
-const parts = memoryText(rawMemory).split(';').map((part) => clean(part).replace(/^\d+(?=(?:vehicle|vehicle[_ ]?type|down|down[_ ]?payment|documents?|timeline)\b)/i, '')).filter(Boolean);
+const missing = [!vehicle ? 'vehicle_type' : '', !down ? 'down_payment' : '', !timeline ? 'purchase_timeline' : '', identification !== 'yes' ? 'identification' : '', income !== 'yes' ? 'proof_of_income' : '', bankAccount !== 'yes' ? 'bank_account' : ''].filter(Boolean);
+const parts = memoryText(rawMemory).split(';').map((part) => clean(part).replace(/^\d+(?=(?:vehicle|vehicle[_ ]?type|down|down[_ ]?payment|documents?|timeline)\b)/i, '')).filter((part) => Boolean(part) && !/^\$?\d[\d,.]*$/.test(part));
 const canonical = [['real_name', realName], ['vehicle', vehicle], ['down payment', down], ['documents', documents], ['timeline', timeline]].filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).replace(/\s*;\s*/g, ', ')}`);
 const qualificationMemory = [...new Set([...parts.filter((part) => !/^(?:real_name|real name|name|nombre|nombre real|nombre completo|vehicle|vehicle_type|down|down payment|down_payment|documents?|docs|timeline|purchase timeline|purchase_timeline)\s*(?::|=|-)/i.test(part)), ...canonical])].join('; ');
 // The contact phone is an output of this collector, not an authoritative

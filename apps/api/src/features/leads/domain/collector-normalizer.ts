@@ -75,11 +75,16 @@ function memoryValue(memory: string, aliases: string[]): string {
 
 const INVALID_REAL_NAMES = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'thu chikitha linda']);
 const BUSINESS_NAME_MARKERS = /\b(?:auto\s*sales|motors?|dealership|dealer|llc|inc(?:orporated)?|corp(?:oration)?|company|tatuajes?|tattoos?|operaciones?|operations?|transport(?:ation)?|logistics|construction|remodeling|roofing|realty|consulting|services?|servicios?|shop|tienda|salon|barbershop|restaurant)\b/i;
+const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|baltimore|maryland|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|yes|yeah|yep|correct|tengo|have it|i have|si|sí|no|no tengo)\b/i;
 
 export function normalizeRealName(value: string | null | undefined): string {
   const candidate = clean(value);
   if (!candidate || INVALID_REAL_NAMES.has(candidate.toLowerCase())) return EMPTY;
   if (!/[a-záéíóúüñ]/i.test(candidate) || /^[\W_\d]+$/u.test(candidate)) return EMPTY;
+  // Qualification answers can look like names (for example "En este mes").
+  // Never promote a timeline, location, vehicle category, or yes/no answer
+  // into the contact's real name.
+  if (QUALIFICATION_RESPONSE_MARKERS.test(candidate)) return EMPTY;
   if (candidate.length > 100 || candidate.split(/\s+/).length > 8) return EMPTY;
   return candidate;
 }
@@ -304,12 +309,8 @@ function mergeMemory(current: string, values: Record<string, string>): string {
   let segments = memoryText(current)
     .split(';')
     .map((segment) => clean(segment).replace(/^\d+(?=(?:vehicle|vehicle[_ ]?type|down(?:[_ ]?payment)?|documents?|docs|timeline|purchase[_ ]?timeline)\b)/i, ''))
-    .filter(Boolean);
-  if (!clean(values['down payment'])) {
-    segments = segments.filter((segment) => segment.match(/^([^:]+):/)?.[1]?.toLowerCase().replace(/[^a-z0-9]/g, '') !== 'downpayment');
-  }
-  const currentFacts = Object.entries(values).filter(([, value]) => Boolean(clean(value)));
-  for (const [key, value] of currentFacts) {
+    .filter((segment) => Boolean(segment) && !/^\$?\d[\d,.]*$/.test(segment));
+  for (const [key, value] of Object.entries(values)) {
     const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
     for (let index = segments.length - 1; index >= 0; index -= 1) {
       const segmentKey = segments[index].match(/^[-*•\s]*([^:=\-]+)\s*[:=\-]/)?.[1]?.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -321,7 +322,7 @@ function mergeMemory(current: string, values: Record<string, string>): string {
         || segmentKey === normalizedKey;
       if (isAlias) segments.splice(index, 1);
     }
-    segments.push(`${key}: ${clean(value).replace(/\s*;\s*/g, ', ')}`);
+    if (clean(value)) segments.push(`${key}: ${clean(value).replace(/\s*;\s*/g, ', ')}`);
   }
   return [...new Set(segments)].join('; ');
 }
@@ -430,15 +431,10 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const identification = firstNonEmpty(docs.id, memoryValue(memory, ['identification', 'id']), input.identification);
   const bankAccountRaw = firstNonEmpty(
     input.bank_account,
-    source.match(/(?:bank account|cuenta bancaria)[^.!?]*/i)?.[0],
+    source.match(/(?:bank account|cuenta bancaria)[^;]*(?:yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available|no|not|sin|dont|don't|no tengo|i do not|do not have|not available)/i)?.[0],
     memoryValue(memory, ['bank account', 'bank_account']),
   );
-  const bankAccount = yesNo(bankAccountRaw) || (
-    /(?:bank account|cuenta bancaria)/i.test(bankAccountRaw) &&
-    !/\b(?:no|not|sin|dont|don't)\b/i.test(bankAccountRaw)
-      ? 'yes'
-      : EMPTY
-  );
+  const bankAccount = yesNo(bankAccountRaw);
   const mergedMemory = mergeMemory(memory, {
     real_name: realName,
     vehicle,
