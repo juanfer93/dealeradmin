@@ -84,6 +84,11 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.phone).toBe('');
   });
 
+  it('captures a standalone full-name answer without treating a vehicle request as a name', () => {
+    expect(execute({ message: 'María José López' }).real_name).toBe('María José López');
+    expect(execute({ message: 'Quiero una camioneta' }).real_name).toBe('');
+  });
+
   it('does not convert vehicle digits in qualification memory into a phone', () => {
     const result = execute({
       qualification_memory: 'real_name: Stefanni.veliz; vehicle: SUV20202020202020; timeline: today',

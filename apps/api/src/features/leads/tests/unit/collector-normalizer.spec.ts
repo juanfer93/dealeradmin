@@ -240,6 +240,11 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ real_name: field, qualification_memory: memory }).real_name).toBe(expected);
   });
 
+  it('captures a standalone full-name answer without confusing vehicle intent for a name', () => {
+    expect(normalizeCollectorInput({ message: 'María José López' }).real_name).toBe('María José López');
+    expect(normalizeCollectorInput({ message: 'Quiero una camioneta' }).real_name).toBe('');
+  });
+
   it.each([
     [{ vehicle_type: 'SUV' }, 'custom_fields'],
     [{ qualification_memory: 'vehicle: SUV' }, 'qualification_memory'],

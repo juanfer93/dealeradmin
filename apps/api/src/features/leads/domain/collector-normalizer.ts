@@ -86,8 +86,17 @@ export function normalizeRealName(value: string | null | undefined): string {
 function extractRealNameFromText(value: string): string {
   const source = clean(value);
   if (!source) return EMPTY;
-  const match = source.match(/(?:me llamo|mi nombre es|soy|my name is|this is)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i);
-  return normalizeRealName(match?.[1]?.split(/[.!?,;]/, 1)[0]);
+  const explicit = source.match(/(?:me llamo|mi nombre es|soy|my name is|this is)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i);
+  const named = normalizeRealName(explicit?.[1]?.split(/[.!?,;]/, 1)[0]);
+  if (named) return named;
+
+  // After the bot asks for a full name, people commonly answer with only
+  // "First Last". Accept that narrow shape, but never turn vehicle/intent
+  // messages into a name before the collector persists it to the contact.
+  const candidate = source.replace(/[.!?,;:]+$/g, '');
+  if (!/^[a-záéíóúüñ][a-záéíóúüñ'-]*(?:\s+[a-záéíóúüñ][a-záéíóúüñ'-]*){1,3}$/i.test(candidate)) return EMPTY;
+  if (/\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) return EMPTY;
+  return normalizeRealName(candidate);
 }
 
 export function realNameFromQualificationMemory(memory: string | null | undefined): string {

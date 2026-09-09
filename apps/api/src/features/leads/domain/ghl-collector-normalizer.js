@@ -38,7 +38,15 @@ const normalizeRealName = (value) => {
   if (candidate.length > 100 || candidate.split(/\s+/).length > 8) return '';
   return candidate;
 };
-const nameFromText = (value) => normalizeRealName(clean(value).match(/(?:me llamo|mi nombre es|soy|my name is|this is)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i)?.[1]?.split(/[.!?,;]/, 1)[0]);
+const nameFromText = (value) => {
+  const source = clean(value);
+  const named = normalizeRealName(source.match(/(?:me llamo|mi nombre es|soy|my name is|this is)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i)?.[1]?.split(/[.!?,;]/, 1)[0]);
+  if (named) return named;
+  const candidate = source.replace(/[.!?,;:]+$/g, '');
+  if (!/^[a-záéíóúüñ][a-záéíóúüñ'-]*(?:\s+[a-záéíóúüñ][a-záéíóúüñ'-]*){1,3}$/i.test(candidate)) return '';
+  if (/\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) return '';
+  return normalizeRealName(candidate);
+};
 const realName = [
   inputData.real_name,
   memoryValue(['real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name', 'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre']),
