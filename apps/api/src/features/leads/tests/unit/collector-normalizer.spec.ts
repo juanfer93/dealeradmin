@@ -262,6 +262,17 @@ describe('normalizeCollectorInput', () => {
     expect(result.qualification_memory).not.toMatch(/(?:^|;)\s*20(?:;|$)/);
   });
 
+  it('rejects a phone phrase as a name and removes it from memory', () => {
+    const result = normalizeCollectorInput({
+      message: 'Mí número es 5714223667',
+      qualification_memory: '0',
+      phone: '+15714223667',
+    });
+
+    expect(result.real_name).toBe('');
+    expect(result.qualification_memory).toBe('');
+  });
+
   it('does not treat a document confirmation as bank-account confirmation', () => {
     const result = normalizeCollectorInput({
       message: 'Sí, sí tengo',

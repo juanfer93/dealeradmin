@@ -127,4 +127,16 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.phone).toBe('');
     expect(result.vehicle_type).toBe('SUV');
   });
+
+  it('never treats a phone phrase as a real name or qualification memory', () => {
+    const result = execute({
+      message: 'Mí número es 5714223667',
+      qualification_memory: '0',
+      phone: '(571) 422-3667',
+    });
+
+    expect(result.real_name).toBe('');
+    expect(result.qualification_memory).toBe('');
+    expect(result.phone).toBe('+15714223667');
+  });
 });
