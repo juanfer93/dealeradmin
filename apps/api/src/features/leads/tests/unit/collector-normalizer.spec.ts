@@ -2,6 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { hasMinimumRoutingQualification, isQualificationComplete, normalizeCollectorInput } from '../../domain/collector-normalizer';
 
 describe('normalizeCollectorInput', () => {
+  it('preserves a valid native GHL contact phone when the latest message is separate', () => {
+    expect(normalizeCollectorInput({ phone: '(240) 681-5028', message: 'Ok' }).phone).toBe('+12406815028');
+  });
+
+  it.each([
+    ['(240) 681-5028', '+12406815028'],
+    ['240.681.5028', '+12406815028'],
+    ['240 681 5028', '+12406815028'],
+    ['+12406815028', '+12406815028'],
+    ['12406815028', '+12406815028'],
+    ['2406815028', '+12406815028'],
+  ])('normalizes native GHL phone format %s', (phone, expected) => {
+    expect(normalizeCollectorInput({ message: 'Ok', phone }).phone).toBe(expected);
+  });
+
   it('normalizes dollar, plain-number, and k down-payment formats', () => {
     expect(normalizeCollectorInput({ message: 'I can put 1K down' }).down_payment).toBe('1000');
     expect(normalizeCollectorInput({ message: 'down payment is $1,000' }).down_payment).toBe('1000');

@@ -75,13 +75,35 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.phone).toBe('+18049701204');
   });
 
-  it('does not copy contact.phone when the conversation has no phone', () => {
+  it('uses a valid native contact phone when the conversation message omits it', () => {
     const result = execute({
       phone: '+14970120410',
       message: 'Estoy buscando una SUV',
     });
 
-    expect(result.phone).toBe('');
+    expect(result.phone).toBe('+14970120410');
+  });
+
+  it('preserves Samuel Etienne phone when GHL sends it separately from the final message', () => {
+    const result = execute({
+      phone: '(240) 681-5028',
+      message: 'Ok',
+      qualification_memory: 'vehicle: SUVvehicle: SUVvehicle: SUV',
+    });
+
+    expect(result.phone).toBe('+12406815028');
+    expect(result.dealeradmin_send_now).toBe(false);
+  });
+
+  it.each([
+    ['(240) 681-5028', '+12406815028'],
+    ['240.681.5028', '+12406815028'],
+    ['240 681 5028', '+12406815028'],
+    ['+12406815028', '+12406815028'],
+    ['12406815028', '+12406815028'],
+    ['2406815028', '+12406815028'],
+  ])('normalizes phone format %s', (phone, expected) => {
+    expect(execute({ message: 'Ok', phone }).phone).toBe(expected);
   });
 
   it('captures a standalone full-name answer without treating a vehicle request as a name', () => {

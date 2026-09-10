@@ -6,13 +6,22 @@ const first = (...values) => values.map(clean).find((value) => value && !emptyMa
 const rawMemory = String(inputData.qualification_memory ?? '').trim();
 const message = clean(inputData.message);
 const history = clean(inputData.chat_history_log);
+const normalizePhone = (value) => {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  return '';
+};
 const phoneFrom = (...values) => {
+  for (const value of values) {
+    const direct = normalizePhone(value);
+    if (direct) return direct;
+  }
   const source = values.map((value) => String(value ?? '')).join(' ');
-  const matches = source.match(/(?:\+?1[\s().-]*)?(?:\(?[2-9]\d{2}\)?[\s.-]*)\d{3}[\s.-]?\d{4}/g) || [];
+  const matches = source.match(/(?:\+?1[\d\s().-]{9,16}\d|\d[\d\s().-]{8,14}\d)/g) || [];
   for (const candidate of matches) {
-    const digits = candidate.replace(/\D/g, '');
-    if (digits.length === 10) return `+1${digits}`;
-    if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+    const normalized = normalizePhone(candidate);
+    if (normalized) return normalized;
   }
   return '';
 };
@@ -165,13 +174,12 @@ const missing = [!vehicle ? 'vehicle_type' : '', !down ? 'down_payment' : '', !t
 const parts = memoryText(rawMemory).split(';').map((part) => clean(part).replace(/^\d+(?=(?:vehicle|vehicle[_ ]?type|down|down[_ ]?payment|documents?|timeline)\b)/i, '')).filter((part) => Boolean(part) && !/^\$?\d[\d,.]*$/.test(part));
 const canonical = [['real_name', realName], ['vehicle', vehicle], ['down payment', down], ['documents', documents], ['timeline', timeline]].filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).replace(/\s*;\s*/g, ', ')}`);
 const qualificationMemory = [...new Set([...parts.filter((part) => !/^(?:real_name|real name|name|nombre|nombre real|nombre completo|vehicle|vehicle_type|down|down payment|down_payment|documents?|docs|timeline|purchase timeline|purchase_timeline)\s*(?::|=|-)/i.test(part)), ...canonical])].join('; ');
-// The contact phone is an output of this collector, not an authoritative
-// input. GHL can carry a stale or misparsed value there, so never copy it
-// back into the normalized result. Only a number written in the person's
-// message/conversation may populate contact.phone. Never scan
+// Prefer a phone written in the conversation, but preserve a validated native
+// GHL contact phone when the webhook delivers the conversation message
+// separately (for example, message = "Ok"). Never scan
 // qualification_memory/qualifier text: vehicle values such as
 // "SUV20202020202020" must not become a lead phone.
-const phone = phoneFrom(message, history);
+const phone = phoneFrom(message, history, inputData.phone);
 const appendOnlyHistory = [history, message]
   .filter((value, index, values) => value && values.findIndex((item) => item.toLowerCase() === value.toLowerCase()) === index)
   .join('\n');

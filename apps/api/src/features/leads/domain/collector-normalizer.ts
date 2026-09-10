@@ -34,6 +34,21 @@ export type CollectorOutput = {
 
 const EMPTY = '';
 
+const PHONE_PATTERN = /(?:\+?1[\d\s().-]{9,16}\d|\d[\d\s().-]{8,14}\d)/g;
+
+function extractPhone(value: string | null | undefined): string {
+  const source = clean(value);
+  const directDigits = source.replace(/\D/g, '');
+  const direct = directDigits.length === 10 || (directDigits.length === 11 && directDigits.startsWith('1'))
+    ? directDigits
+    : EMPTY;
+  const match = direct || source.match(PHONE_PATTERN)?.[0] || EMPTY;
+  if (!match) return EMPTY;
+  const digits = match.replace(/\D/g, '');
+  if (digits.length === 10) return `+1${digits}`;
+  return digits.length === 11 && digits.startsWith('1') ? `+${digits}` : EMPTY;
+}
+
 function clean(value: string | null | undefined): string {
   return value?.replace(/\s+/g, ' ').trim() ?? EMPTY;
 }
@@ -478,8 +493,11 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     docs.income !== 'yes' ? 'proof_of_income' : EMPTY,
     bankAccount !== 'yes' ? 'bank_account' : EMPTY,
   ].filter(Boolean);
-  const chatPhone = `${clean(input.chat_history_log)} ${clean(input.message)}`
-    .match(/(?:\+?1[\s().-]*)?(?:\(?[2-9]\d{2}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/)?.[0] ?? '';
+  // The native GHL contact phone is a valid fallback when the latest message
+  // arrives as a separate value (for example, the message is only "Ok").
+  // Conversation evidence still wins so a newly supplied number is not
+  // replaced by a stale contact value.
+  const chatPhone = extractPhone(input.chat_history_log) || extractPhone(input.message) || extractPhone(input.phone);
 
   return {
     real_name: realName,
