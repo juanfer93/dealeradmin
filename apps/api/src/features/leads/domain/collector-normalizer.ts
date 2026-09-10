@@ -27,6 +27,9 @@ export type CollectorOutput = {
   qualification_complete: boolean;
   missing_qualification: string[];
   qualification_source: 'custom_fields' | 'qualification_memory' | 'both' | 'none';
+  phone: string;
+  chat_history_log: string;
+  dealeradmin_send_now: boolean;
 };
 
 const EMPTY = '';
@@ -196,7 +199,14 @@ function firstValidAmount(...values: Array<string | null | undefined>): string {
 }
 
 function normalizeVehicle(value: string): string {
-  const source = clean(value).replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
+  let source = clean(value).replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
+  // HighLevel can concatenate the Custom Code output and the AI output
+  // without a separator. Keep the value before a repeated label such as
+  // "Toyota HilanderVehicle: Toyota HilanderToyota Hilander".
+  const labeled = source.match(/^(.+?)\s*vehicle(?:_type)?\s*:\s*(.+)$/i);
+  if (labeled?.[1]) source = labeled[1].trim();
+  const doubled = source.match(/^(.{2,}?)\1$/i);
+  if (doubled?.[1]) source = doubled[1].trim();
   if (!source) return EMPTY;
   if (source.includes('—')) return source;
   const lower = source.toLowerCase();
@@ -468,6 +478,8 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     docs.income !== 'yes' ? 'proof_of_income' : EMPTY,
     bankAccount !== 'yes' ? 'bank_account' : EMPTY,
   ].filter(Boolean);
+  const chatPhone = `${clean(input.chat_history_log)} ${clean(input.message)}`
+    .match(/(?:\+?1[\s().-]*)?(?:\(?[2-9]\d{2}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/)?.[0] ?? '';
 
   return {
     real_name: realName,
@@ -484,5 +496,10 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     qualification_complete: qualificationComplete,
     missing_qualification: missingQualification,
     qualification_source: qualificationSource,
+    phone: chatPhone,
+    chat_history_log: [clean(input.chat_history_log), clean(input.message)]
+      .filter((value, index, values) => value && values.findIndex((item) => item.toLowerCase() === value.toLowerCase()) === index)
+      .join('\n'),
+    dealeradmin_send_now: qualificationComplete && Boolean(chatPhone),
   };
 }

@@ -78,6 +78,11 @@ describe('normalizeCollectorInput', () => {
     expect(result.purchase_timeline).toBe('this week');
   });
 
+  it('removes the known GHL custom-code plus AI concatenation from vehicle values', () => {
+    expect(normalizeCollectorInput({ vehicle_type: 'Toyota hilanderVehicle: Toyota hilanderToyota hilander' }).vehicle_type)
+      .toBe('Toyota hilander');
+  });
+
   it('stores document answers as structured text and proposes the next question', () => {
     const result = normalizeCollectorInput({ message: 'Yes, I have my ID' });
     expect(result.documents).toContain('identification: yes');

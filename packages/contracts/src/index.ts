@@ -1,6 +1,16 @@
 import { z } from 'zod';
+import { DealeradminCaptureContractSchema } from './leads/dealeradmin-capture.schema';
 export { BulkLeadImportSchema, CreateManualLeadSchema, UpdateLeadSchema } from './leads/manual-lead.schema';
 export type { BulkLeadImportDto, CreateManualLeadDto, UpdateLeadDto } from './leads/manual-lead.schema';
+export {
+  CaptureEvidenceSourceSchema,
+  CaptureFieldSchema,
+  DEALERADMIN_CAPTURE_SCHEMA_VERSION,
+  DealeradminCaptureContractSchema,
+  RawCaptureEvidenceSchema,
+  TypedCaptureExtractionSchema,
+} from './leads/dealeradmin-capture.schema';
+export type { DealeradminCaptureContract } from './leads/dealeradmin-capture.schema';
 
 const EasternsDealerSelectedSchema = z.preprocess((value) => {
   if (value === null || value === undefined || typeof value === 'boolean') return value;
@@ -43,6 +53,7 @@ export const LeadWebhookSchema = z.object({
     city: z.string().nullable().optional(),
     state: z.string().nullable().optional(),
     zip_code: z.string().nullable().optional(),
+    capture_contract: DealeradminCaptureContractSchema.optional(),
   }),
 });
 

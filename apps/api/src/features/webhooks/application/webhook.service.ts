@@ -15,6 +15,7 @@ import { normalizeDownPayment } from '../../leads/domain/down-payment';
 import { applyTestWebhookLead } from '../../leads/application/test-lead-store';
 import { GeoroutingService } from '../../routing/domain/services/georouting.service';
 import { hasMinimumRoutingQualification, normalizeCollectorInput } from '../../leads/domain/collector-normalizer';
+import { buildDealeradminCaptureContract } from '../../leads/domain/dealeradmin-capture';
 
 type PersistedWebhookResponse = {
   accepted: true;
@@ -82,13 +83,45 @@ export class WebhookService {
 
     try {
       const payloadHash = createHash('sha256').update(rawBody).digest('hex');
+      const captureContract = payload.lead.capture_contract ?? buildDealeradminCaptureContract({
+        real_name: payload.lead.real_name,
+        message: payload.lead.message ?? payload.lead.chat_history_log,
+        phone: payload.lead.phone,
+        vehicle_type: payload.lead.vehicle_type,
+        down_payment: payload.lead.down_payment,
+        purchase_timeline: payload.lead.purchase_timeline,
+        documents: payload.lead.documents,
+        identification: payload.lead.identification ?? payload.lead.id_number ?? payload.lead.id,
+        bank_account: payload.lead.bank_account,
+        qualification_memory: payload.lead.qualification_memory,
+        chat_history_log: payload.lead.chat_history_log,
+        contact_id: payload.ghl_contact_id,
+        occurred_at: payload.occurred_at,
+        channel: 'ghl_messenger',
+        city: payload.lead.city,
+        state: payload.lead.state,
+        zip_code: payload.lead.zip_code,
+        easterns_zone: payload.lead.easterns_zone,
+      }, normalizeCollectorInput({
+        real_name: payload.lead.real_name,
+        message: payload.lead.message ?? payload.lead.chat_history_log,
+        phone: payload.lead.phone,
+        vehicle_type: payload.lead.vehicle_type,
+        down_payment: payload.lead.down_payment,
+        purchase_timeline: payload.lead.purchase_timeline,
+        documents: payload.lead.documents,
+        identification: payload.lead.identification ?? payload.lead.id_number ?? payload.lead.id,
+        bank_account: payload.lead.bank_account,
+        qualification_memory: payload.lead.qualification_memory,
+        chat_history_log: payload.lead.chat_history_log,
+      }), payload.lead.phone);
       const insertedEvents = (await queryRunner.query(
         `INSERT INTO webhook_events
-          (event_id, event_type, ghl_location_id, status, payload_hash, received_at)
-         VALUES ($1, $2, $3, 'pending', $4, CURRENT_TIMESTAMP)
+          (event_id, event_type, ghl_location_id, status, payload_hash, raw_transcript, capture_contract, capture_schema_version, received_at)
+         VALUES ($1, $2, $3, 'pending', $4, $5, $6::jsonb, $7, CURRENT_TIMESTAMP)
          ON CONFLICT (event_id) DO NOTHING
          RETURNING event_id`,
-        [payload.event_id, payload.event_type, payload.ghl_location_id, payloadHash],
+        [payload.event_id, payload.event_type, payload.ghl_location_id, payloadHash, captureContract.raw_evidence.transcript, JSON.stringify(captureContract), captureContract.extraction.schema_version],
       )) as EventRow[];
 
       if (insertedEvents.length === 0) {
@@ -125,9 +158,10 @@ export class WebhookService {
         await queryRunner.query(
           `UPDATE webhook_events
            SET status = 'pending', error_code = NULL, processed_at = NULL,
-               payload_hash = $2, received_at = CURRENT_TIMESTAMP
+               payload_hash = $2, raw_transcript = $3, capture_contract = $4::jsonb,
+               capture_schema_version = $5, received_at = CURRENT_TIMESTAMP
            WHERE event_id = $1`,
-          [payload.event_id, payloadHash],
+          [payload.event_id, payloadHash, captureContract.raw_evidence.transcript, JSON.stringify(captureContract), captureContract.extraction.schema_version],
         );
       }
 
@@ -348,12 +382,13 @@ export class WebhookService {
     try {
       await this.dataSource!.query(
         `INSERT INTO webhook_events
-          (event_id, event_type, ghl_location_id, status, error_code, payload_hash, received_at)
-         VALUES ($1, $2, $3, 'failed', $4, $5, CURRENT_TIMESTAMP)
+          (event_id, event_type, ghl_location_id, status, error_code, payload_hash, raw_transcript, capture_contract, capture_schema_version, received_at)
+         VALUES ($1, $2, $3, 'failed', $4, $5, $6, $7::jsonb, $8, CURRENT_TIMESTAMP)
          ON CONFLICT (event_id) DO UPDATE SET
            status = 'failed', error_code = EXCLUDED.error_code,
-           payload_hash = EXCLUDED.payload_hash`,
-        [payload.event_id, payload.event_type, payload.ghl_location_id, errorCode, createHash('sha256').update(rawBody).digest('hex')],
+           payload_hash = EXCLUDED.payload_hash, raw_transcript = EXCLUDED.raw_transcript,
+           capture_contract = EXCLUDED.capture_contract, capture_schema_version = EXCLUDED.capture_schema_version`,
+        [payload.event_id, payload.event_type, payload.ghl_location_id, errorCode, createHash('sha256').update(rawBody).digest('hex'), payload.lead.chat_history_log ?? payload.lead.message ?? '', JSON.stringify(payload.lead.capture_contract ?? {}), payload.lead.capture_contract?.extraction.schema_version ?? 'dealeradmin.capture.v1'],
       );
     } catch {
       // El registro de la falla no debe reemplazar el error de procesamiento original.

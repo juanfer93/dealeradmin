@@ -172,6 +172,9 @@ const qualificationMemory = [...new Set([...parts.filter((part) => !/^(?:real_na
 // qualification_memory/qualifier text: vehicle values such as
 // "SUV20202020202020" must not become a lead phone.
 const phone = phoneFrom(message, history);
+const appendOnlyHistory = [history, message]
+  .filter((value, index, values) => value && values.findIndex((item) => item.toLowerCase() === value.toLowerCase()) === index)
+  .join('\n');
 return {
   real_name: realName,
   vehicle_type: vehicle,
@@ -181,7 +184,11 @@ return {
   identification,
   bank_account: bankAccount,
   qualification_memory: qualificationMemory,
+  // This write-back value is derived only from the inbound chat/transcript.
+  // Never source the number from qualification fields or a stale contact value.
   phone,
+  chat_history_log: appendOnlyHistory,
+  dealeradmin_send_now: missing.length === 0 && Boolean(phone),
   has_identification: identification,
   has_income_proof: income,
   next_question: !identification ? 'Do you have a valid ID or driver license?' : !income ? 'Do you have proof of income?' : !bankAccount ? 'Do you have a bank account?' : '',
