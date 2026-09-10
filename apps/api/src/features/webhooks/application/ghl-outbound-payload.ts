@@ -138,7 +138,7 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
     const phone = findConversationPhone([
       lead,
       { conversation_text: conversationText(lead.conversation) },
-    ]) || findContactPhone(payload, contact, customData) || '';
+    ]) || phoneFromValue(lead.phone) || findContactPhone(payload, contact, customData) || '';
     const normalizedName = normalizedLead.real_name || normalizeRealName(text(lead.name)) || 'Lead';
     const currentRealName = text(lead.real_name);
     if (phone === text(lead.phone) && normalizedName === text(lead.name) && (currentRealName === normalizedLead.real_name || !normalizedLead.real_name)) return input;

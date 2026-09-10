@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { DealeradminCaptureContractSchema } from './leads/dealeradmin-capture.schema';
+export { GhlCustomerRepliedSchema } from './conversations/ghl-customer-replied.schema';
+export type { GhlCustomerRepliedDto } from './conversations/ghl-customer-replied.schema';
 export { BulkLeadImportSchema, CreateManualLeadSchema, UpdateLeadSchema } from './leads/manual-lead.schema';
 export type { BulkLeadImportDto, CreateManualLeadDto, UpdateLeadDto } from './leads/manual-lead.schema';
 export {

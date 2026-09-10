@@ -21,6 +21,7 @@ import { LocationCatalogSeed1710000009000 } from './database/migrations/17100000
 import { WidenLeadDealerDocuments1710000011000 } from './database/migrations/1710000011000-WidenLeadDealerDocuments';
 import { WidenLeadDealerQualification1710000012000 } from './database/migrations/1710000012000-WidenLeadDealerQualification';
 import { AddDealeradminCaptureEvidence1710000013000 } from './database/migrations/1710000013000-AddDealeradminCaptureEvidence';
+import { Conversations1710000014000 } from './database/migrations/1710000014000-Conversations';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -45,6 +46,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             WidenLeadDealerDocuments1710000011000,
             WidenLeadDealerQualification1710000012000,
             AddDealeradminCaptureEvidence1710000013000,
+            Conversations1710000014000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,
