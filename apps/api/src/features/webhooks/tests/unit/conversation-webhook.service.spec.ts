@@ -5,6 +5,7 @@ import {
   GHL_SOURCE_CONFIG,
   INCOMPLETE_QUALIFICATION_WINDOW_HOURS,
   OUT_OF_WINDOW_QUALIFICATION_WINDOW_HOURS,
+  QUALIFICATION_RULE_TIMEZONE,
 } from '../../application/conversation-webhook.service';
 import { getTestConversationEvents, resetTestConversationEvents } from '../../application/test-conversation-store';
 
@@ -143,6 +144,28 @@ describe('ConversationWebhookService', () => {
     expect(getTestConversationEvents()).toEqual([
       expect.objectContaining({ source: 'koons-culpeper', channel: 'messenger' }),
     ]);
+  });
+
+  it('splits the shared Action Pre Owned Cars source into Spanish and English queues', async () => {
+    expect(GHL_SOURCE_CONFIG['action-cars']).toEqual({
+      locationId: 'ZxadcudjvBz7KFCB1od4',
+      defaultChannel: 'messenger',
+      splitByLanguage: true,
+    });
+
+    const queryRunner = {
+      query: vi.fn(async (sql: string) => sql.includes('FROM dealers') ? [
+        { id: 'dealer-action-es', code: 'ACTION-CARS-ES', name: 'Action Pre Owned Cars Español', timezone: 'America/New_York', routing_config: { group: 'Action Pre Owned Cars', language: 'es' } },
+        { id: 'dealer-action-en', code: 'ACTION-CARS-EN', name: 'Action Pre Owned Cars English', timezone: 'America/New_York', routing_config: { group: 'Action Pre Owned Cars', language: 'en' } },
+      ] : []),
+    };
+    const service = new ConversationWebhookService();
+    const findSourceDealer = (service as unknown as {
+      findSourceDealer: (...args: unknown[]) => Promise<{ id: string; name: string }>;
+    }).findSourceDealer;
+
+    await expect(findSourceDealer.call(service, queryRunner, 'ZxadcudjvBz7KFCB1od4', 'action-cars', 'es')).resolves.toMatchObject({ id: 'dealer-action-es' });
+    await expect(findSourceDealer.call(service, queryRunner, 'ZxadcudjvBz7KFCB1od4', 'action-cars', 'en')).resolves.toMatchObject({ id: 'dealer-action-en' });
   });
 
   it('does not replace an existing lead name with the GHL fallback when the reply has no name', async () => {
@@ -307,5 +330,13 @@ describe('ConversationWebhookService', () => {
     expect(result.status).toBe('waiting_window');
     expect(result.nextAttemptAt).toBe('2026-09-11T23:00:00.000Z');
     expect(OUT_OF_WINDOW_QUALIFICATION_WINDOW_HOURS).toBe(3);
+  });
+
+  it('uses Colombia time for the qualification window regardless of dealer timezone', () => {
+    const now = new Date('2026-09-11T19:30:00.000Z');
+    const result = evaluateStatus(incompleteSnapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'easterns', now, 'due', now.toISOString());
+
+    expect(QUALIFICATION_RULE_TIMEZONE).toBe('America/Bogota');
+    expect(result.nextAttemptAt).toBe('2026-09-11T20:00:00.000Z');
   });
 });

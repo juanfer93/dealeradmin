@@ -32,7 +32,27 @@ export type CollectorOutput = {
   dealeradmin_send_now: boolean;
 };
 
+export type CollectorLanguage = 'es' | 'en';
+
 const EMPTY = '';
+
+const ENGLISH_LANGUAGE_SIGNALS = [
+  /\b(?:i|i'm|im|my|want|wants|need|looking|have|this|next|today|where|what|can|with|and|the)\b/i,
+  /\b(?:proof of income|bank account|driver(?:'s)? license|this month|next month)\b/i,
+];
+const SPANISH_LANGUAGE_SIGNALS = [
+  /\b(?:yo|mi|quiero|quiere|necesito|busco|tengo|este|esta|hoy|donde|qué|que|con|y|el|la|los|las)\b/i,
+  /\b(?:prueba de ingresos|cuenta bancaria|licencia de conducir|este mes|pr[oó]ximo mes)\b/i,
+];
+
+/** Detect the language of a conversation without treating a vehicle label as language evidence. */
+export function detectLeadLanguage(value: string | null | undefined): CollectorLanguage {
+  const source = clean(value).toLocaleLowerCase();
+  if (!source) return 'es';
+  const englishScore = ENGLISH_LANGUAGE_SIGNALS.reduce((score, signal) => score + (signal.test(source) ? 1 : 0), 0);
+  const spanishScore = SPANISH_LANGUAGE_SIGNALS.reduce((score, signal) => score + (signal.test(source) ? 1 : 0), 0);
+  return englishScore > spanishScore ? 'en' : 'es';
+}
 
 const PHONE_PATTERN = /(?:\+?1[\d\s().-]{9,16}\d|\d[\d\s().-]{8,14}\d)/g;
 

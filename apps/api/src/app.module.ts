@@ -25,6 +25,7 @@ import { Conversations1710000014000 } from './database/migrations/1710000014000-
 import { ArlingtonWoodbridgeDealer1710000015000 } from './database/migrations/1710000015000-ArlingtonWoodbridgeDealer';
 import { KoonsFredericksburgDealers1710000016000 } from './database/migrations/1710000016000-KoonsFredericksburgDealers';
 import { KoonsCulpeperDealer1710000017000 } from './database/migrations/1710000017000-KoonsCulpeperDealer';
+import { ActionPreOwnedCarsDealers1710000018000 } from './database/migrations/1710000018000-ActionPreOwnedCarsDealers';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -53,6 +54,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             ArlingtonWoodbridgeDealer1710000015000,
             KoonsFredericksburgDealers1710000016000,
             KoonsCulpeperDealer1710000017000,
+            ActionPreOwnedCarsDealers1710000018000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,

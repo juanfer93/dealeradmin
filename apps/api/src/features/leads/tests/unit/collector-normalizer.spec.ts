@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { hasMinimumRoutingQualification, isQualificationComplete, normalizeCollectorInput } from '../../domain/collector-normalizer';
+import { detectLeadLanguage, hasMinimumRoutingQualification, isQualificationComplete, normalizeCollectorInput } from '../../domain/collector-normalizer';
 
 describe('normalizeCollectorInput', () => {
+  it.each([
+    ['I am looking for a sedan this month.', 'en'],
+    ['Quiero un sedán este mes.', 'es'],
+    ['SUV', 'es'],
+  ])('detects the conversation language without using a vehicle label alone: %s', (message, expected) => {
+    expect(detectLeadLanguage(message)).toBe(expected);
+  });
+
   it('preserves a valid native GHL contact phone when the latest message is separate', () => {
     expect(normalizeCollectorInput({ phone: '(240) 681-5028', message: 'Ok' }).phone).toBe('+12406815028');
   });

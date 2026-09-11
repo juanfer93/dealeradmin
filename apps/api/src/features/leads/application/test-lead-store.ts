@@ -41,6 +41,7 @@ export const ARLINGTON_WOODBRIDGE_LOCATION_ID = '9v8zH9Y5eLiiJwZTZDci';
 export const KOONS_FREDERICKSBURG_LOCATION_ID = 'xuHo0opTO2g5edIuPJRl';
 export const KOONS_FREDERICKSBURG_EN_LOCATION_ID = 'ozAIEblxTjrh0PfoaHge';
 export const KOONS_CULPEPER_LOCATION_ID = 'bTNJHpNZ8FaS1PUHkuUq';
+export const ACTION_CARS_LOCATION_ID = 'ZxadcudjvBz7KFCB1od4';
 
 const TEST_DEALER_ALIASES: Record<string, string> = {
   'dealer-fredericksburg-2': 'dealer-fredericksburg',
@@ -56,6 +57,8 @@ export const testDealers: TestDealer[] = [
   { id: 'dealer-koons-fred', code: 'KOONS-FRED', name: 'Koons de Fredericksburg', pendingCount: 0, ghlLocationId: KOONS_FREDERICKSBURG_LOCATION_ID },
   { id: 'dealer-koons-fred-eng', code: 'KOONS-FRED-ENG', name: 'Koons Automotive of Fredericksburg', pendingCount: 0, ghlLocationId: KOONS_FREDERICKSBURG_EN_LOCATION_ID },
   { id: 'dealer-koons-culpeper', code: 'KOONS-CULPEPER', name: 'Koons Automotive of Culpeper', pendingCount: 0, ghlLocationId: KOONS_CULPEPER_LOCATION_ID },
+  { id: 'dealer-action-cars-es', code: 'ACTION-CARS-ES', name: 'Action Pre Owned Cars Español', pendingCount: 0, ghlLocationId: ACTION_CARS_LOCATION_ID },
+  { id: 'dealer-action-cars-en', code: 'ACTION-CARS-EN', name: 'Action Pre Owned Cars English', pendingCount: 0, ghlLocationId: ACTION_CARS_LOCATION_ID },
 ];
 
 export const testLead: TestLead = {
