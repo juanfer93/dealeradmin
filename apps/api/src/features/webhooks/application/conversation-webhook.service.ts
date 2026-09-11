@@ -10,6 +10,7 @@ import { normalizePhone } from '../../leads/domain/phone-normalizer';
 import { GeoroutingService } from '../../routing/domain/services/georouting.service';
 import { extractConversationLocation } from './conversation-location';
 import { recordTestConversationEvent } from './test-conversation-store';
+import { findQueuedConversationDuplicate } from '../../leads/domain/lead-duplicate';
 
 type SourceKey = 'stafford' | 'fredericksburg' | 'fredericksburg-2' | 'easterns' | 'arlington';
 
@@ -27,7 +28,7 @@ export const GHL_SOURCE_CONFIG: Record<SourceKey, { locationId: string; defaultC
 
 type LeadRow = { id: string; canonical_phone: string | null; first_name: string | null; last_name: string | null };
 type DealerRow = { id: string; code: string; name: string; timezone: string; routing_config: { group?: string } | null };
-type ConversationRow = { id: string; status: string; qualification_snapshot: Record<string, unknown>; location_snapshot: Record<string, unknown>; ready_at?: string | null };
+type ConversationRow = { id: string; status: string; qualification_snapshot: Record<string, unknown>; location_snapshot: Record<string, unknown>; ready_at?: string | null; isExisting?: boolean };
 type ExistingDealerLead = {
   status: string;
   routing_status: string;
@@ -271,6 +272,27 @@ export class ConversationWebhookService {
           [lead.id, normalizedFirstName, normalizedLastName],
         );
       }
+      // Keep repeated inbound events for audit, but do not create a second
+      // queue item when the same normalized identity is already queued.
+      const queuedDuplicate = await findQueuedConversationDuplicate(
+        runner,
+        dealer.id,
+        snapshot.real_name,
+        snapshot.phone,
+      );
+      if (queuedDuplicate) {
+        const isSameQueuedConversation = conversation.isExisting && queuedDuplicate.conversation_id === conversation.id;
+        await runner.query(
+          `UPDATE conversations
+           SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
+               last_message_at = $5, next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [conversation.id, isSameQueuedConversation ? 'queued' : 'duplicate_ignored', JSON.stringify(snapshot), JSON.stringify(location), receivedAt],
+        );
+        await runner.query(`UPDATE webhook_events SET status = 'processed', processed_at = CURRENT_TIMESTAMP, error_code = NULL WHERE event_id = $1`, [event.event_id]);
+        await runner.commitTransaction();
+        return { accepted: true, eventId: event.event_id, conversationId: conversation.id, source, status: 'processed' };
+      }
       // Window rules are based on the server's current dealer-local time, not on
       // a delayed or replayed GHL timestamp from the message payload.
       const status = this.statusForConversation(snapshot, location, dealer, source, new Date(), 'capture');
@@ -355,13 +377,13 @@ export class ConversationWebhookService {
        WHERE ghl_location_id = $1 AND ghl_contact_id = $2 AND ghl_conversation_id = $3 FOR UPDATE`,
       [input.locationId, input.contactId, input.conversationId],
     ) as ConversationRow[];
-    if (existing[0]) return existing[0];
+    if (existing[0]) return { ...existing[0], isExisting: true };
     const inserted = await runner.query(
       `INSERT INTO conversations (lead_id, ghl_location_id, ghl_contact_id, ghl_conversation_id, channel, first_message_at, last_message_at)
        VALUES ($1, $2, $3, $4, $5, $6, $6) RETURNING id, status, qualification_snapshot, location_snapshot, ready_at`,
       [input.leadId, input.locationId, input.contactId, input.conversationId, input.channel, input.occurredAt],
     ) as ConversationRow[];
-    return inserted[0];
+    return { ...inserted[0], isExisting: false };
   }
 
   private statusForConversation(
@@ -488,6 +510,21 @@ export class ConversationWebhookService {
         await runner.query(
           `UPDATE conversations SET status = $2, next_attempt_at = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
           [id, status.status, status.nextAttemptAt],
+        );
+        await runner.commitTransaction();
+        return false;
+      }
+      const queuedDuplicate = await findQueuedConversationDuplicate(
+        runner,
+        dealer.id,
+        row.qualification_snapshot.real_name,
+        row.qualification_snapshot.phone,
+        id,
+      );
+      if (queuedDuplicate) {
+        await runner.query(
+          `UPDATE conversations SET status = 'duplicate_ignored', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+          [id],
         );
         await runner.commitTransaction();
         return false;
