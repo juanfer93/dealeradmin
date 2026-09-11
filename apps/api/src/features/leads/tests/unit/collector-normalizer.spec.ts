@@ -199,7 +199,24 @@ describe('normalizeCollectorInput', () => {
   });
 
   it('extracts a declared personal name from a Stafford conversation', () => {
-    expect(normalizeCollectorInput({ message: 'Elias alvarado' }).real_name).toBe('Elias alvarado');
+    expect(normalizeCollectorInput({ message: 'Elias alvarado' }).real_name).toBe('Elias Alvarado');
+  });
+
+  it('extracts a declared personal name from the complete inbound transcript', () => {
+    const result = normalizeCollectorInput({
+      real_name: 'EliasJosue 🕊Mnegra',
+      message: '*Headline:* Financiamiento interno! Quiero financiar un auto!\nElias alvarado\nAun auto económico para el trabajo',
+      chat_history_log: '*Headline:* Financiamiento interno! Quiero financiar un auto!\nElias alvarado\nAun auto económico para el trabajo',
+    });
+    expect(result.real_name).toBe('Elias Alvarado');
+    expect(result.vehicle_type).toBe('');
+  });
+
+  it.each([
+    'Quiero financiar un auto',
+    'Me gustaría financiar un auto con ustedes',
+  ])('does not classify an advertising financing button as a vehicle: %s', (message) => {
+    expect(normalizeCollectorInput({ message, vehicle_type: 'financiar un auto' }).vehicle_type).toBe('');
   });
 
   it('removes campaign-button suffix contamination and captures a numeric reply followed by tengo', () => {
@@ -315,6 +332,14 @@ describe('normalizeCollectorInput', () => {
   it('captures a standalone full-name answer without confusing vehicle intent for a name', () => {
     expect(normalizeCollectorInput({ message: 'María José López' }).real_name).toBe('María José López');
     expect(normalizeCollectorInput({ message: 'Quiero una camioneta' }).real_name).toBe('');
+  });
+
+  it.each([
+    ['elias alvarado', 'Elias Alvarado'],
+    ['JUAN de la cruz', 'Juan de la Cruz'],
+    ["maria-jose o'neal", "Maria-Jose O'Neal"],
+  ])('formats personal names consistently: %s', (message, expected) => {
+    expect(normalizeCollectorInput({ message }).real_name).toBe(expected);
   });
 
   it('prefers a declared personal name over a commercial Messenger profile, while retaining it as fallback', () => {

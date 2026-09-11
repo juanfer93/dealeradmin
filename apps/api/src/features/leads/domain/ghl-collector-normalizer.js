@@ -8,6 +8,7 @@ const rawMessage = String(inputData.message ?? '').replace(/\r\n?/g, '\n').trim(
 const rawHistory = String(inputData.chat_history_log ?? '').replace(/\r\n?/g, '\n').trim();
 const message = clean(rawMessage);
 const history = clean(rawHistory);
+const normalizeMatch = (value) => clean(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const normalizePhone = (value) => {
   const digits = String(value ?? '').replace(/\D/g, '');
   if (digits.length === 10) return `+1${digits}`;
@@ -54,26 +55,47 @@ const normalizeRealName = (value) => {
   const candidate = clean(value);
   if (!candidate || invalidRealNames.has(candidate.toLowerCase()) || phoneLikeText(candidate) || !/[a-záéíóúüñ]/i.test(candidate) || /^[\W_\d]+$/u.test(candidate) || qualificationResponseMarkers.test(candidate)) return '';
   if (candidate.length > 100 || candidate.split(/\s+/).length > 8) return '';
-  return candidate;
+  return formatPersonalName(candidate);
 };
 const isBusinessName = (value) => /\b(?:auto\s*sales|motors?|dealership|dealer|llc|inc(?:orporated)?|corp(?:oration)?|company|tatuajes?|tattoos?|operaciones?|operations?|transport(?:ation)?|logistics|construction|remodeling|roofing|realty|consulting|services?|servicios?|shop|tienda|salon|barbershop|restaurant)\b/i.test(clean(value));
+const isProfileDisplayName = (value) => /[^\p{L}\p{M}\s.'-]/u.test(clean(value));
+const nameParticles = new Set(['da', 'de', 'del', 'der', 'di', 'la', 'las', 'los', 'van', 'von', 'y']);
+const formatPersonalName = (value) => {
+  if (isBusinessName(value) || !/^[a-záéíóúüñ][a-záéíóúüñ' -]*$/i.test(value)) return value;
+  return value.split(/\s+/).map((part, index) => {
+    const lower = part.toLocaleLowerCase();
+    if (index > 0 && nameParticles.has(lower)) return lower;
+    return lower.split(/([-'])/).map((piece) => /[-']/.test(piece) ? piece : piece ? `${piece[0].toLocaleUpperCase()}${piece.slice(1)}` : piece).join('');
+  }).join(' ');
+};
 const nameFromText = (value) => {
-  const source = clean(value);
-  const named = normalizeRealName(source.match(/(?:me llamo|mi nombre es|soy|my name is|this is)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i)?.[1]?.split(/[.!?,;]/, 1)[0]);
-  if (named) return named;
-  const candidate = source.replace(/[.!?,;:]+$/g, '');
-  if (!/^[a-záéíóúüñ][a-záéíóúüñ'-]*(?:\s+[a-záéíóúüñ][a-záéíóúüñ'-]*){1,3}$/i.test(candidate)) return '';
-  if (/\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) return '';
-  return normalizeRealName(candidate);
+  const segments = String(value ?? '').replace(/\r\n?/g, '\n').split(/[\n.!?;]+/).map(clean).filter(Boolean);
+  for (const segment of segments) {
+    const named = normalizeRealName(segment.match(/(?:me llamo|mi nombre es|soy|my name is|this is)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i)?.[1]);
+    if (named) return named;
+    const candidate = segment.replace(/[.!?,;:]+$/g, '');
+    if (!/^[a-záéíóúüñ][a-záéíóúüñ'-]*(?:\s+[a-záéíóúüñ][a-záéíóúüñ'-]*){1,3}$/i.test(candidate)) continue;
+    if (/\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) continue;
+    const name = normalizeRealName(candidate);
+    if (name) return name;
+  }
+  return '';
 };
 const suppliedName = normalizeRealName(inputData.real_name);
 const extractedNames = [
   memoryValue(['real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name', 'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre']),
-  nameFromText(message),
-  nameFromText(history),
+  nameFromText(rawMessage),
+  nameFromText(rawHistory),
 ];
-const realName = (isBusinessName(suppliedName) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) || '';
-const campaign = /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today)$/i.test(message.replace(/([!?])\s*\d{1,3}$/, '$1').replace(/[!?.,]/g, '').trim());
+const realName = ((isBusinessName(suppliedName) || isProfileDisplayName(suppliedName)) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) || '';
+const isCampaignButton = (value) => /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today|quiero financiar un auto(?: con ustedes)?|me gustaria financiar un auto(?: con ustedes)?|financiar un auto(?: con ustedes)?)$/.test(normalizeMatch(String(value ?? '').replace(/([!?])\s*\d{1,3}$/, '$1').replace(/[!?.,]/g, '')));
+const stripCampaignButtonPhrases = (value) => String(value ?? '')
+  .replace(/\bquiero mi auto con eastern\b/gi, ' ')
+  .replace(/\bquiero (?:un )?auto hoy\b/gi, ' ')
+  .replace(/\bi want (?:a )?car today\b/gi, ' ')
+  .replace(/\bquiero financiar un auto(?: con ustedes)?\b/gi, ' ')
+  .replace(/\bme gustar[ií]a financiar un auto(?: con ustedes)?\b/gi, ' ');
+const campaign = isCampaignButton(message);
 const amount = (value) => {
   const source = clean(value).toLowerCase();
   if (!source || emptyMarker(source)) return '';
@@ -114,7 +136,7 @@ const downFrom = (text) => {
   return validAmount(explicit?.[1] || standalone?.[1]);
 };
 const vehicleFrom = (text) => {
-  const source = clean(text);
+  const source = clean(stripCampaignButtonPhrases(text));
   if (!source || campaign) return '';
   const cleaned = source
     .replace(/(?:\+?1[\s().-]*)?(?:\(?[2-9]\d{2}\)?[\s.-]*)\d{3}[\s.-]?\d{4}/g, ' ')
@@ -129,7 +151,7 @@ const vehicleFrom = (text) => {
   const vehicle = cleaned.match(/\b(?:toyota|honda|ford|nissan|chevrolet|hyundai|kia|mazda|subaru|volkswagen|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla)\b(?:\s+[a-z0-9-]+){0,2}/i)?.[0];
   return clean(vehicle?.replace(/\b(?:19|20)\d{2}\b/g, '').replace(/\s+/g, ' '));
 };
-const cleanVehicleValue = (value) => clean(value).replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
+const cleanVehicleValue = (value) => isCampaignButton(value) ? '' : clean(value).replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
 const timelineFrom = (text) => {
   const hit = clean(text).match(/\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo m[aá]s pronto posible|lo antes posible|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|within \d+ days?|en \d+ d[ií]as?)\b/i)?.[0] || '';
   if (/today|hoy|asap|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes/i.test(hit)) return 'today';

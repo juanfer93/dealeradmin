@@ -261,6 +261,15 @@ export class ConversationWebhookService {
         missing_qualification: normalized.missing_qualification,
         message_count: messages.length,
       };
+      if (normalized.real_name) {
+        const { firstName: normalizedFirstName, lastName: normalizedLastName } = splitName(normalized.real_name);
+        await runner.query(
+          `UPDATE leads
+           SET first_name = $2, last_name = $3, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [lead.id, normalizedFirstName, normalizedLastName],
+        );
+      }
       // Window rules are based on the server's current dealer-local time, not on
       // a delayed or replayed GHL timestamp from the message payload.
       const status = this.statusForConversation(snapshot, location, dealer, source, new Date(), 'capture');

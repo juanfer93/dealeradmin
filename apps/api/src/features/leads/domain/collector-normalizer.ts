@@ -95,6 +95,16 @@ const INVALID_REAL_NAMES = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'l
 const BUSINESS_NAME_MARKERS = /\b(?:auto\s*sales|motors?|dealership|dealer|llc|inc(?:orporated)?|corp(?:oration)?|company|tatuajes?|tattoos?|operaciones?|operations?|transport(?:ation)?|logistics|construction|remodeling|roofing|realty|consulting|services?|servicios?|shop|tienda|salon|barbershop|restaurant)\b/i;
 const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|baltimore|maryland|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|yes|yeah|yep|correct|tengo|have it|i have|si|sí|no|no tengo)\b/i;
 const PHONE_LIKE_TEXT = /\b(?:mi|my)\s+(?:n[uú]mero|number|phone|tel[eé]fono|telephone|contact)\b/i;
+const NAME_PARTICLES = new Set(['da', 'de', 'del', 'der', 'di', 'la', 'las', 'los', 'van', 'von', 'y']);
+
+function formatPersonalName(value: string): string {
+  if (isLikelyBusinessName(value) || !/^[a-záéíóúüñ][a-záéíóúüñ' -]*$/i.test(value)) return value;
+  return value.split(/\s+/).map((part, index) => {
+    const lower = part.toLocaleLowerCase();
+    if (index > 0 && NAME_PARTICLES.has(lower)) return lower;
+    return lower.split(/([-'])/).map((piece) => /[-']/.test(piece) ? piece : piece ? `${piece[0].toLocaleUpperCase()}${piece.slice(1)}` : piece).join('');
+  }).join(' ');
+}
 
 export function normalizeRealName(value: string | null | undefined): string {
   const candidate = clean(value);
@@ -106,7 +116,7 @@ export function normalizeRealName(value: string | null | undefined): string {
   // into the contact's real name.
   if (QUALIFICATION_RESPONSE_MARKERS.test(candidate)) return EMPTY;
   if (candidate.length > 100 || candidate.split(/\s+/).length > 8) return EMPTY;
-  return candidate;
+  return formatPersonalName(candidate);
 }
 
 /**
@@ -118,20 +128,27 @@ export function isLikelyBusinessName(value: string | null | undefined): boolean 
   return BUSINESS_NAME_MARKERS.test(clean(value));
 }
 
-function extractRealNameFromText(value: string): string {
-  const source = clean(value);
-  if (!source) return EMPTY;
-  const explicit = source.match(/(?:me llamo|mi nombre es|soy|my name is|this is)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i);
-  const named = normalizeRealName(explicit?.[1]?.split(/[.!?,;]/, 1)[0]);
-  if (named) return named;
+function isLikelyProfileDisplayName(value: string | null | undefined): boolean {
+  return /[^\p{L}\p{M}\s.'-]/u.test(clean(value));
+}
 
-  // After the bot asks for a full name, people commonly answer with only
-  // "First Last". Accept that narrow shape, but never turn vehicle/intent
-  // messages into a name before the collector persists it to the contact.
-  const candidate = source.replace(/[.!?,;:]+$/g, '');
-  if (!/^[a-záéíóúüñ][a-záéíóúüñ'-]*(?:\s+[a-záéíóúüñ][a-záéíóúüñ'-]*){1,3}$/i.test(candidate)) return EMPTY;
-  if (/\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) return EMPTY;
-  return normalizeRealName(candidate);
+function extractRealNameFromText(value: string): string {
+  const segments = String(value ?? '').replace(/\r\n?/g, '\n').split(/[\n.!?;]+/).map(clean).filter(Boolean);
+  for (const segment of segments) {
+    const explicit = segment.match(/(?:me llamo|mi nombre es|soy|my name is|this is)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i);
+    const named = normalizeRealName(explicit?.[1]);
+    if (named) return named;
+
+    // After the bot asks for a full name, people commonly answer with only
+    // "First Last". Accept that narrow shape, but never turn vehicle/intent
+    // messages into a name before the collector persists it to the contact.
+    const candidate = segment.replace(/[.!?,;:]+$/g, '');
+    if (!/^[a-záéíóúüñ][a-záéíóúüñ'-]*(?:\s+[a-záéíóúüñ][a-záéíóúüñ'-]*){1,3}$/i.test(candidate)) continue;
+    if (/\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) continue;
+    const name = normalizeRealName(candidate);
+    if (name) return name;
+  }
+  return EMPTY;
 }
 
 export function realNameFromQualificationMemory(memory: string | null | undefined): string {
@@ -145,8 +162,18 @@ function isCampaignButton(value: string): boolean {
   const normalized = clean(value)
     .replace(/([!?])\s*\d{1,3}$/, '$1')
     .replace(/[!?.,]/g, '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
-  return /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today)$/.test(normalized);
+  return /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today|quiero financiar un auto(?: con ustedes)?|me gustaria financiar un auto(?: con ustedes)?|financiar un auto(?: con ustedes)?)$/.test(normalized);
+}
+
+function stripCampaignButtonPhrases(value: string): string {
+  return value
+    .replace(/\bquiero mi auto con eastern\b/gi, ' ')
+    .replace(/\bquiero (?:un )?auto hoy\b/gi, ' ')
+    .replace(/\bi want (?:a )?car today\b/gi, ' ')
+    .replace(/\bquiero financiar un auto(?: con ustedes)?\b/gi, ' ')
+    .replace(/\bme gustar[ií]a financiar un auto(?: con ustedes)?\b/gi, ' ');
 }
 
 function normalizeAmount(value: string): string {
@@ -215,6 +242,7 @@ function firstValidAmount(...values: Array<string | null | undefined>): string {
 
 function normalizeVehicle(value: string): string {
   let source = clean(value).replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
+  if (isCampaignButton(source)) return EMPTY;
   // HighLevel can concatenate the Custom Code output and the AI output
   // without a separator. Keep the value before a repeated label such as
   // "Toyota HilanderVehicle: Toyota HilanderToyota Hilander".
@@ -232,7 +260,7 @@ function normalizeVehicle(value: string): string {
 }
 
 function extractVehicle(message: string): string {
-  const source = clean(message);
+  const source = clean(stripCampaignButtonPhrases(message));
   if (!source || isCampaignButton(source)) return EMPTY;
   const withoutOtherFacts = source
     .replace(/(?:\+?1[\s().-]*)?(?:\(?[2-9]\d{2}\)?[\s.-]*)\d{3}[\s.-]?\d{4}/g, ' ')
@@ -420,15 +448,15 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
         ? 'custom_fields'
         : 'none';
   const campaignReply = isCampaignButton(message);
-  const messageForExtraction = campaignReply ? EMPTY : message;
+  const messageForExtraction = stripCampaignButtonPhrases(message);
   const source = [history, message, memory].filter(Boolean).join('; ');
   const suppliedName = normalizeRealName(input.real_name);
   const extractedNames = [
     realNameFromQualificationMemory(memory),
-    extractRealNameFromText(message),
-    extractRealNameFromText(history),
+    extractRealNameFromText(rawMessage),
+    extractRealNameFromText(rawHistory),
   ];
-  const realName = (isLikelyBusinessName(suppliedName)
+  const realName = (isLikelyBusinessName(suppliedName) || isLikelyProfileDisplayName(suppliedName)
     ? [...extractedNames, suppliedName]
     : [suppliedName, ...extractedNames]
   ).map(normalizeRealName).find(Boolean) ?? EMPTY;

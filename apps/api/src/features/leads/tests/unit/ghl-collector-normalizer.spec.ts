@@ -46,6 +46,21 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.qualification_complete).toBe(false);
   });
 
+  it.each([
+    'Quiero financiar un auto',
+    'Me gustaría financiar un auto con ustedes',
+  ])('does not classify an advertising financing button as a vehicle in Custom Code: %s', (message) => {
+    expect(execute({ message, vehicle_type: 'financiar un auto' }).vehicle_type).toBe('');
+  });
+
+  it('extracts a declared personal name from the complete inbound transcript in Custom Code', () => {
+    const transcript = '*Headline:* Financiamiento interno! Quiero financiar un auto!\nElias alvarado\nAun auto económico para el trabajo';
+    expect(execute({ real_name: 'EliasJosue 🕊Mnegra', message: transcript, chat_history_log: transcript })).toMatchObject({
+      real_name: 'Elias Alvarado',
+      vehicle_type: '',
+    });
+  });
+
   it.each(['Quiero cambiar mi vehículo', 'Cambio de auto', 'I want to change my vehicle'])('maps vehicle-change language to trade-in: %s', (message) => {
     const result = execute({ message });
     expect(result.down_payment).toBe('trade-in');
@@ -108,7 +123,7 @@ describe('HighLevel collector custom-code normalizer', () => {
   });
 
   it('extracts Elias Alvarado from the Stafford conversation in Custom Code', () => {
-    expect(execute({ message: 'Elias alvarado' }).real_name).toBe('Elias alvarado');
+    expect(execute({ message: 'Elias alvarado' }).real_name).toBe('Elias Alvarado');
   });
 
   it('prefers the phone written in the message and ignores a stale contact phone', () => {
@@ -154,6 +169,14 @@ describe('HighLevel collector custom-code normalizer', () => {
   it('captures a standalone full-name answer without treating a vehicle request as a name', () => {
     expect(execute({ message: 'María José López' }).real_name).toBe('María José López');
     expect(execute({ message: 'Quiero una camioneta' }).real_name).toBe('');
+  });
+
+  it.each([
+    ['elias alvarado', 'Elias Alvarado'],
+    ['JUAN de la cruz', 'Juan de la Cruz'],
+    ["maria-jose o'neal", "Maria-Jose O'Neal"],
+  ])('formats personal names consistently in Custom Code: %s', (message, expected) => {
+    expect(execute({ message }).real_name).toBe(expected);
   });
 
   it('prefers a declared personal name over a commercial profile, while retaining it as fallback', () => {
