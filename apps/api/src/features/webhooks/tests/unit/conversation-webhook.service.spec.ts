@@ -196,6 +196,8 @@ describe('ConversationWebhookService', () => {
     const leadUpdate = queryRunner.query.mock.calls.find(([sql]) => sql.includes('UPDATE leads')) as [string, unknown[]] | undefined;
     expect(leadUpdate?.[0]).toContain("LOWER($2) = 'lead'");
     expect(leadUpdate?.[1]).toEqual(['+13015550123', 'Lead', '', 'lead-existing']);
+    const conversationUpdate = queryRunner.query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ real_name: '' });
   });
 
   it('fails closed when a source Location ID matches more than one active dealer', async () => {

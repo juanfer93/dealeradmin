@@ -220,6 +220,10 @@ describe('normalizeCollectorInput', () => {
     expect(result.vehicle_type).toBe('');
   });
 
+  it.each(['Que requisitos necesito', 'What requirements do I need'])('does not classify a requirements question as a real name: %s', (message) => {
+    expect(normalizeCollectorInput({ message, real_name: message }).real_name).toBe('');
+  });
+
   it.each([
     'Quiero financiar un auto',
     'Me gustaría financiar un auto con ustedes',

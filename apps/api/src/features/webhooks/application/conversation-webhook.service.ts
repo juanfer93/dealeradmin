@@ -261,8 +261,12 @@ export class ConversationWebhookService {
       });
       const location = await this.resolveLocation(runner, transcript);
       const language = GHL_SOURCE_CONFIG[source].splitByLanguage ? detectLeadLanguage(transcript) : undefined;
+      const previousRealName = normalizeRealName(clean(conversation.qualification_snapshot?.real_name));
       const snapshot: ConversationSnapshot = {
-        real_name: normalized.real_name || normalizedName,
+        // The GHL profile label is only a display fallback for the lead row.
+        // A qualification real_name must come from a declared/repeated name
+        // in the conversation, never from Messenger's username.
+        real_name: normalized.real_name || previousRealName,
         phone: normalized.phone || phone || '',
         vehicle_type: normalized.vehicle_type,
         down_payment: normalizeDownPayment(normalized.down_payment),
@@ -291,7 +295,7 @@ export class ConversationWebhookService {
       const queuedDuplicate = await findQueuedConversationDuplicate(
         runner,
         dealer.id,
-        snapshot.real_name,
+        snapshot.real_name || normalizedName,
         snapshot.phone,
       );
       if (queuedDuplicate) {
@@ -507,13 +511,13 @@ export class ConversationWebhookService {
     try {
       const rows = await runner.query(
         `SELECT c.id, c.ghl_location_id, c.ghl_contact_id, c.qualification_snapshot, c.location_snapshot, c.ready_at,
-                l.id AS lead_id
+                l.id AS lead_id, l.first_name, l.last_name
          FROM conversations c
          JOIN leads l ON l.id = c.lead_id
          WHERE c.id = $1 AND c.status = 'waiting_window' AND c.next_attempt_at <= $2
          FOR UPDATE`,
         [id, now.toISOString()],
-      ) as Array<{ id: string; ghl_location_id: string; qualification_snapshot: ConversationSnapshot; location_snapshot: LocationSnapshot; ready_at: string | null; lead_id: string }>;
+      ) as Array<{ id: string; ghl_location_id: string; qualification_snapshot: ConversationSnapshot; location_snapshot: LocationSnapshot; ready_at: string | null; lead_id: string; first_name: string | null; last_name: string | null }>;
       if (!rows[0]) {
         await runner.rollbackTransaction();
         return false;
@@ -535,7 +539,7 @@ export class ConversationWebhookService {
       const queuedDuplicate = await findQueuedConversationDuplicate(
         runner,
         dealer.id,
-        row.qualification_snapshot.real_name,
+        row.qualification_snapshot.real_name || clean(`${row.first_name || ''} ${row.last_name || ''}`),
         row.qualification_snapshot.phone,
         id,
       );
