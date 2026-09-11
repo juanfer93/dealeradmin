@@ -46,13 +46,17 @@ function formatDate(value: string, language: 'es' | 'en') {
   return new Intl.DateTimeFormat(language === 'es' ? 'es-CO' : 'en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
 }
 
-function dealerIdentity(name: string): { group: string; location: string } {
+export function dealerIdentity(name: string): { group: string; location: string } {
   const normalized = name.trim();
   if (/^arlington motors of woodbridge$/i.test(normalized)) {
     return { group: 'Arlington Motors of Woodbridge', location: 'Woodbridge' };
   }
   if (/^easterns\b/i.test(normalized)) {
     return { group: 'Easterns Automotive Group', location: normalized.replace(/^easterns\s*/i, '') || normalized };
+  }
+  if (/^koons\b/i.test(normalized)) {
+    const location = normalized.match(/\b(?:of|de)\s+(.+)$/i)?.[1] ?? normalized;
+    return { group: normalized, location };
   }
   return { group: 'Offlease Motors', location: normalized.replace(/^offlease(?:\s+motors)?\s*/i, '') || normalized };
 }
