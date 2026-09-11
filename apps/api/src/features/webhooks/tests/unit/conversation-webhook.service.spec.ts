@@ -108,4 +108,34 @@ describe('ConversationWebhookService', () => {
     )).rejects.toThrow('más de un dealer activo');
     expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO leads'))).toBe(false);
   });
+
+  it('casts the conversation status parameter consistently in the persistence update', async () => {
+    const queryRunner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [{ event_id: 'evt-status-cast' }];
+        if (sql.includes('FROM dealers')) return [{ id: 'dealer-stafford', code: 'STAFFORD', name: 'Stafford', timezone: 'America/New_York', routing_config: {} }];
+        if (sql.includes('FROM leads WHERE ghl_location_id')) return [{ id: 'lead-status-cast', canonical_phone: '+13015550123', first_name: 'Ana', last_name: 'Torres' }];
+        if (sql.includes('FROM conversations')) return [{ id: 'conversation-status-cast', status: 'partial', qualification_snapshot: {}, location_snapshot: {} }];
+        if (sql.includes('SELECT body FROM conversation_messages')) return [{ body: 'I need an SUV.' }];
+        return [];
+      }),
+    };
+    const service = new ConversationWebhookService({ createQueryRunner: () => queryRunner } as never);
+
+    await service.acceptCustomerReplied(
+      { message_body: 'I need an SUV.', contact_phone: '+13015550123', channel: 'whatsapp' },
+      'stafford',
+      { contactId: 'ghl-status-cast-contact', conversationId: 'ghl-status-cast-conversation' },
+    );
+
+    const conversationUpdate = queryRunner.query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(conversationUpdate?.[0]).toContain('status = $2::varchar');
+    expect(conversationUpdate?.[0]).toContain("CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued')");
+  });
 });

@@ -262,8 +262,8 @@ export class ConversationWebhookService {
       const status = this.statusForConversation(snapshot, location, dealer, source, new Date());
       await runner.query(
         `UPDATE conversations
-         SET status = $2, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
-             last_message_at = $5, ready_at = CASE WHEN $2 IN ('ready', 'waiting_window', 'queued') THEN COALESCE(ready_at, $5) ELSE ready_at END,
+         SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
+             last_message_at = $5, ready_at = CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued') THEN COALESCE(ready_at, $5) ELSE ready_at END,
              next_attempt_at = $6, updated_at = CURRENT_TIMESTAMP
          WHERE id = $1`,
         [conversation.id, status.status, JSON.stringify(snapshot), JSON.stringify(location), receivedAt, status.nextAttemptAt],
