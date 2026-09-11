@@ -96,6 +96,7 @@ const BUSINESS_NAME_MARKERS = /\b(?:auto\s*sales|motors?|dealership|dealer|llc|i
 const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|baltimore|maryland|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|yes|yeah|yep|correct|tengo|have it|i have|si|sí|no|no tengo)\b/i;
 const PHONE_LIKE_TEXT = /\b(?:mi|my)\s+(?:n[uú]mero|number|phone|tel[eé]fono|telephone|contact)\b/i;
 const NAME_PARTICLES = new Set(['da', 'de', 'del', 'der', 'di', 'la', 'las', 'los', 'van', 'von', 'y']);
+const NON_VEHICLE_INTENT_VALUES = /^(?:(?:(?:quiero|necesito|me gustar[ií]a|me interesa)\s+)?(?:m[aá]s\s+)?(?:informaci[oó]n|info|detalles?|details?|information)|more\s+(?:information|info|details?)|learn\s+more)$/i;
 
 function formatPersonalName(value: string): string {
   if (isLikelyBusinessName(value) || !/^[a-záéíóúüñ][a-záéíóúüñ' -]*$/i.test(value)) return value;
@@ -165,6 +166,11 @@ function isCampaignButton(value: string): boolean {
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
   return /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today|quiero financiar un auto(?: con ustedes)?|me gustaria financiar un auto(?: con ustedes)?|financiar un auto(?: con ustedes)?)$/.test(normalized);
+}
+
+function isNonVehicleIntent(value: string): boolean {
+  const normalized = clean(value).replace(/[!?.,]/g, '').trim();
+  return NON_VEHICLE_INTENT_VALUES.test(normalized);
 }
 
 function stripCampaignButtonPhrases(value: string): string {
@@ -242,7 +248,7 @@ function firstValidAmount(...values: Array<string | null | undefined>): string {
 
 function normalizeVehicle(value: string): string {
   let source = clean(value).replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
-  if (isCampaignButton(source)) return EMPTY;
+  if (isCampaignButton(source) || isNonVehicleIntent(source)) return EMPTY;
   // HighLevel can concatenate the Custom Code output and the AI output
   // without a separator. Keep the value before a repeated label such as
   // "Toyota HilanderVehicle: Toyota HilanderToyota Hilander".
@@ -261,7 +267,7 @@ function normalizeVehicle(value: string): string {
 
 function extractVehicle(message: string): string {
   const source = clean(stripCampaignButtonPhrases(message));
-  if (!source || isCampaignButton(source)) return EMPTY;
+  if (!source || isCampaignButton(source) || isNonVehicleIntent(source)) return EMPTY;
   const withoutOtherFacts = source
     .replace(/(?:\+?1[\s().-]*)?(?:\(?[2-9]\d{2}\)?[\s.-]*)\d{3}[\s.-]?\d{4}/g, ' ')
     .replace(/(?:down|enganche|inicial|deposit|dep[oó]sito)\s*(?:payment|pago)?\s*(?:is|es|de|:)?\s*\$?\s*[\d,.]+\s*k?/gi, '')
@@ -269,7 +275,7 @@ function extractVehicle(message: string): string {
     .split(/[;,]/, 1)[0]
     .trim();
   const requested = withoutOtherFacts.match(/(?:looking for|busco|quiero|want|interested in|interesado en)\s+(?:a|an|un|una)?\s*([^.!?]+)/i)?.[1];
-  if (requested) return clean(requested);
+  if (requested && !isNonVehicleIntent(requested)) return clean(requested);
   // A transcript can contain several facts (for example "Sedan" followed by
   // a Subaru trade-in). Return the vehicle token, never the complete transcript.
   const category = withoutOtherFacts.match(/\b(suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto)\b/i)?.[1];

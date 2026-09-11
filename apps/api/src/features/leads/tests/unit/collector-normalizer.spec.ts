@@ -219,6 +219,10 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message, vehicle_type: 'financiar un auto' }).vehicle_type).toBe('');
   });
 
+  it.each(['Más información', 'Más info', 'Quiero más información', 'More details', 'Learn more'])('does not classify an information intent as a vehicle: %s', (message) => {
+    expect(normalizeCollectorInput({ message, vehicle_type: message }).vehicle_type).toBe('');
+  });
+
   it('removes campaign-button suffix contamination and captures a numeric reply followed by tengo', () => {
     expect(normalizeCollectorInput({ message: 'Quiero mi Auto con Eastern!10', down_payment: '10' })).toMatchObject({
       vehicle_type: '',

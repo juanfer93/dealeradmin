@@ -53,6 +53,10 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(execute({ message, vehicle_type: 'financiar un auto' }).vehicle_type).toBe('');
   });
 
+  it.each(['Más información', 'Más info', 'Quiero más información', 'More details', 'Learn more'])('does not classify an information intent as a vehicle in Custom Code: %s', (message) => {
+    expect(execute({ message, vehicle_type: message }).vehicle_type).toBe('');
+  });
+
   it('extracts a declared personal name from the complete inbound transcript in Custom Code', () => {
     const transcript = '*Headline:* Financiamiento interno! Quiero financiar un auto!\nElias alvarado\nAun auto económico para el trabajo';
     expect(execute({ real_name: 'EliasJosue 🕊Mnegra', message: transcript, chat_history_log: transcript })).toMatchObject({
