@@ -62,7 +62,17 @@ export function dealerIdentity(name: string): { group: string; location: string 
 }
 
 function Qualification({ lead, language, empty }: { lead: Lead; language: 'es' | 'en'; empty: Record<string, string> }) {
-  return <div className="flex max-w-[260px] flex-wrap gap-1.5">{lead.downPayment ? <span className="rounded bg-[var(--brand-soft)] px-2 py-1 text-xs">{lead.downPayment}</span> : <span className="rounded bg-[var(--surface-raised)] px-2 py-1 text-xs text-[var(--text-muted)]">{empty.downPayment}</span>}{lead.identification ? <span className="rounded bg-[var(--brand-soft)] px-2 py-1 text-xs">ID {lead.identification}</span> : <span className="rounded bg-[var(--surface-raised)] px-2 py-1 text-xs text-[var(--text-muted)]">{empty.identification}</span>}{lead.bankAccount ? <span className="rounded bg-[var(--brand-soft)] px-2 py-1 text-xs">{language === 'es' ? 'cuenta' : 'bank account'} {lead.bankAccount}</span> : <span className="rounded bg-[var(--surface-raised)] px-2 py-1 text-xs text-[var(--text-muted)]">{empty.bankAccount}</span>}{lead.documents ? <span className="rounded bg-[var(--brand-soft)] px-2 py-1 text-xs">{lead.documents}</span> : <span className="rounded bg-[var(--surface-raised)] px-2 py-1 text-xs text-[var(--text-muted)]">{empty.documents}</span>}{lead.purchaseTimeline ? <span className="rounded bg-[var(--brand-soft)] px-2 py-1 text-xs">{lead.purchaseTimeline}</span> : <span className="rounded bg-[var(--surface-raised)] px-2 py-1 text-xs text-[var(--text-muted)]">{empty.purchaseTimeline}</span>}</div>;
+  const evidence = (label: string, value: string | null) => {
+    const normalized = clean(value);
+    if (!normalized) return '';
+    return /^yes$/i.test(normalized) ? label : `${label} ${normalized}`;
+  };
+  const identification = evidence('ID', lead.identification);
+  const bankAccount = evidence(language === 'es' ? 'cuenta bancaria' : 'bank account', lead.bankAccount);
+  const incomeEvidence = /proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina/i.test(clean(lead.documents));
+  const documents = incomeEvidence ? (language === 'es' ? 'prueba de ingresos' : 'proof of income') : clean(lead.documents).replace(/(?:identification|id|proof of income|income proof|prueba de ingresos|comprobante de ingresos)\s*:\s*yes/gi, '').replace(/^[,;\s]+|[,;\s]+$/g, '');
+  const tag = (value: string, fallback: string) => value ? <span className="rounded bg-[var(--brand-soft)] px-2 py-1 text-xs">{value}</span> : <span className="rounded bg-[var(--surface-raised)] px-2 py-1 text-xs text-[var(--text-muted)]">{fallback}</span>;
+  return <div className="flex max-w-[260px] flex-wrap gap-1.5">{tag(lead.downPayment ? lead.downPayment : '', empty.downPayment)}{tag(identification, empty.identification)}{tag(bankAccount, empty.bankAccount)}{tag(documents, empty.documents)}{tag(lead.purchaseTimeline ?? '', empty.purchaseTimeline)}</div>;
 }
 
 export default function OperatorDashboard() {

@@ -54,7 +54,7 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
     expect(relationUpsert?.[1]).toEqual([
       'lead-111',
       'dealer-222',
-      'Troca',
+      'truck',
       '3500',
       'yes',
       '',
@@ -66,7 +66,7 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
       'Source dealer from GHL location',
       'resolved',
       'sent',
-      'Carlos Mendoza +15551234567 Troca, 3500 de down, ID yes, documentos Pasaporte e ID, quiere comprar exploring options.',
+      'Carlos Mendoza +15551234567 truck, 3500 down, ID yes, Pasaporte e ID, wants to buy exploring options.',
     ]);
   });
 

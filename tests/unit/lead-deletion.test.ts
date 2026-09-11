@@ -39,6 +39,7 @@ describe('borrado persistente de leads', () => {
         .mockResolvedValueOnce([{ lead_id: 'lead-1' }])
         .mockResolvedValueOnce([{ count: 0 }])
         .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
         .mockResolvedValueOnce([{ id: 'lead-1' }]),
     };
     const controller = new LeadsController(
@@ -58,7 +59,7 @@ describe('borrado persistente de leads', () => {
     expect(queryRunner.commitTransaction).toHaveBeenCalledOnce();
     expect(queryRunner.rollbackTransaction).not.toHaveBeenCalled();
     expect(queryRunner.query).toHaveBeenNthCalledWith(2, expect.stringContaining('DELETE FROM lead_dealers'), ['lead-1', 'dealer-1']);
-    expect(queryRunner.query).toHaveBeenNthCalledWith(5, expect.stringContaining('DELETE FROM leads'), ['lead-1']);
+    expect(queryRunner.query).toHaveBeenNthCalledWith(6, expect.stringContaining('DELETE FROM leads'), ['lead-1']);
   });
 
   it('mantiene el lead principal cuando todavía tiene otra relación de dealer', async () => {

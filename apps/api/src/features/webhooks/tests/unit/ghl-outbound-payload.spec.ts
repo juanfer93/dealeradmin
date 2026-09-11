@@ -2,6 +2,42 @@ import { describe, expect, it } from 'vitest';
 import { normalizeGhlOutboundPayload } from '../../application/ghl-outbound-payload';
 
 describe('normalizeGhlOutboundPayload', () => {
+  it('uses the Messenger contact name and not the response as real_name', () => {
+    const result = normalizeGhlOutboundPayload({
+      id: 'contact-messenger-name',
+      locationId: 'location-messenger',
+      name: 'Hay Les Aviso',
+      phone: '+12405550100',
+      customData: {
+        channel: 'messenger',
+        message: 'Que requisitos necesito',
+      },
+    }) as Record<string, any>;
+
+    expect(result.lead).toMatchObject({
+      channel: 'messenger',
+      real_name: 'Hay Les Aviso',
+    });
+  });
+
+  it('uses a declared WhatsApp name instead of the contact label', () => {
+    const result = normalizeGhlOutboundPayload({
+      id: 'contact-whatsapp-name',
+      locationId: 'location-whatsapp',
+      name: 'EliasJosue 🕊Mnegra',
+      phone: '+12405550101',
+      customData: {
+        channel: 'whatsapp',
+        message: 'Me llamo Elias Alvarado',
+      },
+    }) as Record<string, any>;
+
+    expect(result.lead).toMatchObject({
+      channel: 'whatsapp',
+      real_name: 'Elias Alvarado',
+    });
+  });
+
   it('adapts native HighLevel contact data and customData to the API contract', () => {
     const result = normalizeGhlOutboundPayload({
       id: 'contact-123',
@@ -52,6 +88,8 @@ describe('normalizeGhlOutboundPayload', () => {
       id: 'contact-conversation',
       locationId: 'location-conversation',
       first_name: 'Conversation',
+      last_name: 'Lead',
+      phone: '+13015550124',
       conversation: {
         messages: [
           { text: 'I need an SUV.' },
@@ -344,7 +382,7 @@ describe('normalizeGhlOutboundPayload', () => {
         locationId: 'easterns-qa-location',
         first_name: 'QA',
         last_name: 'Custom Fields',
-        phone: '',
+        phone: '+13015550127',
         customData: {
           vehicle_type: 'SUV',
           down_payment: '$2,000',
@@ -370,7 +408,7 @@ describe('normalizeGhlOutboundPayload', () => {
         locationId: 'easterns-qa-location',
         first_name: 'QA',
         last_name: 'Memory Only',
-        phone: '',
+        phone: '+13015550126',
         contact: {
           customFields: {
             qualification_memory: 'vehicle_type: SUV; make: Toyota; model: RAV4; down payment: trade-in + 2K; documents: ID and proof of income; purchase_timeline: in 2 weeks; bank account: yes',
@@ -385,7 +423,7 @@ describe('normalizeGhlOutboundPayload', () => {
         message: 'QA conversation captured in qualification memory',
       },
       expected: {
-        qualification_source: 'qualification_memory',
+        qualification_source: 'both',
         qualification_complete: true,
         vehicle_type: 'SUV — Toyota RAV4',
         down_payment: '2000 + trade-in',
@@ -399,7 +437,7 @@ describe('normalizeGhlOutboundPayload', () => {
         locationId: 'easterns-qa-location',
         first_name: 'QA',
         last_name: 'Memory Precedence',
-        phone: '',
+        phone: '+13015550127',
         customData: {
           vehicle_type: 'Sedan',
           down_payment: '',

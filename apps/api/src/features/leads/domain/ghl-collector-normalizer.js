@@ -102,6 +102,8 @@ const normalizeRealName = (value) => {
   if (candidate.length > 100 || candidate.split(/\s+/).length > 8) return '';
   return formatPersonalName(candidate);
 };
+const isMessengerChannel = (value) => /(?:^|[^a-z])(?:messenger|facebook)(?:$|[^a-z])/i.test(clean(value));
+const isWhatsAppChannel = (value) => /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(clean(value));
 const isBusinessName = (value) => /\b(?:auto\s*sales|motors?|dealership|dealer|llc|inc(?:orporated)?|corp(?:oration)?|company|tatuajes?|tattoos?|operaciones?|operations?|transport(?:ation)?|logistics|construction|remodeling|roofing|realty|consulting|services?|servicios?|shop|tienda|salon|barbershop|restaurant)\b/i.test(clean(value));
 const isProfileDisplayName = (value) => /[^\p{L}\p{M}\s.'-]/u.test(clean(value));
 const nameParticles = new Set(['da', 'de', 'del', 'der', 'di', 'la', 'las', 'los', 'van', 'von', 'y']);
@@ -127,12 +129,17 @@ const nameFromText = (value) => {
   return '';
 };
 const suppliedName = normalizeRealName(inputData.real_name);
+const contactName = normalizeRealName(first(inputData.contact_name, inputData.contactName, inputData.name));
 const extractedNames = [
   memoryValue(['real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name', 'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre']),
   nameFromText(rawMessage),
   nameFromText(rawHistory),
 ];
-const realName = ((isBusinessName(suppliedName) || isProfileDisplayName(suppliedName)) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) || '';
+const realName = isMessengerChannel(inputData.channel)
+  ? (contactName || suppliedName)
+  : isWhatsAppChannel(inputData.channel)
+    ? extractedNames.map(normalizeRealName).find(Boolean) || ''
+    : ((isBusinessName(suppliedName) || isProfileDisplayName(suppliedName)) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) || '';
 const isCampaignButton = (value) => /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today|quiero financiar un auto(?: con ustedes)?|me gustaria financiar un auto(?: con ustedes)?|financiar un auto(?: con ustedes)?|(?:quiero )?financiar con easterns?)$/.test(normalizeMatch(String(value ?? '').replace(/([!?])\s*\d{1,3}$/, '$1').replace(/[!?.,]/g, '')));
 const isNonVehicleIntent = (value) => nonVehicleIntentValues.test(clean(value).replace(/[!?.,]/g, '').trim());
 const stripCampaignButtonPhrases = (value) => String(value ?? '')
@@ -183,20 +190,26 @@ const downFrom = (text) => {
   return validAmount(explicit?.[1] || standalone?.[1]);
 };
 const vehicleFrom = (text) => {
-  const source = clean(stripCampaignButtonPhrases(text));
+  const source = String(text ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source || campaign) return '';
-  const cleaned = source
-    .replace(/(?:\+?1[\s().-]*)?(?:\(?[2-9]\d{2}\)?[\s.-]*)\d{3}[\s.-]?\d{4}/g, ' ')
-    .replace(/(?:down|enganche|inicial|deposit|dep[oó]sito)\s*(?:payment|pago)?\s*(?:is|es|de|:)?\s*\$?[\d,.]+\s*k?/gi, '')
-    .replace(/\b(?:today|hoy|asap|immediately|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes)\b/gi, '')
-    .split(/[;,]/, 1)[0]
-    .trim();
-  const requested = cleaned.match(/(?:looking for|busco|quiero|want|interested in|interesado en)\s+(?:a|an|un|una)?\s*([^.!?]+)/i)?.[1];
-  if (requested && !isNonVehicleIntent(requested)) {
-    const requestedLabel = vehicleLabel(requested);
-    if (requestedLabel) return requestedLabel;
+  for (const line of source.split(/\n+/).map(clean).filter(Boolean)) {
+    const candidate = stripCampaignButtonPhrases(line);
+    if (!candidate || isCampaignButton(candidate) || isNonVehicleIntent(candidate)) continue;
+    const cleaned = candidate
+      .replace(/(?:\+?1[\s().-]*)?(?:\(?[2-9]\d{2}\)?[\s.-]*)\d{3}[\s.-]?\d{4}/g, ' ')
+      .replace(/(?:down|enganche|inicial|deposit|dep[oó]sito)\s*(?:payment|pago)?\s*(?:is|es|de|:)?\s*\$?[\d,.]+\s*k?/gi, '')
+      .replace(/\b(?:today|hoy|asap|immediately|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes)\b/gi, '')
+      .split(/[;,]/, 1)[0]
+      .trim();
+    const requested = cleaned.match(/(?:looking for|busco|quiero|want|interested in|interesado en)\s+(?:a|an|un|una)?\s*([^.!?]+)/i)?.[1];
+    if (requested && !isNonVehicleIntent(requested)) {
+      const requestedLabel = vehicleLabel(requested);
+      if (requestedLabel) return requestedLabel;
+    }
+    const label = vehicleLabel(cleaned);
+    if (label) return label;
   }
-  return vehicleLabel(cleaned);
+  return '';
 };
 const cleanVehicleValue = (value) => isCampaignButton(value) || isNonVehicleIntent(value) ? '' : clean(value).replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
 const timelineFrom = (text) => {
@@ -214,14 +227,20 @@ const yesNo = (value) => {
   if (/\b(?:yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available)\b/i.test(source)) return 'yes';
   return '';
 };
+const conversationalEvidence = (...values) => values
+  .flatMap((value) => String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/))
+  .map((line) => line.trim())
+  .filter(Boolean)
+  .filter((line) => !line.includes('?') && !/^\s*(?:do you|does|did|what|which|when|where|how|can you|are you|tienes|tiene|cu[aá]l|qu[eé]|cu[aá]ndo|d[oó]nde|c[oó]mo)\b/i.test(line))
+  .join('; ');
 const documentStatus = (pattern, memoryAliases, custom) => {
   const customStatus = emptyMarker(custom) ? '' : yesNo(custom);
   if (customStatus) return customStatus;
   if (new RegExp(pattern, 'i').test(clean(custom)) && !/\b(?:no|n[oó]|sin|not|dont|don't|no tengo|do not have|not available)\b/i.test(clean(custom))) return 'yes';
-  const conversational = `${message}; ${history}`;
+  const conversational = conversationalEvidence(rawMessage, rawHistory);
   const positive = 'yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available';
   const negative = "no|n[oó]|sin|not|dont|don't|no tengo|i do not|do not have|not available";
-  const conversationalContext = conversational.match(new RegExp(`(?:${positive}|${negative})[^;.!?]{0,60}(?:${pattern})|(?:${pattern})[^;.!?]{0,60}(?:${positive}|${negative})`, 'i'))?.[0] || '';
+  const conversationalContext = conversational.match(new RegExp(`(?:${positive}|${negative})[^!?]{0,160}(?:${pattern})|(?:${pattern})[^!?]{0,160}(?:${positive}|${negative})`, 'i'))?.[0] || '';
   const conversationalStatus = yesNo(conversationalContext);
   if (conversationalStatus) return conversationalStatus;
   if (new RegExp(pattern, 'i').test(conversational) && !new RegExp(`\\b(?:${negative})\\b`, 'i').test(conversational)) return 'yes';
@@ -232,8 +251,8 @@ const documentStatus = (pattern, memoryAliases, custom) => {
   return '';
 };
 const vehicle = first(
-  campaign ? '' : cleanVehicleValue(vehicleFrom(message)),
-  cleanVehicleValue(vehicleFrom(history)),
+  campaign ? '' : cleanVehicleValue(vehicleFrom(rawMessage)),
+  cleanVehicleValue(vehicleFrom(rawHistory)),
   cleanVehicleValue(memoryValue(['vehicle', 'vehicle_type'])),
   cleanVehicleValue(inputData.vehicle_type),
 );
@@ -247,12 +266,17 @@ const down = validAmount(cashDown && /trade[- ]?in|my car|my vehicle|mi carro|mi
 const timeline = first(timelineFrom(message), timelineFrom(history), memoryValue(['timeline', 'purchase timeline', 'purchase_timeline']), inputData.purchase_timeline);
 const identification = documentStatus('id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b', ['identification', 'id', 'itin', 'passport', 'pasaporte'], inputData.identification || inputData.documents);
 const income = documentStatus('proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina|bank account|cuenta bancaria|cuenta de banco', ['income', 'proof of income', 'estados de cuenta', 'account statements', 'bank statements', 'check stubs', 'bank account', 'cuenta bancaria'], inputData.documents);
-const bankContext = `${message}; ${history}`.match(/(?:bank account|cuenta bancaria)[^;]*(?:yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available|no|not|sin|dont|don't|no tengo|i do not|do not have|not available)/i)?.[0] || '';
+const bankContext = conversationalEvidence(rawMessage, rawHistory).match(/(?:bank account|cuenta bancaria)[^;]*(?:yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available|no|not|sin|dont|don't|no tengo|i do not|do not have|not available)/i)?.[0] || '';
 const bankAccount = first(yesNo(inputData.bank_account), yesNo(bankContext), yesNo(memoryValue(['bank account', 'bank_account', 'cuenta bancaria'])));
 const documents = first(memoryValue(['documents', 'docs', 'documentos']), inputData.documents, [identification === 'yes' ? 'identification: yes' : '', income === 'yes' ? 'proof of income: yes' : ''].filter(Boolean).join(', '));
 const customPresent = [inputData.vehicle_type, inputData.down_payment, inputData.purchase_timeline, inputData.documents, inputData.identification, inputData.bank_account].some((value) => clean(value) && !emptyMarker(value));
 const qualificationSource = rawMemory && customPresent ? 'both' : rawMemory ? 'qualification_memory' : customPresent ? 'custom_fields' : 'none';
-const missing = [!vehicle ? 'vehicle_type' : '', !down ? 'down_payment' : '', !timeline ? 'purchase_timeline' : '', identification !== 'yes' ? 'identification' : '', income !== 'yes' ? 'proof_of_income' : '', bankAccount !== 'yes' ? 'bank_account' : ''].filter(Boolean);
+// The queue handoff requires a usable identity, phone, vehicle, down payment,
+// and purchase timing. Document evidence remains visible but is non-blocking.
+// Prefer a phone written in the inbound conversation, then a native GHL phone.
+const phone = phoneFrom(message, history, inputData.phone);
+const coreMissing = [!realName ? 'real_name' : '', !phone ? 'phone' : '', !vehicle ? 'vehicle_type' : '', !down ? 'down_payment' : '', !timeline ? 'purchase_timeline' : ''].filter(Boolean);
+const missing = [...coreMissing, identification !== 'yes' ? 'identification' : '', income !== 'yes' ? 'proof_of_income' : '', bankAccount !== 'yes' ? 'bank_account' : ''].filter(Boolean);
 const parts = memoryText(rawMemory).split(';').map((part) => clean(part).replace(/^\d+(?=(?:vehicle|vehicle[_ ]?type|down|down[_ ]?payment|documents?|timeline)\b)/i, '')).filter((part) => Boolean(part) && !/^\$?\d[\d,.]*$/.test(part));
 const canonical = [['real_name', realName], ['vehicle', vehicle], ['down payment', down], ['documents', documents], ['timeline', timeline]].filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).replace(/\s*;\s*/g, ', ')}`);
 const qualificationMemory = [...new Set([...parts.filter((part) => !/^(?:real_name|real name|name|nombre|nombre real|nombre completo|vehicle|vehicle_type|down|down payment|down_payment|documents?|docs|timeline|purchase timeline|purchase_timeline)\s*(?::|=|-)/i.test(part)), ...canonical])].join('; ');
@@ -261,11 +285,11 @@ const qualificationMemory = [...new Set([...parts.filter((part) => !/^(?:real_na
 // separately (for example, message = "Ok"). Never scan
 // qualification_memory/qualifier text: vehicle values such as
 // "SUV20202020202020" must not become a lead phone.
-const phone = phoneFrom(message, history, inputData.phone);
 const appendOnlyHistory = [history, message]
   .filter((value, index, values) => value && values.findIndex((item) => item.toLowerCase() === value.toLowerCase()) === index)
   .join('\n');
 return {
+  channel: String(inputData.channel ?? ''),
   real_name: realName,
   vehicle_type: vehicle,
   down_payment: down,
@@ -278,11 +302,11 @@ return {
   // Never source the number from qualification fields or a stale contact value.
   phone,
   chat_history_log: appendOnlyHistory,
-  dealeradmin_send_now: missing.length === 0 && Boolean(phone),
+  dealeradmin_send_now: coreMissing.length === 0,
   has_identification: identification,
   has_income_proof: income,
-  next_question: !identification ? 'Do you have a valid ID or driver license?' : !income ? 'Do you have proof of income?' : !bankAccount ? 'Do you have a bank account?' : '',
-  qualification_complete: missing.length === 0,
+  next_question: !realName ? 'What is your full name?' : !vehicle ? 'What vehicle are you looking for?' : !down ? 'How much do you have for the down payment?' : !timeline ? 'When are you planning to buy?' : '',
+  qualification_complete: coreMissing.length === 0,
   missing_qualification: missing,
   qualification_source: qualificationSource,
 };

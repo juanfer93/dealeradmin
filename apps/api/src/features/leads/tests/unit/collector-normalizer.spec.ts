@@ -89,7 +89,7 @@ describe('normalizeCollectorInput', () => {
   });
 
   it('accepts a trade-in as the down payment even without a cash amount', () => {
-    expect(normalizeCollectorInput({ qualification_memory: 'make: Toyota; model: RAV4; down payment: trade-in; timeline: today; documents: driver license and proof of income; bank account: yes' })).toMatchObject({
+    expect(normalizeCollectorInput({ real_name: 'QA Customer', phone: '+13015550123', qualification_memory: 'make: Toyota; model: RAV4; down payment: trade-in; timeline: today; documents: driver license and proof of income; bank account: yes' })).toMatchObject({
       vehicle_type: 'Toyota RAV4',
       down_payment: 'trade-in',
       qualification_complete: true,
@@ -110,7 +110,7 @@ describe('normalizeCollectorInput', () => {
   });
 
   it('combines a trade-in and cash amount when both are stored in memory', () => {
-    expect(normalizeCollectorInput({ qualification_memory: 'make: Honda; model: Civic; down payment: trade-in + 2K; timeline: today; documents: ID and proof of income; bank account: yes' })).toMatchObject({
+    expect(normalizeCollectorInput({ real_name: 'QA Customer', phone: '+13015550123', qualification_memory: 'make: Honda; model: Civic; down payment: trade-in + 2K; timeline: today; documents: ID and proof of income; bank account: yes' })).toMatchObject({
       vehicle_type: 'Honda Civic',
       down_payment: '2000 + trade-in',
       qualification_complete: true,
@@ -132,7 +132,7 @@ describe('normalizeCollectorInput', () => {
   it('does not invent documents from an empty or placeholder value', () => {
     const result = normalizeCollectorInput({ message: 'I want a Tacoma', documents: '--' });
     expect(result.documents).toBe('');
-    expect(result.next_question).toBe('Do you have a valid ID or driver license?');
+    expect(result.next_question).toBe('What is your full name?');
   });
 
   it('preserves the vehicle description and identifies the purchase timeline', () => {
@@ -164,7 +164,7 @@ describe('normalizeCollectorInput', () => {
     const result = normalizeCollectorInput({ message: 'Yes, I have my ID' });
     expect(result.documents).toContain('identification: yes');
     expect(result.has_identification).toBe('yes');
-    expect(result.next_question).toBe('Do you have proof of income?');
+    expect(result.next_question).toBe('What is your full name?');
   });
 
   it('captures affirmative document answers before the document name', () => {
@@ -175,7 +175,7 @@ describe('normalizeCollectorInput', () => {
     expect(result.documents).toContain('identification: yes');
     expect(result.documents).toContain('proof of income: yes');
     expect(result.down_payment).toBe('');
-    expect(result.next_question).toBe('Do you have a bank account?');
+    expect(result.next_question).toBe('What is your full name?');
   });
 
   it('deduplicates repeated document facts before persistence', () => {
@@ -238,6 +238,93 @@ describe('normalizeCollectorInput', () => {
     expect(result.vehicle_type).toBe('');
   });
 
+  it('uses the Messenger contact name as real_name', () => {
+    expect(normalizeCollectorInput({
+      channel: 'messenger',
+      real_name: 'Hay Les Aviso',
+      message: 'Que requisitos necesito',
+    }).real_name).toBe('Hay Les Aviso');
+  });
+
+  it('uses only a declared chat name for WhatsApp', () => {
+    expect(normalizeCollectorInput({
+      channel: 'whatsapp',
+      real_name: 'EliasJosue 🕊Mnegra',
+      message: 'Me llamo Elias Alvarado',
+    }).real_name).toBe('Elias Alvarado');
+    expect(normalizeCollectorInput({
+      channel: 'whatsapp',
+      real_name: 'EliasJosue 🕊Mnegra',
+      message: 'Estoy buscando un Mustang',
+    }).real_name).toBe('');
+  });
+
+  it('normalizes a complete Messenger conversation using the chat phone', () => {
+    const result = normalizeCollectorInput({
+      channel: 'messenger',
+      real_name: 'Emma Oertly',
+      phone: '',
+      chat_history_log: 'Busco una Honda Civic\nMi número es 804-970-1204\nPuedo dar 2000 de down\nLo compraré este mes\nTengo mi licencia y estados de cuenta, y sí tengo cuenta bancaria\nGracias',
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Emma Oertly',
+      phone: '+18049701204',
+      vehicle_type: 'Honda Civic',
+      down_payment: '2000',
+      purchase_timeline: 'this month',
+      has_income_proof: 'yes',
+    });
+  });
+
+  it('normalizes a complete WhatsApp conversation using the registered phone and declared name', () => {
+    const result = normalizeCollectorInput({
+      channel: 'whatsapp',
+      real_name: 'EliasJosue 🕊Mnegra',
+      phone: '+18049701205',
+      chat_history_log: 'I am looking for a Honda Civic\nI can put 2000 down\nI will buy this month\nI have my driver license and bank statements, and I have a bank account\nMy name is Elias Alvarado\nThank you',
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Elias Alvarado',
+      phone: '+18049701205',
+      vehicle_type: 'Honda Civic',
+      down_payment: '2000',
+      purchase_timeline: 'this month',
+      has_income_proof: 'yes',
+    });
+  });
+
+  it('associates each answer with its field and ignores agent questions', () => {
+    const transcript = [
+      'What vehicle are you looking for?',
+      'Honda Civic',
+      'What is your phone number?',
+      '804-970-1204',
+      'How much can you put down?',
+      '2000',
+      'When are you planning to buy?',
+      'This month',
+      'Do you have ID and a bank account?',
+      'Yes, I have my passport and bank statements.',
+      'What is your name?',
+      'Emma Oertly',
+    ].join('\n');
+    const result = normalizeCollectorInput({ channel: 'messenger', real_name: 'Emma Oertly', chat_history_log: transcript });
+
+    expect(result).toMatchObject({
+      real_name: 'Emma Oertly',
+      phone: '+18049701204',
+      vehicle_type: 'Honda Civic',
+      down_payment: '2000',
+      purchase_timeline: 'this month',
+      identification: 'yes',
+      has_income_proof: 'yes',
+      qualification_complete: true,
+    });
+    expect(result.bank_account).toBe('');
+  });
+
   it.each(['Que requisitos necesito', 'What requirements do I need'])('does not classify a requirements question as a real name: %s', (message) => {
     expect(normalizeCollectorInput({ message, real_name: message }).real_name).toBe('');
   });
@@ -288,7 +375,7 @@ describe('normalizeCollectorInput', () => {
     '{"vehicle_type":"SUV","down_payment":"2K","documents":"ID and proof of income","purchase_timeline":"this week","bank_account":"yes"}',
     '• vehicle: SUV | • down payment: 2000 | • identification: yes | • proof of income: yes | • timeline: this week | • bank account: yes',
   ])('promotes complete qualification memory into normalized fields: %s', (qualification_memory) => {
-    const result = normalizeCollectorInput({ qualification_memory });
+    const result = normalizeCollectorInput({ qualification_memory, real_name: 'QA Customer', phone: '+13015550123' });
     expect(result).toMatchObject({
       vehicle_type: 'SUV',
       down_payment: '2000',
@@ -305,22 +392,26 @@ describe('normalizeCollectorInput', () => {
       qualification_memory: 'vehicle: SUV; down payment: 2K; documents: identification: yes',
     });
     expect(result.qualification_complete).toBe(false);
-    expect(result.missing_qualification).toEqual(['purchase_timeline', 'proof_of_income', 'bank_account']);
-    expect(result.next_question).toBe('Do you have proof of income?');
+    expect(result.missing_qualification).toEqual(['real_name', 'phone', 'purchase_timeline', 'proof_of_income', 'bank_account']);
+    expect(result.next_question).toBe('What is your full name?');
   });
 
   it('uses qualification memory as the canonical document value when a custom field is stale', () => {
     const result = normalizeCollectorInput({
       documents: 'not specified',
       qualification_memory: 'vehicle: SUV; down payment: 2K; documents: driver license and proof of income; timeline: today; bank account: yes',
+      real_name: 'QA Customer',
+      phone: '+13015550123',
     });
     expect(result.documents).toContain('driver license and proof of income');
     expect(result.qualification_complete).toBe(true);
-    expect(result.qualification_source).toBe('qualification_memory');
+    expect(result.qualification_source).toBe('both');
   });
 
   it('requires every qualification fact before the downstream trigger can treat a lead as ready', () => {
     expect(isQualificationComplete({
+      real_name: 'QA Customer',
+      phone: '+13015550123',
       vehicle_type: 'SUV',
       down_payment: '2000',
       purchase_timeline: 'today',
@@ -329,12 +420,14 @@ describe('normalizeCollectorInput', () => {
       bank_account: 'yes',
     })).toBe(true);
     expect(isQualificationComplete({
+      real_name: 'QA Customer',
+      phone: '+13015550123',
       vehicle_type: 'SUV',
       down_payment: '2000',
       purchase_timeline: 'today',
       has_identification: 'yes',
       has_income_proof: '',
-    })).toBe(false);
+    })).toBe(true);
   });
 
   it('requires only a phone before a lead enters dealerADMIN', () => {

@@ -8,6 +8,8 @@ const execute = (inputData: Record<string, unknown>) => new Function('inputData'
 describe('HighLevel collector custom-code normalizer', () => {
   it('promotes a complete qualification memory without custom fields', () => {
     const result = execute({
+      real_name: 'QA Customer',
+      phone: '+13015550123',
       qualification_memory: 'vehicle_type = SUV\ndown_payment: 2000\ndocuments: driver license, proof of income\npurchase_timeline: this week\nbank_account: yes',
     });
     expect(result).toMatchObject({
@@ -24,6 +26,8 @@ describe('HighLevel collector custom-code normalizer', () => {
 
   it('uses memory to repair stale custom fields and reports both sources', () => {
     const result = execute({
+      real_name: 'QA Customer',
+      phone: '+13015550123',
       vehicle_type: 'Truck',
       down_payment: '10',
       documents: 'not specified',
@@ -65,6 +69,56 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
   });
 
+  it('uses the Messenger contact name as real_name in Custom Code', () => {
+    expect(execute({
+      channel: 'messenger',
+      contact_name: 'Hay Les Aviso',
+      message: 'Que requisitos necesito',
+    }).real_name).toBe('Hay Les Aviso');
+  });
+
+  it('uses only a declared chat name for WhatsApp in Custom Code', () => {
+    expect(execute({
+      channel: 'whatsapp',
+      contact_name: 'EliasJosue 🕊Mnegra',
+      message: 'Me llamo Elias Alvarado',
+    }).real_name).toBe('Elias Alvarado');
+    expect(execute({
+      channel: 'whatsapp',
+      contact_name: 'EliasJosue 🕊Mnegra',
+      message: 'Estoy buscando un Mustang',
+    }).real_name).toBe('');
+  });
+
+  it('maps answers after questions without using the questions as evidence', () => {
+    const transcript = [
+      'What vehicle are you looking for?',
+      'Honda Civic',
+      'What is your phone number?',
+      '804-970-1204',
+      'How much can you put down?',
+      '2000',
+      'When are you planning to buy?',
+      'This month',
+      'Do you have ID and a bank account?',
+      'Yes, I have my passport and bank statements.',
+      'What is your name?',
+      'Emma Oertly',
+    ].join('\n');
+    const result = execute({ channel: 'messenger', contact_name: 'Emma Oertly', chat_history_log: transcript });
+    expect(result).toMatchObject({
+      real_name: 'Emma Oertly',
+      phone: '+18049701204',
+      vehicle_type: 'Honda Civic',
+      down_payment: '2000',
+      purchase_timeline: 'this month',
+      identification: 'yes',
+      has_income_proof: 'yes',
+      qualification_complete: true,
+    });
+    expect(result.bank_account).toBe('');
+  });
+
   it.each(['Quiero cambiar mi vehículo', 'Cambio de auto', 'I want to change my vehicle'])('maps vehicle-change language to trade-in: %s', (message) => {
     const result = execute({ message });
     expect(result.down_payment).toBe('trade-in');
@@ -73,7 +127,7 @@ describe('HighLevel collector custom-code normalizer', () => {
   it('keeps an incomplete memory on the collector branch and names what is missing', () => {
     const result = execute({ qualification_memory: 'vehicle: SUV; down payment: 2K; documents: identification: yes' });
     expect(result.qualification_complete).toBe(false);
-    expect(result.missing_qualification).toEqual(['purchase_timeline', 'proof_of_income', 'bank_account']);
+    expect(result.missing_qualification).toEqual(['real_name', 'phone', 'purchase_timeline', 'proof_of_income', 'bank_account']);
   });
 
   it('keeps a trade-in vehicle year out of the down payment and recognizes bank statements', () => {

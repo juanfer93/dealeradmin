@@ -1,4 +1,5 @@
 export type CollectorInput = {
+  channel?: string | null;
   real_name?: string | null;
   message?: string | null;
   phone?: string | null;
@@ -77,12 +78,29 @@ function clean(value: string | null | undefined): string {
   return value?.replace(/\s+/g, ' ').trim() ?? EMPTY;
 }
 
+function conversationalEvidence(...values: Array<string | null | undefined>): string {
+  return values
+    .flatMap((value) => String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/))
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !line.includes('?') && !/^\s*(?:do you|does|did|what|which|when|where|how|can you|are you|tienes|tiene|cu[aá]l|qu[eé]|cu[aá]ndo|d[oó]nde|c[oó]mo)\b/i.test(line))
+    .join('; ');
+}
+
 function isEmptyMarker(value: string): boolean {
   return /^(?:--|-|n\/?a|not indicated|not specified|no indicado|no especificado)$/i.test(value.trim());
 }
 
 function firstNonEmpty(...values: Array<string | null | undefined>): string {
   return values.map(clean).find((value) => Boolean(value) && !isEmptyMarker(value)) ?? EMPTY;
+}
+
+function isMessengerChannel(value: string | null | undefined): boolean {
+  return /(?:^|[^a-z])(?:messenger|facebook)(?:$|[^a-z])/i.test(clean(value));
+}
+
+function isWhatsAppChannel(value: string | null | undefined): boolean {
+  return /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(clean(value));
 }
 
 function memoryText(memory: string): string {
@@ -127,7 +145,7 @@ const VEHICLE_CATEGORIES = /suv|sedan|truck|troca|pickup|pick-up|van|minivan|cro
 const VEHICLE_CONTEXT = /\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
 
 function extractVehicleLabel(value: string | null | undefined): string {
-  let source = clean(value)
+  const source = clean(value)
     .replace(/\b(?:19|20)\d{2}\b/g, ' ')
     .replace(/\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/gi, ' ')
     .replace(/\b(?:a|an|un|una|my|mi|the|carro|auto|car|vehicle|veh[ií]culo)\b/gi, ' ')
@@ -341,24 +359,30 @@ function normalizeVehicle(value: string): string {
 }
 
 function extractVehicle(message: string): string {
-  const source = clean(stripCampaignButtonPhrases(message));
-  if (!source || isCampaignButton(source) || isNonVehicleIntent(source)) return EMPTY;
-  const withoutOtherFacts = source
-    .replace(/(?:\+?1[\s().-]*)?(?:\(?[2-9]\d{2}\)?[\s.-]*)\d{3}[\s.-]?\d{4}/g, ' ')
-    .replace(/(?:down|enganche|inicial|deposit|dep[oó]sito)\s*(?:payment|pago)?\s*(?:is|es|de|:)?\s*\$?\s*[\d,.]+\s*k?/gi, '')
-    .replace(/\b(?:today|hoy|asap|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes)\b/gi, '')
-    .split(/[;,]/, 1)[0]
-    .trim();
-  const requested = withoutOtherFacts.match(/(?:looking for|busco|quiero|want|interested in|interesado en)\s+(?:a|an|un|una)?\s*([^.!?]+)/i)?.[1];
-  if (requested && !isNonVehicleIntent(requested)) {
-    const requestedLabel = extractVehicleLabel(requested);
-    if (requestedLabel) return requestedLabel;
+  const source = String(message ?? '').replace(/\r\n?/g, '\n').trim();
+  if (!source) return EMPTY;
+  for (const line of source.split(/\n+/).map(clean).filter(Boolean)) {
+    const candidate = stripCampaignButtonPhrases(line);
+    if (!candidate || isCampaignButton(candidate) || isNonVehicleIntent(candidate)) continue;
+    const withoutOtherFacts = candidate
+      .replace(/(?:\+?1[\s().-]*)?(?:\(?[2-9]\d{2}\)?[\s.-]*)\d{3}[\s.-]?\d{4}/g, ' ')
+      .replace(/(?:down|enganche|inicial|deposit|dep[oó]sito)\s*(?:payment|pago)?\s*(?:is|es|de|:)?\s*\$?\s*[\d,.]+\s*k?/gi, '')
+      .replace(/\b(?:today|hoy|asap|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes)\b/gi, '')
+      .split(/[;,]/, 1)[0]
+      .trim();
+    const requested = withoutOtherFacts.match(/(?:looking for|busco|quiero|want|interested in|interesado en)\s+(?:a|an|un|una)?\s*([^.!?]+)/i)?.[1];
+    if (requested && !isNonVehicleIntent(requested)) {
+      const requestedLabel = extractVehicleLabel(requested);
+      if (requestedLabel) return requestedLabel;
+    }
+    // A transcript can contain several facts (for example "Sedan" followed by
+    // a Subaru trade-in). Return the vehicle token, never the complete transcript.
+    const category = withoutOtherFacts.match(/\b(suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto)\b/i)?.[1];
+    if (category) return category;
+    const label = extractVehicleLabel(withoutOtherFacts);
+    if (label) return label;
   }
-  // A transcript can contain several facts (for example "Sedan" followed by
-  // a Subaru trade-in). Return the vehicle token, never the complete transcript.
-  const category = withoutOtherFacts.match(/\b(suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto)\b/i)?.[1];
-  if (category) return category;
-  return extractVehicleLabel(withoutOtherFacts);
+  return EMPTY;
 }
 
 function extractDownPayment(message: string): string {
@@ -430,14 +454,15 @@ function yesNo(value: string): 'yes' | 'no' | '' {
 }
 
 function mergeDocuments(current: string, message: string): { value: string; id: string; income: string } {
-  const source = `${current} ${message}`.trim();
+  const source = conversationalEvidence(message);
+  const currentSource = clean(current);
   const answer = (documentPattern: string): 'yes' | 'no' | '' => {
     const positive = 'yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available';
     const negative = "no|nó|dont|don't|no tengo|i do not|do not have|don't have|not available";
-    const context = source.match(new RegExp(`(?:${positive}|${negative})[^.;!?]{0,60}(?:${documentPattern})|(?:${documentPattern})[^.;!?]{0,60}(?:${positive}|${negative})`, 'i'))?.[0] ?? '';
+    const context = source.match(new RegExp(`(?:${positive}|${negative})[^!?]{0,160}(?:${documentPattern})|(?:${documentPattern})[^!?]{0,160}(?:${positive}|${negative})`, 'i'))?.[0] ?? '';
     const explicit = yesNo(context);
     if (explicit) return explicit;
-    if (new RegExp(documentPattern, 'i').test(source) && !/\b(?:no|n[oó]|dont|don't|no tengo|do not have|not available)\b/i.test(source)) {
+    if (new RegExp(documentPattern, 'i').test(currentSource) && !/\b(?:no|n[oó]|dont|don't|no tengo|do not have|not available)\b/i.test(currentSource)) {
       return 'yes';
     }
     return '';
@@ -455,14 +480,14 @@ function mergeDocuments(current: string, message: string): { value: string; id: 
 }
 
 function mergeMemory(current: string, values: Record<string, string>): string {
-  let segments = memoryText(current)
+  const segments = memoryText(current)
     .split(';')
     .map((segment) => clean(segment).replace(/^\d+(?=(?:vehicle|vehicle[_ ]?type|down(?:[_ ]?payment)?|documents?|docs|timeline|purchase[_ ]?timeline)\b)/i, ''))
     .filter((segment) => Boolean(segment) && !/^\$?\d[\d,.]*$/.test(segment));
   for (const [key, value] of Object.entries(values)) {
     const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
     for (let index = segments.length - 1; index >= 0; index -= 1) {
-      const segmentKey = segments[index].match(/^[-*•\s]*([^:=\-]+)\s*[:=\-]/)?.[1]?.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const segmentKey = segments[index].match(/^[-*•\s]*([^:=-]+)\s*[:=-]/)?.[1]?.toLowerCase().replace(/[^a-z0-9]/g, '');
       const isAlias = normalizedKey === 'vehicle' && ['vehicle', 'vehicletype', 'vehicleinterest'].includes(segmentKey || '')
         || normalizedKey === 'downpayment' && ['downpayment', 'down', 'enganche'].includes(segmentKey || '')
         || normalizedKey === 'timeline' && ['timeline', 'purchasetimeline', 'buyingtimeline'].includes(segmentKey || '')
@@ -477,6 +502,8 @@ function mergeMemory(current: string, values: Record<string, string>): string {
 }
 
 export function isQualificationComplete(input: {
+  real_name?: string | null;
+  phone?: string | null;
   vehicle_type?: string | null;
   down_payment?: string | null;
   purchase_timeline?: string | null;
@@ -484,13 +511,16 @@ export function isQualificationComplete(input: {
   has_income_proof?: string | null;
   bank_account?: string | null;
 }): boolean {
+  // The blocking handoff facts are identity, phone, vehicle, down payment,
+  // and purchase timing. ID, proof of income/documents, and bank account are
+  // useful evidence for the dealer view, but are not blocking fields because
+  // GHL may only expose the customer's inbound replies to this normalizer.
   return Boolean(
+    clean(input.real_name) &&
+    clean(input.phone) &&
     clean(input.vehicle_type) &&
     clean(input.down_payment) &&
-    clean(input.purchase_timeline) &&
-    input.has_identification === 'yes' &&
-    input.has_income_proof === 'yes' &&
-    input.bank_account === 'yes',
+    clean(input.purchase_timeline),
   );
 }
 
@@ -531,21 +561,26 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
         ? 'custom_fields'
         : 'none';
   const campaignReply = isCampaignButton(message);
-  const messageForExtraction = stripCampaignButtonPhrases(message);
-  const source = [history, message, memory].filter(Boolean).join('; ');
+  const messageForExtraction = stripCampaignButtonPhrases(rawMessage);
   const suppliedName = normalizeRealName(input.real_name);
   const extractedNames = [
     realNameFromQualificationMemory(memory),
     extractRealNameFromText(rawMessage),
     extractRealNameFromText(rawHistory),
   ];
-  const realName = (isLikelyBusinessName(suppliedName) || isLikelyProfileDisplayName(suppliedName)
-    ? [...extractedNames, suppliedName]
-    : [suppliedName, ...extractedNames]
-  ).map(normalizeRealName).find(Boolean) ?? EMPTY;
+  const realName = isMessengerChannel(input.channel)
+    // Messenger's contact name is the canonical identity for this channel.
+    ? suppliedName
+    : isWhatsAppChannel(input.channel)
+      // WhatsApp gets a real name only from a declared/repeated name in chat.
+      ? extractedNames.map(normalizeRealName).find(Boolean) ?? EMPTY
+      : (isLikelyBusinessName(suppliedName) || isLikelyProfileDisplayName(suppliedName)
+        ? [...extractedNames, suppliedName]
+        : [suppliedName, ...extractedNames]
+      ).map(normalizeRealName).find(Boolean) ?? EMPTY;
   const vehicle = normalizeVehicle(firstNonEmpty(
     extractVehicle(messageForExtraction),
-    extractVehicle(history),
+    extractVehicle(rawHistory),
     [
       memoryValue(memory, ['vehicle_type', 'vehicle', 'type']),
       [
@@ -581,14 +616,26 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     memoryValue(memory, ['timeline', 'purchase timeline', 'purchase_timeline']),
     input.purchase_timeline,
   ));
-  const docs = mergeDocuments(firstNonEmpty(memoryValue(memory, ['documents']), input.documents), source);
+  const memoryDocumentFacts = [
+    memoryValue(memory, ['documents']),
+    memoryValue(memory, ['identification', 'id', 'itin', 'passport', 'pasaporte'])
+      ? `identification: ${memoryValue(memory, ['identification', 'id', 'itin', 'passport', 'pasaporte'])}`
+      : EMPTY,
+    memoryValue(memory, ['proof of income', 'income proof', 'prueba de ingresos', 'comprobante de ingresos'])
+      ? `proof of income: ${memoryValue(memory, ['proof of income', 'income proof', 'prueba de ingresos', 'comprobante de ingresos'])}`
+      : EMPTY,
+  ].filter(Boolean).join('; ');
+  const docs = mergeDocuments(firstNonEmpty(memoryDocumentFacts, input.documents), [rawHistory, rawMessage].filter(Boolean).join('\n'));
   const identification = firstNonEmpty(docs.id, memoryValue(memory, ['identification', 'id']), input.identification);
   const bankAccountRaw = firstNonEmpty(
     input.bank_account,
-    source.match(/(?:bank account|cuenta bancaria)[^;]*(?:yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available|no|not|sin|dont|don't|no tengo|i do not|do not have|not available)/i)?.[0],
+    conversationalEvidence(rawHistory, rawMessage).match(/(?:bank account|cuenta bancaria)[^;]*(?:yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available|no|not|sin|dont|don't|no tengo|i do not|do not have|not available)/i)?.[0],
     memoryValue(memory, ['bank account', 'bank_account']),
   );
   const bankAccount = yesNo(bankAccountRaw);
+  // Keep the normalized conversational phone available for both the
+  // qualification decision and the payload returned to GHL.
+  const chatPhone = extractPhone(input.chat_history_log) || extractPhone(input.message) || extractPhone(input.phone);
   const mergedMemory = mergeMemory(memory, {
     real_name: realName,
     vehicle,
@@ -597,14 +644,18 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     timeline,
   });
 
-  const nextQuestion = !docs.id
-    ? 'Do you have a valid ID or driver license?'
-    : !docs.income
-      ? 'Do you have proof of income?'
-      : !bankAccount
-        ? 'Do you have a bank account?'
-      : EMPTY;
+  const nextQuestion = !realName
+    ? 'What is your full name?'
+    : !vehicle
+      ? 'What vehicle are you looking for?'
+      : !down
+        ? 'How much do you have for the down payment?'
+        : !timeline
+          ? 'When are you planning to buy?'
+          : EMPTY;
   const qualificationComplete = isQualificationComplete({
+    real_name: realName,
+    phone: chatPhone,
     vehicle_type: vehicle,
     down_payment: down,
     purchase_timeline: timeline,
@@ -613,6 +664,8 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     bank_account: bankAccount,
   });
   const missingQualification = [
+    !realName ? 'real_name' : EMPTY,
+    !chatPhone ? 'phone' : EMPTY,
     !vehicle ? 'vehicle_type' : EMPTY,
     !down ? 'down_payment' : EMPTY,
     !timeline ? 'purchase_timeline' : EMPTY,
@@ -620,12 +673,6 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     docs.income !== 'yes' ? 'proof_of_income' : EMPTY,
     bankAccount !== 'yes' ? 'bank_account' : EMPTY,
   ].filter(Boolean);
-  // The native GHL contact phone is a valid fallback when the latest message
-  // arrives as a separate value (for example, the message is only "Ok").
-  // Conversation evidence still wins so a newly supplied number is not
-  // replaced by a stale contact value.
-  const chatPhone = extractPhone(input.chat_history_log) || extractPhone(input.message) || extractPhone(input.phone);
-
   return {
     real_name: realName,
     vehicle_type: vehicle,

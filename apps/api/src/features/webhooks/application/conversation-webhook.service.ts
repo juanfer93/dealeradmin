@@ -4,7 +4,7 @@ import { GhlCustomerRepliedSchema } from '@dealeradmin/contracts';
 import { createHash } from 'node:crypto';
 import { DataSource, QueryRunner } from 'typeorm';
 import { buildWhatsAppMessage } from '../../leads/domain/message-builder';
-import { detectLeadLanguage, hasMinimumRoutingQualification, normalizeCollectorInput, normalizeRealName, type CollectorLanguage } from '../../leads/domain/collector-normalizer';
+import { detectLeadLanguage, hasMinimumRoutingQualification, isQualificationComplete, normalizeCollectorInput, normalizeRealName, type CollectorLanguage } from '../../leads/domain/collector-normalizer';
 import { normalizeDownPayment } from '../../leads/domain/down-payment';
 import { normalizePhone } from '../../leads/domain/phone-normalizer';
 import { GeoroutingService } from '../../routing/domain/services/georouting.service';
@@ -148,12 +148,186 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     if (this.duePollInFlight) return;
     this.duePollInFlight = true;
     try {
+      // The production timer calls the same reconciliation path exposed to
+      // the operator/API, so the 30-second repair is real and testable.
       await this.processDueConversations();
     } catch {
       // The next poll or the operator queue read will retry due work. Polling
       // failures must never interrupt webhook handling or crash the process.
     } finally {
       this.duePollInFlight = false;
+    }
+  }
+
+  private async reconcileActiveConversations(now: Date): Promise<void> {
+    if (!this.dataSource) return;
+    const rows = await this.dataSource.query(
+      `SELECT id
+       FROM conversations
+       WHERE status IN ('partial', 'waiting_window')
+       ORDER BY updated_at ASC
+       LIMIT 100`,
+    ) as Array<{ id: string }>;
+    for (const row of rows) await this.reconcileConversation(row.id, now);
+  }
+
+  private async reconcileConversation(id: string, now: Date): Promise<void> {
+    const runner = this.dataSource!.createQueryRunner();
+    await runner.connect();
+    await runner.startTransaction();
+    try {
+      const rows = await runner.query(
+        `SELECT c.id, c.channel, c.ghl_location_id, c.ghl_contact_id, c.status,
+                c.qualification_snapshot, c.location_snapshot, c.ready_at,
+                l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name
+         FROM conversations c
+         JOIN leads l ON l.id = c.lead_id
+         WHERE c.id = $1 AND c.status IN ('partial', 'waiting_window')
+         FOR UPDATE`,
+        [id],
+      ) as Array<{
+        id: string;
+        channel: string;
+        ghl_location_id: string;
+        ghl_contact_id: string;
+        status: string;
+        qualification_snapshot: ConversationSnapshot;
+        location_snapshot: LocationSnapshot;
+        ready_at: string | null;
+        lead_id: string;
+        canonical_phone: string | null;
+        first_name: string | null;
+        last_name: string | null;
+      }>;
+      if (!rows[0]) {
+        await runner.rollbackTransaction();
+        return;
+      }
+      const row = rows[0];
+      const configured = Object.entries(GHL_SOURCE_CONFIG).find(([, config]) => config.locationId === row.ghl_location_id);
+      if (!configured) {
+        await runner.rollbackTransaction();
+        return;
+      }
+      const source = configured[0] as SourceKey;
+      const current = row.qualification_snapshot ?? {} as ConversationSnapshot;
+      const messages = await runner.query(
+        `SELECT body FROM conversation_messages WHERE conversation_id = $1 ORDER BY occurred_at ASC, created_at ASC`,
+        [id],
+      ) as Array<{ body: string }>;
+      const transcript = messages.map((item) => clean(item.body)).filter(Boolean).join('\n');
+      if (!transcript) {
+        await runner.rollbackTransaction();
+        return;
+      }
+      const contactName = clean(`${row.first_name || ''} ${row.last_name || ''}`) || 'Lead';
+      const normalized = normalizeCollectorInput({
+        channel: row.channel,
+        real_name: /(?:^|[^a-z])messenger(?:$|[^a-z])/i.test(row.channel) ? contactName : undefined,
+        message: transcript,
+        chat_history_log: transcript,
+        phone: current.phone || row.canonical_phone || '',
+      });
+      const effectivePhone = this.safePhone(normalized.phone) || this.safePhone(current.phone) || this.safePhone(row.canonical_phone) || '';
+      // A manual correction made while a conversation is waiting must survive
+      // a later transcript reconciliation when GHL did not expose that answer.
+      // Inbound evidence still wins whenever it is available.
+      const realName = normalized.real_name || clean(current.real_name);
+      const vehicle = normalized.vehicle_type || clean(current.vehicle_type);
+      const downPayment = normalizeDownPayment(normalized.down_payment || clean(current.down_payment));
+      const purchaseTimeline = normalized.purchase_timeline || clean(current.purchase_timeline);
+      const documents = normalized.documents || clean(current.documents);
+      const identification = normalized.identification || clean(current.identification);
+      const bankAccount = normalized.bank_account || clean(current.bank_account);
+      const qualificationComplete = isQualificationComplete({
+        real_name: realName,
+        phone: effectivePhone,
+        vehicle_type: vehicle,
+        down_payment: downPayment,
+        purchase_timeline: purchaseTimeline,
+        has_identification: identification,
+        has_income_proof: documents,
+        bank_account: bankAccount,
+      });
+      const missingQualification = [
+        !realName ? 'real_name' : '',
+        !effectivePhone ? 'phone' : '',
+        !vehicle ? 'vehicle_type' : '',
+        !downPayment ? 'down_payment' : '',
+        !purchaseTimeline ? 'purchase_timeline' : '',
+        identification !== 'yes' ? 'identification' : '',
+        !/proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina/i.test(documents) ? 'proof_of_income' : '',
+        bankAccount !== 'yes' ? 'bank_account' : '',
+      ].filter(Boolean);
+      const resolvedLocation = await this.resolveLocation(runner, transcript);
+      const hasResolvedLocation = Boolean(resolvedLocation.city || resolvedLocation.state || resolvedLocation.zip_code || resolvedLocation.easterns_zone);
+      const location = hasResolvedLocation ? resolvedLocation : (row.location_snapshot ?? { city: null, state: null, zip_code: null, easterns_zone: null });
+      const language = configured[1].splitByLanguage ? detectLeadLanguage(transcript) : current.language;
+      const snapshot: ConversationSnapshot = {
+        real_name: realName,
+        phone: effectivePhone,
+        vehicle_type: vehicle,
+        down_payment: downPayment,
+        purchase_timeline: purchaseTimeline,
+        documents,
+        identification,
+        bank_account: bankAccount,
+        qualification_memory: normalized.qualification_memory || clean(current.qualification_memory),
+        qualification_complete: qualificationComplete,
+        missing_qualification: missingQualification,
+        message_count: messages.length,
+        language,
+        assigned_dealer_id: clean(current.assigned_dealer_id) || undefined,
+      };
+      const dealer = await this.findSourceDealer(runner, row.ghl_location_id, source, language, clean(current.assigned_dealer_id) || undefined);
+      snapshot.assigned_dealer_id = dealer.id;
+      if (snapshot.real_name) {
+        const { firstName, lastName } = splitName(snapshot.real_name);
+        await runner.query(
+          `UPDATE leads SET first_name = $2, last_name = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+          [row.lead_id, firstName, lastName],
+        );
+      }
+      if (effectivePhone && effectivePhone !== row.canonical_phone) {
+        await runner.query(
+          `UPDATE leads
+           SET canonical_phone = $2, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1
+             AND NOT EXISTS (SELECT 1 FROM leads other WHERE other.canonical_phone = $2 AND other.id <> $1)`,
+          [row.lead_id, effectivePhone],
+        );
+      }
+      const status = this.statusForConversation(snapshot, location, dealer, source, now, 'due', row.ready_at);
+      await runner.query(
+        `UPDATE conversations
+         SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
+             next_attempt_at = $5, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [id, status.status, JSON.stringify(snapshot), JSON.stringify(location), status.nextAttemptAt],
+      );
+      if (status.status === 'ready') {
+        const duplicate = await findQueuedConversationDuplicate(
+          runner,
+          dealer.id,
+          snapshot.real_name || contactName,
+          snapshot.phone,
+          id,
+        );
+        if (!duplicate) {
+          await this.syncLeadDealer(runner, dealer, row.lead_id, snapshot, location, source);
+          await runner.query(`UPDATE conversations SET status = 'queued', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
+        } else {
+          await runner.query(`UPDATE conversations SET status = 'duplicate_ignored', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
+        }
+      }
+      await runner.commitTransaction();
+    } catch (error) {
+      if (runner.isTransactionActive) await runner.rollbackTransaction();
+      // Reconciliation is best effort. A single malformed row must not stop
+      // the 30-second poll from repairing the remaining conversations.
+      void error;
+    } finally {
+      await runner.release();
     }
   }
 
@@ -194,6 +368,9 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       if (process.env.NODE_ENV === 'test') return { accepted: true, processed: 0 };
       throw new ServiceUnavailableException('Database connection is not available');
     }
+    // Re-read active conversations so late GHL fields and manual corrections
+    // are normalized before due rows are released.
+    await this.reconcileActiveConversations(now);
     // Manual corrections may set waiting_window before next_attempt_at. Give those
     // rows an immediate due time so they cannot remain invisible indefinitely.
     await this.dataSource.query(
@@ -293,6 +470,8 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       ) as Array<{ body: string }>;
       const transcript = messages.map((item) => clean(item.body)).filter(Boolean).join('\n');
       const normalized = normalizeCollectorInput({
+        channel: event.channel,
+        real_name: /(?:^|[^a-z])messenger(?:$|[^a-z])/i.test(event.channel) ? displayName : undefined,
         message: transcript,
         chat_history_log: transcript,
         phone,
@@ -318,12 +497,12 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       }
       const location = await this.resolveLocation(runner, transcript);
       const language = GHL_SOURCE_CONFIG[source].splitByLanguage ? detectLeadLanguage(transcript) : undefined;
-      const previousRealName = normalizeRealName(clean(conversation.qualification_snapshot?.real_name));
       const snapshot: ConversationSnapshot = {
-        // The GHL profile label is only a display fallback for the lead row.
-        // A qualification real_name must come from a declared/repeated name
-        // in the conversation, never from Messenger's username.
-        real_name: normalized.real_name || previousRealName,
+        // Messenger uses the contact display name as real_name. WhatsApp
+        // only receives a real_name when it was declared/repeated in chat.
+        // Do not fall back to a stale snapshot: a contaminated previous value
+        // must be removable on the next inbound message.
+        real_name: normalized.real_name,
         phone: effectivePhone || '',
         vehicle_type: normalized.vehicle_type,
         down_payment: normalizeDownPayment(normalized.down_payment),

@@ -83,8 +83,12 @@ export class WebhookService {
 
     try {
       const payloadHash = createHash('sha256').update(rawBody).digest('hex');
+      const isMessengerChannel = /(?:^|[^a-z])(?:messenger|facebook)(?:$|[^a-z])/i.test(payload.lead.channel ?? '');
+      // Messenger's contact/profile name is the identity source. WhatsApp's
+      // contact label is not a claimed name; that must come from the chat.
+      const collectorRealName = isMessengerChannel ? payload.lead.name : payload.lead.real_name;
       const captureContract = payload.lead.capture_contract ?? buildDealeradminCaptureContract({
-        real_name: payload.lead.real_name,
+        real_name: collectorRealName,
         message: payload.lead.message ?? payload.lead.chat_history_log,
         phone: payload.lead.phone,
         vehicle_type: payload.lead.vehicle_type,
@@ -97,13 +101,14 @@ export class WebhookService {
         chat_history_log: payload.lead.chat_history_log,
         contact_id: payload.ghl_contact_id,
         occurred_at: payload.occurred_at,
-        channel: 'ghl_messenger',
+        channel: payload.lead.channel || 'ghl_messenger',
         city: payload.lead.city,
         state: payload.lead.state,
         zip_code: payload.lead.zip_code,
         easterns_zone: payload.lead.easterns_zone,
       }, normalizeCollectorInput({
-        real_name: payload.lead.real_name,
+        channel: payload.lead.channel,
+        real_name: collectorRealName,
         message: payload.lead.message ?? payload.lead.chat_history_log,
         phone: payload.lead.phone,
         vehicle_type: payload.lead.vehicle_type,
@@ -199,10 +204,10 @@ export class WebhookService {
       }
 
       const normalized = normalizeCollectorInput({
-        // `lead.name` is the Messenger/GHL profile label and may be a
-        // business. It remains a display fallback below, never a claimed
-        // personal name that can override the conversation.
-        real_name: payload.lead.real_name,
+        // Messenger uses the contact name as its canonical identity source.
+        // WhatsApp requires a name declared/repeated in the conversation.
+        channel: payload.lead.channel,
+        real_name: collectorRealName,
         message: payload.lead.message ?? payload.lead.chat_history_log,
         phone: canonicalPhone,
         chat_history_log: payload.lead.chat_history_log,

@@ -129,8 +129,11 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
   const contact = asRecord(payload.contact);
   if (payload.lead && payload.event_id) {
     const lead = asRecord(payload.lead);
+    const channel = text(lead.channel) || '';
+    const isMessengerChannel = /(?:^|[^a-z])(?:messenger|facebook)(?:$|[^a-z])/i.test(channel);
     const normalizedLead = normalizeCollectorInput({
-      real_name: text(lead.real_name),
+      channel,
+      real_name: isMessengerChannel ? text(lead.name) : text(lead.real_name),
       qualification_memory: text(lead.qualification_memory),
       message: text(lead.message),
       chat_history_log: text(lead.chat_history_log),
@@ -139,10 +142,11 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
       lead,
       { conversation_text: conversationText(lead.conversation) },
     ]) || phoneFromValue(lead.phone) || findContactPhone(payload, contact, customData) || '';
-    const normalizedName = normalizedLead.real_name || normalizeRealName(text(lead.name)) || 'Lead';
+    const desiredRealName = normalizedLead.real_name || (isMessengerChannel ? normalizeRealName(text(lead.name)) : null);
+    const normalizedName = desiredRealName || normalizeRealName(text(lead.name)) || 'Lead';
     const currentRealName = text(lead.real_name);
-    if (phone === text(lead.phone) && normalizedName === text(lead.name) && (currentRealName === normalizedLead.real_name || !normalizedLead.real_name)) return input;
-    return { ...payload, lead: { ...lead, name: normalizedName, real_name: normalizedLead.real_name || text(lead.real_name) || null, phone } };
+    if (phone === text(lead.phone) && normalizedName === text(lead.name) && currentRealName === desiredRealName) return input;
+    return { ...payload, lead: { ...lead, name: normalizedName, real_name: desiredRealName, phone } };
   }
 
   const contactCustomFields = asRecord(contact.customFields ?? contact.custom_fields);
@@ -150,10 +154,11 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
   const location = asRecord(payload.location);
   const nestedConversationText = conversationText(payload.conversation);
   const records = [customData, contactCustomFields, payloadCustomFields, contact, payload];
+  const channel = text(firstValue(records, ['channel', 'source_channel', 'conversation_channel'])) || '';
 
   const contactId = text(firstValue(records, ['ghl_contact_id', 'contactId', 'contact_id', 'id']));
   const locationId = text(firstValue(records, ['ghl_location_id', 'locationId', 'location_id'])) || text(location.id);
-  const displayName = text(firstValue(records, ['name', 'full_name', 'fullName'])) ||
+  const displayName = text(firstValue(records, ['name', 'full_name', 'fullName', 'contact_name', 'contactName'])) ||
     [text(firstValue(records, ['first_name', 'firstName'])), text(firstValue(records, ['last_name', 'lastName']))]
       .filter(Boolean)
       .join(' ');
@@ -172,7 +177,10 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
 
   const lead = {
     name: normalizeRealName(displayName) || displayName || 'Lead',
-    real_name: findField(records, ['real_name', 'realName', 'customer_name', 'contact_name', 'nombre_real', 'nombre_completo']),
+    ...(channel ? { channel } : {}),
+    real_name: /(?:^|[^a-z])messenger(?:$|[^a-z])/i.test(channel)
+      ? displayName
+      : findField(records, ['real_name', 'realName', 'customer_name', 'contact_name', 'nombre_real', 'nombre_completo']),
     phone: phone || '',
     vehicle_type: findField(records, ['vehicle_type', 'vehicle_interest', 'vehicle', 'car', 'truck', 'suv']),
     down_payment: findField(records, ['down_payment', 'downpayment', 'down'] ),
@@ -190,7 +198,12 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
     zip_code: text(firstValue(records, ['zip_code', 'postal_code', 'postalCode'])),
   };
 
-  const normalized = normalizeCollectorInput(lead);
+  const normalized = normalizeCollectorInput({
+    ...lead,
+    // A generic native GHL payload has no channel-specific identity rule.
+    // Use its contact name; WhatsApp still requires a declared chat name.
+    real_name: /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(channel) ? lead.real_name : displayName,
+  });
   const realName = normalized.real_name || normalizeRealName(lead.name) || 'Lead';
 
   return {

@@ -428,6 +428,70 @@ describe('ConversationWebhookService', () => {
     await service.processDueConversations(new Date('2026-09-11T14:00:00.000Z'));
 
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining("SET next_attempt_at = CURRENT_TIMESTAMP"));
-    expect(dataSource.query.mock.calls[0][0]).toContain("WHERE status = 'waiting_window' AND next_attempt_at IS NULL");
+    const repairCall = dataSource.query.mock.calls.find(([sql]) => String(sql).includes("WHERE status = 'waiting_window' AND next_attempt_at IS NULL"));
+    expect(repairCall?.[0]).toContain("WHERE status = 'waiting_window' AND next_attempt_at IS NULL");
+  });
+
+  it('reconciles active conversations every due poll and queues one once the five core facts are present', async () => {
+    const transcript = [
+      'What vehicle are you looking for?',
+      'Honda Civic',
+      'What is your phone number?',
+      '804-970-1204',
+      'How much can you put down?',
+      '2000',
+      'When are you planning to buy?',
+      'This month',
+      'Do you have ID and proof of income?',
+      'Yes, I have my passport and bank statements.',
+    ].join('\n');
+    const runner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('SELECT c.id, c.channel')) return [{
+          id: 'conversation-reconcile',
+          channel: 'messenger',
+          ghl_location_id: GHL_SOURCE_CONFIG.easterns.locationId,
+          ghl_contact_id: 'contact-reconcile',
+          status: 'waiting_window',
+          qualification_snapshot: { real_name: '', phone: '', vehicle_type: '', down_payment: '', purchase_timeline: '', documents: '', identification: '', bank_account: '', qualification_memory: '', qualification_complete: false, missing_qualification: [] },
+          location_snapshot: { city: 'Laurel', state: 'MD', zip_code: null, easterns_zone: null },
+          ready_at: null,
+          lead_id: 'lead-reconcile',
+          canonical_phone: null,
+          first_name: 'Emma',
+          last_name: 'Oertly',
+        }];
+        if (sql.includes('SELECT body FROM conversation_messages')) return transcript.split('\n').map((body) => ({ body }));
+        if (sql.includes('FROM dealers')) return [{ id: 'dealer-easterns', code: 'EAST', name: 'Easterns Automotive Group', timezone: 'America/New_York', routing_config: {} }];
+        if (sql.includes('FROM lead_dealers')) return [];
+        if (sql.includes('SELECT l.id, l.first_name, l.last_name, l.canonical_phone')) return [];
+        return [];
+      }),
+    };
+    const dataSource = {
+      query: vi.fn(async (sql: string) => sql.includes('FROM conversations') && sql.includes("status IN ('partial', 'waiting_window')") ? [{ id: 'conversation-reconcile' }] : []),
+      createQueryRunner: vi.fn(() => runner),
+    };
+    const service = new ConversationWebhookService(dataSource as never, {} as never);
+
+    await service.processDueConversations(new Date('2026-09-11T14:00:30.000Z'));
+
+    const snapshotUpdate = runner.query.mock.calls.find(([sql]) => sql.includes('qualification_snapshot = $3::jsonb')) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(snapshotUpdate?.[1]?.[2]))).toMatchObject({
+      real_name: 'Emma Oertly',
+      phone: '+18049701204',
+      vehicle_type: 'Honda Civic',
+      down_payment: '2000',
+      purchase_timeline: 'this month',
+      qualification_complete: true,
+    });
+    expect(runner.query.mock.calls.some(([sql]) => sql.includes("SET status = 'queued'"))).toBe(true);
+    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining("status IN ('partial', 'waiting_window')"));
   });
 });

@@ -34,6 +34,7 @@ export const LeadWebhookSchema = z.object({
   ghl_contact_id: z.string().min(1),
   lead: z.object({
     name: z.string().min(1),
+    channel: z.string().nullable().optional(),
     real_name: z.string().nullable().optional(),
     phone: z.string().min(1),
     vehicle_type: z.string().nullable().optional(),
