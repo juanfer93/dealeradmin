@@ -96,6 +96,36 @@ describe('ConversationWebhookService', () => {
     ]);
   });
 
+  it('keeps the two Koons Fredericksburg dealers as separate Messenger/Instagram sources', async () => {
+    expect(GHL_SOURCE_CONFIG['koons-fred']).toEqual({
+      locationId: 'xuHo0opTO2g5edIuPJRl',
+      defaultChannel: 'messenger',
+    });
+    expect(GHL_SOURCE_CONFIG['koons-fred-eng']).toEqual({
+      locationId: 'ozAIEblxTjrh0PfoaHge',
+      defaultChannel: 'messenger',
+    });
+
+    const service = new ConversationWebhookService();
+    const spanish = await service.acceptCustomerReplied(
+      { message_body: 'Busco un SUV.', channel: 'instagram' },
+      'koons-fred',
+      { contactId: 'ghl-koons-es-contact', conversationId: 'ghl-koons-es-conversation' },
+    );
+    const english = await service.acceptCustomerReplied(
+      { message_body: 'I am looking for an SUV.', channel: 'messenger' },
+      'koons-fred-eng',
+      { contactId: 'ghl-koons-en-contact', conversationId: 'ghl-koons-en-conversation' },
+    );
+
+    expect(spanish).toMatchObject({ source: 'koons-fred', conversationId: 'ghl-koons-es-conversation' });
+    expect(english).toMatchObject({ source: 'koons-fred-eng', conversationId: 'ghl-koons-en-conversation' });
+    expect(getTestConversationEvents()).toEqual([
+      expect.objectContaining({ source: 'koons-fred', channel: 'instagram' }),
+      expect.objectContaining({ source: 'koons-fred-eng', channel: 'messenger' }),
+    ]);
+  });
+
   it('does not replace an existing lead name with the GHL fallback when the reply has no name', async () => {
     const queryRunner = {
       connect: vi.fn(),

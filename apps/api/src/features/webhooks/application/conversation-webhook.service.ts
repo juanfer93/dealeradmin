@@ -12,7 +12,7 @@ import { extractConversationLocation } from './conversation-location';
 import { recordTestConversationEvent } from './test-conversation-store';
 import { findQueuedConversationDuplicate } from '../../leads/domain/lead-duplicate';
 
-type SourceKey = 'stafford' | 'fredericksburg' | 'fredericksburg-2' | 'easterns' | 'arlington';
+type SourceKey = 'stafford' | 'fredericksburg' | 'fredericksburg-2' | 'easterns' | 'arlington' | 'koons-fred' | 'koons-fred-eng';
 
 export const CONVERSATION_STABILIZATION_MS = 15_000;
 export const INCOMPLETE_QUALIFICATION_WINDOW_HOURS = 0.5;
@@ -24,6 +24,8 @@ export const GHL_SOURCE_CONFIG: Record<SourceKey, { locationId: string; defaultC
   'fredericksburg-2': { locationId: 'bAuMEQeH48xAtu9tAMFf', defaultChannel: 'messenger' },
   easterns: { locationId: 'xN2LSSl62okzv9GnOJPU', defaultChannel: 'messenger' },
   arlington: { locationId: '9v8zH9Y5eLiiJwZTZDci', defaultChannel: 'messenger' },
+  'koons-fred': { locationId: 'xuHo0opTO2g5edIuPJRl', defaultChannel: 'messenger' },
+  'koons-fred-eng': { locationId: 'ozAIEblxTjrh0PfoaHge', defaultChannel: 'messenger' },
 };
 
 type LeadRow = { id: string; canonical_phone: string | null; first_name: string | null; last_name: string | null };

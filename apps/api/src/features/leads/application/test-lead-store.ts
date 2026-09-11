@@ -38,6 +38,8 @@ export const OFFLEASE_FREDERICKSBURG_LOCATION_IDS = {
 } as const;
 
 export const ARLINGTON_WOODBRIDGE_LOCATION_ID = '9v8zH9Y5eLiiJwZTZDci';
+export const KOONS_FREDERICKSBURG_LOCATION_ID = 'xuHo0opTO2g5edIuPJRl';
+export const KOONS_FREDERICKSBURG_EN_LOCATION_ID = 'ozAIEblxTjrh0PfoaHge';
 
 const TEST_DEALER_ALIASES: Record<string, string> = {
   'dealer-fredericksburg-2': 'dealer-fredericksburg',
@@ -50,6 +52,8 @@ export const testDealers: TestDealer[] = [
   { id: EASTERN_DEALER_IDS.laurel, code: 'DLR-EAST-LAUR', name: 'Easterns Laurel', pendingCount: 1 },
   { id: EASTERN_DEALER_IDS.sterling, code: 'DLR-EAST-STER', name: 'Easterns Sterling', pendingCount: 0 },
   { id: 'dealer-arlington-woodbridge', code: 'ARL-WOOD', name: 'Arlington Motors of Woodbridge', pendingCount: 0, ghlLocationId: ARLINGTON_WOODBRIDGE_LOCATION_ID },
+  { id: 'dealer-koons-fred', code: 'KOONS-FRED', name: 'Koons de Fredericksburg', pendingCount: 0, ghlLocationId: KOONS_FREDERICKSBURG_LOCATION_ID },
+  { id: 'dealer-koons-fred-eng', code: 'KOONS-FRED-ENG', name: 'Koons Automotive of Fredericksburg', pendingCount: 0, ghlLocationId: KOONS_FREDERICKSBURG_EN_LOCATION_ID },
 ];
 
 export const testLead: TestLead = {
