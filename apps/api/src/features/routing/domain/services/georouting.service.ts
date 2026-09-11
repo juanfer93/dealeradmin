@@ -196,11 +196,11 @@ export class GeoroutingService {
       `SELECT DISTINCT state_code
        FROM locations
        WHERE normalized_name = ANY($1::text[])
-       ORDER BY state_code`,
+       ORDER BY CASE state_code WHEN 'MD' THEN 0 WHEN 'VA' THEN 1 ELSE 2 END, state_code`,
       [[city, stripPlaceSuffix(city)].filter((value, index, all) => value && all.indexOf(value) === index)],
     )) as Array<{ state_code: string }>;
     const states = [...new Set(rows.map((row) => row.state_code.trim().toUpperCase()).filter(Boolean))];
-    return states.length === 1 ? states[0] : '';
+    return states.find((state) => state === 'MD' || state === 'VA') || (states.length === 1 ? states[0] : '');
   }
 
   private isSouthernMarylandCity(city: string): boolean {

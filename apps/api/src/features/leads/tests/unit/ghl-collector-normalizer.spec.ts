@@ -57,6 +57,35 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.missing_qualification).toEqual(['purchase_timeline', 'proof_of_income', 'bank_account']);
   });
 
+  it('keeps a trade-in vehicle year out of the down payment and recognizes bank statements', () => {
+    const transcript = [
+      'pudo ver su inventario',
+      'Sedan',
+      'Por laurel',
+      'En realidad quería ver si puedo hacer un trade in. Tengo un subaru wrx 2021 que aun lo sigo pagando.',
+      '1000',
+      'Quisiera cambiarlo este mes',
+      'Tengo ITIN. Y comprobante solo mis estados de cuenta ya que trabajo de manera independiente',
+    ].join('\n');
+    const result = execute({ message: transcript, chat_history_log: transcript, phone: '+12272599238' });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'Sedan',
+      down_payment: '1000 + trade-in',
+      identification: 'yes',
+      has_income_proof: 'yes',
+    });
+    expect(result.documents).toContain('proof of income: yes');
+  });
+
+  it.each(['I have bank statements', 'I have account statements', 'Tengo colillas de cheques', 'I have check stubs', 'I have a bank account', 'Tengo cuenta bancaria'])('maps income evidence in the Custom Code: %s', (message) => {
+    expect(execute({ message }).has_income_proof).toBe('yes');
+  });
+
+  it.each(['I have my passport', 'Tengo mi pasaporte'])('maps passport as identification in the Custom Code: %s', (message) => {
+    expect(execute({ message }).identification).toBe('yes');
+  });
+
   it('normalizes an explicit phone from the inbound message for the GHL contact phone output', () => {
     const result = execute({
       message: 'Sedan, mi numero de telefono es (804) 309-2531',
@@ -64,6 +93,22 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
     expect(result).toMatchObject({ vehicle_type: 'Sedan', phone: '+18043092531' });
     expect(result.qualification_memory).toContain('vehicle: Sedan');
+  });
+
+  it.each([
+    ['1000', '1000'],
+    ['2000', '2000'],
+    ['3000', '3000'],
+  ])('keeps standalone cash amount %s as down payment in Custom Code', (message, expected) => {
+    expect(execute({ message }).down_payment).toBe(expected);
+  });
+
+  it.each(['2018', '2019', '2025'])('does not classify a standalone vehicle year as down payment in Custom Code: %s', (message) => {
+    expect(execute({ message }).down_payment).toBe('');
+  });
+
+  it('extracts Elias Alvarado from the Stafford conversation in Custom Code', () => {
+    expect(execute({ message: 'Elias alvarado' }).real_name).toBe('Elias alvarado');
   });
 
   it('prefers the phone written in the message and ignores a stale contact phone', () => {

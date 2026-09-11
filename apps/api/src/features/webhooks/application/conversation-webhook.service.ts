@@ -390,7 +390,11 @@ export class ConversationWebhookService {
     let state = hints.state;
     if (city) {
       const rows = await runner.query(
-        `SELECT name, state_code FROM locations WHERE normalized_name = $1 ORDER BY state_code LIMIT 1`,
+        `SELECT name, state_code
+         FROM locations
+         WHERE normalized_name = $1
+         ORDER BY CASE state_code WHEN 'MD' THEN 0 WHEN 'VA' THEN 1 ELSE 2 END, state_code
+         LIMIT 1`,
         [city.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()],
       ) as Array<{ name: string; state_code: string }>;
       if (rows[0]) {

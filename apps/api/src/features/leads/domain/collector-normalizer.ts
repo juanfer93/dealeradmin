@@ -242,11 +242,12 @@ function extractVehicle(message: string): string {
     .trim();
   const requested = withoutOtherFacts.match(/(?:looking for|busco|quiero|want|interested in|interesado en)\s+(?:a|an|un|una)?\s*([^.!?]+)/i)?.[1];
   if (requested) return clean(requested);
+  // A transcript can contain several facts (for example "Sedan" followed by
+  // a Subaru trade-in). Return the vehicle token, never the complete transcript.
   const category = withoutOtherFacts.match(/\b(suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto)\b/i)?.[1];
-  const categoryOnly = withoutOtherFacts.match(/^\s*(suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto)\b/i)?.[1];
-  if (categoryOnly) return categoryOnly;
-  const brand = withoutOtherFacts.match(/\b(toyota|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla)\b/i)?.[1];
-  return brand || category ? clean(withoutOtherFacts) : EMPTY;
+  if (category) return category;
+  const vehicle = withoutOtherFacts.match(/\b(?:toyota|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla)\b(?:\s+[a-z0-9-]+){0,2}/i)?.[0];
+  return clean(vehicle || EMPTY);
 }
 
 function extractDownPayment(message: string): string {
@@ -265,17 +266,27 @@ function extractTradeInDownPayment(message: string): string {
   const amountPattern = '(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?)';
   const tradeInPattern = '(?:trade[- ]?in|my car|my vehicle|mi carro|mi auto|carro como enganche|(?:cambiar|cambio)\\s+(?:(?:mi|el|de)\\s+)?(?:veh[ií]culo|carro|auto)|change\\s+(?:my\\s+)?(?:vehicle|car))';
   const beforeTradeIn = source.match(new RegExp(`\\$?\\s*(${amountPattern})\\s*(?:down|payment|enganche|inicial)?\\s*(?:\\+|and|y)\\s*${tradeInPattern}`, 'i'));
-  const afterTradeIn = source.match(new RegExp(`${tradeInPattern}[^0-9]{0,24}\\$?\\s*(${amountPattern})`, 'i'));
+  const afterTradeIn = source.match(new RegExp(
+    `${tradeInPattern}\\s*(?:(?:and|plus|with|y|mas|más|con)\\s*(?:put|poner|pay|pagar|give|dar)?\\s*|[^0-9;.!?]{0,16}(?:down|payment|enganche|inicial|deposit|dep[oó]sito)[^0-9;.!?]{0,8})\\$?\\s*(${amountPattern})`,
+    'i',
+  ));
   const amount = beforeTradeIn?.[1] ?? afterTradeIn?.[1];
   const normalized = amount ? normalizeAmount(amount) : EMPTY;
   return normalized ? `${normalized} + trade-in` : /\btrade[- ]?in\b|\bmy (?:car|vehicle)\b|\bmi (?:carro|auto)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b|\bchange\s+(?:my\s+)?(?:vehicle|car)\b/i.test(source) ? 'trade-in' : EMPTY;
 }
 
 function extractStandaloneDownPayment(message: string): string {
-  const source = clean(message);
+  // Preserve message boundaries so a numeric reply inside a full transcript
+  // (for example the standalone "1000" message) is not lost.
+  const source = String(message ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source || isCampaignButton(source)) return EMPTY;
-  const standalone = source.match(/^\$?\s*(\d{1,3}(?:[,.]\d{3})+|\d+(?:[,.]\d+)?\s*k?)\s*(?:tengo|have|available|disponible|i have|i can put)?\s*\d{0,2}\s*\.?$/i);
-  return standalone ? normalizeAmount(standalone[1]) : EMPTY;
+  const standalone = source.match(/(?:^|\n)\$?\s*(\d{1,3}(?:[,.]\d{3})+|\d+(?:[,.]\d+)?\s*k?)\s*(?:tengo|have|available|disponible|i have|i can put)?\s*\d{0,2}\s*\.?\s*(?=\n|$)/im);
+  if (!standalone) return EMPTY;
+  const candidate = standalone[1].replace(/[$,\s]/g, '');
+  // A standalone recent four-digit answer is a vehicle year, not a down
+  // payment. Values such as 1000/2000/3000 remain valid down payments.
+  if (/^20(?:1\d|2\d)$/.test(candidate)) return EMPTY;
+  return normalizeAmount(standalone[1]);
 }
 
 function extractTimeline(message: string): string {
@@ -320,8 +331,8 @@ function mergeDocuments(current: string, message: string): { value: string; id: 
     }
     return '';
   };
-  const id = answer('id|identification|identificación|license|licencia');
-  const income = answer('proof of income|income proof|prueba de ingresos|comprobante de ingresos');
+  const id = answer('id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b');
+  const income = answer('proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina|bank account|cuenta bancaria|cuenta de banco');
   const parts = [...new Set(clean(current).split(';').map(clean).filter(Boolean))];
   if (id && !/\b(?:id|identification|identificación|license|licencia)\s*:/i.test(current) && !/\b(?:id|identification|identificación|license|licencia)\b/i.test(current)) {
     parts.push(`identification: ${id}`);
@@ -389,6 +400,8 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const message = clean(input.message);
   const history = clean(input.chat_history_log);
   const memory = input.qualification_memory?.trim() ?? EMPTY;
+  const rawMessage = String(input.message ?? '').replace(/\r\n?/g, '\n').trim();
+  const rawHistory = String(input.chat_history_log ?? '').replace(/\r\n?/g, '\n').trim();
   const hasMemory = Boolean(memory);
   const hasCustomFields = [
     input.vehicle_type,
@@ -432,17 +445,20 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     memoryValue(memory, ['vehicle', 'vehicle_type']),
     input.vehicle_type,
   ));
-  const baseDown = firstValidAmount(
-    campaignReply ? EMPTY : input.down_payment,
-    extractTradeInDownPayment(messageForExtraction),
+  const cashDown = firstValidAmount(
     extractDownPayment(messageForExtraction),
-    extractStandaloneDownPayment(messageForExtraction),
-    extractTradeInDownPayment(history),
+    extractStandaloneDownPayment(rawMessage),
     extractDownPayment(history),
+    extractStandaloneDownPayment(rawHistory),
     normalizeMemoryDownPayment(memoryValue(memory, ['down payment', 'down_payment', 'downpayment'])),
-    extractTradeInDownPayment(memoryText(memory)),
     campaignReply ? EMPTY : input.down_payment,
   );
+  const tradeDown = firstValidAmount(
+    extractTradeInDownPayment(messageForExtraction),
+    extractTradeInDownPayment(history),
+    extractTradeInDownPayment(memoryText(memory)),
+  );
+  const baseDown = cashDown || tradeDown;
   const conversationalSource = [history, message].filter(Boolean).join('; ');
   const down = baseDown && /trade[- ]?in|my car|my vehicle|mi carro|mi auto|carro como enganche|(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)|change\s+(?:my\s+)?(?:vehicle|car)/i.test(conversationalSource) && !/trade[- ]?in/i.test(baseDown)
     ? `${baseDown} + trade-in`

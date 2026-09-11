@@ -4,8 +4,10 @@ const clean = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
 const emptyMarker = (value) => /^(?:--|-|n\/?a|not indicated|not specified|no indicado|no especificado)$/i.test(clean(value));
 const first = (...values) => values.map(clean).find((value) => value && !emptyMarker(value)) || '';
 const rawMemory = String(inputData.qualification_memory ?? '').trim();
-const message = clean(inputData.message);
-const history = clean(inputData.chat_history_log);
+const rawMessage = String(inputData.message ?? '').replace(/\r\n?/g, '\n').trim();
+const rawHistory = String(inputData.chat_history_log ?? '').replace(/\r\n?/g, '\n').trim();
+const message = clean(rawMessage);
+const history = clean(rawHistory);
 const normalizePhone = (value) => {
   const digits = String(value ?? '').replace(/\D/g, '');
   if (digits.length === 10) return `+1${digits}`;
@@ -97,16 +99,18 @@ const tradeIn = (text) => {
   if (!source || campaign) return '';
   const token = '(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?)';
   const trade = '(?:trade[- ]?in|my car|my vehicle|mi carro|mi auto|carro como enganche)';
-  const match = source.match(new RegExp(`\\$?\\s*(${token})\\s*(?:down|payment|enganche|inicial)?\\s*(?:\\+|and|y)\\s*${trade}`, 'i')) || source.match(new RegExp(`${trade}[^0-9]{0,24}\\$?\\s*(${token})`, 'i'));
+  const match = source.match(new RegExp(`\\$?\\s*(${token})\\s*(?:down|payment|enganche|inicial)?\\s*(?:\\+|and|y)\\s*${trade}`, 'i')) || source.match(new RegExp(`${trade}\\s*(?:(?:and|plus|with|y|mas|más|con)\\s*(?:put|poner|pay|pagar|give|dar)?\\s*|[^0-9;.!?]{0,16}(?:down|payment|enganche|inicial|deposit|dep[oó]sito)[^0-9;.!?]{0,8})\\$?\\s*(${token})`, 'i'));
   const value = validAmount(match?.[1]);
   return value ? `${value} + trade-in` : /\btrade[- ]?in\b|\bmy (?:car|vehicle)\b|\bmi (?:carro|auto)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b|\bchange\s+(?:my\s+)?(?:vehicle|car)\b/i.test(source) ? 'trade-in' : '';
 };
 const downFrom = (text) => {
-  const source = clean(text);
+  const source = String(text ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source || campaign) return '';
   const token = '(\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?)';
   const explicit = source.match(new RegExp(`(?:down|enganche|inicial|deposit|dep[oó]sito)\\s*(?:payment|pago)?\\s*(?:is|es|de|:)?\\s*\\$?\\s*${token}`, 'i'));
-  const standalone = source.match(/^\$?\s*(\d{1,3}(?:[,.]\d{3})+|\d+(?:[,.]\d+)?\s*k?)\s*(?:tengo|have|available|disponible|i have|i can put)?\s*\d{0,2}\s*\.?$/i);
+  const standalone = source.match(/(?:^|\n)\$?\s*(\d{1,3}(?:[,.]\d{3})+|\d+(?:[,.]\d+)?\s*k?)\s*(?:tengo|have|available|disponible|i have|i can put)?\s*\d{0,2}\s*\.?\s*(?=\n|$)/im);
+  const candidate = standalone?.[1]?.replace(/[$,\s]/g, '') || '';
+  if (!explicit && /^20(?:1\d|2\d)$/.test(candidate)) return '';
   return validAmount(explicit?.[1] || standalone?.[1]);
 };
 const vehicleFrom = (text) => {
@@ -120,10 +124,10 @@ const vehicleFrom = (text) => {
     .trim();
   const requested = cleaned.match(/(?:looking for|busco|quiero|want|interested in|interesado en)\s+(?:a|an|un|una)?\s*([^.!?]+)/i)?.[1];
   if (requested && /\b(?:suv|sedan|truck|troca|pickup|van|minivan|crossover|coupe|hatchback|toyota|honda|ford|nissan|chevrolet|hyundai|kia|mazda|subaru|volkswagen|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|tacoma|rav4|civic|accord|camry|corolla|f-?150|explorer|cr-v|pilot|sierra|silverado|wrangler)\b/i.test(requested)) return clean(requested);
-  const hit = cleaned.match(/\b(?:suv|sedan|truck|troca|pickup|van|minivan|crossover|coupe|hatchback|toyota|honda|ford|nissan|chevrolet|hyundai|kia|mazda|subaru|volkswagen|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|tacoma|rav4|civic|accord|camry|corolla|f-?150|explorer|cr-v|pilot|sierra|silverado|wrangler)\b[^.!?]*/i)?.[0];
-  const categoryOnly = cleaned.match(/^\s*(suv|sedan|truck|troca|pickup|van|minivan|crossover|coupe|hatchback)\b/i)?.[1];
-  if (categoryOnly) return categoryOnly;
-  return clean(hit?.replace(/\b(?:19|20)\d{2}\b/g, '').replace(/\d+$/g, ''));
+  const category = cleaned.match(/\b(suv|sedan|truck|troca|pickup|van|minivan|crossover|coupe|hatchback)\b/i)?.[1];
+  if (category) return category;
+  const vehicle = cleaned.match(/\b(?:toyota|honda|ford|nissan|chevrolet|hyundai|kia|mazda|subaru|volkswagen|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla)\b(?:\s+[a-z0-9-]+){0,2}/i)?.[0];
+  return clean(vehicle?.replace(/\b(?:19|20)\d{2}\b/g, '').replace(/\s+/g, ' '));
 };
 const cleanVehicleValue = (value) => clean(value).replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
 const timelineFrom = (text) => {
@@ -146,8 +150,12 @@ const documentStatus = (pattern, memoryAliases, custom) => {
   if (customStatus) return customStatus;
   if (new RegExp(pattern, 'i').test(clean(custom)) && !/\b(?:no|n[oó]|sin|not|dont|don't|no tengo|do not have|not available)\b/i.test(clean(custom))) return 'yes';
   const conversational = `${message}; ${history}`;
-  const conversationalStatus = yesNo(conversational.match(new RegExp(`(?:${pattern})[^;.!?]{0,60}`, 'i'))?.[0] || conversational.match(new RegExp(`[^;.!?]{0,60}(?:${pattern})`, 'i'))?.[0] || '');
+  const positive = 'yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available';
+  const negative = "no|n[oó]|sin|not|dont|don't|no tengo|i do not|do not have|not available";
+  const conversationalContext = conversational.match(new RegExp(`(?:${positive}|${negative})[^;.!?]{0,60}(?:${pattern})|(?:${pattern})[^;.!?]{0,60}(?:${positive}|${negative})`, 'i'))?.[0] || '';
+  const conversationalStatus = yesNo(conversationalContext);
   if (conversationalStatus) return conversationalStatus;
+  if (new RegExp(pattern, 'i').test(conversational) && !new RegExp(`\\b(?:${negative})\\b`, 'i').test(conversational)) return 'yes';
   const memory = [memoryValue(memoryAliases), memoryValue(['documents', 'docs', 'documentos'])].filter(Boolean);
   for (const value of memory) {
     if (new RegExp(pattern, 'i').test(value)) return yesNo(value) || 'yes';
@@ -160,11 +168,16 @@ const vehicle = first(
   cleanVehicleValue(memoryValue(['vehicle', 'vehicle_type'])),
   cleanVehicleValue(inputData.vehicle_type),
 );
-const downCandidate = campaign ? '' : first(tradeIn(message), downFrom(message), downFrom(history), memoryValue(['down payment', 'down_payment', 'downpayment']), validAmount(inputData.down_payment));
-const down = validAmount(downCandidate);
+const cashDown = campaign ? '' : first(downFrom(rawMessage), downFrom(rawHistory), memoryValue(['down payment', 'down_payment', 'downpayment']), validAmount(inputData.down_payment));
+const tradeDown = campaign ? '' : first(tradeIn(message), tradeIn(history), tradeIn(memoryText(rawMemory)));
+const downCandidate = cashDown || tradeDown;
+const conversationalDownSource = `${message}; ${history}`;
+const down = validAmount(cashDown && /trade[- ]?in|my car|my vehicle|mi carro|mi auto|carro como enganche|(?:cambiar|cambio)\\s+(?:(?:mi|el|de)\\s+)?(?:veh[ií]culo|carro|auto)|change\\s+(?:my\\s+)?(?:vehicle|car)/i.test(conversationalDownSource) && !/trade[- ]?in/i.test(cashDown)
+  ? `${cashDown} + trade-in`
+  : downCandidate);
 const timeline = first(timelineFrom(message), timelineFrom(history), memoryValue(['timeline', 'purchase timeline', 'purchase_timeline']), inputData.purchase_timeline);
-const identification = documentStatus('id\\b|identification|identificación|driver.?s license|license|licencia', ['identification', 'id'], inputData.identification || inputData.documents);
-const income = documentStatus('proof of income|income proof|prueba de ingresos|comprobante de ingresos', ['income', 'proof of income'], inputData.documents);
+const identification = documentStatus('id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b', ['identification', 'id', 'itin', 'passport', 'pasaporte'], inputData.identification || inputData.documents);
+const income = documentStatus('proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina|bank account|cuenta bancaria|cuenta de banco', ['income', 'proof of income', 'estados de cuenta', 'account statements', 'bank statements', 'check stubs', 'bank account', 'cuenta bancaria'], inputData.documents);
 const bankContext = `${message}; ${history}`.match(/(?:bank account|cuenta bancaria)[^;]*(?:yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available|no|not|sin|dont|don't|no tengo|i do not|do not have|not available)/i)?.[0] || '';
 const bankAccount = first(yesNo(inputData.bank_account), yesNo(bankContext), yesNo(memoryValue(['bank account', 'bank_account', 'cuenta bancaria'])));
 const documents = first(memoryValue(['documents', 'docs', 'documentos']), inputData.documents, [identification === 'yes' ? 'identification: yes' : '', income === 'yes' ? 'proof of income: yes' : ''].filter(Boolean).join(', '));

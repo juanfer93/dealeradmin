@@ -54,6 +54,26 @@ describe('Easterns georouting engine', () => {
     await expect(service.resolveDealer({ city })).resolves.toMatchObject({ dealerId: expectedDealerId });
   });
 
+  it('prioriza Maryland cuando una ciudad también existe en otro estado', async () => {
+    const query = vi.fn(async (sql: string) => sql.includes('locations')
+      ? [{ state_code: 'DE' }, { state_code: 'MD' }]
+      : []);
+    const service = new GeoroutingService({ query } as never);
+
+    await expect(service.resolveDealer({ city: 'Laurel' })).resolves.toMatchObject({
+      dealerId: EASTERN_DEALER_IDS.laurel,
+    });
+  });
+
+  it('respeta un estado explícito aunque la ciudad tenga coincidencias en Maryland', async () => {
+    const { service } = createService();
+
+    await expect(service.resolveDealer({ city: 'Laurel', state: 'Delaware' })).resolves.toMatchObject({
+      dealerId: EASTERN_DEALER_IDS.rosedale,
+      reason: 'Exclusive Zone: State DE',
+    });
+  });
+
   it('prioriza el estado explícito sobre una ciudad de otra jurisdicción', async () => {
     const { service } = createService();
     await expect(service.resolveDealer({ state: 'VA', city: 'Baltimore' })).resolves.toMatchObject({ dealerId: EASTERN_DEALER_IDS.sterling });

@@ -40,6 +40,42 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message: 'My car is the trade-in', down_payment: '2500' }).down_payment).toBe('2500 + trade-in');
   });
 
+  it('does not interpret a trade-in vehicle year as the down payment and recognizes bank statements as income proof', () => {
+    const transcript = [
+      'pudo ver su inventario',
+      'Sedan',
+      'Por laurel',
+      'En realidad quería ver si puedo hacer un trade in. Tengo un subaru wrx 2021 que aun lo sigo pagando.',
+      '1000',
+      'Quisiera cambiarlo este mes',
+      'Tengo ITIN. Y comprobante solo mis estados de cuenta ya que trabajo de manera independiente',
+    ].join('\n');
+    const result = normalizeCollectorInput({ message: transcript, chat_history_log: transcript, phone: '+12272599238' });
+
+    expect(result.vehicle_type).toBe('Sedan');
+    expect(result.down_payment).toBe('1000 + trade-in');
+    expect(result.identification).toBe('yes');
+    expect(result.has_income_proof).toBe('yes');
+    expect(result.documents).toContain('proof of income: yes');
+    expect(result.missing_qualification).toEqual(['bank_account']);
+  });
+
+  it.each([
+    ['I have bank statements', 'yes'],
+    ['I have account statements', 'yes'],
+    ['Tengo colillas de cheques', 'yes'],
+    ['I have check stubs', 'yes'],
+    ['I have proof of income', 'yes'],
+    ['I have a bank account', 'yes'],
+    ['Tengo cuenta bancaria', 'yes'],
+  ])('treats income evidence as proof of income: %s', (message, expected) => {
+    expect(normalizeCollectorInput({ message }).has_income_proof).toBe(expected);
+  });
+
+  it.each(['I have my passport', 'Tengo mi pasaporte'])('treats passport as valid identification: %s', (message) => {
+    expect(normalizeCollectorInput({ message }).identification).toBe('yes');
+  });
+
   it('accepts a trade-in as the down payment even without a cash amount', () => {
     expect(normalizeCollectorInput({ qualification_memory: 'make: Toyota; model: RAV4; down payment: trade-in; timeline: today; documents: driver license and proof of income; bank account: yes' })).toMatchObject({
       vehicle_type: 'Toyota RAV4',
@@ -148,6 +184,22 @@ describe('normalizeCollectorInput', () => {
     expect(result.vehicle_type).toBe('Suv');
 
     expect(normalizeCollectorInput({ message: 'Para ya' }).purchase_timeline).toBe('today');
+  });
+
+  it.each([
+    ['1000', '1000'],
+    ['2000', '2000'],
+    ['3000', '3000'],
+  ])('keeps standalone cash amount %s as down payment', (message, expected) => {
+    expect(normalizeCollectorInput({ message }).down_payment).toBe(expected);
+  });
+
+  it.each(['2018', '2019', '2025'])('does not classify a standalone vehicle year as down payment: %s', (message) => {
+    expect(normalizeCollectorInput({ message }).down_payment).toBe('');
+  });
+
+  it('extracts a declared personal name from a Stafford conversation', () => {
+    expect(normalizeCollectorInput({ message: 'Elias alvarado' }).real_name).toBe('Elias alvarado');
   });
 
   it('removes campaign-button suffix contamination and captures a numeric reply followed by tengo', () => {
