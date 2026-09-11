@@ -126,6 +126,25 @@ describe('ConversationWebhookService', () => {
     ]);
   });
 
+  it('configures Koons Automotive of Culpeper as a separate Messenger source', async () => {
+    expect(GHL_SOURCE_CONFIG['koons-culpeper']).toEqual({
+      locationId: 'bTNJHpNZ8FaS1PUHkuUq',
+      defaultChannel: 'messenger',
+    });
+
+    const service = new ConversationWebhookService();
+    const result = await service.acceptCustomerReplied(
+      { message_body: 'I am looking for an SUV.', channel: 'messenger' },
+      'koons-culpeper',
+      { contactId: 'ghl-koons-culpeper-contact', conversationId: 'ghl-koons-culpeper-conversation' },
+    );
+
+    expect(result).toMatchObject({ source: 'koons-culpeper', conversationId: 'ghl-koons-culpeper-conversation' });
+    expect(getTestConversationEvents()).toEqual([
+      expect.objectContaining({ source: 'koons-culpeper', channel: 'messenger' }),
+    ]);
+  });
+
   it('does not replace an existing lead name with the GHL fallback when the reply has no name', async () => {
     const queryRunner = {
       connect: vi.fn(),
