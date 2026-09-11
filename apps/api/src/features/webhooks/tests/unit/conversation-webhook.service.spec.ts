@@ -1,5 +1,10 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
-import { ConversationWebhookService } from '../../application/conversation-webhook.service';
+import {
+  ConversationWebhookService,
+  CONVERSATION_STABILIZATION_MS,
+  INCOMPLETE_QUALIFICATION_WINDOW_HOURS,
+  OUT_OF_WINDOW_QUALIFICATION_WINDOW_HOURS,
+} from '../../application/conversation-webhook.service';
 import { getTestConversationEvents, resetTestConversationEvents } from '../../application/test-conversation-store';
 
 describe('ConversationWebhookService', () => {
@@ -13,6 +18,26 @@ describe('ConversationWebhookService', () => {
   afterEach(() => {
     process.env.NODE_ENV = originalNodeEnv;
   });
+
+  function evaluateStatus(
+    snapshot: Record<string, unknown>,
+    location: Record<string, unknown>,
+    dealer: Record<string, unknown>,
+    source: 'stafford' | 'easterns',
+    now: Date,
+    phase: 'capture' | 'due',
+    readyAt?: string,
+  ) {
+    const service = new ConversationWebhookService();
+    return (service as unknown as {
+      statusForConversation: (...args: unknown[]) => { status: string; nextAttemptAt: string | null };
+    }).statusForConversation(snapshot, location, dealer, source, now, phase, readyAt);
+  }
+
+  const completeSnapshot = { phone: '+13015550123', vehicle_type: 'SUV', qualification_complete: true };
+  const incompleteSnapshot = { phone: '+13015550123', vehicle_type: 'SUV', qualification_complete: false };
+  const easternsLocation = { city: 'Laurel', state: 'MD', zip_code: null, easterns_zone: null };
+  const easternsDealer = { timezone: 'America/New_York', routing_config: { group: 'Easterns' } };
 
   it('captures one inbound message using the native contact id header', async () => {
     const service = new ConversationWebhookService();
@@ -137,5 +162,38 @@ describe('ConversationWebhookService', () => {
     const conversationUpdate = queryRunner.query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
     expect(conversationUpdate?.[0]).toContain('status = $2::varchar');
     expect(conversationUpdate?.[0]).toContain("CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued')");
+  });
+
+  it('debounces a route-ready conversation for 15 seconds after capture', () => {
+    const now = new Date('2026-09-11T14:00:00.000Z');
+    const result = evaluateStatus(completeSnapshot, easternsLocation, easternsDealer, 'easterns', now, 'capture');
+
+    expect(result.status).toBe('waiting_window');
+    expect(result.nextAttemptAt).toBe(new Date(now.getTime() + CONVERSATION_STABILIZATION_MS).toISOString());
+  });
+
+  it('queues a complete conversation after the stabilization window', () => {
+    const now = new Date('2026-09-11T14:00:15.000Z');
+    const result = evaluateStatus(completeSnapshot, easternsLocation, easternsDealer, 'easterns', now, 'due', '2026-09-11T14:00:00.000Z');
+
+    expect(result).toEqual({ status: 'ready', nextAttemptAt: null });
+  });
+
+  it('keeps incomplete conversations until the dealer-local qualification window expires', () => {
+    const now = new Date('2026-09-11T14:29:59.000Z');
+    const result = evaluateStatus(incompleteSnapshot, easternsLocation, easternsDealer, 'easterns', now, 'due', '2026-09-11T14:00:00.000Z');
+
+    expect(result.status).toBe('waiting_window');
+    expect(result.nextAttemptAt).toBe('2026-09-11T14:30:00.000Z');
+    expect(INCOMPLETE_QUALIFICATION_WINDOW_HOURS).toBe(0.5);
+  });
+
+  it('uses the three-hour overnight rule for incomplete conversations', () => {
+    const now = new Date('2026-09-11T20:00:00.000Z');
+    const result = evaluateStatus(incompleteSnapshot, easternsLocation, easternsDealer, 'easterns', now, 'due', '2026-09-11T20:00:00.000Z');
+
+    expect(result.status).toBe('waiting_window');
+    expect(result.nextAttemptAt).toBe('2026-09-11T23:00:00.000Z');
+    expect(OUT_OF_WINDOW_QUALIFICATION_WINDOW_HOURS).toBe(3);
   });
 });

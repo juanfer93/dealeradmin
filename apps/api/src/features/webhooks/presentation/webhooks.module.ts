@@ -9,5 +9,6 @@ import { ConversationWebhookService } from '../application/conversation-webhook.
   imports: [RoutingModule],
   controllers: [WebhooksController],
   providers: [WebhookService, ConversationWebhookService, HmacSignatureGuard],
+  exports: [ConversationWebhookService],
 })
 export class WebhooksModule {}

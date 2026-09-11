@@ -108,6 +108,15 @@ export default function OperatorDashboard() {
     return () => { active = false; };
   }, [loadLeads, router]);
 
+  useEffect(() => {
+    if (isPortfolioMode) return undefined;
+    const interval = window.setInterval(() => {
+      const multipleDealers = selectedDealerIds.length > 1;
+      void loadLeads(status, multipleDealers ? undefined : selectedDealerId || undefined, multipleDealers ? selectedDealerIds : undefined);
+    }, 30_000);
+    return () => window.clearInterval(interval);
+  }, [loadLeads, selectedDealerId, selectedDealerIds, status]);
+
   const activeDealer = useMemo(() => dealers.find((dealer) => dealer.id === selectedDealerId) ?? dealers[0], [dealers, selectedDealerId]);
   const activeDealerIdentity = activeDealer ? dealerIdentity(activeDealer.name) : null;
   const selectedVisibleLeadIds = useMemo(() => selectedLeadIds.filter((id) => leads.some((lead) => lead.id === id)), [leads, selectedLeadIds]);

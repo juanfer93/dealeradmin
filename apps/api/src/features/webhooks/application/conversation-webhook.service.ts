@@ -13,6 +13,10 @@ import { recordTestConversationEvent } from './test-conversation-store';
 
 type SourceKey = 'stafford' | 'fredericksburg' | 'fredericksburg-2' | 'easterns';
 
+export const CONVERSATION_STABILIZATION_MS = 15_000;
+export const INCOMPLETE_QUALIFICATION_WINDOW_HOURS = 0.5;
+export const OUT_OF_WINDOW_QUALIFICATION_WINDOW_HOURS = 3;
+
 export const GHL_SOURCE_CONFIG: Record<SourceKey, { locationId: string; defaultChannel: 'whatsapp' | 'messenger' }> = {
   stafford: { locationId: 'LiaoSID3nvAhad49ZpNJ', defaultChannel: 'whatsapp' },
   fredericksburg: { locationId: 'MyxWNKacThim798E8KC6', defaultChannel: 'messenger' },
@@ -22,7 +26,7 @@ export const GHL_SOURCE_CONFIG: Record<SourceKey, { locationId: string; defaultC
 
 type LeadRow = { id: string; canonical_phone: string | null; first_name: string | null; last_name: string | null };
 type DealerRow = { id: string; code: string; name: string; timezone: string; routing_config: { group?: string } | null };
-type ConversationRow = { id: string; status: string; qualification_snapshot: Record<string, unknown>; location_snapshot: Record<string, unknown> };
+type ConversationRow = { id: string; status: string; qualification_snapshot: Record<string, unknown>; location_snapshot: Record<string, unknown>; ready_at?: string | null };
 type ExistingDealerLead = {
   status: string;
   routing_status: string;
@@ -259,11 +263,11 @@ export class ConversationWebhookService {
       };
       // Window rules are based on the server's current dealer-local time, not on
       // a delayed or replayed GHL timestamp from the message payload.
-      const status = this.statusForConversation(snapshot, location, dealer, source, new Date());
+      const status = this.statusForConversation(snapshot, location, dealer, source, new Date(), 'capture');
       await runner.query(
         `UPDATE conversations
          SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
-             last_message_at = $5, ready_at = CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued') THEN COALESCE(ready_at, $5) ELSE ready_at END,
+             last_message_at = $5, ready_at = CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued') THEN COALESCE(ready_at, CURRENT_TIMESTAMP) ELSE ready_at END,
              next_attempt_at = $6, updated_at = CURRENT_TIMESTAMP
          WHERE id = $1`,
         [conversation.id, status.status, JSON.stringify(snapshot), JSON.stringify(location), receivedAt, status.nextAttemptAt],
@@ -337,20 +341,28 @@ export class ConversationWebhookService {
 
   private async upsertConversation(runner: QueryRunner, input: { leadId: string; locationId: string; contactId: string; conversationId: string; channel: string; occurredAt: string }): Promise<ConversationRow> {
     const existing = await runner.query(
-      `SELECT id, status, qualification_snapshot, location_snapshot FROM conversations
+      `SELECT id, status, qualification_snapshot, location_snapshot, ready_at FROM conversations
        WHERE ghl_location_id = $1 AND ghl_contact_id = $2 AND ghl_conversation_id = $3 FOR UPDATE`,
       [input.locationId, input.contactId, input.conversationId],
     ) as ConversationRow[];
     if (existing[0]) return existing[0];
     const inserted = await runner.query(
       `INSERT INTO conversations (lead_id, ghl_location_id, ghl_contact_id, ghl_conversation_id, channel, first_message_at, last_message_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $6) RETURNING id, status, qualification_snapshot, location_snapshot`,
+       VALUES ($1, $2, $3, $4, $5, $6, $6) RETURNING id, status, qualification_snapshot, location_snapshot, ready_at`,
       [input.leadId, input.locationId, input.contactId, input.conversationId, input.channel, input.occurredAt],
     ) as ConversationRow[];
     return inserted[0];
   }
 
-  private statusForConversation(snapshot: ConversationSnapshot, location: LocationSnapshot, dealer: DealerRow, source: SourceKey, now: Date): { status: 'partial' | 'ready' | 'waiting_window'; nextAttemptAt: string | null } {
+  private statusForConversation(
+    snapshot: ConversationSnapshot,
+    location: LocationSnapshot,
+    dealer: DealerRow,
+    source: SourceKey,
+    now: Date,
+    phase: 'capture' | 'due',
+    readyAt?: string | null,
+  ): { status: 'partial' | 'ready' | 'waiting_window'; nextAttemptAt: string | null } {
     const isEasterns = dealer.routing_config?.group === 'Easterns';
     const hasLocation = Boolean(location.city || location.state || location.easterns_zone || location.zip_code);
     const routingReady = Boolean(
@@ -359,9 +371,17 @@ export class ConversationWebhookService {
       (source !== 'stafford' || snapshot.vehicle_type),
     );
     if (!routingReady) return { status: 'partial', nextAttemptAt: null };
+    if (phase === 'capture') {
+      return { status: 'waiting_window', nextAttemptAt: new Date(now.getTime() + CONVERSATION_STABILIZATION_MS).toISOString() };
+    }
     if (snapshot.qualification_complete) return { status: 'ready', nextAttemptAt: null };
-    const delayHours = withinDispatchWindow(dealer.timezone, now) ? 0.5 : 3;
-    return { status: 'waiting_window', nextAttemptAt: plusHours(now, delayHours).toISOString() };
+    const delayHours = withinDispatchWindow(dealer.timezone, now)
+      ? INCOMPLETE_QUALIFICATION_WINDOW_HOURS
+      : OUT_OF_WINDOW_QUALIFICATION_WINDOW_HOURS;
+    const windowStart = readyAt ? new Date(readyAt) : now;
+    const windowDueAt = Number.isNaN(windowStart.getTime()) ? plusHours(now, delayHours) : plusHours(windowStart, delayHours);
+    if (windowDueAt <= now) return { status: 'ready', nextAttemptAt: null };
+    return { status: 'waiting_window', nextAttemptAt: windowDueAt.toISOString() };
   }
 
   private async resolveLocation(runner: QueryRunner, transcript: string): Promise<LocationSnapshot> {
@@ -430,7 +450,7 @@ export class ConversationWebhookService {
     await runner.startTransaction();
     try {
       const rows = await runner.query(
-        `SELECT c.id, c.ghl_location_id, c.ghl_contact_id, c.qualification_snapshot, c.location_snapshot,
+        `SELECT c.id, c.ghl_location_id, c.ghl_contact_id, c.qualification_snapshot, c.location_snapshot, c.ready_at,
                 l.id AS lead_id, d.id AS dealer_id, d.code, d.name, d.timezone, d.routing_config
          FROM conversations c
          JOIN leads l ON l.id = c.lead_id
@@ -441,7 +461,7 @@ export class ConversationWebhookService {
          WHERE c.id = $1 AND c.status = 'waiting_window' AND c.next_attempt_at <= $2
          FOR UPDATE`,
         [id, now.toISOString()],
-      ) as Array<{ id: string; ghl_location_id: string; qualification_snapshot: ConversationSnapshot; location_snapshot: LocationSnapshot; lead_id: string; dealer_id: string; code: string; name: string; timezone: string; routing_config: { group?: string } | null }>;
+      ) as Array<{ id: string; ghl_location_id: string; qualification_snapshot: ConversationSnapshot; location_snapshot: LocationSnapshot; ready_at: string | null; lead_id: string; dealer_id: string; code: string; name: string; timezone: string; routing_config: { group?: string } | null }>;
       if (!rows[0]) {
         await runner.rollbackTransaction();
         return false;
@@ -449,7 +469,7 @@ export class ConversationWebhookService {
       const row = rows[0];
       const source = (Object.entries(GHL_SOURCE_CONFIG).find(([, config]) => config.locationId === row.ghl_location_id)?.[0] ?? (row.code === 'STAFFORD' ? 'stafford' : row.routing_config?.group === 'Easterns' ? 'easterns' : 'fredericksburg')) as SourceKey;
       const dealer: DealerRow = { id: row.dealer_id, code: row.code, name: row.name, timezone: row.timezone, routing_config: row.routing_config };
-      const status = this.statusForConversation(row.qualification_snapshot, row.location_snapshot, dealer, source, now);
+      const status = this.statusForConversation(row.qualification_snapshot, row.location_snapshot, dealer, source, now, 'due', row.ready_at);
       if (status.status !== 'ready') {
         await runner.query(
           `UPDATE conversations SET status = $2, next_attempt_at = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,

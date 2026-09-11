@@ -25,6 +25,7 @@ import { buildManualLeadMessage } from '../domain/manual-message-builder';
 import { normalizeDownPayment } from '../domain/down-payment';
 import { normalizePhone } from '../domain/phone-normalizer';
 import { findDealerLeadDuplicate } from '../domain/lead-duplicate';
+import { ConversationWebhookService } from '../../webhooks/application/conversation-webhook.service';
 
 type LeadStatus = 'pending' | 'sent';
 
@@ -41,6 +42,7 @@ export class LeadsController {
     @Optional() @InjectDataSource() private readonly dataSource: DataSource | undefined,
     private readonly authService: AuthService,
     private readonly copyLeadService: CopyLeadService,
+    @Optional() private readonly conversationWebhookService?: ConversationWebhookService,
   ) {}
 
   @Get()
@@ -69,6 +71,11 @@ export class LeadsController {
     if (!this.dataSource) {
       throw new UnauthorizedException('Lead data is unavailable');
     }
+
+    // Materialize conversations whose stabilization/qualification window has
+    // expired before reading the queue. This keeps the operator view current
+    // even when the scheduled due-conversation request is delayed.
+    if (this.conversationWebhookService) await this.conversationWebhookService.processDueConversations();
 
     const selectedDealerIds = dealerIdsQuery?.split(',').filter(Boolean) ?? (dealerId ? [dealerId] : undefined);
     const dealerFilter = selectedDealerIds?.length ? 'AND d.id = ANY($2::uuid[])' : '';
