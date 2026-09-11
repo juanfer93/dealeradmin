@@ -295,10 +295,11 @@ export class ConversationWebhookService {
       `SELECT d.id, d.code, d.name, d.timezone, d.routing_config
        FROM dealers d
        WHERE d.active = true AND (d.ghl_location_id = $1 OR EXISTS (SELECT 1 FROM dealer_location_aliases a WHERE a.ghl_location_id = $1 AND a.dealer_id = d.id))
-       LIMIT 1`,
+       ORDER BY d.created_at, d.id`,
       [locationId],
     ) as DealerRow[];
     if (rows.length === 0) throw new BadRequestException(`No existe dealer activo para la Location ID ${locationId}`);
+    if (rows.length > 1) throw new BadRequestException(`El Location ID ${locationId} está vinculado a más de un dealer activo`);
     return rows[0];
   }
 
@@ -310,10 +311,21 @@ export class ConversationWebhookService {
     if (existing[0]) {
       const lead = existing[0];
       await runner.query(
-        `UPDATE leads SET canonical_phone = COALESCE($1, canonical_phone), first_name = NULLIF($2, ''), last_name = NULLIF($3, ''), updated_at = CURRENT_TIMESTAMP WHERE id = $4`,
+        `UPDATE leads
+         SET canonical_phone = COALESCE($1, canonical_phone),
+             first_name = CASE WHEN NULLIF($2, '') IS NULL OR LOWER($2) = 'lead' THEN first_name ELSE $2 END,
+             last_name = CASE WHEN NULLIF($3, '') IS NULL OR LOWER($2) = 'lead' THEN last_name ELSE $3 END,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $4`,
         [input.phone, input.firstName, input.lastName, lead.id],
       );
-      return { ...lead, canonical_phone: input.phone || lead.canonical_phone, first_name: input.firstName, last_name: input.lastName };
+      const hasRealName = Boolean(input.firstName && input.firstName.toLowerCase() !== 'lead');
+      return {
+        ...lead,
+        canonical_phone: input.phone || lead.canonical_phone,
+        first_name: hasRealName ? input.firstName : lead.first_name,
+        last_name: hasRealName ? input.lastName : lead.last_name,
+      };
     }
     const inserted = await runner.query(
       `INSERT INTO leads (canonical_phone, first_name, last_name, ghl_contact_id, ghl_location_id, source)
