@@ -45,7 +45,51 @@ const memoryValue = (aliases) => {
   return clean(match?.[1]).replace(/(trade[- ]?in)\d+$/i, '$1');
 };
 const invalidRealNames = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'thu chikitha linda']);
-const qualificationResponseMarkers = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|baltimore|maryland|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|yes|yeah|yep|correct|tengo|have it|i have|si|sí|no|no tengo)\b/i;
+const qualificationResponseMarkers = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|baltimore|maryland|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|yes|yeah|yep|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo)\b/i;
+const vehicleBrands = /toyota|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla/i;
+const vehicleModels = /mustang|tacoma|rav4|civic|accord|camry|corolla|f-?150|explorer|cr-v|pilot|sierra|silverado|wrangler|wrx|hilander|highlander/i;
+const vehicleCategories = /suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta/i;
+const vehicleContext = /\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
+const vehicleLabel = (value) => {
+  let source = clean(value)
+    .replace(/\b(?:19|20)\d{2}\b/g, ' ')
+    .replace(/\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/gi, ' ')
+    .replace(/\b(?:a|an|un|una|my|mi|the|carro|auto|car|vehicle|veh[ií]culo)\b/gi, ' ')
+    .replace(/[!?.,:;]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!source) return '';
+  const brandMatch = source.match(vehicleBrands);
+  const modelMatch = source.match(vehicleModels);
+  const categoryMatch = source.match(vehicleCategories);
+  const firstMatch = [
+    brandMatch ? { kind: 'brand', match: brandMatch } : null,
+    modelMatch ? { kind: 'model', match: modelMatch } : null,
+    categoryMatch ? { kind: 'category', match: categoryMatch } : null,
+  ].filter(Boolean).sort((left, right) => left.match.index - right.match.index)[0];
+  if (!firstMatch) return '';
+  if (firstMatch.kind === 'brand') {
+    const brand = firstMatch.match[0];
+    const afterBrand = source.slice(source.toLocaleLowerCase().indexOf(brand.toLocaleLowerCase()) + brand.length).trim();
+    const stopWords = new Set(['this', 'next', 'today', 'hoy', 'week', 'month', 'for', 'and', 'y', 'that', 'que']);
+    const suffix = afterBrand.split(/\s+/).filter(Boolean).slice(0, 2).filter((token) => !stopWords.has(token.toLocaleLowerCase())).join(' ');
+    return clean(`${brand} ${suffix}`);
+  }
+  if (firstMatch.kind === 'model') return firstMatch.match[0];
+  return firstMatch.match[0].replace(/^troca$/i, 'truck').replace(/^camioneta$/i, 'truck');
+};
+const isVehicleStatement = (value) => {
+  const candidate = clean(value);
+  const label = vehicleLabel(candidate);
+  if (!candidate || !label) return false;
+  const withoutContext = candidate
+    .replace(/\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/gi, ' ')
+    .replace(/\b(?:a|an|un|una|my|mi|the|carro|auto|car|vehicle|veh[ií]culo)\b/gi, ' ')
+    .replace(/[!?.,:;]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return vehicleContext.test(candidate) || withoutContext.toLocaleLowerCase() === label.toLocaleLowerCase();
+};
 const phoneLikeText = (value) => {
   const candidate = clean(value);
   const digits = candidate.replace(/\D/g, '');
@@ -54,7 +98,7 @@ const phoneLikeText = (value) => {
 };
 const normalizeRealName = (value) => {
   const candidate = clean(value);
-  if (!candidate || invalidRealNames.has(candidate.toLowerCase()) || phoneLikeText(candidate) || !/[a-záéíóúüñ]/i.test(candidate) || /^[\W_\d]+$/u.test(candidate) || qualificationResponseMarkers.test(candidate)) return '';
+  if (!candidate || invalidRealNames.has(candidate.toLowerCase()) || phoneLikeText(candidate) || !/[a-záéíóúüñ]/i.test(candidate) || /^[\W_\d]+$/u.test(candidate) || qualificationResponseMarkers.test(candidate) || isVehicleStatement(candidate)) return '';
   if (candidate.length > 100 || candidate.split(/\s+/).length > 8) return '';
   return formatPersonalName(candidate);
 };
@@ -89,14 +133,15 @@ const extractedNames = [
   nameFromText(rawHistory),
 ];
 const realName = ((isBusinessName(suppliedName) || isProfileDisplayName(suppliedName)) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) || '';
-const isCampaignButton = (value) => /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today|quiero financiar un auto(?: con ustedes)?|me gustaria financiar un auto(?: con ustedes)?|financiar un auto(?: con ustedes)?)$/.test(normalizeMatch(String(value ?? '').replace(/([!?])\s*\d{1,3}$/, '$1').replace(/[!?.,]/g, '')));
+const isCampaignButton = (value) => /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today|quiero financiar un auto(?: con ustedes)?|me gustaria financiar un auto(?: con ustedes)?|financiar un auto(?: con ustedes)?|(?:quiero )?financiar con easterns?)$/.test(normalizeMatch(String(value ?? '').replace(/([!?])\s*\d{1,3}$/, '$1').replace(/[!?.,]/g, '')));
 const isNonVehicleIntent = (value) => nonVehicleIntentValues.test(clean(value).replace(/[!?.,]/g, '').trim());
 const stripCampaignButtonPhrases = (value) => String(value ?? '')
   .replace(/\bquiero mi auto con eastern\b/gi, ' ')
   .replace(/\bquiero (?:un )?auto hoy\b/gi, ' ')
   .replace(/\bi want (?:a )?car today\b/gi, ' ')
   .replace(/\bquiero financiar un auto(?: con ustedes)?\b/gi, ' ')
-  .replace(/\bme gustar[ií]a financiar un auto(?: con ustedes)?\b/gi, ' ');
+  .replace(/\bme gustar[ií]a financiar un auto(?: con ustedes)?\b/gi, ' ')
+  .replace(/\b(?:quiero )?financiar con easterns?\b/gi, ' ');
 const campaign = isCampaignButton(message);
 const amount = (value) => {
   const source = clean(value).toLowerCase();
@@ -147,11 +192,11 @@ const vehicleFrom = (text) => {
     .split(/[;,]/, 1)[0]
     .trim();
   const requested = cleaned.match(/(?:looking for|busco|quiero|want|interested in|interesado en)\s+(?:a|an|un|una)?\s*([^.!?]+)/i)?.[1];
-  if (requested && !isNonVehicleIntent(requested) && /\b(?:suv|sedan|truck|troca|pickup|van|minivan|crossover|coupe|hatchback|toyota|honda|ford|nissan|chevrolet|hyundai|kia|mazda|subaru|volkswagen|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|tacoma|rav4|civic|accord|camry|corolla|f-?150|explorer|cr-v|pilot|sierra|silverado|wrangler)\b/i.test(requested)) return clean(requested);
-  const category = cleaned.match(/\b(suv|sedan|truck|troca|pickup|van|minivan|crossover|coupe|hatchback)\b/i)?.[1];
-  if (category) return category;
-  const vehicle = cleaned.match(/\b(?:toyota|honda|ford|nissan|chevrolet|hyundai|kia|mazda|subaru|volkswagen|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla)\b(?:\s+[a-z0-9-]+){0,2}/i)?.[0];
-  return clean(vehicle?.replace(/\b(?:19|20)\d{2}\b/g, '').replace(/\s+/g, ' '));
+  if (requested && !isNonVehicleIntent(requested)) {
+    const requestedLabel = vehicleLabel(requested);
+    if (requestedLabel) return requestedLabel;
+  }
+  return vehicleLabel(cleaned);
 };
 const cleanVehicleValue = (value) => isCampaignButton(value) || isNonVehicleIntent(value) ? '' : clean(value).replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
 const timelineFrom = (text) => {

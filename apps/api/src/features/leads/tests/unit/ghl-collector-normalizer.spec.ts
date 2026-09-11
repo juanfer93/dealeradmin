@@ -115,6 +115,20 @@ describe('HighLevel collector custom-code normalizer', () => {
   });
 
   it.each([
+    ['Tiene Mustang', 'Mustang'],
+    ['Estoy buscando un Mustang', 'Mustang'],
+    ['I am looking for a Ford Explorer', 'Ford Explorer'],
+  ])('classifies a vehicle statement as vehicle data and not a real name in Custom Code: %s', (message, expected) => {
+    const result = execute({ message, real_name: message });
+    expect(result.real_name).toBe('');
+    expect(result.vehicle_type).toBe(expected);
+  });
+
+  it('ignores the Easterns advertising phrase when it arrives in vehicle_type in Custom Code', () => {
+    expect(execute({ message: 'financiar con Easterns', vehicle_type: 'financiar con Easterns' }).vehicle_type).toBe('');
+  });
+
+  it.each([
     ['1000', '1000'],
     ['2000', '2000'],
     ['3000', '3000'],

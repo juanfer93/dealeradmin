@@ -117,10 +117,58 @@ function memoryValue(memory: string, aliases: string[]): string {
 
 const INVALID_REAL_NAMES = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'thu chikitha linda']);
 const BUSINESS_NAME_MARKERS = /\b(?:auto\s*sales|motors?|dealership|dealer|llc|inc(?:orporated)?|corp(?:oration)?|company|tatuajes?|tattoos?|operaciones?|operations?|transport(?:ation)?|logistics|construction|remodeling|roofing|realty|consulting|services?|servicios?|shop|tienda|salon|barbershop|restaurant)\b/i;
-const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|baltimore|maryland|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|correct|tengo|have it|i have|si|sí|no|no tengo)\b/i;
+const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|baltimore|maryland|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo)\b/i;
 const PHONE_LIKE_TEXT = /\b(?:mi|my)\s+(?:n[uú]mero|number|phone|tel[eé]fono|telephone|contact)\b/i;
 const NAME_PARTICLES = new Set(['da', 'de', 'del', 'der', 'di', 'la', 'las', 'los', 'van', 'von', 'y']);
 const NON_VEHICLE_INTENT_VALUES = /^(?:(?:(?:quiero|necesito|me gustar[ií]a|me interesa)\s+)?(?:m[aá]s\s+)?(?:informaci[oó]n|info|detalles?|details?|information)|more\s+(?:information|info|details?)|learn\s+more)$/i;
+const VEHICLE_BRANDS = /toyota|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla/i;
+const VEHICLE_MODELS = /mustang|tacoma|rav4|civic|accord|camry|corolla|f-?150|explorer|cr-v|pilot|sierra|silverado|wrangler|wrx|hilander|highlander/i;
+const VEHICLE_CATEGORIES = /suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta/i;
+const VEHICLE_CONTEXT = /\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
+
+function extractVehicleLabel(value: string | null | undefined): string {
+  let source = clean(value)
+    .replace(/\b(?:19|20)\d{2}\b/g, ' ')
+    .replace(/\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/gi, ' ')
+    .replace(/\b(?:a|an|un|una|my|mi|the|carro|auto|car|vehicle|veh[ií]culo)\b/gi, ' ')
+    .replace(/[!?.,:;]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!source) return EMPTY;
+  const brandMatch = source.match(VEHICLE_BRANDS);
+  const modelMatch = source.match(VEHICLE_MODELS);
+  const categoryMatch = source.match(VEHICLE_CATEGORIES);
+  const firstMatch = [
+    brandMatch ? { kind: 'brand', match: brandMatch } : null,
+    modelMatch ? { kind: 'model', match: modelMatch } : null,
+    categoryMatch ? { kind: 'category', match: categoryMatch } : null,
+  ].filter(Boolean).sort((left, right) => (left?.match.index ?? 0) - (right?.match.index ?? 0))[0];
+  if (!firstMatch) return EMPTY;
+  if (firstMatch.kind === 'brand') {
+    const brand = firstMatch.match[0];
+    const afterBrand = source.slice((source.toLocaleLowerCase().indexOf(brand.toLocaleLowerCase()) + brand.length)).trim();
+    const suffixTokens = afterBrand.split(/\s+/).filter(Boolean);
+    const stopWords = new Set(['this', 'next', 'today', 'hoy', 'week', 'month', 'for', 'and', 'y', 'that', 'que']);
+    const suffix = suffixTokens.slice(0, 2).filter((token) => !stopWords.has(token.toLocaleLowerCase())).join(' ');
+    return clean(`${brand} ${suffix}`);
+  }
+  if (firstMatch.kind === 'model') return firstMatch.match[0];
+  return firstMatch.match[0].replace(/^troca$/i, 'truck').replace(/^camioneta$/i, 'truck');
+}
+
+function isVehicleStatement(value: string | null | undefined): boolean {
+  const candidate = clean(value);
+  if (!candidate) return false;
+  const label = extractVehicleLabel(candidate);
+  if (!label) return false;
+  const withoutContext = candidate
+    .replace(/\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/gi, ' ')
+    .replace(/\b(?:a|an|un|una|my|mi|the|carro|auto|car|vehicle|veh[ií]culo)\b/gi, ' ')
+    .replace(/[!?.,:;]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return VEHICLE_CONTEXT.test(candidate) || withoutContext.toLocaleLowerCase() === label.toLocaleLowerCase();
+}
 
 function formatPersonalName(value: string): string {
   if (isLikelyBusinessName(value) || !/^[a-záéíóúüñ][a-záéíóúüñ' -]*$/i.test(value)) return value;
@@ -139,7 +187,7 @@ export function normalizeRealName(value: string | null | undefined): string {
   // Qualification answers can look like names (for example "En este mes").
   // Never promote a timeline, location, vehicle category, or yes/no answer
   // into the contact's real name.
-  if (QUALIFICATION_RESPONSE_MARKERS.test(candidate)) return EMPTY;
+  if (QUALIFICATION_RESPONSE_MARKERS.test(candidate) || isVehicleStatement(candidate)) return EMPTY;
   if (candidate.length > 100 || candidate.split(/\s+/).length > 8) return EMPTY;
   return formatPersonalName(candidate);
 }
@@ -189,7 +237,7 @@ function isCampaignButton(value: string): boolean {
     .replace(/[!?.,]/g, '')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
-  return /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today|quiero financiar un auto(?: con ustedes)?|me gustaria financiar un auto(?: con ustedes)?|financiar un auto(?: con ustedes)?)$/.test(normalized);
+  return /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today|quiero financiar un auto(?: con ustedes)?|me gustaria financiar un auto(?: con ustedes)?|financiar un auto(?: con ustedes)?|(?:quiero )?financiar con easterns?)$/.test(normalized);
 }
 
 function isNonVehicleIntent(value: string): boolean {
@@ -203,7 +251,8 @@ function stripCampaignButtonPhrases(value: string): string {
     .replace(/\bquiero (?:un )?auto hoy\b/gi, ' ')
     .replace(/\bi want (?:a )?car today\b/gi, ' ')
     .replace(/\bquiero financiar un auto(?: con ustedes)?\b/gi, ' ')
-    .replace(/\bme gustar[ií]a financiar un auto(?: con ustedes)?\b/gi, ' ');
+    .replace(/\bme gustar[ií]a financiar un auto(?: con ustedes)?\b/gi, ' ')
+    .replace(/\b(?:quiero )?financiar con easterns?\b/gi, ' ');
 }
 
 function normalizeAmount(value: string): string {
@@ -282,6 +331,8 @@ function normalizeVehicle(value: string): string {
   if (doubled?.[1]) source = doubled[1].trim();
   if (!source) return EMPTY;
   if (source.includes('—')) return source;
+  const extractedLabel = extractVehicleLabel(source);
+  if (extractedLabel) return extractedLabel;
   const lower = source.toLowerCase();
   const category = lower.match(/\b(suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto)\b/i)?.[1];
   const brand = source.match(/\b(toyota|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla)\b/i)?.[1];
@@ -299,13 +350,15 @@ function extractVehicle(message: string): string {
     .split(/[;,]/, 1)[0]
     .trim();
   const requested = withoutOtherFacts.match(/(?:looking for|busco|quiero|want|interested in|interesado en)\s+(?:a|an|un|una)?\s*([^.!?]+)/i)?.[1];
-  if (requested && !isNonVehicleIntent(requested)) return clean(requested);
+  if (requested && !isNonVehicleIntent(requested)) {
+    const requestedLabel = extractVehicleLabel(requested);
+    if (requestedLabel) return requestedLabel;
+  }
   // A transcript can contain several facts (for example "Sedan" followed by
   // a Subaru trade-in). Return the vehicle token, never the complete transcript.
   const category = withoutOtherFacts.match(/\b(suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto)\b/i)?.[1];
   if (category) return category;
-  const vehicle = withoutOtherFacts.match(/\b(?:toyota|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla)\b(?:\s+[a-z0-9-]+){0,2}/i)?.[0];
-  return clean(vehicle || EMPTY);
+  return extractVehicleLabel(withoutOtherFacts);
 }
 
 function extractDownPayment(message: string): string {

@@ -141,6 +141,20 @@ describe('normalizeCollectorInput', () => {
     expect(result.purchase_timeline).toBe('this week');
   });
 
+  it.each([
+    ['Tiene Mustang', 'Mustang'],
+    ['Estoy buscando un Mustang', 'Mustang'],
+    ['I am looking for a Ford Explorer', 'Ford Explorer'],
+  ])('classifies a vehicle statement as vehicle data and not a real name: %s', (message, expected) => {
+    const result = normalizeCollectorInput({ message, real_name: message });
+    expect(result.real_name).toBe('');
+    expect(result.vehicle_type).toBe(expected);
+  });
+
+  it('ignores the Easterns advertising phrase when it arrives in vehicle_type', () => {
+    expect(normalizeCollectorInput({ message: 'financiar con Easterns', vehicle_type: 'financiar con Easterns' }).vehicle_type).toBe('');
+  });
+
   it('removes the known GHL custom-code plus AI concatenation from vehicle values', () => {
     expect(normalizeCollectorInput({ vehicle_type: 'Toyota hilanderVehicle: Toyota hilanderToyota hilander' }).vehicle_type)
       .toBe('Toyota hilander');
