@@ -37,6 +37,8 @@ export const OFFLEASE_FREDERICKSBURG_LOCATION_IDS = {
   alias: 'bAuMEQeH48xAtu9tAMFf',
 } as const;
 
+export const ARLINGTON_WOODBRIDGE_LOCATION_ID = '9v8zH9Y5eLiiJwZTZDci';
+
 const TEST_DEALER_ALIASES: Record<string, string> = {
   'dealer-fredericksburg-2': 'dealer-fredericksburg',
 };
@@ -47,6 +49,7 @@ export const testDealers: TestDealer[] = [
   { id: EASTERN_DEALER_IDS.rosedale, code: 'DLR-EAST-ROSE', name: 'Easterns Rosedale', pendingCount: 0 },
   { id: EASTERN_DEALER_IDS.laurel, code: 'DLR-EAST-LAUR', name: 'Easterns Laurel', pendingCount: 1 },
   { id: EASTERN_DEALER_IDS.sterling, code: 'DLR-EAST-STER', name: 'Easterns Sterling', pendingCount: 0 },
+  { id: 'dealer-arlington-woodbridge', code: 'ARL-WOOD', name: 'Arlington Motors of Woodbridge', pendingCount: 0, ghlLocationId: ARLINGTON_WOODBRIDGE_LOCATION_ID },
 ];
 
 export const testLead: TestLead = {

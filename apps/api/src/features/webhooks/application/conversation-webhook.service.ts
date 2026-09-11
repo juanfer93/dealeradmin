@@ -11,7 +11,7 @@ import { GeoroutingService } from '../../routing/domain/services/georouting.serv
 import { extractConversationLocation } from './conversation-location';
 import { recordTestConversationEvent } from './test-conversation-store';
 
-type SourceKey = 'stafford' | 'fredericksburg' | 'fredericksburg-2' | 'easterns';
+type SourceKey = 'stafford' | 'fredericksburg' | 'fredericksburg-2' | 'easterns' | 'arlington';
 
 export const CONVERSATION_STABILIZATION_MS = 15_000;
 export const INCOMPLETE_QUALIFICATION_WINDOW_HOURS = 0.5;
@@ -22,6 +22,7 @@ export const GHL_SOURCE_CONFIG: Record<SourceKey, { locationId: string; defaultC
   fredericksburg: { locationId: 'MyxWNKacThim798E8KC6', defaultChannel: 'messenger' },
   'fredericksburg-2': { locationId: 'bAuMEQeH48xAtu9tAMFf', defaultChannel: 'messenger' },
   easterns: { locationId: 'xN2LSSl62okzv9GnOJPU', defaultChannel: 'messenger' },
+  arlington: { locationId: '9v8zH9Y5eLiiJwZTZDci', defaultChannel: 'messenger' },
 };
 
 type LeadRow = { id: string; canonical_phone: string | null; first_name: string | null; last_name: string | null };

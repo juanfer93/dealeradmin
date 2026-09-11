@@ -67,6 +67,7 @@ describe('LeadsController deletion', () => {
       [{ lead_id: 'lead-1' }],
       [{ count: 0 }],
       [],
+      [],
       [{ id: 'lead-1' }],
     ]);
     const controller = createController(runner);
@@ -74,7 +75,28 @@ describe('LeadsController deletion', () => {
     await expect(controller.delete({ cookies: {} } as never, 'lead-1', 'dealer-source'))
       .resolves.toEqual({ success: true, deletedLead: true, deletedRelationship: true });
     const calls = runner.query.mock.calls as unknown[][];
-    expect(calls[4]?.[0]).toContain('DELETE FROM leads');
+    expect(calls[4]?.[0]).toContain('DELETE FROM conversations');
+    expect(calls[5]?.[0]).toContain('DELETE FROM leads');
+    expect(runner.commitTransaction).toHaveBeenCalledOnce();
+  });
+
+  it('removes conversations before deleting a lead that has no remaining references', async () => {
+    process.env.NODE_ENV = 'production';
+    const runner = createRunner([
+      [{ id: 'lead-1' }],
+      [{ lead_id: 'lead-1' }],
+      [{ count: 0 }],
+      [],
+      [],
+      [{ id: 'lead-1' }],
+    ]);
+    const controller = createController(runner);
+
+    await expect(controller.delete({ cookies: {} } as never, 'lead-1', 'dealer-source'))
+      .resolves.toEqual({ success: true, deletedLead: true, deletedRelationship: true });
+    const calls = runner.query.mock.calls as unknown[][];
+    expect(calls[4]?.[0]).toContain('DELETE FROM conversations');
+    expect(calls[5]?.[0]).toContain('DELETE FROM leads');
     expect(runner.commitTransaction).toHaveBeenCalledOnce();
   });
 });

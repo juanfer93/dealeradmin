@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import {
   ConversationWebhookService,
   CONVERSATION_STABILIZATION_MS,
+  GHL_SOURCE_CONFIG,
   INCOMPLETE_QUALIFICATION_WINDOW_HOURS,
   OUT_OF_WINDOW_QUALIFICATION_WINDOW_HOURS,
 } from '../../application/conversation-webhook.service';
@@ -74,6 +75,25 @@ describe('ConversationWebhookService', () => {
 
     expect(result.source).toBe('easterns');
     expect(result.conversationId).toBe('ghl-easterns-conversation');
+  });
+
+  it('configures Arlington Woodbridge as a Messenger/Instagram conversation source', async () => {
+    expect(GHL_SOURCE_CONFIG.arlington).toEqual({
+      locationId: '9v8zH9Y5eLiiJwZTZDci',
+      defaultChannel: 'messenger',
+    });
+
+    const service = new ConversationWebhookService();
+    const result = await service.acceptCustomerReplied(
+      { message_body: 'I need an SUV.', channel: 'instagram' },
+      'arlington',
+      { contactId: 'ghl-arlington-contact', conversationId: 'ghl-arlington-conversation' },
+    );
+
+    expect(result).toMatchObject({ source: 'arlington', conversationId: 'ghl-arlington-conversation' });
+    expect(getTestConversationEvents()).toEqual([
+      expect.objectContaining({ source: 'arlington', channel: 'instagram' }),
+    ]);
   });
 
   it('does not replace an existing lead name with the GHL fallback when the reply has no name', async () => {

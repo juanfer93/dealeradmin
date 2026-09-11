@@ -48,6 +48,9 @@ function formatDate(value: string, language: 'es' | 'en') {
 
 function dealerIdentity(name: string): { group: string; location: string } {
   const normalized = name.trim();
+  if (/^arlington motors of woodbridge$/i.test(normalized)) {
+    return { group: 'Arlington Motors of Woodbridge', location: 'Woodbridge' };
+  }
   if (/^easterns\b/i.test(normalized)) {
     return { group: 'Easterns Automotive Group', location: normalized.replace(/^easterns\s*/i, '') || normalized };
   }

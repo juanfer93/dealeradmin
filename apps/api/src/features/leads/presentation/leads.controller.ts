@@ -350,6 +350,18 @@ export class LeadsController {
         deletedRelationshipCount += deletedRelationships.length;
       }
 
+      // Conversations are the audit trail for webhook-captured leads. Once
+      // the last dealer relationship is removed and no ingestion history
+      // protects the lead, remove that trail before deleting the parent row.
+      // conversation_messages are deleted by their FK cascade.
+      await queryRunner.query(
+        `DELETE FROM conversations
+         WHERE lead_id = ANY($1::uuid[])
+           AND NOT EXISTS (SELECT 1 FROM lead_dealers WHERE lead_id = conversations.lead_id)
+           AND NOT EXISTS (SELECT 1 FROM lead_ingestion_rows WHERE lead_id = conversations.lead_id)`,
+        [leadIds],
+      );
+
       const deletedLeads = await queryRunner.query(
         `DELETE FROM leads
          WHERE id = ANY($1::uuid[])
@@ -439,6 +451,11 @@ export class LeadsController {
           [leadId],
         ) as Array<{ id: string }>;
         if (ingestionRows.length === 0) {
+          await queryRunner.query(
+            `DELETE FROM conversations
+             WHERE lead_id = $1`,
+            [leadId],
+          );
           const deletedLeads = await queryRunner.query(
             `DELETE FROM leads
              WHERE id = $1

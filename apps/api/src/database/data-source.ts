@@ -14,6 +14,7 @@ import { WidenLeadDealerDocuments1710000011000 } from './migrations/171000001100
 import { WidenLeadDealerQualification1710000012000 } from './migrations/1710000012000-WidenLeadDealerQualification';
 import { AddDealeradminCaptureEvidence1710000013000 } from './migrations/1710000013000-AddDealeradminCaptureEvidence';
 import { Conversations1710000014000 } from './migrations/1710000014000-Conversations';
+import { ArlingtonWoodbridgeDealer1710000015000 } from './migrations/1710000015000-ArlingtonWoodbridgeDealer';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -41,6 +42,7 @@ export const AppDataSource = new DataSource({
     WidenLeadDealerQualification1710000012000,
     AddDealeradminCaptureEvidence1710000013000,
     Conversations1710000014000,
+    ArlingtonWoodbridgeDealer1710000015000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,
