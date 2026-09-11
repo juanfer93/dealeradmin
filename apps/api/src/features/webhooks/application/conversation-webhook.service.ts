@@ -194,6 +194,13 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       if (process.env.NODE_ENV === 'test') return { accepted: true, processed: 0 };
       throw new ServiceUnavailableException('Database connection is not available');
     }
+    // Manual corrections may set waiting_window before next_attempt_at. Give those
+    // rows an immediate due time so they cannot remain invisible indefinitely.
+    await this.dataSource.query(
+      `UPDATE conversations
+       SET next_attempt_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       WHERE status = 'waiting_window' AND next_attempt_at IS NULL`,
+    );
     const due = await this.dataSource.query(
       `SELECT c.id
        FROM conversations c

@@ -418,4 +418,16 @@ describe('ConversationWebhookService', () => {
 
     expect(result).toEqual({ status: 'partial', nextAttemptAt: null });
   });
+
+  it('assigns an immediate due time to manually waiting conversations without next_attempt_at', async () => {
+    const dataSource = {
+      query: vi.fn().mockResolvedValue([]),
+    };
+    const service = new ConversationWebhookService(dataSource as never);
+
+    await service.processDueConversations(new Date('2026-09-11T14:00:00.000Z'));
+
+    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining("SET next_attempt_at = CURRENT_TIMESTAMP"));
+    expect(dataSource.query.mock.calls[0][0]).toContain("WHERE status = 'waiting_window' AND next_attempt_at IS NULL");
+  });
 });
