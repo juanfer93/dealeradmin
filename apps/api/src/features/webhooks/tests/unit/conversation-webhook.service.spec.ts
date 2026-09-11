@@ -168,6 +168,38 @@ describe('ConversationWebhookService', () => {
     await expect(findSourceDealer.call(service, queryRunner, 'ZxadcudjvBz7KFCB1od4', 'action-cars', 'en')).resolves.toMatchObject({ id: 'dealer-action-en' });
   });
 
+  it('alternates the shared Millersville source between Millersville and White Marsh', async () => {
+    expect(GHL_SOURCE_CONFIG['easterns-millersville']).toEqual({
+      locationId: '113zMWQlhKKBUu5wOYtR',
+      defaultChannel: 'messenger',
+      alternatingGroup: 'easterns-millersville',
+    });
+    expect(GHL_SOURCE_CONFIG['easterns-frederick']).toEqual({
+      locationId: 'MRHcOwdTqaN5cug3eSWW',
+      defaultChannel: 'messenger',
+    });
+
+    let nextIndex = 0;
+    const queryRunner = {
+      query: vi.fn(async (sql: string, parameters?: unknown[]) => {
+        if (sql.includes('FROM dealers')) return [
+          { id: 'dealer-millersville', code: 'EAST-MILLERSVILLE', name: 'Easterns Millersville', timezone: 'America/New_York', routing_config: { group: 'Easterns Direct', allocation_key: 'easterns-millersville', allocation_order: 0 } },
+          { id: 'dealer-white-marsh', code: 'EAST-WHITE-MARSH', name: 'Easterns Nissan of White Marsh', timezone: 'America/New_York', routing_config: { group: 'Easterns Direct', allocation_key: 'easterns-millersville', allocation_order: 1 } },
+        ];
+        if (sql.includes('SELECT next_index FROM dealer_round_robin_state')) return [{ next_index: nextIndex }];
+        if (sql.includes('UPDATE dealer_round_robin_state')) nextIndex = Number(parameters?.[1]);
+        return [];
+      }),
+    };
+    const service = new ConversationWebhookService();
+    const findSourceDealer = (service as unknown as {
+      findSourceDealer: (...args: unknown[]) => Promise<{ id: string; name: string }>;
+    }).findSourceDealer;
+
+    await expect(findSourceDealer.call(service, queryRunner, '113zMWQlhKKBUu5wOYtR', 'easterns-millersville')).resolves.toMatchObject({ id: 'dealer-millersville' });
+    await expect(findSourceDealer.call(service, queryRunner, '113zMWQlhKKBUu5wOYtR', 'easterns-millersville')).resolves.toMatchObject({ id: 'dealer-white-marsh' });
+  });
+
   it('does not replace an existing lead name with the GHL fallback when the reply has no name', async () => {
     const queryRunner = {
       connect: vi.fn(),
@@ -340,5 +372,50 @@ describe('ConversationWebhookService', () => {
 
     expect(QUALIFICATION_RULE_TIMEZONE).toBe('America/Bogota');
     expect(result.nextAttemptAt).toBe('2026-09-11T20:00:00.000Z');
+  });
+
+  it('promotes a corrected phone from the conversation to the existing lead', async () => {
+    const queryRunner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [{ event_id: 'evt-phone-correction' }];
+        if (sql.includes('FROM dealers')) return [{ id: 'dealer-stafford', code: 'STAFFORD', name: 'Stafford', timezone: 'America/New_York', routing_config: {} }];
+        if (sql.includes('FROM leads WHERE ghl_location_id')) return [{ id: 'lead-phone-correction', canonical_phone: '+13015550123', first_name: 'Ana', last_name: 'Torres' }];
+        if (sql.includes('FROM conversations')) return [{ id: 'conversation-phone-correction', status: 'partial', qualification_snapshot: {}, location_snapshot: {} }];
+        if (sql.includes('SELECT body FROM conversation_messages')) return [{ body: 'Mi nuevo número es 804-309-2531' }];
+        if (sql.includes('UPDATE leads') && sql.includes('canonical_phone = $2')) return [{ id: 'lead-phone-correction', canonical_phone: '+18043092531', first_name: 'Ana', last_name: 'Torres' }];
+        return [];
+      }),
+    };
+    const service = new ConversationWebhookService({ createQueryRunner: () => queryRunner } as never);
+
+    await service.acceptCustomerReplied(
+      { message_body: 'Mi nuevo número es 804-309-2531', contact_phone: '+13015550123', channel: 'whatsapp' },
+      'stafford',
+      { contactId: 'ghl-phone-correction-contact', conversationId: 'ghl-phone-correction-conversation' },
+    );
+
+    const phoneUpdate = queryRunner.query.mock.calls.find(([sql]) => sql.includes('UPDATE leads') && sql.includes('canonical_phone = $2')) as [string, unknown[]] | undefined;
+    expect(phoneUpdate?.[1]).toEqual(['lead-phone-correction', '+18043092531']);
+  });
+
+  it('keeps an Easterns phone-only capture visible during stabilization without georouting it', () => {
+    const now = new Date('2026-09-11T14:00:00.000Z');
+    const result = evaluateStatus({ phone: '+13015550123', vehicle_type: '', qualification_complete: false }, { city: null, state: null, zip_code: null, easterns_zone: null }, easternsDealer, 'easterns', now, 'capture');
+
+    expect(result.status).toBe('waiting_window');
+    expect(result.nextAttemptAt).toBe(new Date(now.getTime() + CONVERSATION_STABILIZATION_MS).toISOString());
+  });
+
+  it('does not release an Easterns phone-only capture without a location', () => {
+    const now = new Date('2026-09-11T14:30:00.000Z');
+    const result = evaluateStatus({ phone: '+13015550123', vehicle_type: '', qualification_complete: false }, { city: null, state: null, zip_code: null, easterns_zone: null }, easternsDealer, 'easterns', now, 'due', '2026-09-11T14:00:00.000Z');
+
+    expect(result).toEqual({ status: 'partial', nextAttemptAt: null });
   });
 });

@@ -42,6 +42,8 @@ export const KOONS_FREDERICKSBURG_LOCATION_ID = 'xuHo0opTO2g5edIuPJRl';
 export const KOONS_FREDERICKSBURG_EN_LOCATION_ID = 'ozAIEblxTjrh0PfoaHge';
 export const KOONS_CULPEPER_LOCATION_ID = 'bTNJHpNZ8FaS1PUHkuUq';
 export const ACTION_CARS_LOCATION_ID = 'ZxadcudjvBz7KFCB1od4';
+export const EASTERN_MILLERSVILLE_LOCATION_ID = '113zMWQlhKKBUu5wOYtR';
+export const EASTERN_FREDERICK_LOCATION_ID = 'MRHcOwdTqaN5cug3eSWW';
 
 const TEST_DEALER_ALIASES: Record<string, string> = {
   'dealer-fredericksburg-2': 'dealer-fredericksburg',
@@ -59,6 +61,9 @@ export const testDealers: TestDealer[] = [
   { id: 'dealer-koons-culpeper', code: 'KOONS-CULPEPER', name: 'Koons Automotive of Culpeper', pendingCount: 0, ghlLocationId: KOONS_CULPEPER_LOCATION_ID },
   { id: 'dealer-action-cars-es', code: 'ACTION-CARS-ES', name: 'Action Pre Owned Cars Español', pendingCount: 0, ghlLocationId: ACTION_CARS_LOCATION_ID },
   { id: 'dealer-action-cars-en', code: 'ACTION-CARS-EN', name: 'Action Pre Owned Cars English', pendingCount: 0, ghlLocationId: ACTION_CARS_LOCATION_ID },
+  { id: 'dealer-easterns-millersville', code: 'EAST-MILLERSVILLE', name: 'Easterns Millersville', pendingCount: 0, ghlLocationId: EASTERN_MILLERSVILLE_LOCATION_ID },
+  { id: 'dealer-easterns-white-marsh', code: 'EAST-WHITE-MARSH', name: 'Easterns Nissan of White Marsh', pendingCount: 0, ghlLocationId: EASTERN_MILLERSVILLE_LOCATION_ID },
+  { id: 'dealer-easterns-frederick', code: 'EAST-FREDERICK', name: 'Easterns Frederick', pendingCount: 0, ghlLocationId: EASTERN_FREDERICK_LOCATION_ID },
 ];
 
 export const testLead: TestLead = {

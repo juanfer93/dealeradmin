@@ -50,3 +50,20 @@ export function extractConversationLocation(transcript: string): ConversationLoc
   const city = easternsZone || cityFromText(source);
   return { city, state, zip_code: zipCode, easterns_zone: easternsZone };
 }
+
+/**
+ * Returns short location candidates for replies such as "Odenton" where the
+ * customer answers the previous city question without repeating "I live in".
+ * The database remains the authority for deciding whether a candidate is a
+ * real US location and which state it belongs to.
+ */
+export function extractLocationCandidates(transcript: string): string[] {
+  const words = normalized(transcript).split(/[^a-z0-9]+/).filter((word) => word.length >= 3);
+  const candidates = new Set<string>();
+  for (let start = 0; start < words.length; start += 1) {
+    for (let size = 1; size <= 4 && start + size <= words.length; size += 1) {
+      candidates.add(words.slice(start, start + size).join(' '));
+    }
+  }
+  return [...candidates];
+}

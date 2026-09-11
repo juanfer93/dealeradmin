@@ -10,6 +10,10 @@ describe('normalizeCollectorInput', () => {
     expect(detectLeadLanguage(message)).toBe(expected);
   });
 
+  it('recognizes a clearly English qualification conversation instead of defaulting to Spanish', () => {
+    expect(detectLeadLanguage('I need more information. What documents do you need? I have proof of income.')).toBe('en');
+  });
+
   it('preserves a valid native GHL contact phone when the latest message is separate', () => {
     expect(normalizeCollectorInput({ phone: '(240) 681-5028', message: 'Ok' }).phone).toBe('+12406815028');
   });

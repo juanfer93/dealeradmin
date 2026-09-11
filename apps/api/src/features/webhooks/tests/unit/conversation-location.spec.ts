@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractConversationLocation } from '../../application/conversation-location';
+import { extractConversationLocation, extractLocationCandidates } from '../../application/conversation-location';
 
 describe('extractConversationLocation', () => {
   it('captures an Easterns zone and postal code from the conversation', () => {
@@ -18,5 +18,9 @@ describe('extractConversationLocation', () => {
       zip_code: null,
       easterns_zone: null,
     });
+  });
+
+  it('keeps a city-only reply available for database resolution', () => {
+    expect(extractLocationCandidates('What city are you in? Odenton')).toContain('odenton');
   });
 });

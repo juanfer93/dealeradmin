@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Optional, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
+import { BadRequestException, Injectable, OnModuleDestroy, OnModuleInit, Optional, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
 import type { GhlCustomerRepliedDto } from '@dealeradmin/contracts';
 import { GhlCustomerRepliedSchema } from '@dealeradmin/contracts';
 import { createHash } from 'node:crypto';
@@ -8,18 +8,19 @@ import { detectLeadLanguage, hasMinimumRoutingQualification, normalizeCollectorI
 import { normalizeDownPayment } from '../../leads/domain/down-payment';
 import { normalizePhone } from '../../leads/domain/phone-normalizer';
 import { GeoroutingService } from '../../routing/domain/services/georouting.service';
-import { extractConversationLocation } from './conversation-location';
+import { extractConversationLocation, extractLocationCandidates } from './conversation-location';
 import { recordTestConversationEvent } from './test-conversation-store';
 import { findQueuedConversationDuplicate } from '../../leads/domain/lead-duplicate';
 
-type SourceKey = 'stafford' | 'fredericksburg' | 'fredericksburg-2' | 'easterns' | 'arlington' | 'koons-fred' | 'koons-fred-eng' | 'koons-culpeper' | 'action-cars';
+type SourceKey = 'stafford' | 'fredericksburg' | 'fredericksburg-2' | 'easterns' | 'arlington' | 'koons-fred' | 'koons-fred-eng' | 'koons-culpeper' | 'action-cars' | 'easterns-millersville' | 'easterns-frederick';
 
 export const CONVERSATION_STABILIZATION_MS = 15_000;
 export const INCOMPLETE_QUALIFICATION_WINDOW_HOURS = 0.5;
 export const OUT_OF_WINDOW_QUALIFICATION_WINDOW_HOURS = 3;
 export const QUALIFICATION_RULE_TIMEZONE = 'America/Bogota';
+export const DUE_CONVERSATION_POLL_MS = 30_000;
 
-export const GHL_SOURCE_CONFIG: Record<SourceKey, { locationId: string; defaultChannel: 'whatsapp' | 'messenger'; splitByLanguage?: boolean }> = {
+export const GHL_SOURCE_CONFIG: Record<SourceKey, { locationId: string; defaultChannel: 'whatsapp' | 'messenger'; splitByLanguage?: boolean; alternatingGroup?: string }> = {
   stafford: { locationId: 'LiaoSID3nvAhad49ZpNJ', defaultChannel: 'whatsapp' },
   fredericksburg: { locationId: 'MyxWNKacThim798E8KC6', defaultChannel: 'messenger' },
   'fredericksburg-2': { locationId: 'bAuMEQeH48xAtu9tAMFf', defaultChannel: 'messenger' },
@@ -29,10 +30,12 @@ export const GHL_SOURCE_CONFIG: Record<SourceKey, { locationId: string; defaultC
   'koons-fred-eng': { locationId: 'ozAIEblxTjrh0PfoaHge', defaultChannel: 'messenger' },
   'koons-culpeper': { locationId: 'bTNJHpNZ8FaS1PUHkuUq', defaultChannel: 'messenger' },
   'action-cars': { locationId: 'ZxadcudjvBz7KFCB1od4', defaultChannel: 'messenger', splitByLanguage: true },
+  'easterns-millersville': { locationId: '113zMWQlhKKBUu5wOYtR', defaultChannel: 'messenger', alternatingGroup: 'easterns-millersville' },
+  'easterns-frederick': { locationId: 'MRHcOwdTqaN5cug3eSWW', defaultChannel: 'messenger' },
 };
 
 type LeadRow = { id: string; canonical_phone: string | null; first_name: string | null; last_name: string | null };
-type DealerRow = { id: string; code: string; name: string; timezone: string; routing_config: { group?: string; language?: CollectorLanguage } | null };
+type DealerRow = { id: string; code: string; name: string; timezone: string; routing_config: { group?: string; language?: CollectorLanguage; allocation_key?: string; allocation_order?: number } | null };
 type ConversationRow = { id: string; status: string; qualification_snapshot: Record<string, unknown>; location_snapshot: Record<string, unknown>; ready_at?: string | null; isExisting?: boolean };
 type ExistingDealerLead = {
   status: string;
@@ -62,6 +65,7 @@ type ConversationSnapshot = {
   missing_qualification: string[];
   message_count: number;
   language?: CollectorLanguage;
+  assigned_dealer_id?: string;
 };
 
 type LocationSnapshot = {
@@ -120,11 +124,38 @@ function hash(value: string): string {
 }
 
 @Injectable()
-export class ConversationWebhookService {
+export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy {
+  private duePollTimer?: ReturnType<typeof setInterval>;
+  private duePollInFlight = false;
+
   constructor(
     @Optional() private readonly dataSource?: DataSource,
     @Optional() private readonly georoutingService?: GeoroutingService,
   ) {}
+
+  onModuleInit(): void {
+    if (process.env.NODE_ENV === 'test') return;
+    this.duePollTimer = setInterval(() => { void this.pollDueConversations(); }, DUE_CONVERSATION_POLL_MS);
+    this.duePollTimer.unref?.();
+  }
+
+  onModuleDestroy(): void {
+    if (this.duePollTimer) clearInterval(this.duePollTimer);
+    this.duePollTimer = undefined;
+  }
+
+  private async pollDueConversations(): Promise<void> {
+    if (this.duePollInFlight) return;
+    this.duePollInFlight = true;
+    try {
+      await this.processDueConversations();
+    } catch {
+      // The next poll or the operator queue read will retry due work. Polling
+      // failures must never interrupt webhook handling or crash the process.
+    } finally {
+      this.duePollInFlight = false;
+    }
+  }
 
   async acceptCustomerReplied(
     input: unknown,
@@ -166,7 +197,7 @@ export class ConversationWebhookService {
     const due = await this.dataSource.query(
       `SELECT c.id
        FROM conversations c
-       WHERE c.status = 'waiting_window' AND c.next_attempt_at <= $1
+       WHERE c.status = 'waiting_window' AND c.next_attempt_at IS NOT NULL AND c.next_attempt_at <= $1
        ORDER BY c.next_attempt_at ASC
        LIMIT 100`,
       [now.toISOString()],
@@ -219,14 +250,14 @@ export class ConversationWebhookService {
       // Existing sources have one dealer per Location ID and can fail fast.
       // Action intentionally shares one Location ID across its language queues,
       // so its dealer is selected after the transcript has been normalized.
-      const sourceDealer = GHL_SOURCE_CONFIG[source].splitByLanguage
+      const sourceDealer = GHL_SOURCE_CONFIG[source].splitByLanguage || GHL_SOURCE_CONFIG[source].alternatingGroup
         ? undefined
         : await this.findSourceDealer(runner, GHL_SOURCE_CONFIG[source].locationId, source);
       const phone = this.safePhone(event.contact_phone);
       const displayName = clean(event.contact_name) || 'Lead';
       const normalizedName = normalizeRealName(displayName) || displayName;
       const { firstName, lastName } = splitName(normalizedName);
-      const lead = await this.upsertLead(runner, {
+      let lead = await this.upsertLead(runner, {
         locationId: GHL_SOURCE_CONFIG[source].locationId,
         contactId: event.ghl_contact_id,
         phone,
@@ -259,6 +290,25 @@ export class ConversationWebhookService {
         chat_history_log: transcript,
         phone,
       });
+      // A lead can correct the phone in a later inbound message. Keep the
+      // same GHL contact/lead identity and promote that conversational phone
+      // to canonical_phone, unless another lead already owns it.
+      const normalizedPhone = this.safePhone(normalized.phone);
+      const effectivePhone = normalizedPhone || phone;
+      if (effectivePhone && effectivePhone !== lead.canonical_phone) {
+        const updatedLead = await runner.query(
+          `UPDATE leads
+           SET canonical_phone = $2, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1
+             AND NOT EXISTS (
+               SELECT 1 FROM leads other
+               WHERE other.canonical_phone = $2 AND other.id <> $1
+             )
+           RETURNING id, canonical_phone, first_name, last_name`,
+          [lead.id, effectivePhone],
+        ) as LeadRow[];
+        if (updatedLead[0]) lead = updatedLead[0];
+      }
       const location = await this.resolveLocation(runner, transcript);
       const language = GHL_SOURCE_CONFIG[source].splitByLanguage ? detectLeadLanguage(transcript) : undefined;
       const previousRealName = normalizeRealName(clean(conversation.qualification_snapshot?.real_name));
@@ -267,7 +317,7 @@ export class ConversationWebhookService {
         // A qualification real_name must come from a declared/repeated name
         // in the conversation, never from Messenger's username.
         real_name: normalized.real_name || previousRealName,
-        phone: normalized.phone || phone || '',
+        phone: effectivePhone || '',
         vehicle_type: normalized.vehicle_type,
         down_payment: normalizeDownPayment(normalized.down_payment),
         purchase_timeline: normalized.purchase_timeline,
@@ -280,7 +330,9 @@ export class ConversationWebhookService {
         message_count: messages.length,
         language,
       };
-      const dealer = sourceDealer ?? await this.findSourceDealer(runner, GHL_SOURCE_CONFIG[source].locationId, source, language);
+      const assignedDealerId = clean(conversation.qualification_snapshot?.assigned_dealer_id);
+      const dealer = sourceDealer ?? await this.findSourceDealer(runner, GHL_SOURCE_CONFIG[source].locationId, source, language, assignedDealerId || undefined);
+      snapshot.assigned_dealer_id = dealer.id;
       if (normalized.real_name) {
         const { firstName: normalizedFirstName, lastName: normalizedLastName } = splitName(normalized.real_name);
         await runner.query(
@@ -344,7 +396,7 @@ export class ConversationWebhookService {
     try { return normalizePhone(candidate); } catch { return null; }
   }
 
-  private async findSourceDealer(runner: QueryRunner, locationId: string, source?: SourceKey, language?: CollectorLanguage): Promise<DealerRow> {
+  private async findSourceDealer(runner: QueryRunner, locationId: string, source?: SourceKey, language?: CollectorLanguage, assignedDealerId?: string): Promise<DealerRow> {
     const rows = await runner.query(
       `SELECT d.id, d.code, d.name, d.timezone, d.routing_config
        FROM dealers d
@@ -358,6 +410,36 @@ export class ConversationWebhookService {
       const dealer = rows.find((row) => row.routing_config?.language === selectedLanguage);
       if (!dealer) throw new BadRequestException(`No existe dealer Action Pre Owned Cars configurado para el idioma ${selectedLanguage}`);
       return dealer;
+    }
+    const alternatingGroup = source ? GHL_SOURCE_CONFIG[source].alternatingGroup : undefined;
+    if (alternatingGroup) {
+      const candidates = rows
+        .filter((row) => row.routing_config?.allocation_key === alternatingGroup)
+        .sort((left, right) => (left.routing_config?.allocation_order ?? 0) - (right.routing_config?.allocation_order ?? 0));
+      if (assignedDealerId) {
+        const assigned = candidates.find((row) => row.id === assignedDealerId);
+        if (assigned) return assigned;
+      }
+      if (candidates.length < 2) throw new BadRequestException(`El grupo alternado ${alternatingGroup} requiere al menos dos dealers activos`);
+      await runner.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [alternatingGroup]);
+      await runner.query(
+        `INSERT INTO dealer_round_robin_state (allocation_key, next_index)
+         VALUES ($1, 0)
+         ON CONFLICT (allocation_key) DO NOTHING`,
+        [alternatingGroup],
+      );
+      const state = await runner.query(
+        `SELECT next_index FROM dealer_round_robin_state WHERE allocation_key = $1 FOR UPDATE`,
+        [alternatingGroup],
+      ) as Array<{ next_index: number }>;
+      const nextIndex = Number(state[0]?.next_index ?? 0) % candidates.length;
+      await runner.query(
+        `UPDATE dealer_round_robin_state
+         SET next_index = $2, updated_at = CURRENT_TIMESTAMP
+         WHERE allocation_key = $1`,
+        [alternatingGroup, (nextIndex + 1) % candidates.length],
+      );
+      return candidates[nextIndex];
     }
     if (rows.length > 1) throw new BadRequestException(`El Location ID ${locationId} está vinculado a más de un dealer activo`);
     return rows[0];
@@ -423,13 +505,16 @@ export class ConversationWebhookService {
     const hasLocation = Boolean(location.city || location.state || location.easterns_zone || location.zip_code);
     const routingReady = Boolean(
       hasMinimumRoutingQualification({ phone: snapshot.phone }) &&
-      (!isEasterns || hasLocation) &&
       (source !== 'stafford' || snapshot.vehicle_type),
     );
     if (!routingReady) return { status: 'partial', nextAttemptAt: null };
     if (phase === 'capture') {
       return { status: 'waiting_window', nextAttemptAt: new Date(now.getTime() + CONVERSATION_STABILIZATION_MS).toISOString() };
     }
+    // Easterns still needs a city/state before it can be georouted. The
+    // initial phone-only event remains visible during stabilization, but it
+    // must not be released into georouting without a location.
+    if (isEasterns && !hasLocation) return { status: 'partial', nextAttemptAt: null };
     if (snapshot.qualification_complete) return { status: 'ready', nextAttemptAt: null };
     const delayHours = withinDispatchWindow(QUALIFICATION_RULE_TIMEZONE, now)
       ? INCOMPLETE_QUALIFICATION_WINDOW_HOURS
@@ -444,14 +529,24 @@ export class ConversationWebhookService {
     const hints = extractConversationLocation(transcript);
     let city = hints.city;
     let state = hints.state;
-    if (city) {
+    {
+      const candidates = [...new Set([
+        ...(city ? [city.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()] : []),
+        ...extractLocationCandidates(transcript),
+      ])];
+      if (candidates.length === 0) return { city: city || null, state: state || null, zip_code: hints.zip_code, easterns_zone: hints.easterns_zone };
       const rows = await runner.query(
         `SELECT name, state_code
          FROM locations
-         WHERE normalized_name = $1
-         ORDER BY CASE state_code WHEN 'MD' THEN 0 WHEN 'VA' THEN 1 ELSE 2 END, state_code
+         WHERE normalized_name = ANY($1::text[])
+         ORDER BY CASE
+           WHEN $2::varchar IS NOT NULL AND state_code = $2 THEN 0
+           WHEN state_code = 'MD' THEN 1
+           WHEN state_code = 'VA' THEN 2
+           ELSE 3
+         END, array_position($1::text[], normalized_name)
          LIMIT 1`,
-        [city.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()],
+        [candidates, state],
       ) as Array<{ name: string; state_code: string }>;
       if (rows[0]) {
         city = rows[0].name;
@@ -526,7 +621,13 @@ export class ConversationWebhookService {
       const configuredSource = Object.entries(GHL_SOURCE_CONFIG).find(([, config]) => config.locationId === row.ghl_location_id)?.[0];
       if (!configuredSource) throw new BadRequestException(`Fuente GHL no configurada para la Location ID ${row.ghl_location_id}`);
       const source = configuredSource as SourceKey;
-      const dealer = await this.findSourceDealer(runner, row.ghl_location_id, source, row.qualification_snapshot.language);
+      const dealer = await this.findSourceDealer(
+        runner,
+        row.ghl_location_id,
+        source,
+        row.qualification_snapshot.language,
+        clean(row.qualification_snapshot.assigned_dealer_id) || undefined,
+      );
       const status = this.statusForConversation(row.qualification_snapshot, row.location_snapshot, dealer, source, now, 'due', row.ready_at);
       if (status.status !== 'ready') {
         await runner.query(
