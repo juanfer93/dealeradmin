@@ -137,6 +137,13 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.down_payment).toBe('trade-in');
   });
 
+  it('recognizes explicit vehicle handoff and Hummer text in Custom Code', () => {
+    const result = execute({ message: 'Hummer sut\nQuisiera ver si puedo entregar mi vehículo\nAhora si se puede' });
+    expect(result.vehicle_type).toBe('Hummer sut');
+    expect(result.down_payment).toBe('trade-in');
+    expect(result.purchase_timeline).toBe('today');
+  });
+
   it('keeps an incomplete memory on the collector branch and names what is missing', () => {
     const result = execute({ qualification_memory: 'vehicle: SUV; down payment: 2K; documents: identification: yes' });
     expect(result.qualification_complete).toBe(false);

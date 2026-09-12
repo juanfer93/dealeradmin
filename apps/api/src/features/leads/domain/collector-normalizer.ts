@@ -150,10 +150,11 @@ const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|
 const PHONE_LIKE_TEXT = /\b(?:mi|my)\s+(?:n[uú]mero|number|phone|tel[eé]fono|telephone|contact)\b/i;
 const NAME_PARTICLES = new Set(['da', 'de', 'del', 'der', 'di', 'la', 'las', 'los', 'van', 'von', 'y']);
 const NON_VEHICLE_INTENT_VALUES = /^(?:(?:(?:quiero|necesito|me gustar[ií]a|me interesa)\s+)?(?:m[aá]s\s+)?(?:informaci[oó]n|info|detalles?|details?|information)|more\s+(?:information|info|details?)|learn\s+more)$/i;
-const VEHICLE_BRANDS = /toyota|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla/i;
-const VEHICLE_MODELS = /mustang|tacoma|rav4|civic|accord|camry|corolla|f-?150|explorer|cr-v|pilot|sierra|silverado|wrangler|wrx|hilander|highlander/i;
-const VEHICLE_CATEGORIES = /suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta/i;
+const VEHICLE_BRANDS = /\b(?:toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i;
+const VEHICLE_MODELS = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacoma|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-v|hr-v|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|model [3syx]|f-?type|range rover|defender|wrx|hilander|highlander)\b/i;
+const VEHICLE_CATEGORIES = /\b(?:suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta)\b/i;
 const VEHICLE_CONTEXT = /\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
+const TRADE_IN_INTENT = /\btrade[- ]?in\b|\bmy (?:car|vehicle)\b|\bmi (?:carro|auto|veh[ií]culo)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b|\bchange\s+(?:my\s+)?(?:vehicle|car)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b/i;
 
 function extractVehicleLabel(value: string | null | undefined): string {
   const source = clean(value)
@@ -287,9 +288,9 @@ function stripCampaignButtonPhrases(value: string): string {
 function normalizeAmount(value: string): string {
   const source = clean(value).toLowerCase();
   if (!source || isEmptyMarker(source)) return EMPTY;
-  if (/\btrade[- ]?in\b|\bmy (?:car|vehicle)\b|\bmi (?:carro|auto)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b|\bchange\s+(?:my\s+)?(?:vehicle|car)\b/i.test(source)) {
+  if (TRADE_IN_INTENT.test(source)) {
     const withoutTradeIn = source
-      .replace(/\btrade[- ]?in\b|\bmy (?:car|vehicle)\b|\bmi (?:carro|auto)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b|\bchange\s+(?:my\s+)?(?:vehicle|car)\b/gi, '')
+      .replace(TRADE_IN_INTENT, '')
       .replace(/\b(?:and|y)\b|\+/gi, ' ')
       .replace(/\b(?:quiero|want|i have|tengo)\b/gi, ' ')
       .trim();
@@ -333,7 +334,7 @@ function normalizeAmount(value: string): string {
 function normalizeMemoryDownPayment(value: string): string {
   const source = clean(value);
   if (!source) return EMPTY;
-  const tradeIn = /\btrade[- ]?in\b|\bmy (?:car|vehicle)\b|\bmi (?:carro|auto)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b|\bchange\s+(?:my\s+)?(?:vehicle|car)\b/i.test(source);
+  const tradeIn = TRADE_IN_INTENT.test(source);
   const amount = source.match(/\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?)\b/i)?.[1];
   const normalized = amount ? normalizeAmount(amount) : normalizeAmount(source);
   if (!normalized) return tradeIn ? 'trade-in' : EMPTY;
@@ -393,8 +394,8 @@ function extractVehicle(message: string): string {
     const category = withoutOtherFacts.match(/\b(suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto)\b/i)?.[1];
     if (category) return category;
     const label = extractVehicleLabel(withoutOtherFacts);
-    const followsVehicleQuestion = lineIndex > 0 && /\b(?:what|which)\s+(?:vehicle|car|truck)|\b(?:qu[eé]|cu[aá]l)\s+(?:veh[ií]culo|carro|auto)\b/i.test(lines[lineIndex - 1]);
-    if (label && (VEHICLE_CONTEXT.test(candidate) || followsVehicleQuestion)) return label;
+    const followsVehicleQuestion = lineIndex > 0 && /\b(?:what|which)\s+(?:vehicles?|cars?|trucks?)|\b(?:qu[eé]|cu[aá]l)\s+(?:veh[ií]culos?|carros?|autos?)\b/i.test(lines[lineIndex - 1]);
+    if (label && (VEHICLE_CONTEXT.test(candidate) || followsVehicleQuestion || VEHICLE_BRANDS.test(candidate) || VEHICLE_MODELS.test(candidate) || VEHICLE_CATEGORIES.test(candidate))) return label;
   }
   return EMPTY;
 }
@@ -411,6 +412,7 @@ function extractDownPayment(message: string): string {
 function extractTradeInDownPayment(message: string): string {
   const source = clean(message);
   if (!source || isCampaignButton(source)) return EMPTY;
+  const tradeIn = TRADE_IN_INTENT.test(source);
 
   const amountPattern = '(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?)';
   const tradeInPattern = '(?:trade[- ]?in|my car|my vehicle|mi carro|mi auto|carro como enganche|(?:cambiar|cambio)\\s+(?:(?:mi|el|de)\\s+)?(?:veh[ií]culo|carro|auto)|change\\s+(?:my\\s+)?(?:vehicle|car))';
@@ -421,7 +423,7 @@ function extractTradeInDownPayment(message: string): string {
   ));
   const amount = beforeTradeIn?.[1] ?? afterTradeIn?.[1];
   const normalized = amount ? normalizeAmount(amount) : EMPTY;
-  return normalized ? `${normalized} + trade-in` : /\btrade[- ]?in\b|\bmy (?:car|vehicle)\b|\bmi (?:carro|auto)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b|\bchange\s+(?:my\s+)?(?:vehicle|car)\b/i.test(source) ? 'trade-in' : EMPTY;
+  return normalized ? `${normalized} + trade-in` : tradeIn ? 'trade-in' : EMPTY;
 }
 
 function extractStandaloneDownPayment(message: string): string {
@@ -440,14 +442,14 @@ function extractStandaloneDownPayment(message: string): string {
 function extractTimeline(message: string): string {
   const source = clean(message);
   if (!source) return EMPTY;
-  const match = source.match(/\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|esta mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|within \d+ days?|en \d+ d[ií]as?|in \d+ (?:days?|weeks?|months?)|en \d+ (?:d[ií]as?|semanas?|mes(?:es)?)|in a month|en un mes|in two weeks|en dos semanas)\b/i)?.[0];
+  const match = source.match(/\b(?:today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|esta mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|within \d+ days?|en \d+ d[ií]as?|in \d+ (?:days?|weeks?|months?)|en \d+ (?:d[ií]as?|semanas?|mes(?:es)?)|in a month|en un mes|in two weeks|en dos semanas)\b/i)?.[0];
   return match ? normalizeTimeline(match) : /\b(?:solo|sólo|just|only)\b.*\b(?:mirando|viendo|looking|browsing)\b/i.test(source) ? 'exploring options' : EMPTY;
 }
 
 function normalizeTimeline(value: string): string {
   const source = clean(value).toLowerCase();
   if (!source) return EMPTY;
-  if (/\b(today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda)\b/i.test(source)) return 'today';
+  if (/\b(today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda)\b/i.test(source)) return 'today';
   if (/\b(this|esta)\s+(week|semana)\b/i.test(source)) return 'this week';
   if (/\b(this|este|esta)\s+(month|mes)\b/i.test(source)) return 'this month';
   if (/\b(next|proximo|próximo)\s+(week|semana)\b/i.test(source)) return 'next week';
@@ -619,7 +621,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   );
   const baseDown = cashDown || tradeDown;
   const conversationalSource = [history, message].filter(Boolean).join('; ');
-  const down = baseDown && /trade[- ]?in|my car|my vehicle|mi carro|mi auto|carro como enganche|(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)|change\s+(?:my\s+)?(?:vehicle|car)/i.test(conversationalSource) && !/trade[- ]?in/i.test(baseDown)
+  const down = baseDown && TRADE_IN_INTENT.test(conversationalSource) && !/trade[- ]?in/i.test(baseDown)
     ? `${baseDown} + trade-in`
     : baseDown;
   const timeline = normalizeTimeline(firstNonEmpty(

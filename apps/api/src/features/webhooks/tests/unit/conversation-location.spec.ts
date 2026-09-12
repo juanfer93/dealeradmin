@@ -23,4 +23,14 @@ describe('extractConversationLocation', () => {
   it('keeps a city-only reply available for database resolution', () => {
     expect(extractLocationCandidates('What city are you in? Odenton')).toContain('odenton');
   });
+
+  it('does not turn a vehicle model into a location candidate', () => {
+    expect(extractLocationCandidates('I want a Tacoma')).not.toContain('tacoma');
+  });
+
+  it('keeps the explicitly stated city and state after a vehicle reply', () => {
+    const candidates = extractLocationCandidates('Troca, que queria una troca\nElkton MD');
+    expect(candidates).toContain('elkton');
+    expect(candidates).not.toContain('troca');
+  });
 });

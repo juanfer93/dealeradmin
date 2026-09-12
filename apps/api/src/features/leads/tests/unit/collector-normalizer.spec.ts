@@ -104,6 +104,43 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message }).down_payment).toBe('trade-in');
   });
 
+  it('recognizes an explicit vehicle handoff as trade-in and keeps an explicit cash down amount', () => {
+    const result = normalizeCollectorInput({
+      channel: 'messenger',
+      real_name: 'Davila Davila',
+      phone: '+12027796699',
+      message: 'Quisiera ver si puedo entregar mi vehículo y poner $2000 de enganche.',
+    });
+    expect(result.down_payment).toBe('2000 + trade-in');
+    expect(result.vehicle_type).toBe('');
+    expect(result.real_name).toBe('Davila Davila');
+  });
+
+  it('normalizes Hummer vehicle text and immediate timing from the reproduced inbound wording', () => {
+    const result = normalizeCollectorInput({
+      channel: 'messenger',
+      real_name: 'Ceddrick Moody',
+      message: 'What vehicles are eligible?\nHummer sut\nI could pay for it cash\nNow if possible',
+    });
+    expect(result.vehicle_type).toBe('Hummer sut');
+    expect(result.down_payment).toBe('Cash');
+    expect(result.purchase_timeline).toBe('today');
+  });
+
+  it('accepts a standalone explicit make/model reply from the reproduced Davila conversation', () => {
+    expect(normalizeCollectorInput({ message: 'Una Toyota Trail Hunter' }).vehicle_type).toBe('Toyota Trail Hunter');
+  });
+
+  it.each([
+    ['Dodge Charger', 'Dodge Charger'],
+    ['Dodge Challenger', 'Dodge Challenger'],
+    ['Toyota Tacoma', 'Toyota Tacoma'],
+    ['a family van', 'van'],
+    ['a 7 passenger van', 'van'],
+  ])('normalizes common dealer vehicle request: %s', (message, expected) => {
+    expect(normalizeCollectorInput({ message }).vehicle_type).toBe(expected);
+  });
+
   it('keeps the cash portion when vehicle-change language is combined with a payment', () => {
     expect(normalizeCollectorInput({ message: 'Quiero cambiar mi vehículo y poner $2,000' }).down_payment).toBe('2000 + trade-in');
     expect(normalizeCollectorInput({ down_payment: 'cambio mi auto + 2K' }).down_payment).toBe('2000 + trade-in');
