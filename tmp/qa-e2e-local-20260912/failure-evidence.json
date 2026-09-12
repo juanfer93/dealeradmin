@@ -1,0 +1,83 @@
+{
+  "run_id": "qa-e2e-20260912",
+  "purpose": "Failures captured before corrections, with the later retest recorded in evidence.json",
+  "failures": [
+    {
+      "id": "F-001",
+      "stage": "migration",
+      "observed": "Migration GhlLocationRouting1710000007000 failed because relation dealer_location_aliases did not exist.",
+      "verification_sql": "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('dealer_location_aliases','locations');",
+      "root_cause": "Local database had migration 0003 recorded as applied while its prerequisite table was absent.",
+      "correction": "Reassert dealer_location_aliases with CREATE TABLE IF NOT EXISTS before migration 0007.",
+      "files": ["apps/api/src/database/migrations/1710000007000-GhlLocationRouting.ts"],
+      "retest": "Migrations completed; final migration RepairCustomerRepliedSourceAliases1710000020000 is applied."
+    },
+    {
+      "id": "F-002",
+      "stage": "source-probe",
+      "observed": "Customer Replied for source fredericksburg returned HTTP 400: no active dealer for MyxWNKacThim798E8KC6.",
+      "verification_sql": "SELECT ghl_location_id,dealer_id FROM dealer_location_aliases WHERE ghl_location_id IN ('MyxWNKacThim798E8KC6','bAuMEQeH48xAtu9tAMFf');",
+      "root_cause": "The two Fredericksburg source aliases were missing despite the historical migration state.",
+      "correction": "Added an idempotent repair migration for both source aliases and registered it in AppModule and AppDataSource.",
+      "files": ["apps/api/src/database/migrations/1710000020000-RepairCustomerRepliedSourceAliases.ts","apps/api/src/app.module.ts","apps/api/src/database/data-source.ts"],
+      "retest": "All configured sources accepted and queued in the final 34-case run."
+    },
+    {
+      "id": "F-003",
+      "stage": "late-repair",
+      "observed": "The second inbound message '2000\\nesta semana' left down_payment empty and the conversation stayed waiting_window.",
+      "verification_sql": "SELECT ghl_message_id,replace(body,E'\\n','<NL>') AS body,qualification_snapshot FROM conversation_messages JOIN conversations ON conversations.id=conversation_messages.conversation_id WHERE ghl_conversation_id='qa-e2e-20260912-late-repair-conversation';",
+      "root_cause": "Webhook persistence applied whitespace flattening before transcript reconstruction, destroying standalone numeric message boundaries.",
+      "correction": "Preserved normalized line breaks in conversation_messages and transcript assembly.",
+      "files": ["apps/api/src/features/webhooks/application/conversation-webhook.service.ts","apps/api/src/features/leads/tests/unit/collector-normalizer.spec.ts"],
+      "retest": "Late repair became queued on the same conversation after simulated 30s; unit regression passes."
+    },
+    {
+      "id": "F-004",
+      "stage": "Easterns explicit state",
+      "observed": "Laurel VA was assigned to Laurel with routing_reason 'Explicit Easterns Zone: Laurel → Laurel'.",
+      "verification_sql": "SELECT location_snapshot,qualification_snapshot->>'assigned_dealer_id',assigned_dealer_id,routing_reason FROM conversations JOIN leads ON leads.id=conversations.lead_id JOIN lead_dealers ON lead_dealers.lead_id=leads.id WHERE ghl_conversation_id='qa-e2e-20260912-easterns-laurel-explicit-va-conversation';",
+      "root_cause": "A broad qualification-memory regex treated contact name 'Easterns Laurel-Explicit-Va' as explicit dealer selection.",
+      "correction": "Require an explicit conversational selection phrase; contact names cannot select a dealer.",
+      "files": ["apps/api/src/features/routing/domain/services/georouting.service.ts","apps/api/src/features/routing/tests/unit/georouting.spec.ts"],
+      "retest": "Laurel VA assigned Sterling in the final run; regression test passes."
+    },
+    {
+      "id": "F-005",
+      "stage": "Easterns ambiguous location",
+      "observed": "Laurel without state fell back to source Rosedale instead of the MD-priority Laurel queue.",
+      "verification_sql": "SELECT location_snapshot,assigned_dealer_id,routing_reason FROM conversations JOIN leads ON leads.id=conversations.lead_id JOIN lead_dealers ON lead_dealers.lead_id=leads.id WHERE ghl_conversation_id='qa-e2e-20260912-easterns-laurel-ambiguous-conversation';",
+      "root_cause": "Georouting resolved MD but had no Laurel-MD branch, so it reached the source-anchor fallback.",
+      "correction": "Added the Laurel/MD geographic branch after explicit-state handling.",
+      "files": ["apps/api/src/features/routing/domain/services/georouting.service.ts","apps/api/src/features/routing/tests/unit/georouting.spec.ts"],
+      "retest": "Ambiguous Laurel assigned Laurel; final Easterns cases all pass."
+    },
+    {
+      "id": "F-006",
+      "stage": "unit regression",
+      "observed": "One unit test still expected CURRENT_TIMESTAMP after controlled-clock logic was introduced.",
+      "root_cause": "Test assertion lagged the intentional parameterized timestamp contract.",
+      "correction": "Updated the assertion to require SET next_attempt_at = $1::timestamptz and the fixed parameter.",
+      "files": ["apps/api/src/features/webhooks/tests/unit/conversation-webhook.service.spec.ts"],
+      "retest": "Full suite with resilience enabled: 333 passed across 28 test files."
+    },
+    {
+      "id": "F-007",
+      "stage": "frontend local process",
+      "observed": "The first authenticated UI attempt saw 404 on /api/auth/login and later a selector timeout.",
+      "root_cause": "Frontend production build was created without API_URL rewrite; one temporary QA selector matched a hidden mobile duplicate.",
+      "correction": "Rebuilt web with API_URL=http://127.0.0.1:3010, restarted Next, and made the selector target the visible table.",
+      "files": ["apps/web/next.config.js","tmp/qa-e2e-local-20260912/check-frontend.mjs"],
+      "retest": "Frontend login/dashboard PASS; local lead rendered and screenshot saved."
+    },
+    {
+      "id": "F-008",
+      "stage": "resilience integration",
+      "observed": "The out-of-order qualification test expected raw '$4,500', 'ID-OUT-OF-ORDER', 'Cuenta verificada' and 'Este mes', but the normalized contract returned '4500', 'yes', '', and 'this month'.",
+      "root_cause": "The existing stress-test assertion was written for pre-normalization values; the service intentionally stores canonical qualification values and does not infer an unrecognized bank-account phrase.",
+      "correction": "Aligned the test expectation and message assertion with the normalized storage contract.",
+      "files": ["apps/api/src/features/leads/tests/integration/resilience-stress.spec.ts"],
+      "retest": "The four resilience tests pass against the local PostgreSQL container."
+    }
+  ]
+}

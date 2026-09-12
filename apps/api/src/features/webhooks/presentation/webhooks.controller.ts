@@ -33,6 +33,7 @@ export class WebhooksController {
         contactId: request.header('X-DealerADMIN-Contact-ID') ?? undefined,
         conversationId: request.header('X-DealerADMIN-Conversation-ID') ?? undefined,
         messageId: request.header('X-DealerADMIN-Message-ID') ?? undefined,
+        testNow: this.controlledTestNow(request.header('X-DealerADMIN-Test-Now')),
       },
       request.rawBody?.toString('utf8'),
     );
@@ -40,7 +41,13 @@ export class WebhooksController {
 
   @Post('ghl/conversations/process-due')
   @UseGuards(HmacSignatureGuard)
-  processDueConversations() {
-    return this.conversationWebhookService.processDueConversations();
+  processDueConversations(@Req() request: Request) {
+    const requestedNow = request.header('X-DealerADMIN-Test-Now');
+    return this.conversationWebhookService.processDueConversations(this.controlledTestNow(requestedNow));
+  }
+
+  private controlledTestNow(value: string | undefined): Date | undefined {
+    const parsed = value ? new Date(value) : undefined;
+    return process.env.NODE_ENV !== 'production' && parsed && !Number.isNaN(parsed.getTime()) ? parsed : undefined;
   }
 }

@@ -19,6 +19,7 @@ export const INCOMPLETE_QUALIFICATION_WINDOW_HOURS = 0.5;
 export const OUT_OF_WINDOW_QUALIFICATION_WINDOW_HOURS = 3;
 export const QUALIFICATION_RULE_TIMEZONE = 'America/Bogota';
 export const DUE_CONVERSATION_POLL_MS = 30_000;
+export const STALE_PHONE_REENTRY_DAYS = 3;
 
 export const GHL_SOURCE_CONFIG: Record<SourceKey, { locationId: string; defaultChannel: 'whatsapp' | 'messenger'; splitByLanguage?: boolean; alternatingGroup?: string }> = {
   stafford: { locationId: 'LiaoSID3nvAhad49ZpNJ', defaultChannel: 'whatsapp' },
@@ -80,7 +81,7 @@ export type ConversationWebhookResponse = {
   eventId: string;
   conversationId: string;
   source: SourceKey;
-  status: 'processed' | 'duplicate_ignored';
+  status: 'processed' | 'duplicate_ignored' | 'stale_phone_ignored';
 };
 
 export type DueConversationResponse = { accepted: true; processed: number };
@@ -121,6 +122,15 @@ function plusHours(date: Date, hours: number): Date {
 
 function hash(value: string): string {
   return createHash('sha256').update(value).digest('hex');
+}
+
+function currentLocalNow(): Date {
+  const fixed = process.env.DEALERADMIN_FIXED_NOW;
+  if (fixed && process.env.NODE_ENV !== 'production') {
+    const parsed = new Date(fixed);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  return new Date();
 }
 
 @Injectable()
@@ -334,7 +344,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
   async acceptCustomerReplied(
     input: unknown,
     sourceValue: string,
-    headers: { contactId?: string; conversationId?: string; messageId?: string },
+    headers: { contactId?: string; conversationId?: string; messageId?: string; testNow?: Date },
     rawBody?: string,
   ): Promise<ConversationWebhookResponse> {
     const source = sourceKey(sourceValue);
@@ -360,10 +370,10 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     }
     if (!this.dataSource) throw new ServiceUnavailableException('Database connection is not available');
 
-    return this.persistEvent({ ...event, ghl_contact_id: contactId, ghl_conversation_id: conversationId, event_id: eventId }, source, raw);
+    return this.persistEvent({ ...event, ghl_contact_id: contactId, ghl_conversation_id: conversationId, event_id: eventId }, source, raw, headers.testNow);
   }
 
-  async processDueConversations(now = new Date()): Promise<DueConversationResponse> {
+  async processDueConversations(now = currentLocalNow()): Promise<DueConversationResponse> {
     if (!this.dataSource) {
       if (process.env.NODE_ENV === 'test') return { accepted: true, processed: 0 };
       throw new ServiceUnavailableException('Database connection is not available');
@@ -375,8 +385,9 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     // rows an immediate due time so they cannot remain invisible indefinitely.
     await this.dataSource.query(
       `UPDATE conversations
-       SET next_attempt_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       SET next_attempt_at = $1::timestamptz, updated_at = CURRENT_TIMESTAMP
        WHERE status = 'waiting_window' AND next_attempt_at IS NULL`,
+      [now.toISOString()],
     );
     const due = await this.dataSource.query(
       `SELECT c.id
@@ -414,7 +425,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     };
   }
 
-  private async persistEvent(event: GhlCustomerRepliedDto & { ghl_contact_id: string; ghl_conversation_id: string; event_id: string }, source: SourceKey, rawBody: string): Promise<ConversationWebhookResponse> {
+  private async persistEvent(event: GhlCustomerRepliedDto & { ghl_contact_id: string; ghl_conversation_id: string; event_id: string }, source: SourceKey, rawBody: string, controlledNow?: Date): Promise<ConversationWebhookResponse> {
     const runner = this.dataSource!.createQueryRunner();
     await runner.connect();
     await runner.startTransaction();
@@ -462,13 +473,27 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         `INSERT INTO conversation_messages (conversation_id, dedupe_key, ghl_message_id, body, occurred_at, raw_payload)
          VALUES ($1, $2, $3, $4, $5, $6::jsonb)
          ON CONFLICT (conversation_id, dedupe_key) DO NOTHING`,
-        [conversation.id, dedupeKey, messageId, clean(event.message_body), receivedAt, JSON.stringify(event.raw_payload ?? event)],
+        [conversation.id, dedupeKey, messageId, String(event.message_body ?? '').replace(/\r\n?/g, '\n').trim(), receivedAt, JSON.stringify(event.raw_payload ?? event)],
       );
       const messages = await runner.query(
         `SELECT body FROM conversation_messages WHERE conversation_id = $1 ORDER BY occurred_at ASC, created_at ASC`,
         [conversation.id],
       ) as Array<{ body: string }>;
-      const transcript = messages.map((item) => clean(item.body)).filter(Boolean).join('\n');
+      const transcript = messages
+        .map((item) => String(item.body ?? '').replace(/\r\n?/g, '\n').trim())
+        .filter(Boolean)
+        .join('\n');
+      if (conversation.isExisting && conversation.status === 'sent') {
+        await runner.query(
+          `UPDATE conversations
+           SET last_message_at = $2, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [conversation.id, receivedAt],
+        );
+        await runner.query(`UPDATE webhook_events SET status = 'processed', processed_at = CURRENT_TIMESTAMP, error_code = NULL WHERE event_id = $1`, [event.event_id]);
+        await runner.commitTransaction();
+        return { accepted: true, eventId: event.event_id, conversationId: conversation.id, source, status: 'processed' };
+      }
       const normalized = normalizeCollectorInput({
         channel: event.channel,
         real_name: /(?:^|[^a-z])messenger(?:$|[^a-z])/i.test(event.channel) ? displayName : undefined,
@@ -519,6 +544,23 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       const assignedDealerId = clean(conversation.qualification_snapshot?.assigned_dealer_id);
       const dealer = sourceDealer ?? await this.findSourceDealer(runner, GHL_SOURCE_CONFIG[source].locationId, source, language, assignedDealerId || undefined);
       snapshot.assigned_dealer_id = dealer.id;
+      const now = controlledNow ?? currentLocalNow();
+      const stalePhone = snapshot.phone
+        ? await this.findStalePhoneReentry(runner, snapshot.phone, now)
+        : null;
+      if (stalePhone) {
+        await runner.query(
+          `UPDATE conversations
+           SET status = 'stale_phone_ignored', qualification_snapshot = $2::jsonb,
+               location_snapshot = $3::jsonb, last_message_at = $4,
+               next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [conversation.id, JSON.stringify(snapshot), JSON.stringify(location), receivedAt],
+        );
+        await runner.query(`UPDATE webhook_events SET status = 'processed', processed_at = CURRENT_TIMESTAMP, error_code = $2 WHERE event_id = $1`, [event.event_id, `STALE_PHONE_REENTRY:${stalePhone.sent_at}`]);
+        await runner.commitTransaction();
+        return { accepted: true, eventId: event.event_id, conversationId: conversation.id, source, status: 'stale_phone_ignored' };
+      }
       if (normalized.real_name) {
         const { firstName: normalizedFirstName, lastName: normalizedLastName } = splitName(normalized.real_name);
         await runner.query(
@@ -551,14 +593,14 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       }
       // Window rules are based on the server's current dealer-local time, not on
       // a delayed or replayed GHL timestamp from the message payload.
-      const status = this.statusForConversation(snapshot, location, dealer, source, new Date(), 'capture');
+      const status = this.statusForConversation(snapshot, location, dealer, source, now, 'capture');
       await runner.query(
         `UPDATE conversations
          SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
-             last_message_at = $5, ready_at = CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued') THEN COALESCE(ready_at, CURRENT_TIMESTAMP) ELSE ready_at END,
+             last_message_at = $5, ready_at = CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued') THEN COALESCE(ready_at, $7::timestamptz) ELSE ready_at END,
              next_attempt_at = $6, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1`,
-        [conversation.id, status.status, JSON.stringify(snapshot), JSON.stringify(location), receivedAt, status.nextAttemptAt],
+           WHERE id = $1`,
+        [conversation.id, status.status, JSON.stringify(snapshot), JSON.stringify(location), receivedAt, status.nextAttemptAt, now.toISOString()],
       );
       if (status.status === 'ready') {
         await this.syncLeadDealer(runner, dealer, lead.id, snapshot, location, source);
@@ -580,6 +622,23 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     const candidate = clean(value);
     if (!candidate) return null;
     try { return normalizePhone(candidate); } catch { return null; }
+  }
+
+  private async findStalePhoneReentry(runner: QueryRunner, phone: string, now: Date): Promise<{ sent_at: string } | null> {
+    const cutoff = new Date(now.getTime() - STALE_PHONE_REENTRY_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const rows = await runner.query(
+      `SELECT ld.sent_at
+       FROM leads l
+       INNER JOIN lead_dealers ld ON ld.lead_id = l.id
+       WHERE l.canonical_phone = $1
+         AND ld.status = 'sent'
+         AND ld.sent_at IS NOT NULL
+         AND ld.sent_at <= $2::timestamptz
+       ORDER BY ld.sent_at ASC
+       LIMIT 1`,
+      [phone, cutoff],
+    ) as Array<{ sent_at: string }>;
+    return rows[0] ?? null;
   }
 
   private async findSourceDealer(runner: QueryRunner, locationId: string, source?: SourceKey, language?: CollectorLanguage, assignedDealerId?: string): Promise<DealerRow> {

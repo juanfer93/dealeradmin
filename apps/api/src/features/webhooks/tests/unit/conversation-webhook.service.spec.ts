@@ -427,7 +427,7 @@ describe('ConversationWebhookService', () => {
 
     await service.processDueConversations(new Date('2026-09-11T14:00:00.000Z'));
 
-    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining("SET next_attempt_at = CURRENT_TIMESTAMP"));
+    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining("SET next_attempt_at = $1::timestamptz"), ['2026-09-11T14:00:00.000Z']);
     const repairCall = dataSource.query.mock.calls.find(([sql]) => String(sql).includes("WHERE status = 'waiting_window' AND next_attempt_at IS NULL"));
     expect(repairCall?.[0]).toContain("WHERE status = 'waiting_window' AND next_attempt_at IS NULL");
   });

@@ -67,7 +67,9 @@ function stripPlaceSuffix(value: string): string {
 function locationFromQualificationMemory(value: string | null | undefined): string {
   const memory = normalizeText(value);
   if (!memory) return '';
-  const match = memory.match(/(?:quiero\s+mi\s+auto\s+con\s+easterns|i\s+want\s+my\s+(?:car|vehicle)\s+with\s+easterns|easterns)\s+(baltimore|laurel|sterling)\b/i);
+  // Only an explicit conversational selection is authoritative. A contact
+  // name such as "Easterns Laurel" must never become a dealer selection.
+  const match = memory.match(/(?:quiero\s+mi\s+auto\s+con\s+easterns|i\s+want\s+my\s+(?:car|vehicle)\s+with\s+easterns)\s+(baltimore|laurel|sterling)\b/i);
   return match?.[1] || '';
 }
 
@@ -128,6 +130,13 @@ export class GeoroutingService {
     }
     if (state === 'VA') {
       return { dealerId: EASTERN_DEALER_IDS.sterling, reason: 'Exclusive Zone: State Virginia' };
+    }
+
+    // Laurel exists in multiple jurisdictions. When no state is stated, the
+    // local catalog's MD-first resolution must win over the Easterns source
+    // anchor (Rosedale); an explicit VA state was already handled above.
+    if (state === 'MD' && (city === 'laurel' || zone.includes('laurel'))) {
+      return { dealerId: EASTERN_DEALER_IDS.laurel, reason: 'Exclusive Zone: Laurel, Maryland' };
     }
 
     if (city === 'baltimore' || city === 'baltimore city' || zone.includes('baltimore')) {

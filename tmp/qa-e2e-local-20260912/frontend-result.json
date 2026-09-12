@@ -1,0 +1,7 @@
+{
+  "login_status": "PASS",
+  "dashboard_status": "PASS",
+  "url": "http://127.0.0.1:3000/app",
+  "has_local_qa_lead": true,
+  "screenshot": "tmp/qa-e2e-local-20260912/frontend-dashboard.png"
+}

@@ -19,6 +19,7 @@ import { KoonsFredericksburgDealers1710000016000 } from './migrations/1710000016
 import { KoonsCulpeperDealer1710000017000 } from './migrations/1710000017000-KoonsCulpeperDealer';
 import { ActionPreOwnedCarsDealers1710000018000 } from './migrations/1710000018000-ActionPreOwnedCarsDealers';
 import { EasternsMillersvilleAndFrederickDealers1710000019000 } from './migrations/1710000019000-EasternsMillersvilleAndFrederickDealers';
+import { RepairCustomerRepliedSourceAliases1710000020000 } from './migrations/1710000020000-RepairCustomerRepliedSourceAliases';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -51,6 +52,7 @@ export const AppDataSource = new DataSource({
     KoonsCulpeperDealer1710000017000,
     ActionPreOwnedCarsDealers1710000018000,
     EasternsMillersvilleAndFrederickDealers1710000019000,
+    RepairCustomerRepliedSourceAliases1710000020000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,

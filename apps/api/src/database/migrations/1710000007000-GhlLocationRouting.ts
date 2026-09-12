@@ -9,6 +9,17 @@ export class GhlLocationRouting1710000007000 implements MigrationInterface {
   name = 'GhlLocationRouting1710000007000';
 
   async up(queryRunner: QueryRunner): Promise<void> {
+    // Migration 0003 historically created this table, but an existing local
+    // database can have 0003 recorded as applied while the table is absent
+    // (for example after a partial/manual restore). Reassert the prerequisite
+    // here so applying 0007 is safe and idempotent on that schema drift.
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS dealer_location_aliases (
+        ghl_location_id VARCHAR PRIMARY KEY,
+        dealer_id UUID NOT NULL REFERENCES dealers(id),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
     await queryRunner.query(`
       DO $$
       DECLARE

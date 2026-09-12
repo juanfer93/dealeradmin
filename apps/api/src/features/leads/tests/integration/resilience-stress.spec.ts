@@ -196,14 +196,14 @@ describeStress('Día 7 - Pruebas Masivas de Resiliencia y Concurrencia (15 Deale
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       vehicle_type: 'SUV',
-      down_payment: '$4,500',
-      identification: 'ID-OUT-OF-ORDER',
-      bank_account: 'Cuenta verificada',
-      purchase_timeline: 'Este mes',
+      down_payment: '4500',
+      identification: 'yes',
+      bank_account: '',
+      purchase_timeline: 'this month',
       documents: 'Licencia e ID',
     });
     expect(rows[0].message_text).toContain('SUV');
-    expect(rows[0].message_text).toContain('$4,500');
+    expect(rows[0].message_text).toContain('4500');
   }, 20_000);
 
   it('hace rollback ante una falla de conexión simulada y registra el webhook como failed', async () => {

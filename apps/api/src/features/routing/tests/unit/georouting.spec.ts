@@ -65,6 +65,13 @@ describe('Easterns georouting engine', () => {
     });
   });
 
+  it('resuelve Laurel ambiguo al dealer de Maryland, no al ancla de origen', async () => {
+    const { service } = createService();
+    await expect(service.resolveDealer({ city: 'Laurel', state: 'MD', easterns_zone: 'laurel' })).resolves.toMatchObject({
+      dealerId: EASTERN_DEALER_IDS.laurel,
+    });
+  });
+
   it('respeta un estado explícito aunque la ciudad tenga coincidencias en Maryland', async () => {
     const { service } = createService();
 
@@ -77,6 +84,16 @@ describe('Easterns georouting engine', () => {
   it('prioriza el estado explícito sobre una ciudad de otra jurisdicción', async () => {
     const { service } = createService();
     await expect(service.resolveDealer({ state: 'VA', city: 'Baltimore' })).resolves.toMatchObject({ dealerId: EASTERN_DEALER_IDS.sterling });
+  });
+
+  it('no convierte un nombre de contacto que contiene Easterns Laurel en selección explícita', async () => {
+    const { service } = createService();
+    await expect(service.resolveDealer({
+      city: 'Laurel',
+      state: 'VA',
+      easterns_zone: 'laurel',
+      qualification_memory: 'real_name: Easterns Laurel-Explicit-Va; vehicle: Mustang; timeline: this week',
+    })).resolves.toMatchObject({ dealerId: EASTERN_DEALER_IDS.sterling });
   });
 
   it.each(['NJ', 'New Jersey', 'Nueva Jersey', 'OM NJ'])('reconoce un estado explícito aunque venga acompañado por texto: %s', async (state) => {

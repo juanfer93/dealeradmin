@@ -212,6 +212,17 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message: 'Para ya' }).purchase_timeline).toBe('today');
   });
 
+  it('keeps a standalone amount when a later inbound reply also contains its timeline', () => {
+    const result = normalizeCollectorInput({
+      message: '2000\nesta semana',
+      chat_history_log: 'busco un Mustang\n2000\nesta semana',
+      real_name: 'Late Repair',
+    });
+    expect(result.down_payment).toBe('2000');
+    expect(result.purchase_timeline).toBe('this week');
+    expect(result.vehicle_type).toBe('Mustang');
+  });
+
   it.each([
     ['1000', '1000'],
     ['2000', '2000'],

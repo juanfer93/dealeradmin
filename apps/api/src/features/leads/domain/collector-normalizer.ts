@@ -361,7 +361,9 @@ function normalizeVehicle(value: string): string {
 function extractVehicle(message: string): string {
   const source = String(message ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source) return EMPTY;
-  for (const line of source.split(/\n+/).map(clean).filter(Boolean)) {
+  const lines = source.split(/\n+/).map(clean).filter(Boolean);
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex];
     const candidate = stripCampaignButtonPhrases(line);
     if (!candidate || isCampaignButton(candidate) || isNonVehicleIntent(candidate)) continue;
     const withoutOtherFacts = candidate
@@ -380,7 +382,8 @@ function extractVehicle(message: string): string {
     const category = withoutOtherFacts.match(/\b(suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto)\b/i)?.[1];
     if (category) return category;
     const label = extractVehicleLabel(withoutOtherFacts);
-    if (label) return label;
+    const followsVehicleQuestion = lineIndex > 0 && /\b(?:what|which)\s+(?:vehicle|car|truck)|\b(?:qu[eé]|cu[aá]l)\s+(?:veh[ií]culo|carro|auto)\b/i.test(lines[lineIndex - 1]);
+    if (label && (VEHICLE_CONTEXT.test(candidate) || followsVehicleQuestion)) return label;
   }
   return EMPTY;
 }
@@ -389,7 +392,7 @@ function extractDownPayment(message: string): string {
   const source = clean(message);
   if (!source || isCampaignButton(source)) return EMPTY;
   if (/\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b/i.test(source)) return 'Cash';
-  const amount = source.match(/(?:down|enganche|inicial|deposit|dep[oó]sito)\s*(?:payment|pago)?\s*(?:is|es|de|:)?\s*\$?\s*([\d,.]+\s*k?)/i)?.[1]
+  const amount = source.match(/(?:down|enganche|inicial|deposit|dep[oó]sito)\s*(?:payment|pago)?\s*(?:is|es|de|:)?\s*\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?)/i)?.[1]
     ?? source.match(/\$?\s*(\d+(?:[,.]\d+)?\s*k?)\s*(?:(?:for|para|as|on|de|del)\s*)?(?:down|enganche|inicial)/i)?.[1];
   return amount ? normalizeAmount(amount) : EMPTY;
 }
@@ -415,12 +418,11 @@ function extractStandaloneDownPayment(message: string): string {
   // (for example the standalone "1000" message) is not lost.
   const source = String(message ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source || isCampaignButton(source)) return EMPTY;
-  const standalone = source.match(/(?:^|\n)\$?\s*(\d{1,3}(?:[,.]\d{3})+|\d+(?:[,.]\d+)?\s*k?)\s*(?:tengo|have|available|disponible|i have|i can put)?\s*\d{0,2}\s*\.?\s*(?=\n|$)/im);
+  const matches = [...source.matchAll(/(?:^|\n)\$?\s*(\d{1,3}(?:[,.]\d{3})+|\d+(?:[,.]\d+)?\s*k?)\s*(?:tengo|have|available|disponible|i have|i can put)?\s*\d{0,2}\s*\.?\s*(?=\n|$)/gim)];
+  const standalone = matches.reverse().find((match) => !/^20(?:1\d|2\d)$/.test(match[1].replace(/[$,\s]/g, '')));
   if (!standalone) return EMPTY;
-  const candidate = standalone[1].replace(/[$,\s]/g, '');
   // A standalone recent four-digit answer is a vehicle year, not a down
   // payment. Values such as 1000/2000/3000 remain valid down payments.
-  if (/^20(?:1\d|2\d)$/.test(candidate)) return EMPTY;
   return normalizeAmount(standalone[1]);
 }
 
