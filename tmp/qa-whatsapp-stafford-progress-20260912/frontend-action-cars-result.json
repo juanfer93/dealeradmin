@@ -1,0 +1,12 @@
+{
+  "login_status": "PASS",
+  "dashboard_status": "PASS",
+  "action_english_in_sidebar": true,
+  "action_spanish_in_sidebar": true,
+  "english_header": "D\nDEALER ACTIVO\nAction Pre Owned Cars English",
+  "spanish_header": "D\nDEALER ACTIVO\nAction Pre Owned Cars Español",
+  "english_header_exact": true,
+  "spanish_header_exact": true,
+  "url": "http://127.0.0.1:3000/app",
+  "screenshot": "tmp/qa-whatsapp-stafford-progress-20260912/frontend-action-cars-names.png"
+}

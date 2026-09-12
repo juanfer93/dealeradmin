@@ -133,6 +133,50 @@ describe('normalizeCollectorInput', () => {
     const result = normalizeCollectorInput({ message: 'I want a Tacoma', documents: '--' });
     expect(result.documents).toBe('');
     expect(result.next_question).toBe('What is your full name?');
+    expect(result.qualification_progress).toMatchObject({
+      step: 'real_name',
+      predicted_bot_question: 'What is your full name?',
+      language: 'en',
+    });
+  });
+
+  it.each([
+    ['en', 'I am looking for a Mustang', 'What is your full name?'],
+    ['es', 'Estoy buscando un Mustang', '¿Cuál es tu nombre completo?'],
+  ])('predicts the next qualification step and bot question in %s', (language, message, question) => {
+    const result = normalizeCollectorInput({ channel: language === 'en' ? 'whatsapp' : 'whatsapp', message });
+    expect(result.qualification_progress).toMatchObject({
+      step: 'real_name',
+      predicted_bot_question: question,
+      language,
+      confidence: 0.95,
+      evidence: 'normalized_fields',
+    });
+  });
+
+  it('predicts the down-payment step after a vehicle and phone response', () => {
+    const result = normalizeCollectorInput({ channel: 'whatsapp', message: 'My name is Taylor QA\nI am looking for a Mustang\n+1 (804) 309-2531' });
+    expect(result).toMatchObject({ vehicle_type: 'Mustang', phone: '+18043092531' });
+    expect(result.qualification_progress).toMatchObject({
+      step: 'down_payment',
+      last_answered_field: 'vehicle_type',
+      predicted_bot_question: 'How much do you have for the down payment?',
+    });
+  });
+
+  it('uses a Spanish predicted question for the next missing field', () => {
+    const result = normalizeCollectorInput({
+      channel: 'messenger',
+      real_name: 'Cliente QA',
+      phone: '+18043092531',
+      message: 'Estoy buscando un Mustang',
+    });
+    expect(result.qualification_progress).toMatchObject({
+      step: 'down_payment',
+      last_answered_field: 'vehicle_type',
+      predicted_bot_question: '¿Cuánto tienes para el enganche?',
+      language: 'es',
+    });
   });
 
   it('preserves the vehicle description and identifies the purchase timeline', () => {

@@ -4,7 +4,7 @@ import { GhlCustomerRepliedSchema } from '@dealeradmin/contracts';
 import { createHash } from 'node:crypto';
 import { DataSource, QueryRunner } from 'typeorm';
 import { buildWhatsAppMessage } from '../../leads/domain/message-builder';
-import { detectLeadLanguage, hasMinimumRoutingQualification, isQualificationComplete, normalizeCollectorInput, normalizeRealName, type CollectorLanguage } from '../../leads/domain/collector-normalizer';
+import { detectLeadLanguage, hasMinimumRoutingQualification, isQualificationComplete, normalizeCollectorInput, normalizeRealName, type CollectorLanguage, type QualificationProgress } from '../../leads/domain/collector-normalizer';
 import { normalizeDownPayment } from '../../leads/domain/down-payment';
 import { normalizePhone } from '../../leads/domain/phone-normalizer';
 import { GeoroutingService } from '../../routing/domain/services/georouting.service';
@@ -66,6 +66,7 @@ type ConversationSnapshot = {
   missing_qualification: string[];
   message_count: number;
   language?: CollectorLanguage;
+  qualification_progress?: QualificationProgress;
   assigned_dealer_id?: string;
 };
 
@@ -287,6 +288,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         missing_qualification: missingQualification,
         message_count: messages.length,
         language,
+        qualification_progress: normalized.qualification_progress,
         assigned_dealer_id: clean(current.assigned_dealer_id) || undefined,
       };
       const dealer = await this.findSourceDealer(runner, row.ghl_location_id, source, language, clean(current.assigned_dealer_id) || undefined);
@@ -540,6 +542,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         missing_qualification: normalized.missing_qualification,
         message_count: messages.length,
         language,
+        qualification_progress: normalized.qualification_progress,
       };
       const assignedDealerId = clean(conversation.qualification_snapshot?.assigned_dealer_id);
       const dealer = sourceDealer ?? await this.findSourceDealer(runner, GHL_SOURCE_CONFIG[source].locationId, source, language, assignedDealerId || undefined);
@@ -750,7 +753,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     const hasLocation = Boolean(location.city || location.state || location.easterns_zone || location.zip_code);
     const routingReady = Boolean(
       hasMinimumRoutingQualification({ phone: snapshot.phone }) &&
-      (source !== 'stafford' || snapshot.vehicle_type),
+      (source !== 'stafford' || (snapshot.vehicle_type && (snapshot.down_payment || snapshot.purchase_timeline))),
     );
     if (!routingReady) return { status: 'partial', nextAttemptAt: null };
     if (phase === 'capture') {

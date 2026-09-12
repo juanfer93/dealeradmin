@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DealeradminCaptureContractSchema } from './leads/dealeradmin-capture.schema';
+import { DealeradminCaptureContractSchema, QualificationProgressSchema } from './leads/dealeradmin-capture.schema';
 export { GhlCustomerRepliedSchema } from './conversations/ghl-customer-replied.schema';
 export type { GhlCustomerRepliedDto } from './conversations/ghl-customer-replied.schema';
 export { BulkLeadImportSchema, CreateManualLeadSchema, UpdateLeadSchema } from './leads/manual-lead.schema';
@@ -10,6 +10,8 @@ export {
   DEALERADMIN_CAPTURE_SCHEMA_VERSION,
   DealeradminCaptureContractSchema,
   RawCaptureEvidenceSchema,
+  QualificationProgressSchema,
+  QualificationStepSchema,
   TypedCaptureExtractionSchema,
 } from './leads/dealeradmin-capture.schema';
 export type { DealeradminCaptureContract } from './leads/dealeradmin-capture.schema';
@@ -48,6 +50,9 @@ export const LeadWebhookSchema = z.object({
     message: z.string().nullable().optional(),
     qualification_memory: z.string().nullable().optional(),
     qualification_source: z.enum(['custom_fields', 'qualification_memory', 'both', 'none']).nullable().optional(),
+    qualification_step: z.string().nullable().optional(),
+    next_question: z.string().nullable().optional(),
+    qualification_progress: QualificationProgressSchema.nullable().optional(),
     qualification_complete: z.boolean().optional(),
     missing_qualification: z.array(z.string()).optional(),
     chat_history_log: z.string().nullable().optional(),

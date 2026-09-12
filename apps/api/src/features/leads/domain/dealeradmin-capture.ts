@@ -99,6 +99,7 @@ export function buildDealeradminCaptureContract(
         status: !nullable(phone) ? 'blocked' : missing.length === 0 ? 'complete' : 'partial',
         missing,
       },
+      progress: normalized.qualification_progress,
     },
   };
 }

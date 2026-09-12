@@ -135,7 +135,6 @@ export default function OperatorDashboard() {
   }, [loadLeads, selectedDealerId, selectedDealerIds, status]);
 
   const activeDealer = useMemo(() => dealers.find((dealer) => dealer.id === selectedDealerId) ?? dealers[0], [dealers, selectedDealerId]);
-  const activeDealerIdentity = activeDealer ? dealerIdentity(activeDealer.name) : null;
   const selectedVisibleLeadIds = useMemo(() => selectedLeadIds.filter((id) => leads.some((lead) => lead.id === id)), [leads, selectedLeadIds]);
   const allVisibleLeadsSelected = leads.length > 0 && selectedVisibleLeadIds.length === leads.length;
 
@@ -271,7 +270,7 @@ export default function OperatorDashboard() {
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--brand-soft)] text-xs font-bold text-[var(--brand)]" aria-hidden="true">D</span>
         <div className="min-w-0">
           <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{language === 'es' ? 'Dealer activo' : 'Active dealer'}</span>
-          {activeDealerIdentity ? <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm"><span className="font-semibold text-[var(--text)]">{activeDealerIdentity.group}</span><span className="text-[var(--text-muted)]">·</span><span className="font-medium text-[var(--brand)]">{activeDealerIdentity.location}</span></div> : <span className="text-sm text-[var(--text-muted)]">{language === 'es' ? 'Selecciona un dealer' : 'Select a dealer'}</span>}
+          {activeDealer ? <span className="block truncate text-sm font-semibold text-[var(--text)]">{activeDealer.name}</span> : <span className="text-sm text-[var(--text-muted)]">{language === 'es' ? 'Selecciona un dealer' : 'Select a dealer'}</span>}
         </div>
       </div>
     </div>

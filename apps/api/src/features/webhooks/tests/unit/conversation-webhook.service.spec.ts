@@ -38,6 +38,9 @@ describe('ConversationWebhookService', () => {
 
   const completeSnapshot = { phone: '+13015550123', vehicle_type: 'SUV', qualification_complete: true };
   const incompleteSnapshot = { phone: '+13015550123', vehicle_type: 'SUV', qualification_complete: false };
+  const staffordVehicleOnlySnapshot = { phone: '+13015550123', vehicle_type: 'SUV', down_payment: '', purchase_timeline: '', qualification_complete: false };
+  const staffordWithDownSnapshot = { phone: '+13015550123', vehicle_type: 'SUV', down_payment: '2000', purchase_timeline: '', qualification_complete: false };
+  const staffordWithTimelineSnapshot = { phone: '+13015550123', vehicle_type: 'SUV', down_payment: '', purchase_timeline: 'this week', qualification_complete: false };
   const easternsLocation = { city: 'Laurel', state: 'MD', zip_code: null, easterns_zone: null };
   const easternsDealer = { timezone: 'America/New_York', routing_config: { group: 'Easterns' } };
 
@@ -339,6 +342,18 @@ describe('ConversationWebhookService', () => {
 
     expect(result.status).toBe('waiting_window');
     expect(result.nextAttemptAt).toBe(new Date(now.getTime() + CONVERSATION_STABILIZATION_MS).toISOString());
+  });
+
+  it('does not open Stafford WhatsApp wait with only phone and vehicle', () => {
+    const now = new Date('2026-09-11T14:00:00.000Z');
+    expect(evaluateStatus(staffordVehicleOnlySnapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'capture'))
+      .toEqual({ status: 'partial', nextAttemptAt: null });
+  });
+
+  it.each([staffordWithDownSnapshot, staffordWithTimelineSnapshot])('opens Stafford wait when one additional qualification is present', (snapshot) => {
+    const now = new Date('2026-09-11T14:00:00.000Z');
+    const result = evaluateStatus(snapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'capture');
+    expect(result).toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:00:15.000Z' });
   });
 
   it('queues a complete conversation after the stabilization window', () => {

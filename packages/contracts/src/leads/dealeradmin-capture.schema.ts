@@ -20,6 +20,25 @@ export const CaptureFieldSchema = z.object({
   confidence: z.number().min(0).max(1),
 });
 
+export const QualificationStepSchema = z.enum([
+  'real_name',
+  'vehicle_type',
+  'down_payment',
+  'purchase_timeline',
+  'documents',
+  'bank_account',
+  'complete',
+]);
+
+export const QualificationProgressSchema = z.object({
+  step: QualificationStepSchema,
+  last_answered_field: z.string().nullable(),
+  predicted_bot_question: z.string(),
+  language: z.enum(['es', 'en']),
+  confidence: z.number().min(0).max(1),
+  evidence: z.enum(['transcript', 'normalized_fields', 'complete']),
+});
+
 export const RawCaptureEvidenceSchema = z.object({
   schema_version: z.literal(DEALERADMIN_CAPTURE_SCHEMA_VERSION),
   channel: z.string().min(1),
@@ -49,6 +68,7 @@ export const TypedCaptureExtractionSchema = z.object({
     status: z.enum(['complete', 'partial', 'blocked']),
     missing: z.array(z.string()),
   }),
+  progress: QualificationProgressSchema.optional(),
 });
 
 export const DealeradminCaptureContractSchema = z.object({

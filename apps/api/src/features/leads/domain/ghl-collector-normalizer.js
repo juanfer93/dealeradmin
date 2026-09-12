@@ -280,6 +280,40 @@ const missing = [...coreMissing, identification !== 'yes' ? 'identification' : '
 const parts = memoryText(rawMemory).split(';').map((part) => clean(part).replace(/^\d+(?=(?:vehicle|vehicle[_ ]?type|down|down[_ ]?payment|documents?|timeline)\b)/i, '')).filter((part) => Boolean(part) && !/^\$?\d[\d,.]*$/.test(part));
 const canonical = [['real_name', realName], ['vehicle', vehicle], ['down payment', down], ['documents', documents], ['timeline', timeline]].filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).replace(/\s*;\s*/g, ', ')}`);
 const qualificationMemory = [...new Set([...parts.filter((part) => !/^(?:real_name|real name|name|nombre|nombre real|nombre completo|vehicle|vehicle_type|down|down payment|down_payment|documents?|docs|timeline|purchase timeline|purchase_timeline)\s*(?::|=|-)/i.test(part)), ...canonical])].join('; ');
+const languageText = `${message}; ${history}`;
+const englishSignals = (languageText.match(/\b(?:i|i'm|im|my|want|wants|need|looking|have|yes|yeah|yep|what|when|where|how|this|next|today|week|month|do|does)\b/gi) || []).length;
+const spanishSignals = (languageText.match(/\b(?:yo|mi|quiero|necesito|busco|tengo|sí|si|qué|cuando|donde|este|esta|hoy|semana|mes|tienes)\b/gi) || []).length;
+const language = englishSignals > spanishSignals ? 'en' : 'es';
+const qualificationStep = !realName
+  ? 'real_name'
+  : !vehicle
+    ? 'vehicle_type'
+    : !down
+      ? 'down_payment'
+      : !timeline
+        ? 'purchase_timeline'
+        : identification !== 'yes' || income !== 'yes'
+          ? 'documents'
+          : !bankAccount || bankAccount !== 'yes'
+            ? 'bank_account'
+            : 'complete';
+const questions = {
+  en: {
+    real_name: 'What is your full name?', vehicle_type: 'What vehicle are you looking for?',
+    down_payment: 'How much do you have for the down payment?', purchase_timeline: 'When are you planning to buy?',
+    documents: 'Do you have identification and proof of income?', bank_account: 'Do you have a bank account?', complete: '',
+  },
+  es: {
+    real_name: '¿Cuál es tu nombre completo?', vehicle_type: '¿Qué vehículo estás buscando?',
+    down_payment: '¿Cuánto tienes para el enganche?', purchase_timeline: '¿Cuándo planeas comprar?',
+    documents: '¿Tienes identificación y comprobante de ingresos?', bank_account: '¿Tienes una cuenta bancaria?', complete: '',
+  },
+};
+const predictedBotQuestion = questions[language][qualificationStep];
+const lastAnsweredField = qualificationStep === 'complete'
+  ? 'bank_account'
+  : [['real_name', realName], ['phone', phone], ['vehicle_type', vehicle], ['down_payment', down], ['purchase_timeline', timeline], ['documents', identification === 'yes' && income === 'yes'], ['bank_account', bankAccount === 'yes']]
+    .reverse().find(([, complete]) => Boolean(complete))?.[0] || null;
 // Prefer a phone written in the conversation, but preserve a validated native
 // GHL contact phone when the webhook delivers the conversation message
 // separately (for example, message = "Ok"). Never scan
@@ -305,7 +339,16 @@ return {
   dealeradmin_send_now: coreMissing.length === 0,
   has_identification: identification,
   has_income_proof: income,
-  next_question: !realName ? 'What is your full name?' : !vehicle ? 'What vehicle are you looking for?' : !down ? 'How much do you have for the down payment?' : !timeline ? 'When are you planning to buy?' : '',
+  next_question: predictedBotQuestion,
+  qualification_step: qualificationStep,
+  qualification_progress: {
+    step: qualificationStep,
+    last_answered_field: lastAnsweredField,
+    predicted_bot_question: predictedBotQuestion,
+    language,
+    confidence: qualificationStep === 'complete' ? 1 : 0.95,
+    evidence: qualificationStep === 'complete' ? 'complete' : 'normalized_fields',
+  },
   qualification_complete: coreMissing.length === 0,
   missing_qualification: missing,
   qualification_source: qualificationSource,

@@ -21,6 +21,11 @@ describe('dealerADMIN capture contract', () => {
     expect(contract.extraction.fields.phone.source).toBe('message');
     expect(contract.extraction.completeness.status).toBe('partial');
     expect(contract.extraction.completeness.missing).toContain('down_payment');
+    expect(contract.extraction.progress).toMatchObject({
+      step: 'real_name',
+      predicted_bot_question: '¿Cuál es tu nombre completo?',
+      language: 'es',
+    });
   });
 
   it('does not claim a phone from contaminated qualification memory', () => {

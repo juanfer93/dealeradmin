@@ -1,0 +1,761 @@
+{
+  "run_id": "qa-whatsapp-stafford-progress-20260912",
+  "generated_at": "2026-09-12T18:44:19.482Z",
+  "api_url": "http://127.0.0.1:3014",
+  "timezone": "America/Bogota",
+  "channel": "whatsapp",
+  "source": "stafford",
+  "cases": [
+    {
+      "case_id": "qa-whatsapp-stafford-progress-20260912-english-down",
+      "language": "en",
+      "conversation_id": "qa-whatsapp-stafford-progress-20260912-english-down-conversation",
+      "before": {
+        "rows": [],
+        "messages": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "payloads": [
+        {
+          "payload": {
+            "event_id": "qa-whatsapp-stafford-progress-20260912-english-down-event-01",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-whatsapp-stafford-progress-20260912-english-down-message-01",
+            "ghl_contact_id": "qa-whatsapp-stafford-progress-20260912-english-down-contact",
+            "ghl_conversation_id": "qa-whatsapp-stafford-progress-20260912-english-down-conversation",
+            "message_body": "My name is Taylor QA. I am looking for a Mustang.",
+            "contact_phone": "+12405552011",
+            "contact_name": "WhatsApp Contact",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          },
+          "payload_hash": "28c80f3b76802aaa86791980a26f5b7140bd654487317ad82785cdf1358a6b2b",
+          "http_status": 201,
+          "body": {
+            "accepted": true,
+            "eventId": "qa-whatsapp-stafford-progress-20260912-english-down-event-01",
+            "conversationId": "4b20ec7b-3e36-423b-ac7d-b2175e7f11cf",
+            "source": "stafford",
+            "status": "processed"
+          }
+        },
+        {
+          "payload": {
+            "event_id": "qa-whatsapp-stafford-progress-20260912-english-down-event-02",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-whatsapp-stafford-progress-20260912-english-down-message-02",
+            "ghl_contact_id": "qa-whatsapp-stafford-progress-20260912-english-down-contact",
+            "ghl_conversation_id": "qa-whatsapp-stafford-progress-20260912-english-down-conversation",
+            "message_body": "I can put 2000 down.",
+            "contact_phone": "+12405552011",
+            "contact_name": "WhatsApp Contact",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          },
+          "payload_hash": "946c578640f7019a0e8730962371c717eac3d416475bead552e6f304680a96a9",
+          "http_status": 201,
+          "body": {
+            "accepted": true,
+            "eventId": "qa-whatsapp-stafford-progress-20260912-english-down-event-02",
+            "conversationId": "4b20ec7b-3e36-423b-ac7d-b2175e7f11cf",
+            "source": "stafford",
+            "status": "processed"
+          }
+        }
+      ],
+      "message_ids": [
+        "2a5be842-3361-4274-a841-77e4a73976ff",
+        "89975594-a084-4217-80ea-766df855fe3d"
+      ],
+      "event_ids": [
+        "qa-whatsapp-stafford-progress-20260912-english-down-event-01",
+        "qa-whatsapp-stafford-progress-20260912-english-down-event-02"
+      ],
+      "after_first": {
+        "rows": [
+          {
+            "conversation_db_id": "4b20ec7b-3e36-423b-ac7d-b2175e7f11cf",
+            "ghl_conversation_id": "qa-whatsapp-stafford-progress-20260912-english-down-conversation",
+            "channel": "whatsapp",
+            "status": "partial",
+            "qualification_snapshot": {
+              "phone": "+12405552011",
+              "documents": "",
+              "real_name": "Taylor Qa",
+              "bank_account": "",
+              "down_payment": "",
+              "vehicle_type": "Mustang",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "",
+              "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+              "qualification_memory": "real_name: Taylor Qa; vehicle: Mustang",
+              "missing_qualification": [
+                "down_payment",
+                "purchase_timeline",
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": false,
+              "qualification_progress": {
+                "step": "down_payment",
+                "evidence": "normalized_fields",
+                "language": "en",
+                "confidence": 0.95,
+                "last_answered_field": "vehicle_type",
+                "predicted_bot_question": "How much do you have for the down payment?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Taylor",
+              "state": "PA",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "ready_at": null,
+            "next_attempt_at": null,
+            "lead_id": "d59468fe-c2ea-4af3-ad5b-09a7729c9fb5",
+            "canonical_phone": "+12405552011",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "2a5be842-3361-4274-a841-77e4a73976ff",
+            "ghl_message_id": "qa-whatsapp-stafford-progress-20260912-english-down-message-01",
+            "body": "My name is Taylor QA. I am looking for a Mustang.",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "after_second": {
+        "rows": [
+          {
+            "conversation_db_id": "4b20ec7b-3e36-423b-ac7d-b2175e7f11cf",
+            "ghl_conversation_id": "qa-whatsapp-stafford-progress-20260912-english-down-conversation",
+            "channel": "whatsapp",
+            "status": "waiting_window",
+            "qualification_snapshot": {
+              "phone": "+12405552011",
+              "documents": "",
+              "real_name": "Taylor Qa",
+              "bank_account": "",
+              "down_payment": "2000",
+              "vehicle_type": "Mustang",
+              "message_count": 2,
+              "identification": "",
+              "purchase_timeline": "",
+              "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+              "qualification_memory": "real_name: Taylor Qa; vehicle: Mustang; down payment: 2000",
+              "missing_qualification": [
+                "purchase_timeline",
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": false,
+              "qualification_progress": {
+                "step": "purchase_timeline",
+                "evidence": "normalized_fields",
+                "language": "en",
+                "confidence": 0.95,
+                "last_answered_field": "down_payment",
+                "predicted_bot_question": "When are you planning to buy?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Taylor",
+              "state": "PA",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "ready_at": "2026-09-12T15:00:00.000Z",
+            "next_attempt_at": "2026-09-12T15:00:15.000Z",
+            "lead_id": "d59468fe-c2ea-4af3-ad5b-09a7729c9fb5",
+            "canonical_phone": "+12405552011",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "2a5be842-3361-4274-a841-77e4a73976ff",
+            "ghl_message_id": "qa-whatsapp-stafford-progress-20260912-english-down-message-01",
+            "body": "My name is Taylor QA. I am looking for a Mustang.",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          },
+          {
+            "id": "89975594-a084-4217-80ea-766df855fe3d",
+            "ghl_message_id": "qa-whatsapp-stafford-progress-20260912-english-down-message-02",
+            "body": "I can put 2000 down.",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "before_window": {
+        "rows": [
+          {
+            "conversation_db_id": "4b20ec7b-3e36-423b-ac7d-b2175e7f11cf",
+            "ghl_conversation_id": "qa-whatsapp-stafford-progress-20260912-english-down-conversation",
+            "channel": "whatsapp",
+            "status": "waiting_window",
+            "qualification_snapshot": {
+              "phone": "+12405552011",
+              "documents": "",
+              "real_name": "Taylor Qa",
+              "bank_account": "",
+              "down_payment": "2000",
+              "vehicle_type": "Mustang",
+              "message_count": 2,
+              "identification": "",
+              "purchase_timeline": "",
+              "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+              "qualification_memory": "real_name: Taylor Qa; vehicle: Mustang; down payment: 2000",
+              "missing_qualification": [
+                "purchase_timeline",
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": false,
+              "qualification_progress": {
+                "step": "purchase_timeline",
+                "evidence": "normalized_fields",
+                "language": "en",
+                "confidence": 0.95,
+                "last_answered_field": "down_payment",
+                "predicted_bot_question": "When are you planning to buy?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Taylor",
+              "state": "PA",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "ready_at": "2026-09-12T15:00:00.000Z",
+            "next_attempt_at": "2026-09-12T15:30:00.000Z",
+            "lead_id": "d59468fe-c2ea-4af3-ad5b-09a7729c9fb5",
+            "canonical_phone": "+12405552011",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "2a5be842-3361-4274-a841-77e4a73976ff",
+            "ghl_message_id": "qa-whatsapp-stafford-progress-20260912-english-down-message-01",
+            "body": "My name is Taylor QA. I am looking for a Mustang.",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          },
+          {
+            "id": "89975594-a084-4217-80ea-766df855fe3d",
+            "ghl_message_id": "qa-whatsapp-stafford-progress-20260912-english-down-message-02",
+            "body": "I can put 2000 down.",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "after_release": {
+        "rows": [
+          {
+            "conversation_db_id": "4b20ec7b-3e36-423b-ac7d-b2175e7f11cf",
+            "ghl_conversation_id": "qa-whatsapp-stafford-progress-20260912-english-down-conversation",
+            "channel": "whatsapp",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405552011",
+              "documents": "",
+              "real_name": "Taylor Qa",
+              "bank_account": "",
+              "down_payment": "2000",
+              "vehicle_type": "Mustang",
+              "message_count": 2,
+              "identification": "",
+              "purchase_timeline": "",
+              "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+              "qualification_memory": "real_name: Taylor Qa; vehicle: Mustang; down payment: 2000",
+              "missing_qualification": [
+                "purchase_timeline",
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": false,
+              "qualification_progress": {
+                "step": "purchase_timeline",
+                "evidence": "normalized_fields",
+                "language": "en",
+                "confidence": 0.95,
+                "last_answered_field": "down_payment",
+                "predicted_bot_question": "When are you planning to buy?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Taylor",
+              "state": "PA",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "ready_at": "2026-09-12T15:00:00.000Z",
+            "next_attempt_at": null,
+            "lead_id": "d59468fe-c2ea-4af3-ad5b-09a7729c9fb5",
+            "canonical_phone": "+12405552011",
+            "dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL stafford source dealer"
+          }
+        ],
+        "messages": [
+          {
+            "id": "2a5be842-3361-4274-a841-77e4a73976ff",
+            "ghl_message_id": "qa-whatsapp-stafford-progress-20260912-english-down-message-01",
+            "body": "My name is Taylor QA. I am looking for a Mustang.",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          },
+          {
+            "id": "89975594-a084-4217-80ea-766df855fe3d",
+            "ghl_message_id": "qa-whatsapp-stafford-progress-20260912-english-down-message-02",
+            "body": "I can put 2000 down.",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "progress_after_first": {
+        "step": "down_payment",
+        "evidence": "normalized_fields",
+        "language": "en",
+        "confidence": 0.95,
+        "last_answered_field": "vehicle_type",
+        "predicted_bot_question": "How much do you have for the down payment?"
+      },
+      "progress_after_second": {
+        "step": "purchase_timeline",
+        "evidence": "normalized_fields",
+        "language": "en",
+        "confidence": 0.95,
+        "last_answered_field": "down_payment",
+        "predicted_bot_question": "When are you planning to buy?"
+      },
+      "expected_question_before": "How much do you have for the down payment?",
+      "expected_question_after": "When are you planning to buy?",
+      "result": "PASS"
+    },
+    {
+      "case_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline",
+      "language": "es",
+      "conversation_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-conversation",
+      "before": {
+        "rows": [],
+        "messages": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "payloads": [
+        {
+          "payload": {
+            "event_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-event-01",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-message-01",
+            "ghl_contact_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-contact",
+            "ghl_conversation_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-conversation",
+            "message_body": "Me llamo Sofia QA. Estoy buscando un truck.",
+            "contact_phone": "+12405552012",
+            "contact_name": "WhatsApp Contact",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-13T01:00:00.000Z"
+          },
+          "payload_hash": "1aad5bba9b64933eddfba8692fca6e869cd309b0e16df8079934a3a7c8b3f907",
+          "http_status": 201,
+          "body": {
+            "accepted": true,
+            "eventId": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-event-01",
+            "conversationId": "7e050b2f-e637-45c7-99f3-917481428f1a",
+            "source": "stafford",
+            "status": "processed"
+          }
+        },
+        {
+          "payload": {
+            "event_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-event-02",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-message-02",
+            "ghl_contact_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-contact",
+            "ghl_conversation_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-conversation",
+            "message_body": "Lo compro esta semana.",
+            "contact_phone": "+12405552012",
+            "contact_name": "WhatsApp Contact",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-13T01:00:00.000Z"
+          },
+          "payload_hash": "cf66426405dacf86c8a730ccc80476ce1785949ac1137a7b6eaf1b6f00cb9819",
+          "http_status": 201,
+          "body": {
+            "accepted": true,
+            "eventId": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-event-02",
+            "conversationId": "7e050b2f-e637-45c7-99f3-917481428f1a",
+            "source": "stafford",
+            "status": "processed"
+          }
+        }
+      ],
+      "message_ids": [
+        "6acbad6f-68ab-4a4f-9a9a-fda02b416c3c",
+        "6b50d6d6-ba86-4448-a355-31dbfc84c0fd"
+      ],
+      "event_ids": [
+        "qa-whatsapp-stafford-progress-20260912-spanish-timeline-event-01",
+        "qa-whatsapp-stafford-progress-20260912-spanish-timeline-event-02"
+      ],
+      "after_first": {
+        "rows": [
+          {
+            "conversation_db_id": "7e050b2f-e637-45c7-99f3-917481428f1a",
+            "ghl_conversation_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-conversation",
+            "channel": "whatsapp",
+            "status": "partial",
+            "qualification_snapshot": {
+              "phone": "+12405552012",
+              "documents": "",
+              "real_name": "Sofia Qa",
+              "bank_account": "",
+              "down_payment": "",
+              "vehicle_type": "truck",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "",
+              "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+              "qualification_memory": "real_name: Sofia Qa; vehicle: truck",
+              "missing_qualification": [
+                "down_payment",
+                "purchase_timeline",
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": false,
+              "qualification_progress": {
+                "step": "down_payment",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "vehicle_type",
+                "predicted_bot_question": "¿Cuánto tienes para el enganche?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "ready_at": null,
+            "next_attempt_at": null,
+            "lead_id": "39ba0108-423c-4480-acf5-31bd8ac1a39d",
+            "canonical_phone": "+12405552012",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "6acbad6f-68ab-4a4f-9a9a-fda02b416c3c",
+            "ghl_message_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-message-01",
+            "body": "Me llamo Sofia QA. Estoy buscando un truck.",
+            "direction": "inbound",
+            "occurred_at": "2026-09-13T01:00:00.000Z"
+          }
+        ],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "after_second": {
+        "rows": [
+          {
+            "conversation_db_id": "7e050b2f-e637-45c7-99f3-917481428f1a",
+            "ghl_conversation_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-conversation",
+            "channel": "whatsapp",
+            "status": "waiting_window",
+            "qualification_snapshot": {
+              "phone": "+12405552012",
+              "documents": "",
+              "real_name": "Sofia Qa",
+              "bank_account": "",
+              "down_payment": "",
+              "vehicle_type": "truck",
+              "message_count": 2,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+              "qualification_memory": "real_name: Sofia Qa; vehicle: truck; timeline: this week",
+              "missing_qualification": [
+                "down_payment",
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": false,
+              "qualification_progress": {
+                "step": "down_payment",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Cuánto tienes para el enganche?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "ready_at": "2026-09-13T01:00:00.000Z",
+            "next_attempt_at": "2026-09-13T01:00:15.000Z",
+            "lead_id": "39ba0108-423c-4480-acf5-31bd8ac1a39d",
+            "canonical_phone": "+12405552012",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "6acbad6f-68ab-4a4f-9a9a-fda02b416c3c",
+            "ghl_message_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-message-01",
+            "body": "Me llamo Sofia QA. Estoy buscando un truck.",
+            "direction": "inbound",
+            "occurred_at": "2026-09-13T01:00:00.000Z"
+          },
+          {
+            "id": "6b50d6d6-ba86-4448-a355-31dbfc84c0fd",
+            "ghl_message_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-message-02",
+            "body": "Lo compro esta semana.",
+            "direction": "inbound",
+            "occurred_at": "2026-09-13T01:00:00.000Z"
+          }
+        ],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "before_window": {
+        "rows": [
+          {
+            "conversation_db_id": "7e050b2f-e637-45c7-99f3-917481428f1a",
+            "ghl_conversation_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-conversation",
+            "channel": "whatsapp",
+            "status": "waiting_window",
+            "qualification_snapshot": {
+              "phone": "+12405552012",
+              "documents": "",
+              "real_name": "Sofia Qa",
+              "bank_account": "",
+              "down_payment": "",
+              "vehicle_type": "truck",
+              "message_count": 2,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+              "qualification_memory": "real_name: Sofia Qa; vehicle: truck; timeline: this week",
+              "missing_qualification": [
+                "down_payment",
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": false,
+              "qualification_progress": {
+                "step": "down_payment",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Cuánto tienes para el enganche?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "ready_at": "2026-09-13T01:00:00.000Z",
+            "next_attempt_at": "2026-09-13T04:00:00.000Z",
+            "lead_id": "39ba0108-423c-4480-acf5-31bd8ac1a39d",
+            "canonical_phone": "+12405552012",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "6acbad6f-68ab-4a4f-9a9a-fda02b416c3c",
+            "ghl_message_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-message-01",
+            "body": "Me llamo Sofia QA. Estoy buscando un truck.",
+            "direction": "inbound",
+            "occurred_at": "2026-09-13T01:00:00.000Z"
+          },
+          {
+            "id": "6b50d6d6-ba86-4448-a355-31dbfc84c0fd",
+            "ghl_message_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-message-02",
+            "body": "Lo compro esta semana.",
+            "direction": "inbound",
+            "occurred_at": "2026-09-13T01:00:00.000Z"
+          }
+        ],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "after_release": {
+        "rows": [
+          {
+            "conversation_db_id": "7e050b2f-e637-45c7-99f3-917481428f1a",
+            "ghl_conversation_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-conversation",
+            "channel": "whatsapp",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405552012",
+              "documents": "",
+              "real_name": "Sofia Qa",
+              "bank_account": "",
+              "down_payment": "",
+              "vehicle_type": "truck",
+              "message_count": 2,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+              "qualification_memory": "real_name: Sofia Qa; vehicle: truck; timeline: this week",
+              "missing_qualification": [
+                "down_payment",
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": false,
+              "qualification_progress": {
+                "step": "down_payment",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Cuánto tienes para el enganche?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "ready_at": "2026-09-13T01:00:00.000Z",
+            "next_attempt_at": null,
+            "lead_id": "39ba0108-423c-4480-acf5-31bd8ac1a39d",
+            "canonical_phone": "+12405552012",
+            "dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL stafford source dealer"
+          }
+        ],
+        "messages": [
+          {
+            "id": "6acbad6f-68ab-4a4f-9a9a-fda02b416c3c",
+            "ghl_message_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-message-01",
+            "body": "Me llamo Sofia QA. Estoy buscando un truck.",
+            "direction": "inbound",
+            "occurred_at": "2026-09-13T01:00:00.000Z"
+          },
+          {
+            "id": "6b50d6d6-ba86-4448-a355-31dbfc84c0fd",
+            "ghl_message_id": "qa-whatsapp-stafford-progress-20260912-spanish-timeline-message-02",
+            "body": "Lo compro esta semana.",
+            "direction": "inbound",
+            "occurred_at": "2026-09-13T01:00:00.000Z"
+          }
+        ],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "progress_after_first": {
+        "step": "down_payment",
+        "evidence": "normalized_fields",
+        "language": "es",
+        "confidence": 0.95,
+        "last_answered_field": "vehicle_type",
+        "predicted_bot_question": "¿Cuánto tienes para el enganche?"
+      },
+      "progress_after_second": {
+        "step": "down_payment",
+        "evidence": "normalized_fields",
+        "language": "es",
+        "confidence": 0.95,
+        "last_answered_field": "purchase_timeline",
+        "predicted_bot_question": "¿Cuánto tienes para el enganche?"
+      },
+      "expected_question_before": "¿Cuánto tienes para el enganche?",
+      "expected_question_after": "¿Cuánto tienes para el enganche?",
+      "result": "PASS"
+    }
+  ],
+  "checks": [
+    {
+      "at": "2026-09-12T15:00:30.000Z",
+      "http_status": 201,
+      "body": {
+        "accepted": true,
+        "processed": 0
+      }
+    },
+    {
+      "at": "2026-09-12T15:30:00.000Z",
+      "http_status": 201,
+      "body": {
+        "accepted": true,
+        "processed": 0
+      }
+    },
+    {
+      "at": "2026-09-13T01:00:30.000Z",
+      "http_status": 201,
+      "body": {
+        "accepted": true,
+        "processed": 0
+      }
+    },
+    {
+      "at": "2026-09-13T04:00:00.000Z",
+      "http_status": 201,
+      "body": {
+        "accepted": true,
+        "processed": 0
+      }
+    }
+  ],
+  "summary": {
+    "pass": 2,
+    "fail": 0,
+    "blocked": 0,
+    "total_cases": 2,
+    "all_pass": true
+  }
+}

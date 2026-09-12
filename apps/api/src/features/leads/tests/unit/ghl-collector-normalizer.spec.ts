@@ -90,6 +90,19 @@ describe('HighLevel collector custom-code normalizer', () => {
     }).real_name).toBe('');
   });
 
+  it.each([
+    ['I am looking for a Mustang', 'en', 'real_name', 'What is your full name?'],
+    ['Estoy buscando un Mustang', 'es', 'real_name', '¿Cuál es tu nombre completo?'],
+  ])('predicts step and next question for %s in Custom Code', (message, language, step, question) => {
+    const result = execute({ channel: 'whatsapp', message });
+    expect(result.qualification_progress).toMatchObject({
+      step,
+      language,
+      predicted_bot_question: question,
+    });
+    expect(result.next_question).toBe(question);
+  });
+
   it('maps answers after questions without using the questions as evidence', () => {
     const transcript = [
       'What vehicle are you looking for?',

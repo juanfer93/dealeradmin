@@ -25,6 +25,8 @@ export type CollectorOutput = {
   has_identification: string;
   has_income_proof: string;
   next_question: string;
+  qualification_step: QualificationStep;
+  qualification_progress: QualificationProgress;
   qualification_complete: boolean;
   missing_qualification: string[];
   qualification_source: 'custom_fields' | 'qualification_memory' | 'both' | 'none';
@@ -34,11 +36,20 @@ export type CollectorOutput = {
 };
 
 export type CollectorLanguage = 'es' | 'en';
+export type QualificationStep = 'real_name' | 'vehicle_type' | 'down_payment' | 'purchase_timeline' | 'documents' | 'bank_account' | 'complete';
+export type QualificationProgress = {
+  step: QualificationStep;
+  last_answered_field: string | null;
+  predicted_bot_question: string;
+  language: CollectorLanguage;
+  confidence: number;
+  evidence: 'transcript' | 'normalized_fields' | 'complete';
+};
 
 const EMPTY = '';
 
 const ENGLISH_LANGUAGE_SIGNALS = [
-  /\b(?:i|i'm|im|my|want|wants|need|looking|have|this|next|today|where|what|can|with|and|the)\b/gi,
+  /\b(?:i|i'm|im|my|want|wants|need|looking|have|this|next|today|where|what|can|with|and|the|yes|yeah|yep|do|does|when|how)\b/gi,
   /\b(?:proof of income|bank account|driver(?:'s)? license|this month|next month|more information|requirements?)\b/gi,
 ];
 const SPANISH_LANGUAGE_SIGNALS = [
@@ -646,15 +657,63 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     timeline,
   });
 
-  const nextQuestion = !realName
-    ? 'What is your full name?'
+  const languageText = [history, message].filter(Boolean).join('\n');
+  // A memory/custom-field-only payload has no reliable language evidence;
+  // keep the established English fallback while transcript replies are
+  // detected in Spanish or English.
+  const language = languageText ? detectLeadLanguage(languageText) : 'en';
+  const step: QualificationStep = !realName
+    ? 'real_name'
     : !vehicle
-      ? 'What vehicle are you looking for?'
+      ? 'vehicle_type'
       : !down
-        ? 'How much do you have for the down payment?'
+        ? 'down_payment'
         : !timeline
-          ? 'When are you planning to buy?'
-          : EMPTY;
+          ? 'purchase_timeline'
+          : docs.id !== 'yes' || docs.income !== 'yes'
+            ? 'documents'
+            : bankAccount !== 'yes'
+              ? 'bank_account'
+              : 'complete';
+  const questions: Record<CollectorLanguage, Record<QualificationStep, string>> = {
+    en: {
+      real_name: 'What is your full name?',
+      vehicle_type: 'What vehicle are you looking for?',
+      down_payment: 'How much do you have for the down payment?',
+      purchase_timeline: 'When are you planning to buy?',
+      documents: 'Do you have identification and proof of income?',
+      bank_account: 'Do you have a bank account?',
+      complete: EMPTY,
+    },
+    es: {
+      real_name: '¿Cuál es tu nombre completo?',
+      vehicle_type: '¿Qué vehículo estás buscando?',
+      down_payment: '¿Cuánto tienes para el enganche?',
+      purchase_timeline: '¿Cuándo planeas comprar?',
+      documents: '¿Tienes identificación y comprobante de ingresos?',
+      bank_account: '¿Tienes una cuenta bancaria?',
+      complete: EMPTY,
+    },
+  };
+  const nextQuestion = questions[language][step];
+  const completedOrder: Array<[string, boolean]> = [
+    ['real_name', Boolean(realName)],
+    ['phone', Boolean(chatPhone)],
+    ['vehicle_type', Boolean(vehicle)],
+    ['down_payment', Boolean(down)],
+    ['purchase_timeline', Boolean(timeline)],
+    ['documents', docs.id === 'yes' && docs.income === 'yes'],
+    ['bank_account', bankAccount === 'yes'],
+  ];
+  const lastAnsweredField = [...completedOrder].reverse().find(([, complete]) => complete)?.[0] ?? null;
+  const qualificationProgress: QualificationProgress = {
+    step,
+    last_answered_field: step === 'complete' ? 'bank_account' : lastAnsweredField,
+    predicted_bot_question: nextQuestion,
+    language,
+    confidence: step === 'complete' ? 1 : 0.95,
+    evidence: step === 'complete' ? 'complete' : 'normalized_fields',
+  };
   const qualificationComplete = isQualificationComplete({
     real_name: realName,
     phone: chatPhone,
@@ -687,6 +746,8 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     has_identification: docs.id,
     has_income_proof: docs.income,
     next_question: nextQuestion,
+    qualification_step: step,
+    qualification_progress: qualificationProgress,
     qualification_complete: qualificationComplete,
     missing_qualification: missingQualification,
     qualification_source: qualificationSource,
