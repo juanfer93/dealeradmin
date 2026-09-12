@@ -21,7 +21,7 @@ describe('Easterns georouting engine', () => {
       dealerId: EASTERN_DEALER_IDS.sterling,
       reason: 'Exclusive Zone: State Virginia',
     });
-    expect(query).toHaveBeenCalledWith(expect.stringContaining('FROM locations'), [['chantilly city', 'chantilly']]);
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('FROM locations'), [['chantilly city', 'chantilly'], '']);
   });
 
   it.each([
@@ -35,7 +35,7 @@ describe('Easterns georouting engine', () => {
     const query = vi.fn(async (sql: string) => sql.includes('locations') ? [{ state_code: state }] : []);
     const service = new GeoroutingService({ query } as never);
     await expect(service.resolveDealer({ city })).resolves.toMatchObject({ dealerId: expectedDealerId });
-    expect(query).toHaveBeenCalledWith(expect.stringContaining('FROM locations'), [[city.toLowerCase()]]);
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('FROM locations'), [expect.any(Array), '']);
   });
 
   it.each([
@@ -47,16 +47,17 @@ describe('Easterns georouting engine', () => {
   });
 
   it.each([
-    ['Wilmington', EASTERN_DEALER_IDS.rosedale], ['Philadelphia', EASTERN_DEALER_IDS.rosedale], ['New York City', EASTERN_DEALER_IDS.rosedale],
-    ['Jersey City', EASTERN_DEALER_IDS.rosedale], ['Richmond', EASTERN_DEALER_IDS.sterling],
-  ])('infiere el estado por ciudad cuando falta state: %s', async (city, expectedDealerId) => {
-    const { service } = createService();
+    ['Wilmington', 'DE', EASTERN_DEALER_IDS.rosedale], ['Philadelphia', 'PA', EASTERN_DEALER_IDS.rosedale], ['New York City', 'NY', EASTERN_DEALER_IDS.rosedale],
+    ['Jersey City', 'NJ', EASTERN_DEALER_IDS.rosedale], ['Richmond', 'VA', EASTERN_DEALER_IDS.sterling],
+  ])('infiere el estado por ciudad usando locations: %s', async (city, state, expectedDealerId) => {
+    const query = vi.fn(async (sql: string) => sql.includes('locations') ? [{ state_code: state }] : []);
+    const service = new GeoroutingService({ query } as never);
     await expect(service.resolveDealer({ city })).resolves.toMatchObject({ dealerId: expectedDealerId });
   });
 
   it('prioriza Maryland cuando una ciudad también existe en otro estado', async () => {
     const query = vi.fn(async (sql: string) => sql.includes('locations')
-      ? [{ state_code: 'DE' }, { state_code: 'MD' }]
+      ? [{ state_code: 'MD', easterns_routing_zone: 'maryland_laurel' }, { state_code: 'DE', easterns_routing_zone: 'outside_md_va' }]
       : []);
     const service = new GeoroutingService({ query } as never);
 
@@ -106,7 +107,12 @@ describe('Easterns georouting engine', () => {
     [EASTERN_DEALER_IDS.rosedale, EASTERN_DEALER_IDS.laurel, 'Previous: Rosedale'],
     [EASTERN_DEALER_IDS.laurel, EASTERN_DEALER_IDS.rosedale, 'Previous: Laurel/None'],
   ])('alterna Baltimore de forma determinista después de %s', async (lastAssigned, expectedDealerId, reason) => {
-    const { service } = createService(lastAssigned);
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('locations')) return [{ state_code: 'MD', easterns_routing_zone: 'baltimore_overlap' }];
+      if (sql.includes('assigned_dealer_id = ANY')) return lastAssigned ? [{ assigned_dealer_id: lastAssigned }] : [];
+      return [];
+    });
+    const service = new GeoroutingService({ query } as never);
     const result = await service.resolveDealer({ state: 'Maryland', city: 'Baltimore City' });
     expect(result).toMatchObject({ dealerId: expectedDealerId });
     expect(result.reason).toContain(reason);
@@ -150,7 +156,10 @@ describe('Easterns georouting engine', () => {
   });
 
   it('usa la ciudad de qualification_memory cuando GHL no envía city/easterns_zone', async () => {
-    const { service } = createService();
+    const query = vi.fn(async (sql: string) => sql.includes('locations')
+      ? [{ state_code: 'MD', easterns_routing_zone: 'baltimore_overlap' }]
+      : []);
+    const service = new GeoroutingService({ query } as never);
     await expect(service.resolveDealer({
       qualification_memory: 'vehicle: Sedan; location: Baltimore; timeline: today',
     })).resolves.toMatchObject({
@@ -175,15 +184,21 @@ describe('Easterns georouting engine', () => {
     });
   });
 
-  it.each([
-    [null, EASTERN_DEALER_IDS.laurel, 'Previous: Sterling/None'],
-    [EASTERN_DEALER_IDS.laurel, EASTERN_DEALER_IDS.sterling, 'Previous: Laurel'],
-    [EASTERN_DEALER_IDS.sterling, EASTERN_DEALER_IDS.laurel, 'Previous: Sterling/None'],
-  ])('alterna Southern MD/DC después de %s', async (lastAssigned, expectedDealerId, reason) => {
-    const { service } = createService(lastAssigned);
-    const result = await service.resolveDealer({ state: 'DC', city: 'Washington' });
-    expect(result).toMatchObject({ dealerId: expectedDealerId });
-    expect(result.reason).toContain(reason);
+  it('asigna Washington/DC a Sterling por regla de estado', async () => {
+    const { service } = createService(EASTERN_DEALER_IDS.laurel);
+    await expect(service.resolveDealer({ state: 'DC', city: 'Washington' })).resolves.toMatchObject({
+      dealerId: EASTERN_DEALER_IDS.sterling,
+      reason: 'Exclusive Zone: State District of Columbia',
+    });
+  });
+
+  it('asigna una localidad Silver Spring marcada por el catálogo a Laurel', async () => {
+    const query = vi.fn(async (sql: string) => sql.includes('locations') ? [{ state_code: 'MD', easterns_routing_zone: 'silver_spring_laurel' }] : []);
+    const service = new GeoroutingService({ query } as never);
+    await expect(service.resolveDealer({ state: 'MD', city: 'Silver Spring' })).resolves.toMatchObject({
+      dealerId: EASTERN_DEALER_IDS.laurel,
+      reason: 'Exclusive Zone: Maryland catalog → Laurel',
+    });
   });
 
   it.each(['Waldorf', 'La Plata', 'Lexington Park', 'Prince Frederick', 'Fort Washington', 'Oxon Hill'])('reconoce ciudad del sur de Maryland: %s', async (city) => {
@@ -212,9 +227,10 @@ describe('Easterns georouting engine', () => {
     });
   });
 
-  it('mantiene la rotación Laurel/Sterling cuando la cuenta de origen es Sterling', async () => {
-    const { service } = createService(EASTERN_DEALER_IDS.laurel);
-    await expect(service.resolveDealer({ state: 'DC', city: 'Washington' }, undefined as never, EASTERN_DEALER_IDS.sterling)).resolves.toMatchObject({
+  it('mantiene la rotación Laurel/Sterling para Southern Maryland', async () => {
+    const query = vi.fn(async (sql: string) => sql.includes('locations') ? [{ state_code: 'MD', easterns_routing_zone: 'southern_md_overlap' }] : [{ assigned_dealer_id: EASTERN_DEALER_IDS.laurel }]);
+    const routedService = new GeoroutingService({ query } as never);
+    await expect(routedService.resolveDealer({ state: 'MD', city: 'Waldorf' }, undefined as never, EASTERN_DEALER_IDS.sterling)).resolves.toMatchObject({
       dealerId: EASTERN_DEALER_IDS.sterling,
       reason: 'Southern MD/DC Overlap: Round-Robin (Previous: Laurel)',
     });

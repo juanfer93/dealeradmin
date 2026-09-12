@@ -1,0 +1,9 @@
+{
+  "login_status": "PASS",
+  "dashboard_status": "PASS",
+  "url": "http://127.0.0.1:3000/app",
+  "selected_dealer": "Offlease Motors Stafford",
+  "qa_phone_visible": true,
+  "qa_vehicle_visible": true,
+  "screenshot": "tmp/qa-whatsapp-stafford-20260912/frontend-stafford-dashboard.png"
+}

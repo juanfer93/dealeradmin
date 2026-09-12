@@ -32,23 +32,6 @@ const STATE_ALIASES: Record<string, string> = {
   'WASHINGTON D.C.': 'DC',
 };
 
-const SOUTHERN_MARYLAND_CITIES = new Set([
-  'waldorf', 'la plata', 'indian head', 'bryans road', 'hughesville', 'port tobacco', 'saint charles', 'st charles',
-  'nanjemoy', 'prince frederick', 'dunkirk', 'owings', 'chesapeake beach', 'north beach', 'lusby', 'solomons',
-  'huntingtown', 'lexington park', 'california', 'leonardtown', 'great mills', 'hollywood', 'mechanicsville',
-  'charlotte hall', 'clinton', 'fort washington', 'oxon hill', 'temple hills', 'suitland', 'upper marlboro', 'bowie',
-]);
-
-const CITY_STATE_ALIASES: Record<string, string | null> = {
-  'wilmington': 'DE', 'dover': 'DE', 'newark': null, 'middletown': 'DE', 'smyrna': 'DE', 'milford': 'DE', 'seaford': 'DE', 'georgetown': 'DE',
-  'philadelphia': 'PA', 'pittsburgh': 'PA', 'allentown': 'PA', 'erie': 'PA', 'reading': 'PA', 'scranton': 'PA', 'bethlehem': 'PA', 'lancaster': 'PA', 'harrisburg': 'PA', 'york': 'PA', 'chester': 'PA', 'king of prussia': 'PA', 'west chester': 'PA',
-  'new york': 'NY', 'new york city': 'NY', 'brooklyn': 'NY', 'queens': 'NY', 'bronx': 'NY', 'buffalo': 'NY', 'rochester': 'NY', 'yonkers': 'NY', 'syracuse': 'NY', 'albany': 'NY', 'utica': 'NY', 'white plains': 'NY', 'new rochelle': 'NY', 'mount vernon': 'NY',
-  'jersey city': 'NJ', 'paterson': 'NJ', 'elizabeth': 'NJ', 'trenton': 'NJ', 'clifton': 'NJ', 'camden': 'NJ', 'passaic': 'NJ', 'union city': 'NJ', 'edison': 'NJ', 'woodbridge': 'NJ', 'new brunswick': 'NJ', 'princeton': 'NJ',
-  'richmond': 'VA', 'virginia beach': 'VA', 'norfolk': 'VA', 'chesapeake': 'VA', 'newport news': 'VA', 'alexandria': 'VA', 'arlington': 'VA', 'fredericksburg': 'VA', 'fairfax': 'VA', 'leesburg': 'VA', 'ashburn': 'VA', 'manassas': 'VA', 'winchester': 'VA', 'charlottesville': 'VA', 'roanoke': 'VA', 'hampton': 'VA',
-  'baltimore': 'MD', 'baltimore city': 'MD', 'annapolis': 'MD', 'rockville': 'MD', 'gaithersburg': 'MD', 'germantown': 'MD', 'frederick': 'MD', 'columbia': 'MD', 'silver spring': 'MD', 'bethesda': 'MD', 'hyattsville': 'MD', 'towson': 'MD', 'elkton': 'MD', 'bel air': 'MD', 'hagerstown': 'MD', 'salisbury': 'MD', 'ocean city': 'MD', 'laurel': 'MD',
-  'washington': 'DC', 'washington dc': 'DC', 'district of columbia': 'DC',
-};
-
 function normalizeText(value: string | null | undefined): string {
   return (value || '')
     .normalize('NFD')
@@ -121,15 +104,22 @@ export class GeoroutingService {
       return { dealerId: EASTERN_DEALER_IDS.sterling, reason: 'Explicit Easterns Zone: Sterling → Sterling' };
     }
 
-    const databaseState = !explicitState ? await this.lookupStateByCity(city, queryClient) : '';
-    const inferredState = this.resolveState(zone) || databaseState || this.inferState(city, zone);
+    const databaseLocation = city ? await this.lookupLocation(city, queryClient, explicitState) : null;
+    const inferredState = explicitState || databaseLocation?.state_code || this.resolveState(zone);
     const state = explicitState || inferredState;
+    const routingZone = databaseLocation?.easterns_routing_zone || '';
 
-    if (['DE', 'PA', 'NY', 'NJ'].includes(state)) {
+    if (routingZone === 'outside_md_va' || ['DE', 'PA', 'NY', 'NJ'].includes(state)) {
       return { dealerId: EASTERN_DEALER_IDS.rosedale, reason: `Exclusive Zone: State ${state}` };
     }
-    if (state === 'VA') {
+    if (routingZone === 'virginia' || state === 'VA') {
       return { dealerId: EASTERN_DEALER_IDS.sterling, reason: 'Exclusive Zone: State Virginia' };
+    }
+    if (state === 'DC') {
+      return { dealerId: EASTERN_DEALER_IDS.sterling, reason: 'Exclusive Zone: State District of Columbia' };
+    }
+    if (routingZone === 'silver_spring_laurel' || routingZone === 'maryland_laurel') {
+      return { dealerId: EASTERN_DEALER_IDS.laurel, reason: 'Exclusive Zone: Maryland catalog → Laurel' };
     }
 
     // Laurel exists in multiple jurisdictions. When no state is stated, the
@@ -139,7 +129,7 @@ export class GeoroutingService {
       return { dealerId: EASTERN_DEALER_IDS.laurel, reason: 'Exclusive Zone: Laurel, Maryland' };
     }
 
-    if (city === 'baltimore' || city === 'baltimore city' || zone.includes('baltimore')) {
+    if (routingZone === 'baltimore_overlap' || zone.includes('baltimore')) {
       const lastAssigned = await this.getLastAssignedInOverlap(
         [EASTERN_DEALER_IDS.rosedale, EASTERN_DEALER_IDS.laurel],
         'Baltimore Overlap',
@@ -152,12 +142,10 @@ export class GeoroutingService {
     }
 
     if (
-      state === 'DC' ||
-      zone.includes('washington') ||
+      routingZone === 'southern_md_overlap' ||
       zone.includes('sur de maryland') ||
       zone.includes('southern maryland') ||
-      zone.includes('south maryland') ||
-      this.isSouthernMarylandCity(city)
+      zone.includes('south maryland')
     ) {
       const lastAssigned = await this.getLastAssignedInOverlap(
         [EASTERN_DEALER_IDS.laurel, EASTERN_DEALER_IDS.sterling],
@@ -199,30 +187,17 @@ export class GeoroutingService {
     return rows[0]?.assigned_dealer_id ?? null;
   }
 
-  private async lookupStateByCity(city: string, queryClient: QueryClient): Promise<string> {
-    if (!city) return '';
+  private async lookupLocation(city: string, queryClient: QueryClient, stateHint = ''): Promise<{ state_code: string; easterns_routing_zone: string | null } | null> {
+    if (!city) return null;
     const rows = (await queryClient.query(
-      `SELECT DISTINCT state_code
+      `SELECT state_code, easterns_routing_zone
        FROM locations
        WHERE normalized_name = ANY($1::text[])
-       ORDER BY CASE state_code WHEN 'MD' THEN 0 WHEN 'VA' THEN 1 ELSE 2 END, state_code`,
-      [[city, stripPlaceSuffix(city)].filter((value, index, all) => value && all.indexOf(value) === index)],
-    )) as Array<{ state_code: string }>;
-    const states = [...new Set(rows.map((row) => row.state_code.trim().toUpperCase()).filter(Boolean))];
-    return states.find((state) => state === 'MD' || state === 'VA') || (states.length === 1 ? states[0] : '');
-  }
-
-  private isSouthernMarylandCity(city: string): boolean {
-    return SOUTHERN_MARYLAND_CITIES.has(city);
-  }
-
-  private inferState(city: string, zone: string): string {
-    const stateToken = zone.match(/\b(DE|PA|NY|NJ|VA|MD|DC)\b/i)?.[1];
-    if (stateToken) return stateToken.toUpperCase();
-    const direct = CITY_STATE_ALIASES[city];
-    if (direct) return direct;
-    const zoneEntry = Object.entries(CITY_STATE_ALIASES).find(([cityName]) => zone.includes(cityName));
-    return zoneEntry?.[1] || '';
+         AND ($2::char(2) = '' OR state_code = $2::char(2))
+       ORDER BY CASE WHEN state_code = $2::char(2) THEN 0 WHEN state_code = 'MD' THEN 1 WHEN state_code = 'VA' THEN 2 ELSE 3 END, state_code`,
+      [[city, stripPlaceSuffix(city)].filter((value, index, all) => value && all.indexOf(value) === index), stateHint.toUpperCase()],
+    )) as Array<{ state_code: string; easterns_routing_zone: string | null }>;
+    return rows[0] ?? null;
   }
 
   private resolveState(value: string): string {

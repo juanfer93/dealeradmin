@@ -28,6 +28,7 @@ import { KoonsCulpeperDealer1710000017000 } from './database/migrations/17100000
 import { ActionPreOwnedCarsDealers1710000018000 } from './database/migrations/1710000018000-ActionPreOwnedCarsDealers';
 import { EasternsMillersvilleAndFrederickDealers1710000019000 } from './database/migrations/1710000019000-EasternsMillersvilleAndFrederickDealers';
 import { RepairCustomerRepliedSourceAliases1710000020000 } from './database/migrations/1710000020000-RepairCustomerRepliedSourceAliases';
+import { EasternsLocationRoutingRules1710000021000 } from './database/migrations/1710000021000-EasternsLocationRoutingRules';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -58,7 +59,8 @@ const databaseModule = TypeOrmModule.forRootAsync({
             KoonsCulpeperDealer1710000017000,
           ActionPreOwnedCarsDealers1710000018000,
           EasternsMillersvilleAndFrederickDealers1710000019000,
-          RepairCustomerRepliedSourceAliases1710000020000,
+            RepairCustomerRepliedSourceAliases1710000020000,
+            EasternsLocationRoutingRules1710000021000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,

@@ -1,0 +1,2546 @@
+{
+  "run_id": "qa-whatsapp-stafford-20260912",
+  "generated_at": "2026-09-12T17:35:13.208Z",
+  "environment": {
+    "api_url": "http://127.0.0.1:3010",
+    "database": "local PostgreSQL in user-provided Docker container",
+    "timezone": "America/Bogota",
+    "channel": "whatsapp",
+    "source": "stafford",
+    "ghl_used": false,
+    "neon_used": false,
+    "real_accounts_used": false,
+    "hmac_printed": false
+  },
+  "acceptance": {
+    "minimum_for_whatsapp": "existing phone plus backend-interpreted vehicle",
+    "incomplete_in_business_hours": "released to local frontend after simulated 30 minutes",
+    "incomplete_outside_business_hours": "released to local frontend after simulated 3 hours",
+    "stabilization": "simulated 15 seconds"
+  },
+  "cases": [
+    {
+      "case_id": "qa-whatsapp-stafford-20260912-day-vehicle-only",
+      "source": "stafford",
+      "channel": "whatsapp",
+      "location_id": "LiaoSID3nvAhad49ZpNJ",
+      "contact_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-contact",
+      "conversation_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-conversation",
+      "phone": "+12405552001",
+      "contact_name": "WhatsApp Contact",
+      "steps": [
+        {
+          "index": 1,
+          "payload": {
+            "event_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-event-01",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-01",
+            "ghl_contact_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-contact",
+            "ghl_conversation_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-conversation",
+            "message_body": "¿Qué requisitos necesito?",
+            "contact_phone": "+12405552001",
+            "contact_name": "WhatsApp Contact",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-12T15:00:00.000Z",
+            "signature": "[redacted]"
+          },
+          "payload_hash": "b2797e35104020d33543d27230695d31f90cafbf68023d77f9f0634156a2fa62",
+          "event_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-event-01",
+          "message_ids": [
+            "8c3faa36-93ee-4bb8-869d-b717e9bf72cc"
+          ],
+          "response": {
+            "raw": "{\"event_id\":\"qa-whatsapp-stafford-20260912-day-vehicle-only-event-01\",\"event_type\":\"customer.replied\",\"ghl_message_id\":\"qa-whatsapp-stafford-20260912-day-vehicle-only-message-01\",\"ghl_contact_id\":\"qa-whatsapp-stafford-20260912-day-vehicle-only-contact\",\"ghl_conversation_id\":\"qa-whatsapp-stafford-20260912-day-vehicle-only-conversation\",\"message_body\":\"¿Qué requisitos necesito?\",\"contact_phone\":\"+12405552001\",\"contact_name\":\"WhatsApp Contact\",\"channel\":\"whatsapp\",\"occurred_at\":\"2026-09-12T15:00:00.000Z\"}",
+            "payload_hash": "b2797e35104020d33543d27230695d31f90cafbf68023d77f9f0634156a2fa62",
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-whatsapp-stafford-20260912-day-vehicle-only-event-01",
+              "conversationId": "91f8667e-6121-4f3c-9931-9ac69fe9edce",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "rows": [
+              {
+                "conversation_db_id": "91f8667e-6121-4f3c-9931-9ac69fe9edce",
+                "ghl_conversation_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-conversation",
+                "channel": "whatsapp",
+                "status": "partial",
+                "qualification_snapshot": {
+                  "phone": "+12405552001",
+                  "documents": "",
+                  "real_name": "",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "",
+                  "missing_qualification": [
+                    "real_name",
+                    "vehicle_type",
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": null,
+                "ready_at": null,
+                "lead_id": "3d69d88e-1cb6-499b-bab9-fcec1c8a283b",
+                "canonical_phone": "+12405552001",
+                "first_name": "Whatsapp",
+                "last_name": "Contact",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "8c3faa36-93ee-4bb8-869d-b717e9bf72cc",
+                "ghl_message_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-01",
+                "dedupe_key": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-01",
+                "direction": "inbound",
+                "body": "¿Qué requisitos necesito?",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+          },
+          "snapshot_after": {
+            "phone": "+12405552001",
+            "documents": "",
+            "real_name": "",
+            "bank_account": "",
+            "down_payment": "",
+            "vehicle_type": "",
+            "message_count": 1,
+            "identification": "",
+            "purchase_timeline": "",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "qualification_memory": "",
+            "missing_qualification": [
+              "real_name",
+              "vehicle_type",
+              "down_payment",
+              "purchase_timeline",
+              "identification",
+              "proof_of_income",
+              "bank_account"
+            ],
+            "qualification_complete": false
+          },
+          "state_after": "partial"
+        },
+        {
+          "index": 2,
+          "payload": {
+            "event_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-event-02",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-02",
+            "ghl_contact_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-contact",
+            "ghl_conversation_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-conversation",
+            "message_body": "busco un Mustang",
+            "contact_phone": "+12405552001",
+            "contact_name": "WhatsApp Contact",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-12T15:00:00.000Z",
+            "signature": "[redacted]"
+          },
+          "payload_hash": "b33ae858fa69f9a30a7a37d9c0e580e7fef6b724167df20e873f1220b11de123",
+          "event_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-event-02",
+          "message_ids": [
+            "8c3faa36-93ee-4bb8-869d-b717e9bf72cc",
+            "5e2cf716-fdb2-4c5b-a2e4-3c4c3db24aa0"
+          ],
+          "response": {
+            "raw": "{\"event_id\":\"qa-whatsapp-stafford-20260912-day-vehicle-only-event-02\",\"event_type\":\"customer.replied\",\"ghl_message_id\":\"qa-whatsapp-stafford-20260912-day-vehicle-only-message-02\",\"ghl_contact_id\":\"qa-whatsapp-stafford-20260912-day-vehicle-only-contact\",\"ghl_conversation_id\":\"qa-whatsapp-stafford-20260912-day-vehicle-only-conversation\",\"message_body\":\"busco un Mustang\",\"contact_phone\":\"+12405552001\",\"contact_name\":\"WhatsApp Contact\",\"channel\":\"whatsapp\",\"occurred_at\":\"2026-09-12T15:00:00.000Z\"}",
+            "payload_hash": "b33ae858fa69f9a30a7a37d9c0e580e7fef6b724167df20e873f1220b11de123",
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-whatsapp-stafford-20260912-day-vehicle-only-event-02",
+              "conversationId": "91f8667e-6121-4f3c-9931-9ac69fe9edce",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "rows": [
+              {
+                "conversation_db_id": "91f8667e-6121-4f3c-9931-9ac69fe9edce",
+                "ghl_conversation_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-conversation",
+                "channel": "whatsapp",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405552001",
+                  "documents": "",
+                  "real_name": "",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "Mustang",
+                  "message_count": 2,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "vehicle: Mustang",
+                  "missing_qualification": [
+                    "real_name",
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T15:00:15.000Z",
+                "ready_at": "2026-09-12T15:00:00.000Z",
+                "lead_id": "3d69d88e-1cb6-499b-bab9-fcec1c8a283b",
+                "canonical_phone": "+12405552001",
+                "first_name": "Whatsapp",
+                "last_name": "Contact",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "8c3faa36-93ee-4bb8-869d-b717e9bf72cc",
+                "ghl_message_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-01",
+                "dedupe_key": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-01",
+                "direction": "inbound",
+                "body": "¿Qué requisitos necesito?",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              },
+              {
+                "id": "5e2cf716-fdb2-4c5b-a2e4-3c4c3db24aa0",
+                "ghl_message_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-02",
+                "dedupe_key": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-02",
+                "direction": "inbound",
+                "body": "busco un Mustang",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+          },
+          "snapshot_after": {
+            "phone": "+12405552001",
+            "documents": "",
+            "real_name": "",
+            "bank_account": "",
+            "down_payment": "",
+            "vehicle_type": "Mustang",
+            "message_count": 2,
+            "identification": "",
+            "purchase_timeline": "",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "qualification_memory": "vehicle: Mustang",
+            "missing_qualification": [
+              "real_name",
+              "down_payment",
+              "purchase_timeline",
+              "identification",
+              "proof_of_income",
+              "bank_account"
+            ],
+            "qualification_complete": false
+          },
+          "state_after": "waiting_window"
+        }
+      ],
+      "stabilization": {
+        "at": "2026-09-12T15:00:15.000Z",
+        "before_poll": {
+          "rows": [
+            {
+              "conversation_db_id": "91f8667e-6121-4f3c-9931-9ac69fe9edce",
+              "ghl_conversation_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-conversation",
+              "channel": "whatsapp",
+              "status": "waiting_window",
+              "qualification_snapshot": {
+                "phone": "+12405552001",
+                "documents": "",
+                "real_name": "",
+                "bank_account": "",
+                "down_payment": "",
+                "vehicle_type": "Mustang",
+                "message_count": 2,
+                "identification": "",
+                "purchase_timeline": "",
+                "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                "qualification_memory": "vehicle: Mustang",
+                "missing_qualification": [
+                  "real_name",
+                  "down_payment",
+                  "purchase_timeline",
+                  "identification",
+                  "proof_of_income",
+                  "bank_account"
+                ],
+                "qualification_complete": false
+              },
+              "location_snapshot": {
+                "city": null,
+                "state": null,
+                "zip_code": null,
+                "easterns_zone": null
+              },
+              "next_attempt_at": "2026-09-12T15:00:15.000Z",
+              "ready_at": "2026-09-12T15:00:00.000Z",
+              "lead_id": "3d69d88e-1cb6-499b-bab9-fcec1c8a283b",
+              "canonical_phone": "+12405552001",
+              "first_name": "Whatsapp",
+              "last_name": "Contact",
+              "dealer_id": null,
+              "assigned_dealer_id": null,
+              "lead_dealer_status": null,
+              "routing_reason": null
+            }
+          ],
+          "messages": [
+            {
+              "id": "8c3faa36-93ee-4bb8-869d-b717e9bf72cc",
+              "ghl_message_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-01",
+              "dedupe_key": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-01",
+              "direction": "inbound",
+              "body": "¿Qué requisitos necesito?",
+              "occurred_at": "2026-09-12T15:00:00.000Z"
+            },
+            {
+              "id": "5e2cf716-fdb2-4c5b-a2e4-3c4c3db24aa0",
+              "ghl_message_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-02",
+              "dedupe_key": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-02",
+              "direction": "inbound",
+              "body": "busco un Mustang",
+              "occurred_at": "2026-09-12T15:00:00.000Z"
+            }
+          ],
+          "events": [],
+          "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+        }
+      },
+      "window_wait": {
+        "release_at": "2026-09-12T15:30:00.000Z",
+        "before_release": {
+          "rows": [
+            {
+              "conversation_db_id": "91f8667e-6121-4f3c-9931-9ac69fe9edce",
+              "ghl_conversation_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-conversation",
+              "channel": "whatsapp",
+              "status": "waiting_window",
+              "qualification_snapshot": {
+                "phone": "+12405552001",
+                "documents": "",
+                "real_name": "",
+                "bank_account": "",
+                "down_payment": "",
+                "vehicle_type": "Mustang",
+                "message_count": 2,
+                "identification": "",
+                "purchase_timeline": "",
+                "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                "qualification_memory": "vehicle: Mustang",
+                "missing_qualification": [
+                  "real_name",
+                  "down_payment",
+                  "purchase_timeline",
+                  "identification",
+                  "proof_of_income",
+                  "bank_account"
+                ],
+                "qualification_complete": false
+              },
+              "location_snapshot": {
+                "city": null,
+                "state": null,
+                "zip_code": null,
+                "easterns_zone": null
+              },
+              "next_attempt_at": "2026-09-12T15:30:00.000Z",
+              "ready_at": "2026-09-12T15:00:00.000Z",
+              "lead_id": "3d69d88e-1cb6-499b-bab9-fcec1c8a283b",
+              "canonical_phone": "+12405552001",
+              "first_name": "Whatsapp",
+              "last_name": "Contact",
+              "dealer_id": null,
+              "assigned_dealer_id": null,
+              "lead_dealer_status": null,
+              "routing_reason": null
+            }
+          ],
+          "messages": [
+            {
+              "id": "8c3faa36-93ee-4bb8-869d-b717e9bf72cc",
+              "ghl_message_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-01",
+              "dedupe_key": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-01",
+              "direction": "inbound",
+              "body": "¿Qué requisitos necesito?",
+              "occurred_at": "2026-09-12T15:00:00.000Z"
+            },
+            {
+              "id": "5e2cf716-fdb2-4c5b-a2e4-3c4c3db24aa0",
+              "ghl_message_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-02",
+              "dedupe_key": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-02",
+              "direction": "inbound",
+              "body": "busco un Mustang",
+              "occurred_at": "2026-09-12T15:00:00.000Z"
+            }
+          ],
+          "events": [],
+          "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+        }
+      },
+      "before": {
+        "rows": [],
+        "messages": [],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+      },
+      "after": {
+        "rows": [
+          {
+            "conversation_db_id": "91f8667e-6121-4f3c-9931-9ac69fe9edce",
+            "ghl_conversation_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-conversation",
+            "channel": "whatsapp",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405552001",
+              "documents": "",
+              "real_name": "",
+              "bank_account": "",
+              "down_payment": "",
+              "vehicle_type": "Mustang",
+              "message_count": 2,
+              "identification": "",
+              "purchase_timeline": "",
+              "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+              "qualification_memory": "vehicle: Mustang",
+              "missing_qualification": [
+                "real_name",
+                "down_payment",
+                "purchase_timeline",
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": false
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "ready_at": "2026-09-12T15:00:00.000Z",
+            "lead_id": "3d69d88e-1cb6-499b-bab9-fcec1c8a283b",
+            "canonical_phone": "+12405552001",
+            "first_name": "Whatsapp",
+            "last_name": "Contact",
+            "dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL stafford source dealer"
+          }
+        ],
+        "messages": [
+          {
+            "id": "8c3faa36-93ee-4bb8-869d-b717e9bf72cc",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-01",
+            "dedupe_key": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-01",
+            "direction": "inbound",
+            "body": "¿Qué requisitos necesito?",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          },
+          {
+            "id": "5e2cf716-fdb2-4c5b-a2e4-3c4c3db24aa0",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-02",
+            "dedupe_key": "qa-whatsapp-stafford-20260912-day-vehicle-only-message-02",
+            "direction": "inbound",
+            "body": "busco un Mustang",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_before": null,
+      "snapshot_after": {
+        "phone": "+12405552001",
+        "documents": "",
+        "real_name": "",
+        "bank_account": "",
+        "down_payment": "",
+        "vehicle_type": "Mustang",
+        "message_count": 2,
+        "identification": "",
+        "purchase_timeline": "",
+        "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+        "qualification_memory": "vehicle: Mustang",
+        "missing_qualification": [
+          "real_name",
+          "down_payment",
+          "purchase_timeline",
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": false
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "3bf48365-6833-4fb7-b401-1d6ea04ba975"
+      ],
+      "next_attempt_at": null,
+      "routing_reason": [
+        "GHL stafford source dealer"
+      ],
+      "message_ids": [
+        "8c3faa36-93ee-4bb8-869d-b717e9bf72cc",
+        "5e2cf716-fdb2-4c5b-a2e4-3c4c3db24aa0"
+      ],
+      "event_ids": [],
+      "payload_hashes": [
+        "b2797e35104020d33543d27230695d31f90cafbf68023d77f9f0634156a2fa62",
+        "b33ae858fa69f9a30a7a37d9c0e580e7fef6b724167df20e873f1220b11de123"
+      ],
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST",
+      "expected": {
+        "status": "queued",
+        "start": "2026-09-12T15:00:00.000Z",
+        "stabilization": "2026-09-12T15:00:15.000Z",
+        "release": "2026-09-12T15:30:00.000Z"
+      },
+      "assertion": true,
+      "result": "PASS"
+    },
+    {
+      "case_id": "qa-whatsapp-stafford-20260912-night-vehicle-only",
+      "source": "stafford",
+      "channel": "whatsapp",
+      "location_id": "LiaoSID3nvAhad49ZpNJ",
+      "contact_id": "qa-whatsapp-stafford-20260912-night-vehicle-only-contact",
+      "conversation_id": "qa-whatsapp-stafford-20260912-night-vehicle-only-conversation",
+      "phone": "+12405552002",
+      "contact_name": "WhatsApp Contact",
+      "steps": [
+        {
+          "index": 1,
+          "payload": {
+            "event_id": "qa-whatsapp-stafford-20260912-night-vehicle-only-event-01",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-night-vehicle-only-message-01",
+            "ghl_contact_id": "qa-whatsapp-stafford-20260912-night-vehicle-only-contact",
+            "ghl_conversation_id": "qa-whatsapp-stafford-20260912-night-vehicle-only-conversation",
+            "message_body": "busco un truck",
+            "contact_phone": "+12405552002",
+            "contact_name": "WhatsApp Contact",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-13T01:00:00.000Z",
+            "signature": "[redacted]"
+          },
+          "payload_hash": "c2c1587cc174766ba653a453a1ec65ad6297815b8084413f496636cbb40e0c67",
+          "event_id": "qa-whatsapp-stafford-20260912-night-vehicle-only-event-01",
+          "message_ids": [
+            "f6c5c755-a090-416c-8002-f104ce96bb57"
+          ],
+          "response": {
+            "raw": "{\"event_id\":\"qa-whatsapp-stafford-20260912-night-vehicle-only-event-01\",\"event_type\":\"customer.replied\",\"ghl_message_id\":\"qa-whatsapp-stafford-20260912-night-vehicle-only-message-01\",\"ghl_contact_id\":\"qa-whatsapp-stafford-20260912-night-vehicle-only-contact\",\"ghl_conversation_id\":\"qa-whatsapp-stafford-20260912-night-vehicle-only-conversation\",\"message_body\":\"busco un truck\",\"contact_phone\":\"+12405552002\",\"contact_name\":\"WhatsApp Contact\",\"channel\":\"whatsapp\",\"occurred_at\":\"2026-09-13T01:00:00.000Z\"}",
+            "payload_hash": "c2c1587cc174766ba653a453a1ec65ad6297815b8084413f496636cbb40e0c67",
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-whatsapp-stafford-20260912-night-vehicle-only-event-01",
+              "conversationId": "73bc141d-c986-452e-bb4d-10cb1ba55709",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "rows": [
+              {
+                "conversation_db_id": "73bc141d-c986-452e-bb4d-10cb1ba55709",
+                "ghl_conversation_id": "qa-whatsapp-stafford-20260912-night-vehicle-only-conversation",
+                "channel": "whatsapp",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405552002",
+                  "documents": "",
+                  "real_name": "",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "truck",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "vehicle: truck",
+                  "missing_qualification": [
+                    "real_name",
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-13T01:00:15.000Z",
+                "ready_at": "2026-09-13T01:00:00.000Z",
+                "lead_id": "2d44856a-3615-4b71-981a-44069b92aec3",
+                "canonical_phone": "+12405552002",
+                "first_name": "Whatsapp",
+                "last_name": "Contact",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "f6c5c755-a090-416c-8002-f104ce96bb57",
+                "ghl_message_id": "qa-whatsapp-stafford-20260912-night-vehicle-only-message-01",
+                "dedupe_key": "qa-whatsapp-stafford-20260912-night-vehicle-only-message-01",
+                "direction": "inbound",
+                "body": "busco un truck",
+                "occurred_at": "2026-09-13T01:00:00.000Z"
+              }
+            ],
+            "events": [],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+          },
+          "snapshot_after": {
+            "phone": "+12405552002",
+            "documents": "",
+            "real_name": "",
+            "bank_account": "",
+            "down_payment": "",
+            "vehicle_type": "truck",
+            "message_count": 1,
+            "identification": "",
+            "purchase_timeline": "",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "qualification_memory": "vehicle: truck",
+            "missing_qualification": [
+              "real_name",
+              "down_payment",
+              "purchase_timeline",
+              "identification",
+              "proof_of_income",
+              "bank_account"
+            ],
+            "qualification_complete": false
+          },
+          "state_after": "waiting_window"
+        }
+      ],
+      "stabilization": {
+        "at": "2026-09-13T01:00:15.000Z",
+        "before_poll": {
+          "rows": [
+            {
+              "conversation_db_id": "73bc141d-c986-452e-bb4d-10cb1ba55709",
+              "ghl_conversation_id": "qa-whatsapp-stafford-20260912-night-vehicle-only-conversation",
+              "channel": "whatsapp",
+              "status": "waiting_window",
+              "qualification_snapshot": {
+                "phone": "+12405552002",
+                "documents": "",
+                "real_name": "",
+                "bank_account": "",
+                "down_payment": "",
+                "vehicle_type": "truck",
+                "message_count": 1,
+                "identification": "",
+                "purchase_timeline": "",
+                "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                "qualification_memory": "vehicle: truck",
+                "missing_qualification": [
+                  "real_name",
+                  "down_payment",
+                  "purchase_timeline",
+                  "identification",
+                  "proof_of_income",
+                  "bank_account"
+                ],
+                "qualification_complete": false
+              },
+              "location_snapshot": {
+                "city": null,
+                "state": null,
+                "zip_code": null,
+                "easterns_zone": null
+              },
+              "next_attempt_at": "2026-09-13T01:00:15.000Z",
+              "ready_at": "2026-09-13T01:00:00.000Z",
+              "lead_id": "2d44856a-3615-4b71-981a-44069b92aec3",
+              "canonical_phone": "+12405552002",
+              "first_name": "Whatsapp",
+              "last_name": "Contact",
+              "dealer_id": null,
+              "assigned_dealer_id": null,
+              "lead_dealer_status": null,
+              "routing_reason": null
+            }
+          ],
+          "messages": [
+            {
+              "id": "f6c5c755-a090-416c-8002-f104ce96bb57",
+              "ghl_message_id": "qa-whatsapp-stafford-20260912-night-vehicle-only-message-01",
+              "dedupe_key": "qa-whatsapp-stafford-20260912-night-vehicle-only-message-01",
+              "direction": "inbound",
+              "body": "busco un truck",
+              "occurred_at": "2026-09-13T01:00:00.000Z"
+            }
+          ],
+          "events": [],
+          "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+        }
+      },
+      "window_wait": {
+        "release_at": "2026-09-13T04:00:00.000Z",
+        "before_release": {
+          "rows": [
+            {
+              "conversation_db_id": "73bc141d-c986-452e-bb4d-10cb1ba55709",
+              "ghl_conversation_id": "qa-whatsapp-stafford-20260912-night-vehicle-only-conversation",
+              "channel": "whatsapp",
+              "status": "waiting_window",
+              "qualification_snapshot": {
+                "phone": "+12405552002",
+                "documents": "",
+                "real_name": "",
+                "bank_account": "",
+                "down_payment": "",
+                "vehicle_type": "truck",
+                "message_count": 1,
+                "identification": "",
+                "purchase_timeline": "",
+                "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                "qualification_memory": "vehicle: truck",
+                "missing_qualification": [
+                  "real_name",
+                  "down_payment",
+                  "purchase_timeline",
+                  "identification",
+                  "proof_of_income",
+                  "bank_account"
+                ],
+                "qualification_complete": false
+              },
+              "location_snapshot": {
+                "city": null,
+                "state": null,
+                "zip_code": null,
+                "easterns_zone": null
+              },
+              "next_attempt_at": "2026-09-13T04:00:00.000Z",
+              "ready_at": "2026-09-13T01:00:00.000Z",
+              "lead_id": "2d44856a-3615-4b71-981a-44069b92aec3",
+              "canonical_phone": "+12405552002",
+              "first_name": "Whatsapp",
+              "last_name": "Contact",
+              "dealer_id": null,
+              "assigned_dealer_id": null,
+              "lead_dealer_status": null,
+              "routing_reason": null
+            }
+          ],
+          "messages": [
+            {
+              "id": "f6c5c755-a090-416c-8002-f104ce96bb57",
+              "ghl_message_id": "qa-whatsapp-stafford-20260912-night-vehicle-only-message-01",
+              "dedupe_key": "qa-whatsapp-stafford-20260912-night-vehicle-only-message-01",
+              "direction": "inbound",
+              "body": "busco un truck",
+              "occurred_at": "2026-09-13T01:00:00.000Z"
+            }
+          ],
+          "events": [],
+          "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+        }
+      },
+      "before": {
+        "rows": [],
+        "messages": [],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+      },
+      "after": {
+        "rows": [
+          {
+            "conversation_db_id": "73bc141d-c986-452e-bb4d-10cb1ba55709",
+            "ghl_conversation_id": "qa-whatsapp-stafford-20260912-night-vehicle-only-conversation",
+            "channel": "whatsapp",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405552002",
+              "documents": "",
+              "real_name": "",
+              "bank_account": "",
+              "down_payment": "",
+              "vehicle_type": "truck",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "",
+              "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+              "qualification_memory": "vehicle: truck",
+              "missing_qualification": [
+                "real_name",
+                "down_payment",
+                "purchase_timeline",
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": false
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "ready_at": "2026-09-13T01:00:00.000Z",
+            "lead_id": "2d44856a-3615-4b71-981a-44069b92aec3",
+            "canonical_phone": "+12405552002",
+            "first_name": "Whatsapp",
+            "last_name": "Contact",
+            "dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL stafford source dealer"
+          }
+        ],
+        "messages": [
+          {
+            "id": "f6c5c755-a090-416c-8002-f104ce96bb57",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-night-vehicle-only-message-01",
+            "dedupe_key": "qa-whatsapp-stafford-20260912-night-vehicle-only-message-01",
+            "direction": "inbound",
+            "body": "busco un truck",
+            "occurred_at": "2026-09-13T01:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_before": null,
+      "snapshot_after": {
+        "phone": "+12405552002",
+        "documents": "",
+        "real_name": "",
+        "bank_account": "",
+        "down_payment": "",
+        "vehicle_type": "truck",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "",
+        "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+        "qualification_memory": "vehicle: truck",
+        "missing_qualification": [
+          "real_name",
+          "down_payment",
+          "purchase_timeline",
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": false
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "3bf48365-6833-4fb7-b401-1d6ea04ba975"
+      ],
+      "next_attempt_at": null,
+      "routing_reason": [
+        "GHL stafford source dealer"
+      ],
+      "message_ids": [
+        "f6c5c755-a090-416c-8002-f104ce96bb57"
+      ],
+      "event_ids": [],
+      "payload_hashes": [
+        "c2c1587cc174766ba653a453a1ec65ad6297815b8084413f496636cbb40e0c67"
+      ],
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST",
+      "expected": {
+        "status": "queued",
+        "start": "2026-09-13T01:00:00.000Z",
+        "stabilization": "2026-09-13T01:00:15.000Z",
+        "release": "2026-09-13T04:00:00.000Z"
+      },
+      "assertion": true,
+      "result": "PASS"
+    },
+    {
+      "case_id": "qa-whatsapp-stafford-20260912-phone-without-vehicle",
+      "source": "stafford",
+      "channel": "whatsapp",
+      "location_id": "LiaoSID3nvAhad49ZpNJ",
+      "contact_id": "qa-whatsapp-stafford-20260912-phone-without-vehicle-contact",
+      "conversation_id": "qa-whatsapp-stafford-20260912-phone-without-vehicle-conversation",
+      "phone": "+12405552003",
+      "contact_name": "WhatsApp Contact",
+      "steps": [
+        {
+          "index": 1,
+          "payload": {
+            "event_id": "qa-whatsapp-stafford-20260912-phone-without-vehicle-event-01",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-phone-without-vehicle-message-01",
+            "ghl_contact_id": "qa-whatsapp-stafford-20260912-phone-without-vehicle-contact",
+            "ghl_conversation_id": "qa-whatsapp-stafford-20260912-phone-without-vehicle-conversation",
+            "message_body": "Hola, quiero información",
+            "contact_phone": "+12405552003",
+            "contact_name": "WhatsApp Contact",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-12T15:00:00.000Z",
+            "signature": "[redacted]"
+          },
+          "payload_hash": "3e20ba8d85aa5483a04a372d7cc65afe45322f4aad8ee0bae0a45ef5e703f872",
+          "event_id": "qa-whatsapp-stafford-20260912-phone-without-vehicle-event-01",
+          "message_ids": [
+            "13da86f0-e8cc-471b-85b8-3441681755ff"
+          ],
+          "response": {
+            "raw": "{\"event_id\":\"qa-whatsapp-stafford-20260912-phone-without-vehicle-event-01\",\"event_type\":\"customer.replied\",\"ghl_message_id\":\"qa-whatsapp-stafford-20260912-phone-without-vehicle-message-01\",\"ghl_contact_id\":\"qa-whatsapp-stafford-20260912-phone-without-vehicle-contact\",\"ghl_conversation_id\":\"qa-whatsapp-stafford-20260912-phone-without-vehicle-conversation\",\"message_body\":\"Hola, quiero información\",\"contact_phone\":\"+12405552003\",\"contact_name\":\"WhatsApp Contact\",\"channel\":\"whatsapp\",\"occurred_at\":\"2026-09-12T15:00:00.000Z\"}",
+            "payload_hash": "3e20ba8d85aa5483a04a372d7cc65afe45322f4aad8ee0bae0a45ef5e703f872",
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-whatsapp-stafford-20260912-phone-without-vehicle-event-01",
+              "conversationId": "ea03c63e-acb0-4612-b3a9-8224b95bb161",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "rows": [
+              {
+                "conversation_db_id": "ea03c63e-acb0-4612-b3a9-8224b95bb161",
+                "ghl_conversation_id": "qa-whatsapp-stafford-20260912-phone-without-vehicle-conversation",
+                "channel": "whatsapp",
+                "status": "partial",
+                "qualification_snapshot": {
+                  "phone": "+12405552003",
+                  "documents": "",
+                  "real_name": "",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "",
+                  "missing_qualification": [
+                    "real_name",
+                    "vehicle_type",
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": null,
+                "ready_at": null,
+                "lead_id": "4deac8e4-9c3f-4d66-8bfa-f529126c2f95",
+                "canonical_phone": "+12405552003",
+                "first_name": "Whatsapp",
+                "last_name": "Contact",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "13da86f0-e8cc-471b-85b8-3441681755ff",
+                "ghl_message_id": "qa-whatsapp-stafford-20260912-phone-without-vehicle-message-01",
+                "dedupe_key": "qa-whatsapp-stafford-20260912-phone-without-vehicle-message-01",
+                "direction": "inbound",
+                "body": "Hola, quiero información",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+          },
+          "snapshot_after": {
+            "phone": "+12405552003",
+            "documents": "",
+            "real_name": "",
+            "bank_account": "",
+            "down_payment": "",
+            "vehicle_type": "",
+            "message_count": 1,
+            "identification": "",
+            "purchase_timeline": "",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "qualification_memory": "",
+            "missing_qualification": [
+              "real_name",
+              "vehicle_type",
+              "down_payment",
+              "purchase_timeline",
+              "identification",
+              "proof_of_income",
+              "bank_account"
+            ],
+            "qualification_complete": false
+          },
+          "state_after": "partial"
+        }
+      ],
+      "before": {
+        "rows": [],
+        "messages": [],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+      },
+      "after": {
+        "rows": [
+          {
+            "conversation_db_id": "ea03c63e-acb0-4612-b3a9-8224b95bb161",
+            "ghl_conversation_id": "qa-whatsapp-stafford-20260912-phone-without-vehicle-conversation",
+            "channel": "whatsapp",
+            "status": "partial",
+            "qualification_snapshot": {
+              "phone": "+12405552003",
+              "documents": "",
+              "real_name": "",
+              "bank_account": "",
+              "down_payment": "",
+              "vehicle_type": "",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "",
+              "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+              "qualification_memory": "",
+              "missing_qualification": [
+                "real_name",
+                "vehicle_type",
+                "down_payment",
+                "purchase_timeline",
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": false
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "ready_at": null,
+            "lead_id": "4deac8e4-9c3f-4d66-8bfa-f529126c2f95",
+            "canonical_phone": "+12405552003",
+            "first_name": "Whatsapp",
+            "last_name": "Contact",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "13da86f0-e8cc-471b-85b8-3441681755ff",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-phone-without-vehicle-message-01",
+            "dedupe_key": "qa-whatsapp-stafford-20260912-phone-without-vehicle-message-01",
+            "direction": "inbound",
+            "body": "Hola, quiero información",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": null,
+      "status_after": "partial",
+      "snapshot_before": null,
+      "snapshot_after": {
+        "phone": "+12405552003",
+        "documents": "",
+        "real_name": "",
+        "bank_account": "",
+        "down_payment": "",
+        "vehicle_type": "",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "",
+        "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+        "qualification_memory": "",
+        "missing_qualification": [
+          "real_name",
+          "vehicle_type",
+          "down_payment",
+          "purchase_timeline",
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": false
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [],
+      "next_attempt_at": null,
+      "routing_reason": [],
+      "message_ids": [
+        "13da86f0-e8cc-471b-85b8-3441681755ff"
+      ],
+      "event_ids": [],
+      "payload_hashes": [
+        "3e20ba8d85aa5483a04a372d7cc65afe45322f4aad8ee0bae0a45ef5e703f872"
+      ],
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST",
+      "expected": {
+        "status": "partial",
+        "no_lead_dealer": true
+      },
+      "assertion": true,
+      "result": "PASS"
+    },
+    {
+      "case_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle",
+      "source": "stafford",
+      "channel": "whatsapp",
+      "location_id": "LiaoSID3nvAhad49ZpNJ",
+      "contact_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-contact",
+      "conversation_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-conversation",
+      "phone": "+12405552004",
+      "contact_name": "WhatsApp Contact",
+      "steps": [
+        {
+          "index": 1,
+          "payload": {
+            "event_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-event-01",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-message-01",
+            "ghl_contact_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-contact",
+            "ghl_conversation_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-conversation",
+            "message_body": "Me llamo Sofia Stafford",
+            "contact_phone": "+12405552004",
+            "contact_name": "WhatsApp Contact",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-12T15:00:00.000Z",
+            "signature": "[redacted]"
+          },
+          "payload_hash": "9a35a06ad68675f318fba76c124755501c7e362a2e03543652a1d11f38649936",
+          "event_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-event-01",
+          "message_ids": [
+            "d84e1c5d-f401-40b9-82fb-e20cf161b5b8"
+          ],
+          "response": {
+            "raw": "{\"event_id\":\"qa-whatsapp-stafford-20260912-declared-name-and-vehicle-event-01\",\"event_type\":\"customer.replied\",\"ghl_message_id\":\"qa-whatsapp-stafford-20260912-declared-name-and-vehicle-message-01\",\"ghl_contact_id\":\"qa-whatsapp-stafford-20260912-declared-name-and-vehicle-contact\",\"ghl_conversation_id\":\"qa-whatsapp-stafford-20260912-declared-name-and-vehicle-conversation\",\"message_body\":\"Me llamo Sofia Stafford\",\"contact_phone\":\"+12405552004\",\"contact_name\":\"WhatsApp Contact\",\"channel\":\"whatsapp\",\"occurred_at\":\"2026-09-12T15:00:00.000Z\"}",
+            "payload_hash": "9a35a06ad68675f318fba76c124755501c7e362a2e03543652a1d11f38649936",
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-event-01",
+              "conversationId": "3eb725ab-f283-4f76-8a76-9a91b41ba6a6",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "rows": [
+              {
+                "conversation_db_id": "3eb725ab-f283-4f76-8a76-9a91b41ba6a6",
+                "ghl_conversation_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-conversation",
+                "channel": "whatsapp",
+                "status": "partial",
+                "qualification_snapshot": {
+                  "phone": "+12405552004",
+                  "documents": "",
+                  "real_name": "Sofia Stafford",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "real_name: Sofia Stafford",
+                  "missing_qualification": [
+                    "vehicle_type",
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": null,
+                "ready_at": null,
+                "lead_id": "8de22000-6013-475b-a657-8d0e161c43bd",
+                "canonical_phone": "+12405552004",
+                "first_name": "Sofia",
+                "last_name": "Stafford",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "d84e1c5d-f401-40b9-82fb-e20cf161b5b8",
+                "ghl_message_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-message-01",
+                "dedupe_key": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-message-01",
+                "direction": "inbound",
+                "body": "Me llamo Sofia Stafford",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+          },
+          "snapshot_after": {
+            "phone": "+12405552004",
+            "documents": "",
+            "real_name": "Sofia Stafford",
+            "bank_account": "",
+            "down_payment": "",
+            "vehicle_type": "",
+            "message_count": 1,
+            "identification": "",
+            "purchase_timeline": "",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "qualification_memory": "real_name: Sofia Stafford",
+            "missing_qualification": [
+              "vehicle_type",
+              "down_payment",
+              "purchase_timeline",
+              "identification",
+              "proof_of_income",
+              "bank_account"
+            ],
+            "qualification_complete": false
+          },
+          "state_after": "partial"
+        },
+        {
+          "index": 2,
+          "payload": {
+            "event_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-event-02",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-message-02",
+            "ghl_contact_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-contact",
+            "ghl_conversation_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-conversation",
+            "message_body": "quiero una Honda Civic",
+            "contact_phone": "+12405552004",
+            "contact_name": "WhatsApp Contact",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-12T15:00:00.000Z",
+            "signature": "[redacted]"
+          },
+          "payload_hash": "a8a6e5ed0789606e2fa1dec70c02edb57d1aabcfab02a493b9e1f81a68b4e0c9",
+          "event_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-event-02",
+          "message_ids": [
+            "d84e1c5d-f401-40b9-82fb-e20cf161b5b8",
+            "a2bde05c-aa5f-4c46-bab0-264f08e8458c"
+          ],
+          "response": {
+            "raw": "{\"event_id\":\"qa-whatsapp-stafford-20260912-declared-name-and-vehicle-event-02\",\"event_type\":\"customer.replied\",\"ghl_message_id\":\"qa-whatsapp-stafford-20260912-declared-name-and-vehicle-message-02\",\"ghl_contact_id\":\"qa-whatsapp-stafford-20260912-declared-name-and-vehicle-contact\",\"ghl_conversation_id\":\"qa-whatsapp-stafford-20260912-declared-name-and-vehicle-conversation\",\"message_body\":\"quiero una Honda Civic\",\"contact_phone\":\"+12405552004\",\"contact_name\":\"WhatsApp Contact\",\"channel\":\"whatsapp\",\"occurred_at\":\"2026-09-12T15:00:00.000Z\"}",
+            "payload_hash": "a8a6e5ed0789606e2fa1dec70c02edb57d1aabcfab02a493b9e1f81a68b4e0c9",
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-event-02",
+              "conversationId": "3eb725ab-f283-4f76-8a76-9a91b41ba6a6",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "rows": [
+              {
+                "conversation_db_id": "3eb725ab-f283-4f76-8a76-9a91b41ba6a6",
+                "ghl_conversation_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-conversation",
+                "channel": "whatsapp",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405552004",
+                  "documents": "",
+                  "real_name": "Sofia Stafford",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "Honda Civic",
+                  "message_count": 2,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "real_name: Sofia Stafford; vehicle: Honda Civic",
+                  "missing_qualification": [
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T15:00:15.000Z",
+                "ready_at": "2026-09-12T15:00:00.000Z",
+                "lead_id": "8de22000-6013-475b-a657-8d0e161c43bd",
+                "canonical_phone": "+12405552004",
+                "first_name": "Sofia",
+                "last_name": "Stafford",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "d84e1c5d-f401-40b9-82fb-e20cf161b5b8",
+                "ghl_message_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-message-01",
+                "dedupe_key": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-message-01",
+                "direction": "inbound",
+                "body": "Me llamo Sofia Stafford",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              },
+              {
+                "id": "a2bde05c-aa5f-4c46-bab0-264f08e8458c",
+                "ghl_message_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-message-02",
+                "dedupe_key": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-message-02",
+                "direction": "inbound",
+                "body": "quiero una Honda Civic",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+          },
+          "snapshot_after": {
+            "phone": "+12405552004",
+            "documents": "",
+            "real_name": "Sofia Stafford",
+            "bank_account": "",
+            "down_payment": "",
+            "vehicle_type": "Honda Civic",
+            "message_count": 2,
+            "identification": "",
+            "purchase_timeline": "",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "qualification_memory": "real_name: Sofia Stafford; vehicle: Honda Civic",
+            "missing_qualification": [
+              "down_payment",
+              "purchase_timeline",
+              "identification",
+              "proof_of_income",
+              "bank_account"
+            ],
+            "qualification_complete": false
+          },
+          "state_after": "waiting_window"
+        }
+      ],
+      "before": {
+        "rows": [],
+        "messages": [],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+      },
+      "after": {
+        "rows": [
+          {
+            "conversation_db_id": "3eb725ab-f283-4f76-8a76-9a91b41ba6a6",
+            "ghl_conversation_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-conversation",
+            "channel": "whatsapp",
+            "status": "waiting_window",
+            "qualification_snapshot": {
+              "phone": "+12405552004",
+              "documents": "",
+              "real_name": "Sofia Stafford",
+              "bank_account": "",
+              "down_payment": "",
+              "vehicle_type": "Honda Civic",
+              "message_count": 2,
+              "identification": "",
+              "purchase_timeline": "",
+              "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+              "qualification_memory": "real_name: Sofia Stafford; vehicle: Honda Civic",
+              "missing_qualification": [
+                "down_payment",
+                "purchase_timeline",
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": false
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": "2026-09-12T15:00:15.000Z",
+            "ready_at": "2026-09-12T15:00:00.000Z",
+            "lead_id": "8de22000-6013-475b-a657-8d0e161c43bd",
+            "canonical_phone": "+12405552004",
+            "first_name": "Sofia",
+            "last_name": "Stafford",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "d84e1c5d-f401-40b9-82fb-e20cf161b5b8",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-message-01",
+            "dedupe_key": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-message-01",
+            "direction": "inbound",
+            "body": "Me llamo Sofia Stafford",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          },
+          {
+            "id": "a2bde05c-aa5f-4c46-bab0-264f08e8458c",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-message-02",
+            "dedupe_key": "qa-whatsapp-stafford-20260912-declared-name-and-vehicle-message-02",
+            "direction": "inbound",
+            "body": "quiero una Honda Civic",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": null,
+      "status_after": "waiting_window",
+      "snapshot_before": null,
+      "snapshot_after": {
+        "phone": "+12405552004",
+        "documents": "",
+        "real_name": "Sofia Stafford",
+        "bank_account": "",
+        "down_payment": "",
+        "vehicle_type": "Honda Civic",
+        "message_count": 2,
+        "identification": "",
+        "purchase_timeline": "",
+        "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+        "qualification_memory": "real_name: Sofia Stafford; vehicle: Honda Civic",
+        "missing_qualification": [
+          "down_payment",
+          "purchase_timeline",
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": false
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [],
+      "next_attempt_at": "2026-09-12T15:00:15.000Z",
+      "routing_reason": [],
+      "message_ids": [
+        "d84e1c5d-f401-40b9-82fb-e20cf161b5b8",
+        "a2bde05c-aa5f-4c46-bab0-264f08e8458c"
+      ],
+      "event_ids": [],
+      "payload_hashes": [
+        "9a35a06ad68675f318fba76c124755501c7e362a2e03543652a1d11f38649936",
+        "a8a6e5ed0789606e2fa1dec70c02edb57d1aabcfab02a493b9e1f81a68b4e0c9"
+      ],
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST",
+      "expected": {
+        "real_name": "Sofia Stafford",
+        "vehicle_type": "Honda Civic",
+        "status": "waiting_window"
+      },
+      "assertion": true,
+      "result": "PASS"
+    },
+    {
+      "case_id": "qa-whatsapp-stafford-20260912-contaminated-replies",
+      "source": "stafford",
+      "channel": "whatsapp",
+      "location_id": "LiaoSID3nvAhad49ZpNJ",
+      "contact_id": "qa-whatsapp-stafford-20260912-contaminated-replies-contact",
+      "conversation_id": "qa-whatsapp-stafford-20260912-contaminated-replies-conversation",
+      "phone": "+12405552005",
+      "contact_name": "WhatsApp Contact",
+      "steps": [
+        {
+          "index": 1,
+          "payload": {
+            "event_id": "qa-whatsapp-stafford-20260912-contaminated-replies-event-01",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-contaminated-replies-message-01",
+            "ghl_contact_id": "qa-whatsapp-stafford-20260912-contaminated-replies-contact",
+            "ghl_conversation_id": "qa-whatsapp-stafford-20260912-contaminated-replies-conversation",
+            "message_body": "¿Qué requisitos necesito?",
+            "contact_phone": "+12405552005",
+            "contact_name": "WhatsApp Contact",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-12T15:00:00.000Z",
+            "signature": "[redacted]"
+          },
+          "payload_hash": "e8386f8f60f95a824a97fc37e81207b9a8d51523e51d31f79c1f2fdcd8649a0a",
+          "event_id": "qa-whatsapp-stafford-20260912-contaminated-replies-event-01",
+          "message_ids": [
+            "24219e7f-4471-41aa-bf53-7272e3567384"
+          ],
+          "response": {
+            "raw": "{\"event_id\":\"qa-whatsapp-stafford-20260912-contaminated-replies-event-01\",\"event_type\":\"customer.replied\",\"ghl_message_id\":\"qa-whatsapp-stafford-20260912-contaminated-replies-message-01\",\"ghl_contact_id\":\"qa-whatsapp-stafford-20260912-contaminated-replies-contact\",\"ghl_conversation_id\":\"qa-whatsapp-stafford-20260912-contaminated-replies-conversation\",\"message_body\":\"¿Qué requisitos necesito?\",\"contact_phone\":\"+12405552005\",\"contact_name\":\"WhatsApp Contact\",\"channel\":\"whatsapp\",\"occurred_at\":\"2026-09-12T15:00:00.000Z\"}",
+            "payload_hash": "e8386f8f60f95a824a97fc37e81207b9a8d51523e51d31f79c1f2fdcd8649a0a",
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-whatsapp-stafford-20260912-contaminated-replies-event-01",
+              "conversationId": "605d13f4-3f1f-4318-98d5-3d80e3d2334d",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "rows": [
+              {
+                "conversation_db_id": "605d13f4-3f1f-4318-98d5-3d80e3d2334d",
+                "ghl_conversation_id": "qa-whatsapp-stafford-20260912-contaminated-replies-conversation",
+                "channel": "whatsapp",
+                "status": "partial",
+                "qualification_snapshot": {
+                  "phone": "+12405552005",
+                  "documents": "",
+                  "real_name": "",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "",
+                  "missing_qualification": [
+                    "real_name",
+                    "vehicle_type",
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": null,
+                "ready_at": null,
+                "lead_id": "3f9d2888-686d-41cc-b06d-65a5f540e378",
+                "canonical_phone": "+12405552005",
+                "first_name": "Whatsapp",
+                "last_name": "Contact",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "24219e7f-4471-41aa-bf53-7272e3567384",
+                "ghl_message_id": "qa-whatsapp-stafford-20260912-contaminated-replies-message-01",
+                "dedupe_key": "qa-whatsapp-stafford-20260912-contaminated-replies-message-01",
+                "direction": "inbound",
+                "body": "¿Qué requisitos necesito?",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+          },
+          "snapshot_after": {
+            "phone": "+12405552005",
+            "documents": "",
+            "real_name": "",
+            "bank_account": "",
+            "down_payment": "",
+            "vehicle_type": "",
+            "message_count": 1,
+            "identification": "",
+            "purchase_timeline": "",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "qualification_memory": "",
+            "missing_qualification": [
+              "real_name",
+              "vehicle_type",
+              "down_payment",
+              "purchase_timeline",
+              "identification",
+              "proof_of_income",
+              "bank_account"
+            ],
+            "qualification_complete": false
+          },
+          "state_after": "partial"
+        },
+        {
+          "index": 2,
+          "payload": {
+            "event_id": "qa-whatsapp-stafford-20260912-contaminated-replies-event-02",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-contaminated-replies-message-02",
+            "ghl_contact_id": "qa-whatsapp-stafford-20260912-contaminated-replies-contact",
+            "ghl_conversation_id": "qa-whatsapp-stafford-20260912-contaminated-replies-conversation",
+            "message_body": "Quiero financiar un auto",
+            "contact_phone": "+12405552005",
+            "contact_name": "WhatsApp Contact",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-12T15:00:00.000Z",
+            "signature": "[redacted]"
+          },
+          "payload_hash": "b6c9b77fc683b0b51a961263339256648caa4fbdf68821a0d06f218284bac0cd",
+          "event_id": "qa-whatsapp-stafford-20260912-contaminated-replies-event-02",
+          "message_ids": [
+            "24219e7f-4471-41aa-bf53-7272e3567384",
+            "c7570fff-484e-4d66-abbd-73a0db9dd453"
+          ],
+          "response": {
+            "raw": "{\"event_id\":\"qa-whatsapp-stafford-20260912-contaminated-replies-event-02\",\"event_type\":\"customer.replied\",\"ghl_message_id\":\"qa-whatsapp-stafford-20260912-contaminated-replies-message-02\",\"ghl_contact_id\":\"qa-whatsapp-stafford-20260912-contaminated-replies-contact\",\"ghl_conversation_id\":\"qa-whatsapp-stafford-20260912-contaminated-replies-conversation\",\"message_body\":\"Quiero financiar un auto\",\"contact_phone\":\"+12405552005\",\"contact_name\":\"WhatsApp Contact\",\"channel\":\"whatsapp\",\"occurred_at\":\"2026-09-12T15:00:00.000Z\"}",
+            "payload_hash": "b6c9b77fc683b0b51a961263339256648caa4fbdf68821a0d06f218284bac0cd",
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-whatsapp-stafford-20260912-contaminated-replies-event-02",
+              "conversationId": "605d13f4-3f1f-4318-98d5-3d80e3d2334d",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "rows": [
+              {
+                "conversation_db_id": "605d13f4-3f1f-4318-98d5-3d80e3d2334d",
+                "ghl_conversation_id": "qa-whatsapp-stafford-20260912-contaminated-replies-conversation",
+                "channel": "whatsapp",
+                "status": "partial",
+                "qualification_snapshot": {
+                  "phone": "+12405552005",
+                  "documents": "",
+                  "real_name": "",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "",
+                  "message_count": 2,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "",
+                  "missing_qualification": [
+                    "real_name",
+                    "vehicle_type",
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": null,
+                "ready_at": null,
+                "lead_id": "3f9d2888-686d-41cc-b06d-65a5f540e378",
+                "canonical_phone": "+12405552005",
+                "first_name": "Whatsapp",
+                "last_name": "Contact",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "24219e7f-4471-41aa-bf53-7272e3567384",
+                "ghl_message_id": "qa-whatsapp-stafford-20260912-contaminated-replies-message-01",
+                "dedupe_key": "qa-whatsapp-stafford-20260912-contaminated-replies-message-01",
+                "direction": "inbound",
+                "body": "¿Qué requisitos necesito?",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              },
+              {
+                "id": "c7570fff-484e-4d66-abbd-73a0db9dd453",
+                "ghl_message_id": "qa-whatsapp-stafford-20260912-contaminated-replies-message-02",
+                "dedupe_key": "qa-whatsapp-stafford-20260912-contaminated-replies-message-02",
+                "direction": "inbound",
+                "body": "Quiero financiar un auto",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+          },
+          "snapshot_after": {
+            "phone": "+12405552005",
+            "documents": "",
+            "real_name": "",
+            "bank_account": "",
+            "down_payment": "",
+            "vehicle_type": "",
+            "message_count": 2,
+            "identification": "",
+            "purchase_timeline": "",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "qualification_memory": "",
+            "missing_qualification": [
+              "real_name",
+              "vehicle_type",
+              "down_payment",
+              "purchase_timeline",
+              "identification",
+              "proof_of_income",
+              "bank_account"
+            ],
+            "qualification_complete": false
+          },
+          "state_after": "partial"
+        },
+        {
+          "index": 3,
+          "payload": {
+            "event_id": "qa-whatsapp-stafford-20260912-contaminated-replies-event-03",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-contaminated-replies-message-03",
+            "ghl_contact_id": "qa-whatsapp-stafford-20260912-contaminated-replies-contact",
+            "ghl_conversation_id": "qa-whatsapp-stafford-20260912-contaminated-replies-conversation",
+            "message_body": "Mustang",
+            "contact_phone": "+12405552005",
+            "contact_name": "WhatsApp Contact",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-12T15:00:00.000Z",
+            "signature": "[redacted]"
+          },
+          "payload_hash": "36ad140fde0680156cf0e70f38927ae980b36f93e7c15d19715551ac4b389a4a",
+          "event_id": "qa-whatsapp-stafford-20260912-contaminated-replies-event-03",
+          "message_ids": [
+            "24219e7f-4471-41aa-bf53-7272e3567384",
+            "c7570fff-484e-4d66-abbd-73a0db9dd453",
+            "7426c836-a9b7-4cff-9cd5-58234076ad8d"
+          ],
+          "response": {
+            "raw": "{\"event_id\":\"qa-whatsapp-stafford-20260912-contaminated-replies-event-03\",\"event_type\":\"customer.replied\",\"ghl_message_id\":\"qa-whatsapp-stafford-20260912-contaminated-replies-message-03\",\"ghl_contact_id\":\"qa-whatsapp-stafford-20260912-contaminated-replies-contact\",\"ghl_conversation_id\":\"qa-whatsapp-stafford-20260912-contaminated-replies-conversation\",\"message_body\":\"Mustang\",\"contact_phone\":\"+12405552005\",\"contact_name\":\"WhatsApp Contact\",\"channel\":\"whatsapp\",\"occurred_at\":\"2026-09-12T15:00:00.000Z\"}",
+            "payload_hash": "36ad140fde0680156cf0e70f38927ae980b36f93e7c15d19715551ac4b389a4a",
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-whatsapp-stafford-20260912-contaminated-replies-event-03",
+              "conversationId": "605d13f4-3f1f-4318-98d5-3d80e3d2334d",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "rows": [
+              {
+                "conversation_db_id": "605d13f4-3f1f-4318-98d5-3d80e3d2334d",
+                "ghl_conversation_id": "qa-whatsapp-stafford-20260912-contaminated-replies-conversation",
+                "channel": "whatsapp",
+                "status": "partial",
+                "qualification_snapshot": {
+                  "phone": "+12405552005",
+                  "documents": "",
+                  "real_name": "",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "",
+                  "message_count": 3,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "",
+                  "missing_qualification": [
+                    "real_name",
+                    "vehicle_type",
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": null,
+                "ready_at": null,
+                "lead_id": "3f9d2888-686d-41cc-b06d-65a5f540e378",
+                "canonical_phone": "+12405552005",
+                "first_name": "Whatsapp",
+                "last_name": "Contact",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "24219e7f-4471-41aa-bf53-7272e3567384",
+                "ghl_message_id": "qa-whatsapp-stafford-20260912-contaminated-replies-message-01",
+                "dedupe_key": "qa-whatsapp-stafford-20260912-contaminated-replies-message-01",
+                "direction": "inbound",
+                "body": "¿Qué requisitos necesito?",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              },
+              {
+                "id": "c7570fff-484e-4d66-abbd-73a0db9dd453",
+                "ghl_message_id": "qa-whatsapp-stafford-20260912-contaminated-replies-message-02",
+                "dedupe_key": "qa-whatsapp-stafford-20260912-contaminated-replies-message-02",
+                "direction": "inbound",
+                "body": "Quiero financiar un auto",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              },
+              {
+                "id": "7426c836-a9b7-4cff-9cd5-58234076ad8d",
+                "ghl_message_id": "qa-whatsapp-stafford-20260912-contaminated-replies-message-03",
+                "dedupe_key": "qa-whatsapp-stafford-20260912-contaminated-replies-message-03",
+                "direction": "inbound",
+                "body": "Mustang",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+          },
+          "snapshot_after": {
+            "phone": "+12405552005",
+            "documents": "",
+            "real_name": "",
+            "bank_account": "",
+            "down_payment": "",
+            "vehicle_type": "",
+            "message_count": 3,
+            "identification": "",
+            "purchase_timeline": "",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "qualification_memory": "",
+            "missing_qualification": [
+              "real_name",
+              "vehicle_type",
+              "down_payment",
+              "purchase_timeline",
+              "identification",
+              "proof_of_income",
+              "bank_account"
+            ],
+            "qualification_complete": false
+          },
+          "state_after": "partial"
+        }
+      ],
+      "before": {
+        "rows": [],
+        "messages": [],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+      },
+      "after": {
+        "rows": [
+          {
+            "conversation_db_id": "605d13f4-3f1f-4318-98d5-3d80e3d2334d",
+            "ghl_conversation_id": "qa-whatsapp-stafford-20260912-contaminated-replies-conversation",
+            "channel": "whatsapp",
+            "status": "partial",
+            "qualification_snapshot": {
+              "phone": "+12405552005",
+              "documents": "",
+              "real_name": "",
+              "bank_account": "",
+              "down_payment": "",
+              "vehicle_type": "",
+              "message_count": 3,
+              "identification": "",
+              "purchase_timeline": "",
+              "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+              "qualification_memory": "",
+              "missing_qualification": [
+                "real_name",
+                "vehicle_type",
+                "down_payment",
+                "purchase_timeline",
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": false
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "ready_at": null,
+            "lead_id": "3f9d2888-686d-41cc-b06d-65a5f540e378",
+            "canonical_phone": "+12405552005",
+            "first_name": "Whatsapp",
+            "last_name": "Contact",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "24219e7f-4471-41aa-bf53-7272e3567384",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-contaminated-replies-message-01",
+            "dedupe_key": "qa-whatsapp-stafford-20260912-contaminated-replies-message-01",
+            "direction": "inbound",
+            "body": "¿Qué requisitos necesito?",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          },
+          {
+            "id": "c7570fff-484e-4d66-abbd-73a0db9dd453",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-contaminated-replies-message-02",
+            "dedupe_key": "qa-whatsapp-stafford-20260912-contaminated-replies-message-02",
+            "direction": "inbound",
+            "body": "Quiero financiar un auto",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          },
+          {
+            "id": "7426c836-a9b7-4cff-9cd5-58234076ad8d",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-contaminated-replies-message-03",
+            "dedupe_key": "qa-whatsapp-stafford-20260912-contaminated-replies-message-03",
+            "direction": "inbound",
+            "body": "Mustang",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": null,
+      "status_after": "partial",
+      "snapshot_before": null,
+      "snapshot_after": {
+        "phone": "+12405552005",
+        "documents": "",
+        "real_name": "",
+        "bank_account": "",
+        "down_payment": "",
+        "vehicle_type": "",
+        "message_count": 3,
+        "identification": "",
+        "purchase_timeline": "",
+        "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+        "qualification_memory": "",
+        "missing_qualification": [
+          "real_name",
+          "vehicle_type",
+          "down_payment",
+          "purchase_timeline",
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": false
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [],
+      "next_attempt_at": null,
+      "routing_reason": [],
+      "message_ids": [
+        "24219e7f-4471-41aa-bf53-7272e3567384",
+        "c7570fff-484e-4d66-abbd-73a0db9dd453",
+        "7426c836-a9b7-4cff-9cd5-58234076ad8d"
+      ],
+      "event_ids": [],
+      "payload_hashes": [
+        "e8386f8f60f95a824a97fc37e81207b9a8d51523e51d31f79c1f2fdcd8649a0a",
+        "b6c9b77fc683b0b51a961263339256648caa4fbdf68821a0d06f218284bac0cd",
+        "36ad140fde0680156cf0e70f38927ae980b36f93e7c15d19715551ac4b389a4a"
+      ],
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST",
+      "expected": {
+        "real_name": "",
+        "vehicle_type": "",
+        "status": "partial"
+      },
+      "assertion": true,
+      "result": "PASS"
+    },
+    {
+      "case_id": "qa-whatsapp-stafford-20260912-duplicate-webhook",
+      "source": "stafford",
+      "channel": "whatsapp",
+      "location_id": "LiaoSID3nvAhad49ZpNJ",
+      "contact_id": "qa-whatsapp-stafford-20260912-duplicate-webhook-contact",
+      "conversation_id": "qa-whatsapp-stafford-20260912-duplicate-webhook-conversation",
+      "phone": "+12405552006",
+      "contact_name": "WhatsApp Contact",
+      "steps": [
+        {
+          "index": 1,
+          "payload": {
+            "event_id": "qa-whatsapp-stafford-20260912-duplicate-webhook-event-01",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-duplicate-webhook-message-01",
+            "ghl_contact_id": "qa-whatsapp-stafford-20260912-duplicate-webhook-contact",
+            "ghl_conversation_id": "qa-whatsapp-stafford-20260912-duplicate-webhook-conversation",
+            "message_body": "busco un SUV",
+            "contact_phone": "+12405552006",
+            "contact_name": "WhatsApp Contact",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-12T15:00:00.000Z",
+            "signature": "[redacted]"
+          },
+          "payload_hash": "c631864469c8b85bfc72cc9734b25eb3b4e15363e41826c40ea14d3f2fcd6b76",
+          "event_id": "qa-whatsapp-stafford-20260912-duplicate-webhook-event-01",
+          "message_ids": [
+            "ce1852d0-b38d-4000-837c-8b12c7e6aba1"
+          ],
+          "response": {
+            "raw": "{\"event_id\":\"qa-whatsapp-stafford-20260912-duplicate-webhook-event-01\",\"event_type\":\"customer.replied\",\"ghl_message_id\":\"qa-whatsapp-stafford-20260912-duplicate-webhook-message-01\",\"ghl_contact_id\":\"qa-whatsapp-stafford-20260912-duplicate-webhook-contact\",\"ghl_conversation_id\":\"qa-whatsapp-stafford-20260912-duplicate-webhook-conversation\",\"message_body\":\"busco un SUV\",\"contact_phone\":\"+12405552006\",\"contact_name\":\"WhatsApp Contact\",\"channel\":\"whatsapp\",\"occurred_at\":\"2026-09-12T15:00:00.000Z\"}",
+            "payload_hash": "c631864469c8b85bfc72cc9734b25eb3b4e15363e41826c40ea14d3f2fcd6b76",
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-whatsapp-stafford-20260912-duplicate-webhook-event-01",
+              "conversationId": "608e8816-8c30-4e6e-b644-a9b84a91113c",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "rows": [
+              {
+                "conversation_db_id": "608e8816-8c30-4e6e-b644-a9b84a91113c",
+                "ghl_conversation_id": "qa-whatsapp-stafford-20260912-duplicate-webhook-conversation",
+                "channel": "whatsapp",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405552006",
+                  "documents": "",
+                  "real_name": "",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "SUV",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "vehicle: SUV",
+                  "missing_qualification": [
+                    "real_name",
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T15:00:15.000Z",
+                "ready_at": "2026-09-12T15:00:00.000Z",
+                "lead_id": "171de3ae-a4e4-4cf4-85bb-d18efc78eb9d",
+                "canonical_phone": "+12405552006",
+                "first_name": "Whatsapp",
+                "last_name": "Contact",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "ce1852d0-b38d-4000-837c-8b12c7e6aba1",
+                "ghl_message_id": "qa-whatsapp-stafford-20260912-duplicate-webhook-message-01",
+                "dedupe_key": "qa-whatsapp-stafford-20260912-duplicate-webhook-message-01",
+                "direction": "inbound",
+                "body": "busco un SUV",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+          },
+          "snapshot_after": {
+            "phone": "+12405552006",
+            "documents": "",
+            "real_name": "",
+            "bank_account": "",
+            "down_payment": "",
+            "vehicle_type": "SUV",
+            "message_count": 1,
+            "identification": "",
+            "purchase_timeline": "",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "qualification_memory": "vehicle: SUV",
+            "missing_qualification": [
+              "real_name",
+              "down_payment",
+              "purchase_timeline",
+              "identification",
+              "proof_of_income",
+              "bank_account"
+            ],
+            "qualification_complete": false
+          },
+          "state_after": "waiting_window"
+        },
+        {
+          "index": 1,
+          "payload": {
+            "event_id": "qa-whatsapp-stafford-20260912-duplicate-webhook-event-01",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-duplicate-webhook-message-01",
+            "ghl_contact_id": "qa-whatsapp-stafford-20260912-duplicate-webhook-contact",
+            "ghl_conversation_id": "qa-whatsapp-stafford-20260912-duplicate-webhook-conversation",
+            "message_body": "busco un SUV",
+            "contact_phone": "+12405552006",
+            "contact_name": "WhatsApp Contact",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-12T15:00:00.000Z",
+            "signature": "[redacted]"
+          },
+          "payload_hash": "c631864469c8b85bfc72cc9734b25eb3b4e15363e41826c40ea14d3f2fcd6b76",
+          "event_id": "qa-whatsapp-stafford-20260912-duplicate-webhook-event-01",
+          "message_ids": [
+            "ce1852d0-b38d-4000-837c-8b12c7e6aba1"
+          ],
+          "response": {
+            "raw": "{\"event_id\":\"qa-whatsapp-stafford-20260912-duplicate-webhook-event-01\",\"event_type\":\"customer.replied\",\"ghl_message_id\":\"qa-whatsapp-stafford-20260912-duplicate-webhook-message-01\",\"ghl_contact_id\":\"qa-whatsapp-stafford-20260912-duplicate-webhook-contact\",\"ghl_conversation_id\":\"qa-whatsapp-stafford-20260912-duplicate-webhook-conversation\",\"message_body\":\"busco un SUV\",\"contact_phone\":\"+12405552006\",\"contact_name\":\"WhatsApp Contact\",\"channel\":\"whatsapp\",\"occurred_at\":\"2026-09-12T15:00:00.000Z\"}",
+            "payload_hash": "c631864469c8b85bfc72cc9734b25eb3b4e15363e41826c40ea14d3f2fcd6b76",
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-whatsapp-stafford-20260912-duplicate-webhook-event-01",
+              "conversationId": "qa-whatsapp-stafford-20260912-duplicate-webhook-conversation",
+              "source": "stafford",
+              "status": "duplicate_ignored"
+            }
+          },
+          "after": {
+            "rows": [
+              {
+                "conversation_db_id": "608e8816-8c30-4e6e-b644-a9b84a91113c",
+                "ghl_conversation_id": "qa-whatsapp-stafford-20260912-duplicate-webhook-conversation",
+                "channel": "whatsapp",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405552006",
+                  "documents": "",
+                  "real_name": "",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "SUV",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "vehicle: SUV",
+                  "missing_qualification": [
+                    "real_name",
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T15:00:15.000Z",
+                "ready_at": "2026-09-12T15:00:00.000Z",
+                "lead_id": "171de3ae-a4e4-4cf4-85bb-d18efc78eb9d",
+                "canonical_phone": "+12405552006",
+                "first_name": "Whatsapp",
+                "last_name": "Contact",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "ce1852d0-b38d-4000-837c-8b12c7e6aba1",
+                "ghl_message_id": "qa-whatsapp-stafford-20260912-duplicate-webhook-message-01",
+                "dedupe_key": "qa-whatsapp-stafford-20260912-duplicate-webhook-message-01",
+                "direction": "inbound",
+                "body": "busco un SUV",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+          },
+          "snapshot_after": {
+            "phone": "+12405552006",
+            "documents": "",
+            "real_name": "",
+            "bank_account": "",
+            "down_payment": "",
+            "vehicle_type": "SUV",
+            "message_count": 1,
+            "identification": "",
+            "purchase_timeline": "",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "qualification_memory": "vehicle: SUV",
+            "missing_qualification": [
+              "real_name",
+              "down_payment",
+              "purchase_timeline",
+              "identification",
+              "proof_of_income",
+              "bank_account"
+            ],
+            "qualification_complete": false
+          },
+          "state_after": "waiting_window"
+        }
+      ],
+      "retry_response": {
+        "raw": "{\"event_id\":\"qa-whatsapp-stafford-20260912-duplicate-webhook-event-01\",\"event_type\":\"customer.replied\",\"ghl_message_id\":\"qa-whatsapp-stafford-20260912-duplicate-webhook-message-01\",\"ghl_contact_id\":\"qa-whatsapp-stafford-20260912-duplicate-webhook-contact\",\"ghl_conversation_id\":\"qa-whatsapp-stafford-20260912-duplicate-webhook-conversation\",\"message_body\":\"busco un SUV\",\"contact_phone\":\"+12405552006\",\"contact_name\":\"WhatsApp Contact\",\"channel\":\"whatsapp\",\"occurred_at\":\"2026-09-12T15:00:00.000Z\"}",
+        "payload_hash": "c631864469c8b85bfc72cc9734b25eb3b4e15363e41826c40ea14d3f2fcd6b76",
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-whatsapp-stafford-20260912-duplicate-webhook-event-01",
+          "conversationId": "qa-whatsapp-stafford-20260912-duplicate-webhook-conversation",
+          "source": "stafford",
+          "status": "duplicate_ignored"
+        }
+      },
+      "first_message_count": 1,
+      "retry_message_count": 1,
+      "before": {
+        "rows": [],
+        "messages": [],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+      },
+      "after": {
+        "rows": [
+          {
+            "conversation_db_id": "608e8816-8c30-4e6e-b644-a9b84a91113c",
+            "ghl_conversation_id": "qa-whatsapp-stafford-20260912-duplicate-webhook-conversation",
+            "channel": "whatsapp",
+            "status": "waiting_window",
+            "qualification_snapshot": {
+              "phone": "+12405552006",
+              "documents": "",
+              "real_name": "",
+              "bank_account": "",
+              "down_payment": "",
+              "vehicle_type": "SUV",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "",
+              "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+              "qualification_memory": "vehicle: SUV",
+              "missing_qualification": [
+                "real_name",
+                "down_payment",
+                "purchase_timeline",
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": false
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": "2026-09-12T15:00:15.000Z",
+            "ready_at": "2026-09-12T15:00:00.000Z",
+            "lead_id": "171de3ae-a4e4-4cf4-85bb-d18efc78eb9d",
+            "canonical_phone": "+12405552006",
+            "first_name": "Whatsapp",
+            "last_name": "Contact",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "ce1852d0-b38d-4000-837c-8b12c7e6aba1",
+            "ghl_message_id": "qa-whatsapp-stafford-20260912-duplicate-webhook-message-01",
+            "dedupe_key": "qa-whatsapp-stafford-20260912-duplicate-webhook-message-01",
+            "direction": "inbound",
+            "body": "busco un SUV",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": null,
+      "status_after": "waiting_window",
+      "snapshot_before": null,
+      "snapshot_after": {
+        "phone": "+12405552006",
+        "documents": "",
+        "real_name": "",
+        "bank_account": "",
+        "down_payment": "",
+        "vehicle_type": "SUV",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "",
+        "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+        "qualification_memory": "vehicle: SUV",
+        "missing_qualification": [
+          "real_name",
+          "down_payment",
+          "purchase_timeline",
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": false
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [],
+      "next_attempt_at": "2026-09-12T15:00:15.000Z",
+      "routing_reason": [],
+      "message_ids": [
+        "ce1852d0-b38d-4000-837c-8b12c7e6aba1"
+      ],
+      "event_ids": [],
+      "payload_hashes": [
+        "c631864469c8b85bfc72cc9734b25eb3b4e15363e41826c40ea14d3f2fcd6b76",
+        "c631864469c8b85bfc72cc9734b25eb3b4e15363e41826c40ea14d3f2fcd6b76"
+      ],
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at, c.ready_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c\n     JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1\n     ORDER BY ld.created_at NULLS LAST",
+      "expected": {
+        "same_event": "duplicate_ignored",
+        "one_message": true
+      },
+      "assertion": true,
+      "result": "PASS"
+    }
+  ],
+  "checks": [
+    {
+      "check": "process_due_2026-09-12T15:00:15.000Z",
+      "result": {
+        "now": "2026-09-12T15:00:15.000Z",
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    },
+    {
+      "check": "process_due_2026-09-12T15:30:00.000Z",
+      "result": {
+        "now": "2026-09-12T15:30:00.000Z",
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    },
+    {
+      "check": "process_due_2026-09-13T01:00:15.000Z",
+      "result": {
+        "now": "2026-09-13T01:00:15.000Z",
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    },
+    {
+      "check": "process_due_2026-09-13T04:00:00.000Z",
+      "result": {
+        "now": "2026-09-13T04:00:00.000Z",
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    },
+    {
+      "check": "process_due_2026-09-12T15:00:15.000Z",
+      "result": {
+        "now": "2026-09-12T15:00:15.000Z",
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    },
+    {
+      "check": "process_due_2026-09-12T15:30:00.000Z",
+      "result": {
+        "now": "2026-09-12T15:30:00.000Z",
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    },
+    {
+      "check": "invalid_signature",
+      "expected_http": 401,
+      "actual_http": 401
+    }
+  ],
+  "baseline": {
+    "migration": "EasternsLocationRoutingRules1710000021000",
+    "schema": [
+      "conversation_messages",
+      "conversations",
+      "dealer_location_aliases",
+      "dealer_round_robin_state",
+      "dealers",
+      "lead_dealers",
+      "lead_ingestion_batches",
+      "lead_ingestion_rows",
+      "leads",
+      "locations",
+      "migrations",
+      "report_export_history",
+      "webhook_events"
+    ],
+    "container_scope": "c20d4b05ae50be641c04709c5bff0b91ef3229abbab50e669115e175b2c6144e / dealeradmin-postgres / postgres:18"
+  },
+  "summary": {
+    "pass": 7,
+    "fail": 0,
+    "blocked": 0,
+    "total_cases": 7,
+    "all_pass": true
+  }
+}
