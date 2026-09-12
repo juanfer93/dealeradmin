@@ -263,6 +263,19 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(execute({ message: 'Quiero una camioneta' }).real_name).toBe('');
   });
 
+  it('captures one-word Yahir from the reproduced WhatsApp transcript only', () => {
+    const result = execute({
+      channel: 'whatsapp',
+      message: 'A las 5 si se puede por favor',
+      chat_history_log: '*Headline:* Financiamiento inmediato\nYahir\nQuiero ver si puedo con 1000\nLo más pronto posible\nQue y qué papeles ocupo para aplicar\nSedan\nSi sin problema\nSi está bien no hay problema\nHoy si gusta\nA las 5 si se puede por favor',
+    });
+    expect(result.real_name).toBe('Yahir');
+    expect(execute({ channel: 'whatsapp', message: 'Sedan' }).real_name).toBe('');
+    expect(execute({ channel: 'whatsapp', message: 'Lo más pronto posible' }).real_name).toBe('');
+    expect(execute({ channel: 'whatsapp', message: 'Mi nombre es Yahir Pérez' }).real_name).toBe('Yahir Pérez');
+    expect(execute({ channel: 'whatsapp', message: 'Quiero ver si puedo con 1000' }).down_payment).toBe('1000');
+  });
+
   it.each([
     ['elias alvarado', 'Elias Alvarado'],
     ['JUAN de la cruz', 'Juan de la Cruz'],

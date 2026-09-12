@@ -553,6 +553,22 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message: 'Quiero una camioneta' }).real_name).toBe('');
   });
 
+  it('captures a one-word name explicitly sent in a WhatsApp conversation without promoting qualification replies', () => {
+    const transcript = '*Headline:* Financiamiento inmediato\nYahir\nQuiero ver si puedo con 1000\nLo más pronto posible\nQue y qué papeles ocupo para aplicar\nSedan\nSi sin problema\nSi está bien no hay problema\nHoy si gusta\nA las 5 si se puede por favor';
+    const result = normalizeCollectorInput({
+      channel: 'whatsapp',
+      message: 'A las 5 si se puede por favor',
+      chat_history_log: transcript,
+      phone: '+18048446382',
+    });
+    expect(result.real_name).toBe('Yahir');
+    expect(normalizeCollectorInput({ channel: 'whatsapp', message: 'Sedan' }).real_name).toBe('');
+    expect(normalizeCollectorInput({ channel: 'whatsapp', message: 'Lo más pronto posible' }).real_name).toBe('');
+    expect(normalizeCollectorInput({ channel: 'whatsapp', message: 'me llamo yahir' }).real_name).toBe('Yahir');
+    expect(normalizeCollectorInput({ channel: 'whatsapp', message: 'Mi nombre es Yahir Pérez' }).real_name).toBe('Yahir Pérez');
+    expect(normalizeCollectorInput({ channel: 'whatsapp', message: 'Quiero ver si puedo con 1000' }).down_payment).toBe('1000');
+  });
+
   it.each([
     ['elias alvarado', 'Elias Alvarado'],
     ['JUAN de la cruz', 'Juan de la Cruz'],
