@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectLeadLanguage, hasMinimumRoutingQualification, isQualificationComplete, normalizeCollectorInput } from '../../domain/collector-normalizer';
+import { detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isQualificationComplete, normalizeCollectorInput } from '../../domain/collector-normalizer';
 
 describe('normalizeCollectorInput', () => {
   it.each([
@@ -16,6 +16,21 @@ describe('normalizeCollectorInput', () => {
 
   it('preserves a valid native GHL contact phone when the latest message is separate', () => {
     expect(normalizeCollectorInput({ phone: '(240) 681-5028', message: 'Ok' }).phone).toBe('+12406815028');
+  });
+
+  it('accepts phone evidence only from messages inside the recent window', () => {
+    const referenceAt = new Date('2026-09-12T15:00:00.000Z');
+    expect(extractRecentMessagePhone([
+      { body: 'My number is 240-681-5028', direction: 'inbound', occurred_at: '2026-09-12T14:59:00.000Z' },
+      { body: 'I am still looking for a sedan', direction: 'inbound', occurred_at: '2026-09-12T15:00:00.000Z' },
+    ], referenceAt)).toBe('+12406815028');
+    expect(extractRecentMessagePhone([
+      { body: 'My number is 240-681-5028', direction: 'inbound', occurred_at: '2026-07-12T14:59:00.000Z' },
+      { body: 'I am still looking for a sedan', direction: 'inbound', occurred_at: '2026-09-12T15:00:00.000Z' },
+    ], referenceAt)).toBe('');
+    expect(extractRecentMessagePhone([
+      { body: 'Call us at 240-681-5028', direction: 'outbound', occurred_at: '2026-09-12T14:59:00.000Z' },
+    ], referenceAt)).toBe('');
   });
 
   it.each([

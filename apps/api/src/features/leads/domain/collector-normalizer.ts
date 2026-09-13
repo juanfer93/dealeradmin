@@ -85,6 +85,31 @@ function extractPhone(value: string | null | undefined): string {
   return digits.length === 11 && digits.startsWith('1') ? `+${digits}` : EMPTY;
 }
 
+export const RECENT_PHONE_EVIDENCE_DAYS = 3;
+
+/**
+ * A contact phone supplied by GHL is only metadata. A lead may use a phone
+ * for routing when that same number is present in an inbound message from the
+ * recent conversation window; old transcript evidence must not resurrect it.
+ */
+export function extractRecentMessagePhone(
+  messages: Array<{ body?: string | null; direction?: string | null; occurred_at?: string | Date | null }>,
+  referenceAt: Date,
+  maxAgeDays = RECENT_PHONE_EVIDENCE_DAYS,
+): string {
+  const cutoff = referenceAt.getTime() - maxAgeDays * 24 * 60 * 60 * 1000;
+  return messages
+    .map((message) => ({
+      body: String(message.body ?? ''),
+      direction: String(message.direction ?? '').toLowerCase(),
+      occurredAt: message.occurred_at ? new Date(message.occurred_at).getTime() : Number.NaN,
+    }))
+    .filter((message) => message.direction === 'inbound' && Number.isFinite(message.occurredAt) && message.occurredAt >= cutoff && message.occurredAt <= referenceAt.getTime())
+    .sort((left, right) => right.occurredAt - left.occurredAt)
+    .map((message) => extractPhone(message.body))
+    .find(Boolean) ?? EMPTY;
+}
+
 function isPhoneOnlyLine(value: string): boolean {
   const source = clean(value);
   const digits = source.replace(/\D/g, '');

@@ -4,7 +4,7 @@ import { GhlCustomerRepliedSchema } from '@dealeradmin/contracts';
 import { createHash } from 'node:crypto';
 import { DataSource, QueryRunner } from 'typeorm';
 import { buildWhatsAppMessage } from '../../leads/domain/message-builder';
-import { detectLeadLanguage, hasMinimumRoutingQualification, isQualificationComplete, normalizeCollectorInput, normalizeRealName, type CollectorLanguage, type QualificationProgress } from '../../leads/domain/collector-normalizer';
+import { detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isQualificationComplete, normalizeCollectorInput, normalizeRealName, type CollectorLanguage, type QualificationProgress } from '../../leads/domain/collector-normalizer';
 import { normalizeDownPayment } from '../../leads/domain/down-payment';
 import { normalizePhone } from '../../leads/domain/phone-normalizer';
 import { GeoroutingService } from '../../routing/domain/services/georouting.service';
@@ -223,23 +223,24 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       const source = configured[0] as SourceKey;
       const current = row.qualification_snapshot ?? {} as ConversationSnapshot;
       const messages = await runner.query(
-        `SELECT body FROM conversation_messages WHERE conversation_id = $1 ORDER BY occurred_at ASC, created_at ASC`,
+        `SELECT body, direction, occurred_at FROM conversation_messages WHERE conversation_id = $1 ORDER BY occurred_at ASC, created_at ASC`,
         [id],
-      ) as Array<{ body: string }>;
+      ) as Array<{ body: string; direction: string; occurred_at: string }>;
       const transcript = messages.map((item) => clean(item.body)).filter(Boolean).join('\n');
       if (!transcript) {
         await runner.rollbackTransaction();
         return;
       }
       const contactName = clean(`${row.first_name || ''} ${row.last_name || ''}`) || 'Lead';
+      const recentPhone = this.safePhone(extractRecentMessagePhone(messages, now));
       const normalized = normalizeCollectorInput({
         channel: row.channel,
         real_name: /(?:^|[^a-z])messenger(?:$|[^a-z])/i.test(row.channel) ? contactName : undefined,
         message: transcript,
         chat_history_log: transcript,
-        phone: current.phone || row.canonical_phone || '',
+        phone: recentPhone || '',
       });
-      const effectivePhone = this.safePhone(normalized.phone) || this.safePhone(current.phone) || this.safePhone(row.canonical_phone) || '';
+      const effectivePhone = recentPhone || '';
       // A manual correction made while a conversation is waiting must survive
       // a later transcript reconciliation when GHL did not expose that answer.
       // Inbound evidence still wins whenever it is available.
@@ -450,14 +451,15 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       const sourceDealer = GHL_SOURCE_CONFIG[source].splitByLanguage || GHL_SOURCE_CONFIG[source].alternatingGroup
         ? undefined
         : await this.findSourceDealer(runner, GHL_SOURCE_CONFIG[source].locationId, source);
-      const phone = this.safePhone(event.contact_phone);
       const displayName = clean(event.contact_name) || 'Lead';
       const normalizedName = normalizeRealName(displayName) || displayName;
       const { firstName, lastName } = splitName(normalizedName);
       let lead = await this.upsertLead(runner, {
         locationId: GHL_SOURCE_CONFIG[source].locationId,
         contactId: event.ghl_contact_id,
-        phone,
+        // GHL contact.phone is metadata only. The canonical phone is adopted
+        // after the inbound transcript proves it was written recently.
+        phone: null,
         firstName,
         lastName,
       });
@@ -478,13 +480,15 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         [conversation.id, dedupeKey, messageId, String(event.message_body ?? '').replace(/\r\n?/g, '\n').trim(), receivedAt, JSON.stringify(event.raw_payload ?? event)],
       );
       const messages = await runner.query(
-        `SELECT body FROM conversation_messages WHERE conversation_id = $1 ORDER BY occurred_at ASC, created_at ASC`,
+        `SELECT body, direction, occurred_at FROM conversation_messages WHERE conversation_id = $1 ORDER BY occurred_at ASC, created_at ASC`,
         [conversation.id],
-      ) as Array<{ body: string }>;
+      ) as Array<{ body: string; direction: string; occurred_at: string }>;
       const transcript = messages
         .map((item) => String(item.body ?? '').replace(/\r\n?/g, '\n').trim())
         .filter(Boolean)
         .join('\n');
+      const now = controlledNow ?? currentLocalNow();
+      const recentPhone = this.safePhone(extractRecentMessagePhone(messages, now));
       if (conversation.isExisting && conversation.status === 'sent') {
         await runner.query(
           `UPDATE conversations
@@ -501,13 +505,12 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         real_name: /(?:^|[^a-z])messenger(?:$|[^a-z])/i.test(event.channel) ? displayName : undefined,
         message: transcript,
         chat_history_log: transcript,
-        phone,
+        phone: recentPhone || '',
       });
       // A lead can correct the phone in a later inbound message. Keep the
       // same GHL contact/lead identity and promote that conversational phone
       // to canonical_phone, unless another lead already owns it.
-      const normalizedPhone = this.safePhone(normalized.phone);
-      const effectivePhone = normalizedPhone || phone;
+      const effectivePhone = recentPhone || '';
       if (effectivePhone && effectivePhone !== lead.canonical_phone) {
         const updatedLead = await runner.query(
           `UPDATE leads
@@ -538,8 +541,26 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         identification: normalized.identification,
         bank_account: normalized.bank_account,
         qualification_memory: normalized.qualification_memory,
-        qualification_complete: normalized.qualification_complete,
-        missing_qualification: normalized.missing_qualification,
+        qualification_complete: isQualificationComplete({
+          real_name: normalized.real_name,
+          phone: effectivePhone,
+          vehicle_type: normalized.vehicle_type,
+          down_payment: normalizeDownPayment(normalized.down_payment),
+          purchase_timeline: normalized.purchase_timeline,
+          has_identification: normalized.identification,
+          has_income_proof: normalized.documents,
+          bank_account: normalized.bank_account,
+        }),
+        missing_qualification: [
+          !normalized.real_name ? 'real_name' : '',
+          !effectivePhone ? 'phone' : '',
+          !normalized.vehicle_type ? 'vehicle_type' : '',
+          !normalized.down_payment ? 'down_payment' : '',
+          !normalized.purchase_timeline ? 'purchase_timeline' : '',
+          normalized.identification !== 'yes' ? 'identification' : '',
+          normalized.has_income_proof !== 'yes' ? 'proof_of_income' : '',
+          normalized.bank_account !== 'yes' ? 'bank_account' : '',
+        ].filter(Boolean),
         message_count: messages.length,
         language,
         qualification_progress: normalized.qualification_progress,
@@ -547,7 +568,6 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       const assignedDealerId = clean(conversation.qualification_snapshot?.assigned_dealer_id);
       const dealer = sourceDealer ?? await this.findSourceDealer(runner, GHL_SOURCE_CONFIG[source].locationId, source, language, assignedDealerId || undefined);
       snapshot.assigned_dealer_id = dealer.id;
-      const now = controlledNow ?? currentLocalNow();
       const stalePhone = snapshot.phone
         ? await this.findStalePhoneReentry(runner, snapshot.phone, now)
         : null;
