@@ -180,12 +180,32 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message: 'Una Toyota Trail Hunter' }).vehicle_type).toBe('Toyota Trail Hunter');
   });
 
+  it('keeps the make/model from the Sarah Saints Messenger transcript', () => {
+    const transcript = [
+      'Quiero financiar un auto',
+      'Este caro menos de 8K',
+      '2014 Honda Civic EX',
+      '5716946924',
+    ].join('\n');
+
+    expect(normalizeCollectorInput({ channel: 'messenger', real_name: 'Sarah Saints', chat_history_log: transcript, message: '5716946924' })).toMatchObject({
+      vehicle_type: 'Honda Civic EX',
+      phone: '+15716946924',
+    });
+  });
+
+  it.each(['Quiero financiar un auto', 'Este carro menos de 8K', 'Más información', '2014'])('does not promote non-vehicle text to vehicle_type: %s', (message) => {
+    expect(normalizeCollectorInput({ vehicle_type: message, message }).vehicle_type).toBe('');
+  });
+
   it.each([
     ['Dodge Charger', 'Dodge Charger'],
     ['Dodge Challenger', 'Dodge Challenger'],
     ['Toyota Tacoma', 'Toyota Tacoma'],
     ['a family van', 'van'],
     ['a 7 passenger van', 'van'],
+    ['camión', 'truck'],
+    ['camioneta', 'truck'],
   ])('normalizes common dealer vehicle request: %s', (message, expected) => {
     expect(normalizeCollectorInput({ message }).vehicle_type).toBe(expected);
   });

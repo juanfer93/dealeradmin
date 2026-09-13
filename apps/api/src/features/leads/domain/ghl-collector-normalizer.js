@@ -59,7 +59,7 @@ const qualificationResponseMarkers = /\b(?:today|hoy|asap|as soon as possible|im
 const singleWordNameBlocklist = /^(?:ok(?:ay)?|si|s[ií]|yes|no|yeah|yep|correct|cash|today|hoy|now|ahora|asap|inmediato|requirements?|requisitos?|information|informaci[oó]n|details?|detalles?|baltimore|maryland|virginia|laurel|rosedale|sterling|elkton|tacoma|toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion|mustang|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|maverick|ranger|bronco|explorer|expedition|escape|edge|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|range rover|defender|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|financiar|finance|financing|down|payment|enganche|documents?|documentos?|identificaci[oó]n|income|ingresos|proof|prueba|phone|tel[eé]fono|number|n[uú]mero)$/i;
 const vehicleBrands = /\b(?:toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i;
 const vehicleModels = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacoma|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-v|hr-v|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|model [3syx]|f-?type|range rover|defender|hilander|highlander)\b/i;
-const vehicleCategories = /suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta/i;
+const vehicleCategories = /suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camion|camión/i;
 const vehicleContext = /\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
 const tradeInLanguage = /\btrade[- ]?in\b|\bmy (?:car|vehicle)\b|\bmi (?:carro|auto|veh[ií]culo)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b|\bchange\s+(?:my\s+)?(?:vehicle|car)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b/i;
 const vehicleLabel = (value) => {
@@ -101,7 +101,7 @@ const vehicleLabel = (value) => {
     const trim = afterModel.match(/^\s+(?:(?:con|with)\s+(?:(?:el|la|the)\s+)?(?:(?:paquete|package)\s+)?)?(\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i)?.[1];
     return clean(`${model}${trim ? ` ${trim}` : ''}`);
   }
-  return firstMatch.match[0].replace(/^troca$/i, 'truck').replace(/^camioneta$/i, 'truck');
+  return firstMatch.match[0].replace(/^troca$/i, 'truck').replace(/^camion(?:eta)?$/i, 'truck').replace(/^camión(?:eta)?$/i, 'truck');
 };
 const isVehicleStatement = (value) => {
   const candidate = clean(value);
@@ -242,7 +242,7 @@ const vehicleFrom = (text) => {
       const requestedLabel = vehicleLabel(requested);
       if (requestedLabel) candidates.push({ label: requestedLabel, score: 100 + (vehicleModels.test(requested) ? 25 : 0) + lineIndex / 1000, lineIndex, hasModel: vehicleModels.test(requested), brand: requested.match(vehicleBrands)?.[0] || '' });
     }
-    const category = cleaned.match(/\b(?:suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta)\b/i);
+    const category = cleaned.match(/\b(?:suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camion|camión)\b/i);
     const hasModel = vehicleModels.test(cleaned);
     const brand = cleaned.match(vehicleBrands)?.[0] || '';
     const label = vehicleLabel(cleaned);
@@ -269,7 +269,16 @@ const vehicleFrom = (text) => {
   }
   return clean(best.label).replace(/\b(\d)\s*lt\b/gi, '$1LT');
 };
-const cleanVehicleValue = (value) => isCampaignButton(value) || isNonVehicleIntent(value) ? '' : clean(value).replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
+const cleanVehicleValue = (value) => {
+  if (isCampaignButton(value) || isNonVehicleIntent(value)) return '';
+  const candidate = clean(value).replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
+  if (!candidate) return '';
+  // Do not allow arbitrary Custom Code/memory text to become vehicle_type.
+  // Keep exact categories and recognized make/model labels only.
+  const label = vehicleLabel(candidate);
+  const categoryOnly = /^(?:suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camion|camión|carro|auto|coche)$/i.test(candidate);
+  return label || categoryOnly ? (label || candidate.replace(/^troca$/i, 'truck').replace(/^camion(?:eta)?$/i, 'truck').replace(/^camión(?:eta)?$/i, 'truck')) : '';
+};
 const timelineFrom = (text) => {
   const hit = clean(text).match(/\b(?:today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes posible|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|within \d+ days?|en \d+ d[ií]as?)\b/i)?.[0] || '';
   if (/today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes/i.test(hit)) return 'today';

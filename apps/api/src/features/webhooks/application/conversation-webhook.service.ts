@@ -622,6 +622,12 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       );
       if (queuedDuplicate) {
         const isSameQueuedConversation = conversation.isExisting && queuedDuplicate.conversation_id === conversation.id;
+        // A later inbound message can add the make/model after the lead was
+        // initially queued. Keep the existing queue row synchronized with the
+        // authoritative conversation snapshot (without touching its status).
+        if (isSameQueuedConversation) {
+          await this.syncLeadDealer(runner, dealer, lead.id, snapshot, location, source);
+        }
         await runner.query(
           `UPDATE conversations
            SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,

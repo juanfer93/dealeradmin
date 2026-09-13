@@ -94,6 +94,24 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(execute({ message, vehicle_type: message }).vehicle_type).toBe('');
   });
 
+  it('keeps the make/model from the Sarah Saints Messenger transcript in Custom Code', () => {
+    const transcript = [
+      'Quiero financiar un auto',
+      'Este carro menos de 8K',
+      '2014 Honda Civic EX',
+      '5716946924',
+    ].join('\n');
+
+    expect(execute({ channel: 'messenger', contact_name: 'Sarah Saints', chat_history_log: transcript, message: '5716946924' })).toMatchObject({
+      vehicle_type: 'Honda Civic EX',
+      phone: '+15716946924',
+    });
+  });
+
+  it.each(['Este carro menos de 8K', 'Más información', '2014'])('does not promote arbitrary Custom Code text to vehicle_type: %s', (value) => {
+    expect(execute({ message: value, vehicle_type: value }).vehicle_type).toBe('');
+  });
+
   it('extracts a declared personal name from the complete inbound transcript in Custom Code', () => {
     const transcript = '*Headline:* Financiamiento interno! Quiero financiar un auto!\nElias alvarado\nAun auto económico para el trabajo';
     expect(execute({ real_name: 'EliasJosue 🕊Mnegra', message: transcript, chat_history_log: transcript })).toMatchObject({
@@ -191,6 +209,13 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.vehicle_type).toBe('Hummer sut');
     expect(result.down_payment).toBe('trade-in');
     expect(result.purchase_timeline).toBe('hoy');
+  });
+
+  it.each([
+    ['camión', 'truck'],
+    ['camioneta', 'truck'],
+  ])('normalizes Spanish vehicle categories in Custom Code: %s', (message, expected) => {
+    expect(execute({ message }).vehicle_type).toBe(expected);
   });
 
   it('keeps an incomplete memory on the collector branch and names what is missing', () => {

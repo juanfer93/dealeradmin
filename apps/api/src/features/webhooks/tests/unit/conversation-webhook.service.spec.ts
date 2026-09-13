@@ -116,6 +116,42 @@ describe('ConversationWebhookService', () => {
     expect(conversationUpdate?.[1]?.[1]).toBe('waiting_window');
   });
 
+  it('synchronizes an existing queued dealer row when a later Messenger message adds the make/model', async () => {
+    const queryRunner = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM lead_dealers')) return [{
+          status: 'pending', routing_status: 'resolved', assigned_dealer_id: 'dealer-fredericksburg',
+          routing_override: false, routing_reason: 'GHL fredericksburg source dealer', vehicle_type: '',
+          down_payment: '', identification: '', bank_account: '', purchase_timeline: '', documents: '',
+        }];
+        return [];
+      }),
+    };
+    const service = new ConversationWebhookService(
+      { createQueryRunner: () => queryRunner } as never,
+      { resolveDealer: vi.fn() } as never,
+    );
+
+    await (service as unknown as {
+      syncLeadDealer: (...args: unknown[]) => Promise<void>;
+    }).syncLeadDealer(
+      queryRunner,
+      { id: 'dealer-fredericksburg', code: 'FREDERICKSBURG', name: 'Offlease Fredericksburg', timezone: 'America/New_York', routing_config: {} },
+      'lead-sarah-saints',
+      {
+        real_name: 'Sarah Saints', phone: '+15716946924', vehicle_type: 'Honda Civic EX', down_payment: '',
+        purchase_timeline: '', documents: '', identification: '', bank_account: '', qualification_memory: '',
+        qualification_complete: false, missing_qualification: ['down_payment'], message_count: 4,
+      },
+      { city: null, state: null, zip_code: null, easterns_zone: null },
+      'fredericksburg',
+    );
+
+    const leadDealerUpsert = queryRunner.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO lead_dealers')) as [string, unknown[]] | undefined;
+    expect(leadDealerUpsert?.[1]?.[2]).toBe('Honda Civic EX');
+    expect(leadDealerUpsert?.[1]?.[0]).toBe('lead-sarah-saints');
+  });
+
   it('rejects a message when the native contact id is absent', async () => {
     const service = new ConversationWebhookService();
     await expect(service.acceptCustomerReplied({ message_body: 'SUV' }, 'stafford', {})).rejects.toThrow('Contact ID');
