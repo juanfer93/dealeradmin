@@ -108,6 +108,29 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
   });
 
+  it('normalizes the misspelled Corolla from the Milciades Hernandez Messenger transcript in Custom Code', () => {
+    const transcript = [
+      'Me gustaria financiar un auto',
+      'Corola',
+      '571.513.29.79',
+    ].join('\n');
+
+    expect(execute({ channel: 'messenger', contact_name: 'Milciades Hernandez', message: '571.513.29.79', chat_history_log: transcript })).toMatchObject({
+      vehicle_type: 'Corolla',
+      phone: '+15715132979',
+    });
+  });
+
+  it.each([
+    ['Corola', 'Corolla'],
+    ['civc', 'Civic'],
+    ['Tacma', 'Tacoma'],
+    ['Rav 4', 'RAV4'],
+    ['4 runner', '4Runner'],
+  ])('canonicalizes a controlled model spelling variant in Custom Code: %s', (message, expected) => {
+    expect(execute({ message }).vehicle_type).toBe(expected);
+  });
+
   it.each(['Este carro menos de 8K', 'Más información', '2014'])('does not promote arbitrary Custom Code text to vehicle_type: %s', (value) => {
     expect(execute({ message: value, vehicle_type: value }).vehicle_type).toBe('');
   });

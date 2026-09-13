@@ -194,6 +194,29 @@ describe('normalizeCollectorInput', () => {
     });
   });
 
+  it('normalizes the misspelled Corolla from the Milciades Hernandez Messenger transcript', () => {
+    const transcript = [
+      'Me gustaria financiar un auto',
+      'Corola',
+      '571.513.29.79',
+    ].join('\n');
+
+    expect(normalizeCollectorInput({ channel: 'messenger', real_name: 'Milciades Hernandez', message: '571.513.29.79', chat_history_log: transcript })).toMatchObject({
+      vehicle_type: 'Corolla',
+      phone: '+15715132979',
+    });
+  });
+
+  it.each([
+    ['Corola', 'Corolla'],
+    ['civc', 'Civic'],
+    ['Tacma', 'Tacoma'],
+    ['Rav 4', 'RAV4'],
+    ['4 runner', '4Runner'],
+  ])('canonicalizes a controlled model spelling variant: %s', (message, expected) => {
+    expect(normalizeCollectorInput({ message }).vehicle_type).toBe(expected);
+  });
+
   it.each(['Quiero financiar un auto', 'Este carro menos de 8K', 'Más información', '2014'])('does not promote non-vehicle text to vehicle_type: %s', (message) => {
     expect(normalizeCollectorInput({ vehicle_type: message, message }).vehicle_type).toBe('');
   });
@@ -307,7 +330,7 @@ describe('normalizeCollectorInput', () => {
 
   it('removes the known GHL custom-code plus AI concatenation from vehicle values', () => {
     expect(normalizeCollectorInput({ vehicle_type: 'Toyota hilanderVehicle: Toyota hilanderToyota hilander' }).vehicle_type)
-      .toBe('Toyota hilander');
+      .toBe('Toyota Highlander');
   });
 
   it('stores document answers as structured text and proposes the next question', () => {

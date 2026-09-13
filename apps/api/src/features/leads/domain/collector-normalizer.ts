@@ -189,11 +189,23 @@ const PHONE_LIKE_TEXT = /\b(?:mi|my)\s+(?:n[uú]mero|number|phone|tel[eé]fono|t
 const NAME_PARTICLES = new Set(['da', 'de', 'del', 'der', 'di', 'la', 'las', 'los', 'van', 'von', 'y']);
 const NON_VEHICLE_INTENT_VALUES = /^(?:(?:(?:quiero|necesito|me gustar[ií]a|me interesa)\s+)?(?:m[aá]s\s+)?(?:informaci[oó]n|info|detalles?|details?|information)|more\s+(?:information|info|details?)|learn\s+more)$/i;
 const VEHICLE_BRANDS = /\b(?:toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i;
-const VEHICLE_MODELS = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacoma|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-v|hr-v|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|model [3syx]|f-?type|range rover|defender|wrx|hilander|highlander)\b/i;
+const VEHICLE_MODELS = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacoma|tacma|rav\s*4|civic|civc|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
 const VEHICLE_CATEGORIES = /\b(?:suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camion|camión)\b/i;
 const VEHICLE_TRIMS = /\b(?:\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i;
 const VEHICLE_CONTEXT = /\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
 const TRADE_IN_INTENT = /\btrade[- ]?in\b|\bmy (?:car|vehicle)\b|\bmi (?:carro|auto|veh[ií]culo)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b|\bchange\s+(?:my\s+)?(?:vehicle|car)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b/i;
+
+function canonicalVehicleLabel(value: string): string {
+  return clean(value)
+    .replace(/\bcorola\b/gi, 'Corolla')
+    .replace(/\bcivc\b/gi, 'Civic')
+    .replace(/\btacma\b/gi, 'Tacoma')
+    .replace(/\brav\s*4\b/gi, 'RAV4')
+    .replace(/\b4\s*runner\b/gi, '4Runner')
+    .replace(/\bhilander\b/gi, 'Highlander')
+    .replace(/\bcrv\b/gi, 'CR-V')
+    .replace(/\bhrv\b/gi, 'HR-V');
+}
 
 function extractVehicleLabel(value: string | null | undefined): string {
   const source = clean(value)
@@ -222,18 +234,18 @@ function extractVehicleLabel(value: string | null | undefined): string {
       const afterModel = afterBrand.slice(modelAfterBrand.index + model.length);
       const trim = afterModel.match(/^\s+(?:(?:con|with)\s+(?:(?:el|la|the)\s+)?(?:(?:paquete|package)\s+)?)?(\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i)?.[1];
       const category = afterModel.match(VEHICLE_CATEGORIES)?.[0];
-      return clean(`${brand} ${model}${trim ? ` ${trim}` : EMPTY}${category ? ` ${category}` : EMPTY}`);
+      return canonicalVehicleLabel(`${brand} ${model}${trim ? ` ${trim}` : EMPTY}${category ? ` ${category}` : EMPTY}`);
     }
     const suffixTokens = afterBrand.split(/\s+/).filter(Boolean);
     const stopWords = new Set(['this', 'next', 'today', 'hoy', 'week', 'month', 'for', 'and', 'y', 'that', 'que']);
     const suffix = suffixTokens.slice(0, 2).filter((token) => !stopWords.has(token.toLocaleLowerCase())).join(' ');
-    return clean(`${brand} ${suffix}`);
+    return canonicalVehicleLabel(`${brand} ${suffix}`);
   }
   if (firstMatch.kind === 'model') {
     const model = firstMatch.match[0];
     const afterModel = source.slice((firstMatch.match.index ?? 0) + model.length);
     const trim = afterModel.match(/^\s+(?:(?:con|with)\s+(?:(?:el|la|the)\s+)?(?:(?:paquete|package)\s+)?)?(\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i)?.[1];
-    return clean(`${model}${trim ? ` ${trim}` : EMPTY}`);
+    return canonicalVehicleLabel(`${model}${trim ? ` ${trim}` : EMPTY}`);
   }
   return firstMatch.match[0].replace(/^troca$/i, 'truck').replace(/^camion(?:eta)?$/i, 'truck').replace(/^camión(?:eta)?$/i, 'truck');
 }
