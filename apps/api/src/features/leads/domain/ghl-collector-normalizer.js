@@ -29,6 +29,16 @@ const phoneFrom = (...values) => {
   }
   return '';
 };
+const isPhoneOnlyLine = (value) => {
+  const source = clean(value);
+  const digits = source.replace(/\D/g, '');
+  return (digits.length === 10 || (digits.length === 11 && digits.startsWith('1')))
+    && !/[a-záéíóúüñ]/i.test(source);
+};
+const isPhoneAreaCodeAmount = (value, phone) => {
+  const areaCode = String(phone ?? '').match(/^\+1(\d{3})/)?.[1] || '';
+  return Boolean(areaCode && clean(value).replace(/\D/g, '') === areaCode);
+};
 const memoryText = (value) => {
   const source = String(value ?? '').trim();
   if (!source) return '';
@@ -203,12 +213,14 @@ const downFrom = (text) => {
   const source = String(text ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source || campaign) return '';
   const token = '(\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?)';
-  const explicit = source.match(new RegExp(`(?:down|enganche|inicial|deposit|dep[oó]sito)\\s*(?:payment|pago)?\\s*(?:is|es|de|:)?\\s*\\$?\\s*${token}`, 'i'));
-  const withAmount = source.match(new RegExp(`\\b(?:puedo|puede|can|could|i can|i could)\\s+(?:con|with)\\s*\\$?\\s*${token}\\b`, 'i'));
-  const standalone = source.match(/(?:^|\n)\$?\s*(\d{1,3}(?:[,.]\d{3})+|\d+(?:[,.]\d+)?\s*k?)\s*(?:tengo|have|available|disponible|i have|i can put)?\s*\d{0,2}\s*\.?\s*(?=\n|$)/im);
+  const explicit = source.match(new RegExp(`(?:down|enganche|inicial|deposit|dep[oó]sito)[ \\t]*(?:payment|pago)?[ \\t]*(?:is|es|de|:)?[ \\t]*\\$?[ \\t]*${token}`, 'i'));
+  const withAmount = source.match(new RegExp(`\\b(?:puedo|puede|can|could|i can|i could)[ \\t]+(?:con|with)[ \\t]*\\$?[ \\t]*${token}\\b`, 'i'));
+  const declared = source.match(new RegExp(`\\b(?:i have|tengo|i can put|puedo poner)[ \\t]+\\$?[ \\t]*${token}[ \\t]*(?:down|payment|enganche|inicial)?\\b`, 'i'));
+  const safeSource = source.split('\\n').filter((line) => !isPhoneOnlyLine(line)).join('\\n');
+  const standalone = safeSource.match(/(?:^|\n)\$?[ \t]*(\d{1,3}(?:[,.]\d{3})+|\d+(?:[,.]\d+)?\s*k?)[ \t]*(?:tengo|have|available|disponible|i have|i can put)?[ \t]*\d{0,2}[ \t]*\.?[ \t]*(?=\n|$)/im);
   const candidate = standalone?.[1]?.replace(/[$,\s]/g, '') || '';
   if (!explicit && /^20(?:1\d|2\d)$/.test(candidate)) return '';
-  return validAmount(explicit?.[1] || withAmount?.[1] || standalone?.[1]);
+  return validAmount(explicit?.[1] || withAmount?.[1] || declared?.[1] || standalone?.[1]);
 };
 const vehicleFrom = (text) => {
   const source = String(text ?? '').replace(/\r\n?/g, '\n').trim();
@@ -301,7 +313,17 @@ const vehicle = first(
   cleanVehicleValue(memoryValue(['vehicle', 'vehicle_type'])),
   cleanVehicleValue(inputData.vehicle_type),
 );
-const cashDown = campaign ? '' : first(downFrom(rawMessage), downFrom(rawHistory), memoryValue(['down payment', 'down_payment', 'downpayment']), validAmount(inputData.down_payment));
+// Prefer a phone found in the conversation before accepting custom/memory down values.
+// This prevents a stale area-code-only value (e.g. 443) from becoming a down payment.
+const phone = phoneFrom(message, history, inputData.phone);
+const memoryDown = memoryValue(['down payment', 'down_payment', 'downpayment']);
+const inputDown = clean(inputData.down_payment);
+const cashDown = campaign ? '' : first(
+  downFrom(rawMessage),
+  downFrom(rawHistory),
+  isPhoneAreaCodeAmount(memoryDown, phone) ? '' : memoryDown,
+  isPhoneAreaCodeAmount(inputDown, phone) ? '' : validAmount(inputDown),
+);
 const tradeDown = campaign ? '' : first(tradeIn(message), tradeIn(history), tradeIn(memoryText(rawMemory)));
 const downCandidate = cashDown || tradeDown;
 const conversationalDownSource = `${message}; ${history}`;
@@ -319,7 +341,6 @@ const qualificationSource = rawMemory && customPresent ? 'both' : rawMemory ? 'q
 // The queue handoff requires a usable identity, phone, vehicle, down payment,
 // and purchase timing. Document evidence remains visible but is non-blocking.
 // Prefer a phone written in the inbound conversation, then a native GHL phone.
-const phone = phoneFrom(message, history, inputData.phone);
 const languageText = `${message}; ${history}`;
 const englishSignals = (languageText.match(/\b(?:i|i'm|im|my|want|wants|need|looking|have|yes|yeah|yep|what|when|where|how|this|next|today|week|month|do|does)\b/gi) || []).length;
 const spanishSignals = (languageText.match(/\b(?:yo|mi|quiero|necesito|busco|tengo|sí|si|qué|cuando|donde|este|esta|hoy|semana|mes|tienes)\b/gi) || []).length;

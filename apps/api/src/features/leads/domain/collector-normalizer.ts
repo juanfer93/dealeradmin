@@ -85,6 +85,18 @@ function extractPhone(value: string | null | undefined): string {
   return digits.length === 11 && digits.startsWith('1') ? `+${digits}` : EMPTY;
 }
 
+function isPhoneOnlyLine(value: string): boolean {
+  const source = clean(value);
+  const digits = source.replace(/\D/g, '');
+  return (digits.length === 10 || (digits.length === 11 && digits.startsWith('1')))
+    && !/[a-záéíóúüñ]/i.test(source);
+}
+
+function isPhoneAreaCodeAmount(value: string, phone: string): boolean {
+  const areaCode = phone.match(/^\+1(\d{3})/)?.[1] ?? EMPTY;
+  return Boolean(areaCode && clean(value).replace(/\D/g, '') === areaCode);
+}
+
 function clean(value: string | null | undefined): string {
   return value?.replace(/\s+/g, ' ').trim() ?? EMPTY;
 }
@@ -465,12 +477,14 @@ function extractVehicle(message: string): string {
 }
 
 function extractDownPayment(message: string): string {
-  const source = clean(message);
+  // Keep message boundaries intact: a down-payment phrase must not borrow the
+  // first three digits from a phone on the next inbound line.
+  const source = String(message ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source || isCampaignButton(source)) return EMPTY;
   if (/\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b/i.test(source)) return 'Cash';
-  const amount = source.match(/(?:down|enganche|inicial|deposit|dep[oó]sito)\s*(?:payment|pago)?\s*(?:is|es|de|:)?\s*\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?)/i)?.[1]
-    ?? source.match(/\$?\s*(\d+(?:[,.]\d+)?\s*k?)\s*(?:(?:for|para|as|on|de|del)\s*)?(?:down|enganche|inicial)/i)?.[1]
-    ?? source.match(/\b(?:puedo|puede|can|could|i can|i could)\s+(?:con|with)\s+\$?\s*(\d+(?:[,.]\d+)?\s*k?)\b/i)?.[1];
+  const amount = source.match(/(?:down|enganche|inicial|deposit|dep[oó]sito)[ \t]*(?:payment|pago)?[ \t]*(?:is|es|de|:)?[ \t]*\$?[ \t]*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?)/i)?.[1]
+    ?? source.match(/\$?[ \t]*(\d+(?:[,.]\d+)?\s*k?)[ \t]*(?:(?:for|para|as|on|de|del)[ \t]*)?(?:down|enganche|inicial)/i)?.[1]
+    ?? source.match(/\b(?:puedo|puede|can|could|i can|i could)[ \t]+(?:con|with)[ \t]+\$?[ \t]*(\d+(?:[,.]\d+)?\s*k?)\b/i)?.[1];
   return amount ? normalizeAmount(amount) : EMPTY;
 }
 
@@ -496,7 +510,8 @@ function extractStandaloneDownPayment(message: string): string {
   // (for example the standalone "1000" message) is not lost.
   const source = String(message ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source || isCampaignButton(source)) return EMPTY;
-  const matches = [...source.matchAll(/(?:^|\n)\$?\s*(\d{1,3}(?:[,.]\d{3})+|\d+(?:[,.]\d+)?\s*k?)\s*(?:tengo|have|available|disponible|i have|i can put)?\s*\d{0,2}\s*\.?\s*(?=\n|$)/gim)];
+  const safeSource = source.split('\n').filter((line) => !isPhoneOnlyLine(line)).join('\n');
+  const matches = [...safeSource.matchAll(/(?:^|\n)\$?[ \t]*(\d{1,3}(?:[,.]\d{3})+|\d+(?:[,.]\d+)?\s*k?)[ \t]*(?:tengo|have|available|disponible|i have|i can put)?[ \t]*\d{0,2}[ \t]*\.?[ \t]*(?=\n|$)/gim)];
   const standalone = matches.reverse().find((match) => !/^20(?:1\d|2\d)$/.test(match[1].replace(/[$,\s]/g, '')));
   if (!standalone) return EMPTY;
   // A standalone recent four-digit answer is a vehicle year, not a down
@@ -665,6 +680,9 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
         ? [...extractedNames, suppliedName]
         : [suppliedName, ...extractedNames]
       ).map(normalizeRealName).find(Boolean) ?? EMPTY;
+  const chatPhone = extractPhone(input.chat_history_log) || extractPhone(input.message) || extractPhone(input.phone);
+  const memoryDown = normalizeMemoryDownPayment(memoryValue(memory, ['down payment', 'down_payment', 'downpayment']));
+  const inputDown = clean(input.down_payment ?? EMPTY);
   const vehicle = normalizeVehicle(firstNonEmpty(
     extractVehicle([rawHistory, messageForExtraction].filter(Boolean).join('\n')),
     [
@@ -677,14 +695,20 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     memoryValue(memory, ['vehicle', 'vehicle_type']),
     input.vehicle_type,
   ));
-  const cashDown = firstValidAmount(
+  const explicitCashDown = firstValidAmount(
     extractDownPayment(messageForExtraction),
-    extractStandaloneDownPayment(rawMessage),
-    extractDownPayment(history),
-    extractStandaloneDownPayment(rawHistory),
-    normalizeMemoryDownPayment(memoryValue(memory, ['down payment', 'down_payment', 'downpayment'])),
-    campaignReply ? EMPTY : input.down_payment,
+    extractDownPayment(rawHistory),
   );
+  const cashDownCandidate = firstValidAmount(
+    explicitCashDown,
+    extractStandaloneDownPayment(rawMessage),
+    extractStandaloneDownPayment(rawHistory),
+    isPhoneAreaCodeAmount(memoryDown, chatPhone) ? EMPTY : memoryDown,
+    campaignReply || isPhoneAreaCodeAmount(inputDown, chatPhone) ? EMPTY : inputDown,
+  );
+  const cashDown = isPhoneAreaCodeAmount(cashDownCandidate, chatPhone) && !explicitCashDown
+    ? EMPTY
+    : cashDownCandidate;
   const tradeDown = firstValidAmount(
     extractTradeInDownPayment(messageForExtraction),
     extractTradeInDownPayment(history),
@@ -720,9 +744,6 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     memoryValue(memory, ['bank account', 'bank_account']),
   );
   const bankAccount = yesNo(bankAccountRaw);
-  // Keep the normalized conversational phone available for both the
-  // qualification decision and the payload returned to GHL.
-  const chatPhone = extractPhone(input.chat_history_log) || extractPhone(input.message) || extractPhone(input.phone);
   const mergedMemory = mergeMemory(memory, {
     real_name: realName,
     vehicle,

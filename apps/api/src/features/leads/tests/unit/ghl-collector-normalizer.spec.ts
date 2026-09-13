@@ -50,6 +50,23 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.qualification_complete).toBe(false);
   });
 
+  it('does not cross transcript lines and read a phone area code as down payment in Custom Code', () => {
+    const result = execute({
+      phone: '+14438626592',
+      vehicle_type: 'SUV',
+      chat_history_log: 'But I have down payment\n443 862-6592\nCould you do 700?',
+      message: 'No I need a car like yesterday!!',
+    });
+
+    expect(result.phone).toBe('+14438626592');
+    expect(result.down_payment).toBe('');
+  });
+
+  it('ignores a stale area-code-only down field but keeps an explicit down amount in Custom Code', () => {
+    expect(execute({ phone: '+14438626592', vehicle_type: 'SUV', message: 'A small SUV', down_payment: '443' }).down_payment).toBe('');
+    expect(execute({ phone: '+14438626592', message: 'I have 443 down' }).down_payment).toBe('443');
+  });
+
   it.each([
     'Quiero financiar un auto',
     'Me gustaría financiar un auto con ustedes',

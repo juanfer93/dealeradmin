@@ -46,6 +46,23 @@ describe('normalizeCollectorInput', () => {
     expect(result.qualification_memory).not.toContain('down payment: 3019876543');
   });
 
+  it('does not cross transcript lines and read a phone area code as down payment', () => {
+    const result = normalizeCollectorInput({
+      phone: '+14438626592',
+      vehicle_type: 'SUV',
+      chat_history_log: 'But I have down payment\n443 862-6592\nCould you do 700?',
+      message: 'No I need a car like yesterday!!',
+    });
+
+    expect(result.phone).toBe('+14438626592');
+    expect(result.down_payment).toBe('');
+  });
+
+  it('ignores a stale area-code-only down field but keeps an explicit down amount', () => {
+    expect(normalizeCollectorInput({ phone: '+14438626592', vehicle_type: 'SUV', message: 'A small SUV', down_payment: '443' }).down_payment).toBe('');
+    expect(normalizeCollectorInput({ phone: '+14438626592', message: 'I have 443 down' }).down_payment).toBe('443');
+  });
+
   it('stores the cash portion when the lead combines it with a trade-in', () => {
     expect(normalizeCollectorInput({ message: 'Dar unos 2000 y mi carro' }).down_payment).toBe('2000 + trade-in');
     expect(normalizeCollectorInput({ message: 'I can put $2500 down and my car' }).down_payment).toBe('2500 + trade-in');
