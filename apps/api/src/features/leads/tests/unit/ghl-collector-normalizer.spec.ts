@@ -50,6 +50,22 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.qualification_complete).toBe(false);
   });
 
+  it('skips a greeting and extracts the following simple name from the Stafford WhatsApp transcript in Custom Code', () => {
+    const result = execute({
+      channel: 'whatsapp',
+      contact_name: '~',
+      phone: '+19297563553',
+      message: 'Saludos\nAmin\nBusco carro del 2019 en adelante\nSedan\n500$',
+      chat_history_log: 'Saludos\nAmin\nBusco carro del 2019 en adelante\nSedan\n500$',
+    });
+
+    expect(result.real_name).toBe('Amin');
+    expect(result.vehicle_type).toBe('Sedan');
+    expect(result.down_payment).toBe('500');
+    expect(result.qualification_step).toBe('purchase_timeline');
+    expect(result.qualification_progress.predicted_bot_question).toBe('¿Cuándo planeas comprar?');
+  });
+
   it('does not cross transcript lines and read a phone area code as down payment in Custom Code', () => {
     const result = execute({
       phone: '+14438626592',

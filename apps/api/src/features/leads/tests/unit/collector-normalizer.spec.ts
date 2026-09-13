@@ -33,6 +33,7 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message: 'I can put 1K down' }).down_payment).toBe('1000');
     expect(normalizeCollectorInput({ message: 'down payment is $1,000' }).down_payment).toBe('1000');
     expect(normalizeCollectorInput({ message: 'I have 1000 for down' }).down_payment).toBe('1000');
+    expect(normalizeCollectorInput({ message: '500$' }).down_payment).toBe('500');
   });
 
   it('never stores a phone-shaped value as down payment', () => {
@@ -351,6 +352,21 @@ describe('normalizeCollectorInput', () => {
 
   it('extracts a declared personal name from a Stafford conversation', () => {
     expect(normalizeCollectorInput({ message: 'Elias alvarado' }).real_name).toBe('Elias Alvarado');
+  });
+
+  it('skips a greeting and extracts the following simple name from the Stafford WhatsApp transcript', () => {
+    const result = normalizeCollectorInput({
+      channel: 'whatsapp',
+      phone: '+19297563553',
+      message: 'Saludos\nAmin\nBusco carro del 2019 en adelante\nSedan\n500$',
+      chat_history_log: 'Saludos\nAmin\nBusco carro del 2019 en adelante\nSedan\n500$',
+    });
+
+    expect(result.real_name).toBe('Amin');
+    expect(result.vehicle_type).toBe('Sedan');
+    expect(result.down_payment).toBe('500');
+    expect(result.qualification_step).toBe('purchase_timeline');
+    expect(result.qualification_progress.predicted_bot_question).toBe('¿Cuándo planeas comprar?');
   });
 
   it('extracts a declared personal name from the complete inbound transcript', () => {
