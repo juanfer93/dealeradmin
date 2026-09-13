@@ -64,6 +64,58 @@ describe('ConversationWebhookService', () => {
     ]);
   });
 
+  it('uses Stafford WhatsApp contact.phone when the buyer does not type the number', async () => {
+    const transcript = [
+      '¡Hola! 👋 Te saludamos de Off Lease Stafford. Para iniciar tu proceso, ¿cuál es tu nombre?',
+      'Fidel Aparicio',
+      '¡Un gusto, Fidel! 👍 ¿Qué tipo de vehículo estás buscando actualmente? ¿Un sedán, un SUV o una troca?',
+      'Un SUV',
+      'Perfecto 👍 Sabiendo esto, ¿con cuánto contarías aproximadamente para iniciar el trámite de tu SUV?',
+      '1,500',
+    ];
+    const queryRunner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [{ event_id: 'evt-stafford-whatsapp-phone' }];
+        if (sql.includes('FROM dealers')) return [{ id: 'dealer-stafford', code: 'STAFFORD', name: 'Off Lease Stafford', timezone: 'America/New_York', routing_config: {} }];
+        if (sql.includes('FROM leads WHERE ghl_location_id')) return [];
+        if (sql.includes('INSERT INTO leads')) return [{ id: 'lead-stafford-whatsapp', canonical_phone: '+14438144460', first_name: 'Lead', last_name: '' }];
+        if (sql.includes('FROM conversations c')) return [];
+        if (sql.includes('FROM conversations')) return [];
+        if (sql.includes('INSERT INTO conversations')) return [{ id: 'conversation-stafford-whatsapp', status: 'partial', qualification_snapshot: {}, location_snapshot: {} }];
+        if (sql.includes('SELECT body, direction, occurred_at FROM conversation_messages')) {
+          return transcript.map((body) => ({ body, direction: 'inbound', occurred_at: '2026-09-13T13:30:00.000Z' }));
+        }
+        return [];
+      }),
+    };
+    const service = new ConversationWebhookService({ createQueryRunner: () => queryRunner } as never);
+
+    await service.acceptCustomerReplied(
+      { message_body: '1,500', contact_phone: '+1 (443) 814-4460', contact_name: 'Miguel Aparicio', channel: 'whatsapp' },
+      'stafford',
+      { contactId: 'ghl-miguel-aparicio', conversationId: 'ghl-miguel-aparicio-conversation', testNow: new Date('2026-09-13T13:30:15.000Z') },
+    );
+
+    const leadInsert = queryRunner.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO leads')) as [string, unknown[]] | undefined;
+    expect(leadInsert?.[1]?.[0]).toBe('+14438144460');
+    const conversationUpdate = queryRunner.query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({
+      real_name: 'Fidel Aparicio',
+      phone: '+14438144460',
+      vehicle_type: 'SUV',
+      down_payment: '1500',
+      qualification_complete: false,
+      missing_qualification: expect.arrayContaining(['purchase_timeline']),
+    });
+    expect(conversationUpdate?.[1]?.[1]).toBe('waiting_window');
+  });
+
   it('rejects a message when the native contact id is absent', async () => {
     const service = new ConversationWebhookService();
     await expect(service.acceptCustomerReplied({ message_body: 'SUV' }, 'stafford', {})).rejects.toThrow('Contact ID');
@@ -230,9 +282,44 @@ describe('ConversationWebhookService', () => {
 
     const leadUpdate = queryRunner.query.mock.calls.find(([sql]) => sql.includes('UPDATE leads')) as [string, unknown[]] | undefined;
     expect(leadUpdate?.[0]).toContain("LOWER($2) = 'lead'");
-    expect(leadUpdate?.[1]).toEqual([null, 'Lead', '', 'lead-existing']);
+    expect(leadUpdate?.[1]).toEqual(['+13015550123', 'Lead', '', 'lead-existing']);
     const conversationUpdate = queryRunner.query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
-    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ real_name: '' });
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ real_name: '', phone: '+13015550123' });
+  });
+
+  it('keeps Messenger blocked when contact.phone is not present in recent inbound text', async () => {
+    const queryRunner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [{ event_id: 'evt-messenger-phone' }];
+        if (sql.includes('FROM dealers')) return [{ id: 'dealer-fredericksburg', code: 'FREDERICKSBURG', name: 'Off Lease Fredericksburg', timezone: 'America/New_York', routing_config: {} }];
+        if (sql.includes('FROM leads WHERE ghl_location_id')) return [];
+        if (sql.includes('INSERT INTO leads')) return [{ id: 'lead-messenger-phone', canonical_phone: null, first_name: 'Lead', last_name: '' }];
+        if (sql.includes('FROM conversations c')) return [];
+        if (sql.includes('FROM conversations')) return [];
+        if (sql.includes('INSERT INTO conversations')) return [{ id: 'conversation-messenger-phone', status: 'partial', qualification_snapshot: {}, location_snapshot: {} }];
+        if (sql.includes('SELECT body, direction, occurred_at FROM conversation_messages')) return [{ body: 'Un SUV', direction: 'inbound', occurred_at: '2026-09-13T13:30:00.000Z' }];
+        return [];
+      }),
+    };
+    const service = new ConversationWebhookService({ createQueryRunner: () => queryRunner } as never);
+
+    await service.acceptCustomerReplied(
+      { message_body: 'Un SUV', contact_phone: '+1 (443) 814-4460', contact_name: 'Miguel Aparicio', channel: 'messenger' },
+      'fredericksburg',
+      { contactId: 'ghl-messenger-phone', conversationId: 'ghl-messenger-phone-conversation', testNow: new Date('2026-09-13T13:30:15.000Z') },
+    );
+
+    const leadInsert = queryRunner.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO leads')) as [string, unknown[]] | undefined;
+    expect(leadInsert?.[1]?.[0]).toBeNull();
+    const conversationUpdate = queryRunner.query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(conversationUpdate?.[1]?.[1]).toBe('partial');
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ phone: '', vehicle_type: 'SUV' });
   });
 
   it('fails closed when a source Location ID matches more than one active dealer', async () => {

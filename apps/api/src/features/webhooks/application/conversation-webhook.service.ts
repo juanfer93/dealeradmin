@@ -97,6 +97,10 @@ function sourceKey(value: string): SourceKey {
   return source;
 }
 
+function isStaffordWhatsApp(source: SourceKey, channel: string): boolean {
+  return source === 'stafford' && channel.trim().toLowerCase() === 'whatsapp';
+}
+
 function parseOccurredAt(value: string | undefined): string {
   if (!value) return new Date().toISOString();
   const date = new Date(value);
@@ -233,6 +237,13 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       }
       const contactName = clean(`${row.first_name || ''} ${row.last_name || ''}`) || 'Lead';
       const recentPhone = this.safePhone(extractRecentMessagePhone(messages, now));
+      // Stafford is the only WhatsApp source. For WhatsApp, GHL's native
+      // contact phone identifies the inbound sender even when the customer
+      // never types the number in the conversation. Messenger must continue
+      // to rely on recent inbound phone evidence.
+      const nativeWhatsappPhone = isStaffordWhatsApp(source, row.channel)
+        ? this.safePhone(row.canonical_phone)
+        : null;
       const normalized = normalizeCollectorInput({
         channel: row.channel,
         real_name: /(?:^|[^a-z])messenger(?:$|[^a-z])/i.test(row.channel) ? contactName : undefined,
@@ -240,7 +251,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         chat_history_log: transcript,
         phone: recentPhone || '',
       });
-      const effectivePhone = recentPhone || '';
+      const effectivePhone = recentPhone || nativeWhatsappPhone || '';
       // A manual correction made while a conversation is waiting must survive
       // a later transcript reconciliation when GHL did not expose that answer.
       // Inbound evidence still wins whenever it is available.
@@ -457,9 +468,11 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       let lead = await this.upsertLead(runner, {
         locationId: GHL_SOURCE_CONFIG[source].locationId,
         contactId: event.ghl_contact_id,
-        // GHL contact.phone is metadata only. The canonical phone is adopted
-        // after the inbound transcript proves it was written recently.
-        phone: null,
+        // Stafford WhatsApp's native contact phone is the sender identity;
+        // Messenger continues to require recent inbound phone evidence.
+        phone: isStaffordWhatsApp(source, event.channel)
+          ? this.safePhone(event.contact_phone)
+          : null,
         firstName,
         lastName,
       });
@@ -489,6 +502,12 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         .join('\n');
       const now = controlledNow ?? currentLocalNow();
       const recentPhone = this.safePhone(extractRecentMessagePhone(messages, now));
+      // On Stafford WhatsApp, the native contact phone is authoritative
+      // sender identity. On Messenger, only recent inbound text evidence is
+      // eligible, so a stale registered phone cannot enter the queue.
+      const nativeWhatsappPhone = isStaffordWhatsApp(source, event.channel)
+        ? this.safePhone(event.contact_phone)
+        : null;
       if (conversation.isExisting && conversation.status === 'sent') {
         await runner.query(
           `UPDATE conversations
@@ -510,7 +529,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       // A lead can correct the phone in a later inbound message. Keep the
       // same GHL contact/lead identity and promote that conversational phone
       // to canonical_phone, unless another lead already owns it.
-      const effectivePhone = recentPhone || '';
+      const effectivePhone = recentPhone || nativeWhatsappPhone || '';
       if (effectivePhone && effectivePhone !== lead.canonical_phone) {
         const updatedLead = await runner.query(
           `UPDATE leads
