@@ -90,6 +90,22 @@ describe('HighLevel collector custom-code normalizer', () => {
     }).real_name).toBe('');
   });
 
+  it('scores the complete Custom Code transcript and localizes a Spanish timeline', () => {
+    const transcript = [
+      'Hola, variedad en chevrolet maneja, busco uno en 4 o 6 cilindros con modelo 2lt',
+      'Oh un chevrolet según su anuncio manejan con estética deportiva',
+      'Un suv',
+      '8642651776',
+      'Es mi numero',
+      'Si me interesa un camaro con paquete 2lt del año',
+      'me gustaria hacer la compra en efectivo esta semana',
+    ].join('\n');
+    expect(execute({ channel: 'messenger', real_name: 'Gabriel Gonzalez', message: 'Con gusto!', chat_history_log: transcript })).toMatchObject({
+      vehicle_type: 'Chevrolet Camaro 2LT',
+      purchase_timeline: 'esta semana',
+    });
+  });
+
   it.each([
     ['I am looking for a Mustang', 'en', 'real_name', 'What is your full name?'],
     ['Estoy buscando un Mustang', 'es', 'real_name', '¿Cuál es tu nombre completo?'],
@@ -141,7 +157,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     const result = execute({ message: 'Hummer sut\nQuisiera ver si puedo entregar mi vehículo\nAhora si se puede' });
     expect(result.vehicle_type).toBe('Hummer sut');
     expect(result.down_payment).toBe('trade-in');
-    expect(result.purchase_timeline).toBe('today');
+    expect(result.purchase_timeline).toBe('hoy');
   });
 
   it('keeps an incomplete memory on the collector branch and names what is missing', () => {

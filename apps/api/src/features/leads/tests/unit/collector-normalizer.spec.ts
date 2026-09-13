@@ -116,6 +116,22 @@ describe('normalizeCollectorInput', () => {
     expect(result.real_name).toBe('Davila Davila');
   });
 
+  it('scores the full transcript so narrative Chevrolet text cannot replace an explicit Camaro request', () => {
+    const transcript = [
+      'Hola, variedad en chevrolet maneja, busco uno en 4 o 6 cilindros con modelo 2lt',
+      'Oh un chevrolet según su anuncio manejan con estética deportiva',
+      'Un suv',
+      '8642651776',
+      'Es mi numero',
+      'Si me interesa un camaro con paquete 2lt del año no estoy tan especial puede ser 2017 en adelante',
+      'Claro es lo de menos, igual me gustaria hacer la compra en efectivo',
+      'lo haria en esta semana, igual puedo esperar algunos dias la cosa que me guste el auto',
+    ].join('\n');
+    const result = normalizeCollectorInput({ channel: 'messenger', real_name: 'Gabriel Gonzalez', message: 'Con gusto!', chat_history_log: transcript });
+    expect(result.vehicle_type).toBe('Chevrolet Camaro 2LT');
+    expect(result.purchase_timeline).toBe('esta semana');
+  });
+
   it('normalizes Hummer vehicle text and immediate timing from the reproduced inbound wording', () => {
     const result = normalizeCollectorInput({
       channel: 'messenger',
@@ -290,7 +306,7 @@ describe('normalizeCollectorInput', () => {
     expect(result.down_payment).toBe('2000');
     expect(result.vehicle_type).toBe('Suv');
 
-    expect(normalizeCollectorInput({ message: 'Para ya' }).purchase_timeline).toBe('today');
+    expect(normalizeCollectorInput({ message: 'Para ya' }).purchase_timeline).toBe('hoy');
   });
 
   it('keeps a standalone amount when a later inbound reply also contains its timeline', () => {
@@ -300,7 +316,7 @@ describe('normalizeCollectorInput', () => {
       real_name: 'Late Repair',
     });
     expect(result.down_payment).toBe('2000');
-    expect(result.purchase_timeline).toBe('this week');
+    expect(result.purchase_timeline).toBe('esta semana');
     expect(result.vehicle_type).toBe('Mustang');
   });
 
@@ -364,7 +380,7 @@ describe('normalizeCollectorInput', () => {
       phone: '+18049701204',
       vehicle_type: 'Honda Civic',
       down_payment: '2000',
-      purchase_timeline: 'this month',
+      purchase_timeline: 'este mes',
       has_income_proof: 'yes',
     });
   });
@@ -530,7 +546,7 @@ describe('normalizeCollectorInput', () => {
   it('does not treat campaign or intent text as a purchase timeline', () => {
     expect(normalizeCollectorInput({ purchase_timeline: 'Quiero Financiar!' }).purchase_timeline).toBe('');
     expect(normalizeCollectorInput({ qualification_memory: 'timeline: Dónde están ubicados102020' }).purchase_timeline).toBe('');
-    expect(normalizeCollectorInput({ message: 'Hoy mismo' }).purchase_timeline).toBe('today');
+    expect(normalizeCollectorInput({ message: 'Hoy mismo' }).purchase_timeline).toBe('hoy');
   });
 
   it('normalizes free-form Spanish memory without requiring keyed fields', () => {

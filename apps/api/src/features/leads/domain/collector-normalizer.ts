@@ -154,6 +154,7 @@ const NON_VEHICLE_INTENT_VALUES = /^(?:(?:(?:quiero|necesito|me gustar[ií]a|me 
 const VEHICLE_BRANDS = /\b(?:toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i;
 const VEHICLE_MODELS = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacoma|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-v|hr-v|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|model [3syx]|f-?type|range rover|defender|wrx|hilander|highlander)\b/i;
 const VEHICLE_CATEGORIES = /\b(?:suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta)\b/i;
+const VEHICLE_TRIMS = /\b(?:\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i;
 const VEHICLE_CONTEXT = /\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
 const TRADE_IN_INTENT = /\btrade[- ]?in\b|\bmy (?:car|vehicle)\b|\bmi (?:carro|auto|veh[ií]culo)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b|\bchange\s+(?:my\s+)?(?:vehicle|car)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b/i;
 
@@ -178,13 +179,33 @@ function extractVehicleLabel(value: string | null | undefined): string {
   if (firstMatch.kind === 'brand') {
     const brand = firstMatch.match[0];
     const afterBrand = source.slice((source.toLocaleLowerCase().indexOf(brand.toLocaleLowerCase()) + brand.length)).trim();
+    const modelAfterBrand = afterBrand.match(VEHICLE_MODELS);
+    if (modelAfterBrand?.index !== undefined) {
+      const model = modelAfterBrand[0];
+      const afterModel = afterBrand.slice(modelAfterBrand.index + model.length);
+      const trim = afterModel.match(/^\s+(?:(?:con|with)\s+(?:(?:el|la|the)\s+)?(?:(?:paquete|package)\s+)?)?(\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i)?.[1];
+      const category = afterModel.match(VEHICLE_CATEGORIES)?.[0];
+      return clean(`${brand} ${model}${trim ? ` ${trim}` : EMPTY}${category ? ` ${category}` : EMPTY}`);
+    }
     const suffixTokens = afterBrand.split(/\s+/).filter(Boolean);
     const stopWords = new Set(['this', 'next', 'today', 'hoy', 'week', 'month', 'for', 'and', 'y', 'that', 'que']);
     const suffix = suffixTokens.slice(0, 2).filter((token) => !stopWords.has(token.toLocaleLowerCase())).join(' ');
     return clean(`${brand} ${suffix}`);
   }
-  if (firstMatch.kind === 'model') return firstMatch.match[0];
+  if (firstMatch.kind === 'model') {
+    const model = firstMatch.match[0];
+    const afterModel = source.slice((firstMatch.match.index ?? 0) + model.length);
+    const trim = afterModel.match(/^\s+(?:(?:con|with)\s+(?:(?:el|la|the)\s+)?(?:(?:paquete|package)\s+)?)?(\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i)?.[1];
+    return clean(`${model}${trim ? ` ${trim}` : EMPTY}`);
+  }
   return firstMatch.match[0].replace(/^troca$/i, 'truck').replace(/^camioneta$/i, 'truck');
+}
+
+function extractExplicitVehicleTrim(value: string, label: string): string {
+  const model = label.match(VEHICLE_MODELS)?.[0];
+  if (!model || VEHICLE_TRIMS.test(label)) return EMPTY;
+  const escapedModel = model.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return value.match(new RegExp(`\\b${escapedModel}\\b\\s+(?:con|with)\\s+(?:(?:el|la|the)\\s+)?(?:(?:paquete|package)\\s+)?(\\d+\\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\\b`, 'i'))?.[1] ?? EMPTY;
 }
 
 function isVehicleStatement(value: string | null | undefined): boolean {
@@ -380,10 +401,15 @@ function extractVehicle(message: string): string {
   const source = String(message ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source) return EMPTY;
   const lines = source.split(/\n+/).map(clean).filter(Boolean);
+  const candidates: Array<{ label: string; score: number; lineIndex: number; hasModel: boolean; brand: string }> = [];
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
     const line = lines[lineIndex];
     const candidate = stripCampaignButtonPhrases(line);
     if (!candidate || isCampaignButton(candidate) || isNonVehicleIntent(candidate)) continue;
+    // A trade-in vehicle is evidence for the down-payment/trade-in field, not
+    // the vehicle the lead wants to buy. Keep the requested category/model
+    // separate from the vehicle they are offering.
+    if (TRADE_IN_INTENT.test(candidate) && /\b(?:tengo|tiene|have|has|my|mi)\b/i.test(candidate)) continue;
     const withoutOtherFacts = candidate
       .replace(/(?:\+?1[\s().-]*)?(?:\(?[2-9]\d{2}\)?[\s.-]*)\d{3}[\s.-]?\d{4}/g, ' ')
       .replace(/(?:down|enganche|inicial|deposit|dep[oó]sito)\s*(?:payment|pago)?\s*(?:is|es|de|:)?\s*\$?\s*[\d,.]+\s*k?/gi, '')
@@ -393,17 +419,49 @@ function extractVehicle(message: string): string {
     const requested = withoutOtherFacts.match(/(?:looking for|busco|quiero|want|interested in|interesado en)\s+(?:a|an|un|una)?\s*([^.!?]+)/i)?.[1];
     if (requested && !isNonVehicleIntent(requested)) {
       const requestedLabel = extractVehicleLabel(requested);
-      if (requestedLabel) return requestedLabel;
+      if (requestedLabel) {
+        candidates.push({
+          label: requestedLabel,
+          score: 100 + (VEHICLE_MODELS.test(requested) ? 25 : 0) + lineIndex / 1000,
+          lineIndex,
+          hasModel: VEHICLE_MODELS.test(requested),
+          brand: requested.match(VEHICLE_BRANDS)?.[0] ?? EMPTY,
+        });
+      }
     }
     // A transcript can contain several facts (for example "Sedan" followed by
     // a Subaru trade-in). Return the vehicle token, never the complete transcript.
     const category = withoutOtherFacts.match(/\b(suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto)\b/i)?.[1];
-    if (category) return category;
+    const hasModel = VEHICLE_MODELS.test(withoutOtherFacts);
+    const brand = withoutOtherFacts.match(VEHICLE_BRANDS)?.[0] ?? EMPTY;
     const label = extractVehicleLabel(withoutOtherFacts);
     const followsVehicleQuestion = lineIndex > 0 && /\b(?:what|which)\s+(?:vehicles?|cars?|trucks?)|\b(?:qu[eé]|cu[aá]l)\s+(?:veh[ií]culos?|carros?|autos?)\b/i.test(lines[lineIndex - 1]);
-    if (label && (VEHICLE_CONTEXT.test(candidate) || followsVehicleQuestion || VEHICLE_BRANDS.test(candidate) || VEHICLE_MODELS.test(candidate) || VEHICLE_CATEGORIES.test(candidate))) return label;
+    if (label && (category || VEHICLE_CONTEXT.test(candidate) || followsVehicleQuestion || VEHICLE_BRANDS.test(candidate) || hasModel || VEHICLE_CATEGORIES.test(candidate))) {
+      const lowQualityNarrative = /\b(?:seg[uú]n|anuncio|anuncios|variedad|maneja|manejan|opciones|informaci[oó]n)\b/i.test(candidate);
+      const score = (hasModel ? 80 : category ? 25 : brand ? 15 : 0)
+        + (VEHICLE_CONTEXT.test(candidate) ? 10 : 0)
+        + (followsVehicleQuestion ? 10 : 0)
+        - (lowQualityNarrative && !hasModel ? 30 : 0)
+        + lineIndex / 1000;
+      candidates.push({ label, score, lineIndex, hasModel, brand });
+    }
   }
-  return EMPTY;
+  const best = candidates.sort((left, right) => right.score - left.score || right.lineIndex - left.lineIndex)[0];
+  if (!best) return EMPTY;
+  // Combine a make from one answer with a more specific model from a later
+  // answer, without promoting narrative text such as "chevrolet según su".
+  if (best.hasModel && !VEHICLE_BRANDS.test(best.label)) {
+    const brands = [...new Set(candidates.map((candidate) => candidate.brand).filter(Boolean).map((brand) => brand.toLocaleLowerCase()))];
+    if (brands.length === 1) {
+      const brand = candidates.find((candidate) => candidate.brand && candidate.brand.toLocaleLowerCase() === brands[0])?.brand ?? brands[0];
+      const combined = clean(`${brand} ${best.label}`);
+      const trim = extractExplicitVehicleTrim(source, combined);
+      return clean(`${combined}${trim ? ` ${trim}` : EMPTY}`).replace(/\b([a-z]+)\b/gi, (token) => token[0].toLocaleUpperCase() + token.slice(1).toLocaleLowerCase()).replace(/\b(\d)\s*lt\b/gi, '$1LT');
+    }
+  }
+  const normalizedBest = clean(best.label);
+  const trim = extractExplicitVehicleTrim(source, normalizedBest);
+  return clean(`${normalizedBest}${trim ? ` ${trim}` : EMPTY}`).replace(/\b(\d)\s*lt\b/gi, '$1LT');
 }
 
 function extractDownPayment(message: string): string {
@@ -453,17 +511,19 @@ function extractTimeline(message: string): string {
   return match ? normalizeTimeline(match) : /\b(?:solo|sólo|just|only)\b.*\b(?:mirando|viendo|looking|browsing)\b/i.test(source) ? 'exploring options' : EMPTY;
 }
 
-function normalizeTimeline(value: string): string {
+function normalizeTimeline(value: string, language: CollectorLanguage = detectLeadLanguage(value)): string {
   const source = clean(value).toLowerCase();
   if (!source) return EMPTY;
+  const spanish = language === 'es';
+  const localized = (english: string, spanishValue: string): string => spanish ? spanishValue : english;
   if (/\b(today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda)\b/i.test(source)) return 'today';
-  if (/\b(this|esta)\s+(week|semana)\b/i.test(source)) return 'this week';
-  if (/\b(this|este|esta)\s+(month|mes)\b/i.test(source)) return 'this month';
-  if (/\b(next|proximo|próximo)\s+(week|semana)\b/i.test(source)) return 'next week';
-  if (/\b(next|proximo|próximo)\s+(month|mes)\b/i.test(source)) return 'next month';
-  if (/\b(30|thirty)\s+days?\b/i.test(source)) return 'within 30 days';
+  if (/\b(this|esta)\s+(week|semana)\b/i.test(source)) return localized('this week', 'esta semana');
+  if (/\b(this|este|esta)\s+(month|mes)\b/i.test(source)) return localized('this month', 'este mes');
+  if (/\b(next|proximo|próximo)\s+(week|semana)\b/i.test(source)) return localized('next week', 'próxima semana');
+  if (/\b(next|proximo|próximo)\s+(month|mes)\b/i.test(source)) return localized('next month', 'próximo mes');
+  if (/\b(30|thirty)\s+days?\b/i.test(source)) return localized('within 30 days', 'en 30 días');
   if (/\b(?:in|en)\s+(?:a|un|one|uno|two|dos|\d+)\s+(?:days?|d[ií]as?|weeks?|semanas?|months?|mes(?:es)?)\b/i.test(source)) return clean(value).toLowerCase();
-  if (/\b(solo|sólo|just|only)\b.*\b(mirando|viendo|looking|browsing)\b/i.test(source)) return 'exploring options';
+  if (/\b(solo|sólo|just|only)\b.*\b(mirando|viendo|looking|browsing)\b/i.test(source)) return localized('exploring options', 'explorando opciones');
   return EMPTY;
 }
 
@@ -582,6 +642,11 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
       : hasCustomFields
         ? 'custom_fields'
         : 'none';
+  const languageText = [history, message].filter(Boolean).join('\n');
+  // A memory/custom-field-only payload has no reliable language evidence;
+  // keep the established English fallback while transcript replies are
+  // detected in Spanish or English.
+  const language = languageText ? detectLeadLanguage(languageText) : 'en';
   const campaignReply = isCampaignButton(message);
   const messageForExtraction = stripCampaignButtonPhrases(rawMessage);
   const suppliedName = normalizeRealName(input.real_name);
@@ -601,8 +666,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
         : [suppliedName, ...extractedNames]
       ).map(normalizeRealName).find(Boolean) ?? EMPTY;
   const vehicle = normalizeVehicle(firstNonEmpty(
-    extractVehicle(messageForExtraction),
-    extractVehicle(rawHistory),
+    extractVehicle([rawHistory, messageForExtraction].filter(Boolean).join('\n')),
     [
       memoryValue(memory, ['vehicle_type', 'vehicle', 'type']),
       [
@@ -631,13 +695,14 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const down = baseDown && TRADE_IN_INTENT.test(conversationalSource) && !/trade[- ]?in/i.test(baseDown)
     ? `${baseDown} + trade-in`
     : baseDown;
-  const timeline = normalizeTimeline(firstNonEmpty(
+  const normalizedTimeline = normalizeTimeline(firstNonEmpty(
     extractTimeline(messageForExtraction),
     extractTimeline(history),
     extractTimeline(memoryText(memory)),
     memoryValue(memory, ['timeline', 'purchase timeline', 'purchase_timeline']),
     input.purchase_timeline,
-  ));
+  ), language);
+  const timeline = language === 'es' && normalizedTimeline === 'today' ? 'hoy' : normalizedTimeline;
   const memoryDocumentFacts = [
     memoryValue(memory, ['documents']),
     memoryValue(memory, ['identification', 'id', 'itin', 'passport', 'pasaporte'])
@@ -666,11 +731,6 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     timeline,
   });
 
-  const languageText = [history, message].filter(Boolean).join('\n');
-  // A memory/custom-field-only payload has no reliable language evidence;
-  // keep the established English fallback while transcript replies are
-  // detected in Spanish or English.
-  const language = languageText ? detectLeadLanguage(languageText) : 'en';
   const step: QualificationStep = !realName
     ? 'real_name'
     : !vehicle

@@ -73,11 +73,24 @@ const vehicleLabel = (value) => {
   if (firstMatch.kind === 'brand') {
     const brand = firstMatch.match[0];
     const afterBrand = source.slice(source.toLocaleLowerCase().indexOf(brand.toLocaleLowerCase()) + brand.length).trim();
+    const modelAfterBrand = afterBrand.match(vehicleModels);
+    if (modelAfterBrand?.index !== undefined) {
+      const model = modelAfterBrand[0];
+      const afterModel = afterBrand.slice(modelAfterBrand.index + model.length);
+      const trim = afterModel.match(/^\s+(?:(?:con|with)\s+(?:(?:el|la|the)\s+)?(?:(?:paquete|package)\s+)?)?(\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i)?.[1];
+      const category = afterModel.match(vehicleCategories)?.[0];
+      return clean(`${brand} ${model}${trim ? ` ${trim}` : ''}${category ? ` ${category}` : ''}`);
+    }
     const stopWords = new Set(['this', 'next', 'today', 'hoy', 'week', 'month', 'for', 'and', 'y', 'that', 'que']);
     const suffix = afterBrand.split(/\s+/).filter(Boolean).slice(0, 2).filter((token) => !stopWords.has(token.toLocaleLowerCase())).join(' ');
     return clean(`${brand} ${suffix}`);
   }
-  if (firstMatch.kind === 'model') return firstMatch.match[0];
+  if (firstMatch.kind === 'model') {
+    const model = firstMatch.match[0];
+    const afterModel = source.slice((firstMatch.match.index || 0) + model.length);
+    const trim = afterModel.match(/^\s+(?:(?:con|with)\s+(?:(?:el|la|the)\s+)?(?:(?:paquete|package)\s+)?)?(\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i)?.[1];
+    return clean(`${model}${trim ? ` ${trim}` : ''}`);
+  }
   return firstMatch.match[0].replace(/^troca$/i, 'truck').replace(/^camioneta$/i, 'truck');
 };
 const isVehicleStatement = (value) => {
@@ -200,9 +213,12 @@ const downFrom = (text) => {
 const vehicleFrom = (text) => {
   const source = String(text ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source || campaign) return '';
-  for (const line of source.split(/\n+/).map(clean).filter(Boolean)) {
+  const candidates = [];
+  const lines = source.split(/\n+/).map(clean).filter(Boolean);
+  for (const [lineIndex, line] of lines.entries()) {
     const candidate = stripCampaignButtonPhrases(line);
     if (!candidate || isCampaignButton(candidate) || isNonVehicleIntent(candidate)) continue;
+    if (tradeInLanguage.test(candidate) && /\b(?:tengo|tiene|have|has|my|mi)\b/i.test(candidate)) continue;
     const cleaned = candidate
       .replace(/(?:\+?1[\s().-]*)?(?:\(?[2-9]\d{2}\)?[\s.-]*)\d{3}[\s.-]?\d{4}/g, ' ')
       .replace(/(?:down|enganche|inicial|deposit|dep[oó]sito)\s*(?:payment|pago)?\s*(?:is|es|de|:)?\s*\$?[\d,.]+\s*k?/gi, '')
@@ -212,12 +228,34 @@ const vehicleFrom = (text) => {
     const requested = cleaned.match(/(?:looking for|busco|quiero|want|interested in|interesado en)\s+(?:a|an|un|una)?\s*([^.!?]+)/i)?.[1];
     if (requested && !isNonVehicleIntent(requested)) {
       const requestedLabel = vehicleLabel(requested);
-      if (requestedLabel) return requestedLabel;
+      if (requestedLabel) candidates.push({ label: requestedLabel, score: 100 + (vehicleModels.test(requested) ? 25 : 0) + lineIndex / 1000, lineIndex, hasModel: vehicleModels.test(requested), brand: requested.match(vehicleBrands)?.[0] || '' });
     }
+    const category = cleaned.match(/\b(?:suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta)\b/i);
+    const hasModel = vehicleModels.test(cleaned);
+    const brand = cleaned.match(vehicleBrands)?.[0] || '';
     const label = vehicleLabel(cleaned);
-    if (label) return label;
+    const followsVehicleQuestion = lineIndex > 0 && /\b(?:what|which)\s+(?:vehicles?|cars?|trucks?)|\b(?:qu[eé]|cu[aá]l)\s+(?:veh[ií]culos?|carros?|autos?)\b/i.test(lines[lineIndex - 1]);
+    if (label && (category || vehicleContext.test(candidate) || followsVehicleQuestion || vehicleBrands.test(candidate) || hasModel || vehicleCategories.test(candidate))) {
+      const lowQualityNarrative = /\b(?:seg[uú]n|anuncio|anuncios|variedad|maneja|manejan|opciones|informaci[oó]n)\b/i.test(candidate);
+      const score = (hasModel ? 80 : category ? 25 : brand ? 15 : 0)
+        + (vehicleContext.test(candidate) ? 10 : 0)
+        + (followsVehicleQuestion ? 10 : 0)
+        - (lowQualityNarrative && !hasModel ? 30 : 0)
+        + lineIndex / 1000;
+      candidates.push({ label, score, lineIndex, hasModel, brand });
+    }
   }
-  return '';
+  candidates.sort((left, right) => right.score - left.score || right.lineIndex - left.lineIndex);
+  const best = candidates[0];
+  if (!best) return '';
+  if (best.hasModel && !vehicleBrands.test(best.label)) {
+    const brands = [...new Set(candidates.map((candidate) => candidate.brand).filter(Boolean).map((brand) => brand.toLocaleLowerCase()))];
+    if (brands.length === 1) {
+      const brand = candidates.find((candidate) => candidate.brand && candidate.brand.toLocaleLowerCase() === brands[0])?.brand || brands[0];
+      return clean(`${brand} ${best.label}`).replace(/\b([a-z]+)\b/gi, (token) => token[0].toLocaleUpperCase() + token.slice(1).toLocaleLowerCase()).replace(/\b(\d)\s*lt\b/gi, '$1LT');
+    }
+  }
+  return clean(best.label).replace(/\b(\d)\s*lt\b/gi, '$1LT');
 };
 const cleanVehicleValue = (value) => isCampaignButton(value) || isNonVehicleIntent(value) ? '' : clean(value).replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
 const timelineFrom = (text) => {
@@ -259,8 +297,7 @@ const documentStatus = (pattern, memoryAliases, custom) => {
   return '';
 };
 const vehicle = first(
-  campaign ? '' : cleanVehicleValue(vehicleFrom(rawMessage)),
-  cleanVehicleValue(vehicleFrom(rawHistory)),
+  campaign ? '' : cleanVehicleValue(vehicleFrom([rawHistory, rawMessage].filter(Boolean).join('\n'))),
   cleanVehicleValue(memoryValue(['vehicle', 'vehicle_type'])),
   cleanVehicleValue(inputData.vehicle_type),
 );
@@ -271,7 +308,7 @@ const conversationalDownSource = `${message}; ${history}`;
 const down = validAmount(cashDown && /trade[- ]?in|my car|my vehicle|mi carro|mi auto|carro como enganche|(?:cambiar|cambio)\\s+(?:(?:mi|el|de)\\s+)?(?:veh[ií]culo|carro|auto)|change\\s+(?:my\\s+)?(?:vehicle|car)/i.test(conversationalDownSource) && !/trade[- ]?in/i.test(cashDown)
   ? `${cashDown} + trade-in`
   : downCandidate);
-const timeline = first(timelineFrom(message), timelineFrom(history), memoryValue(['timeline', 'purchase timeline', 'purchase_timeline']), inputData.purchase_timeline);
+const rawTimeline = first(timelineFrom(message), timelineFrom(history), memoryValue(['timeline', 'purchase timeline', 'purchase_timeline']), inputData.purchase_timeline);
 const identification = documentStatus('id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b', ['identification', 'id', 'itin', 'passport', 'pasaporte'], inputData.identification || inputData.documents);
 const income = documentStatus('proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina|bank account|cuenta bancaria|cuenta de banco', ['income', 'proof of income', 'estados de cuenta', 'account statements', 'bank statements', 'check stubs', 'bank account', 'cuenta bancaria'], inputData.documents);
 const bankContext = conversationalEvidence(rawMessage, rawHistory).match(/(?:bank account|cuenta bancaria)[^;]*(?:yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available|no|not|sin|dont|don't|no tengo|i do not|do not have|not available)/i)?.[0] || '';
@@ -283,15 +320,18 @@ const qualificationSource = rawMemory && customPresent ? 'both' : rawMemory ? 'q
 // and purchase timing. Document evidence remains visible but is non-blocking.
 // Prefer a phone written in the inbound conversation, then a native GHL phone.
 const phone = phoneFrom(message, history, inputData.phone);
+const languageText = `${message}; ${history}`;
+const englishSignals = (languageText.match(/\b(?:i|i'm|im|my|want|wants|need|looking|have|yes|yeah|yep|what|when|where|how|this|next|today|week|month|do|does)\b/gi) || []).length;
+const spanishSignals = (languageText.match(/\b(?:yo|mi|quiero|necesito|busco|tengo|sí|si|qué|cuando|donde|este|esta|hoy|semana|mes|tienes)\b/gi) || []).length;
+const language = message || history ? (englishSignals > spanishSignals ? 'en' : 'es') : 'en';
+const timeline = language === 'es'
+  ? ({ today: 'hoy', 'this week': 'esta semana', 'this month': 'este mes', 'next week': 'próxima semana', 'next month': 'próximo mes', 'within 30 days': 'en 30 días', 'exploring options': 'explorando opciones' }[rawTimeline] || rawTimeline)
+  : rawTimeline;
 const coreMissing = [!realName ? 'real_name' : '', !phone ? 'phone' : '', !vehicle ? 'vehicle_type' : '', !down ? 'down_payment' : '', !timeline ? 'purchase_timeline' : ''].filter(Boolean);
 const missing = [...coreMissing, identification !== 'yes' ? 'identification' : '', income !== 'yes' ? 'proof_of_income' : '', bankAccount !== 'yes' ? 'bank_account' : ''].filter(Boolean);
 const parts = memoryText(rawMemory).split(';').map((part) => clean(part).replace(/^\d+(?=(?:vehicle|vehicle[_ ]?type|down|down[_ ]?payment|documents?|timeline)\b)/i, '')).filter((part) => Boolean(part) && !/^\$?\d[\d,.]*$/.test(part));
 const canonical = [['real_name', realName], ['vehicle', vehicle], ['down payment', down], ['documents', documents], ['timeline', timeline]].filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).replace(/\s*;\s*/g, ', ')}`);
 const qualificationMemory = [...new Set([...parts.filter((part) => !/^(?:real_name|real name|name|nombre|nombre real|nombre completo|vehicle|vehicle_type|down|down payment|down_payment|documents?|docs|timeline|purchase timeline|purchase_timeline)\s*(?::|=|-)/i.test(part)), ...canonical])].join('; ');
-const languageText = `${message}; ${history}`;
-const englishSignals = (languageText.match(/\b(?:i|i'm|im|my|want|wants|need|looking|have|yes|yeah|yep|what|when|where|how|this|next|today|week|month|do|does)\b/gi) || []).length;
-const spanishSignals = (languageText.match(/\b(?:yo|mi|quiero|necesito|busco|tengo|sí|si|qué|cuando|donde|este|esta|hoy|semana|mes|tienes)\b/gi) || []).length;
-const language = englishSignals > spanishSignals ? 'en' : 'es';
 const qualificationStep = !realName
   ? 'real_name'
   : !vehicle
