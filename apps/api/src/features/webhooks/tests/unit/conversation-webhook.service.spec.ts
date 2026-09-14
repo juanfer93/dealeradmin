@@ -135,6 +135,26 @@ describe('ConversationWebhookService', () => {
     });
   });
 
+  it('treats an empty GHL attachment field as no attachment', async () => {
+    const service = new ConversationWebhookService();
+    const result = await service.acceptCustomerReplied(
+      {
+        message_body: 'Baltimore',
+        message_attachments: '',
+        channel: 'messenger',
+      },
+      'easterns',
+      { contactId: 'ghl-empty-attachments-contact', conversationId: 'ghl-empty-attachments-conversation', messageId: 'ghl-empty-attachments-message' },
+    );
+
+    expect(result).toMatchObject({ accepted: true, conversationId: 'ghl-empty-attachments-conversation', status: 'processed' });
+    expect(getTestConversationEvents()[0]).toMatchObject({
+      contactId: 'ghl-empty-attachments-contact',
+      message: 'Baltimore',
+    });
+    expect(getTestConversationEvents()[0].attachments).toBeUndefined();
+  });
+
   it('synchronizes an existing queued dealer row when a later Messenger message adds the make/model', async () => {
     const queryRunner = {
       query: vi.fn(async (sql: string) => {

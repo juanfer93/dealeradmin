@@ -36,6 +36,11 @@ export const GhlAttachmentsSchema = z.union([
   z.null(),
 ]);
 
+const OptionalGhlAttachmentsSchema = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+  GhlAttachmentsSchema.optional(),
+);
+
 export const GhlCustomerRepliedSchema = z.object({
   event_id: z.string().trim().min(1).optional(),
   event_type: z.string().trim().min(1).default('customer.replied'),
@@ -47,7 +52,7 @@ export const GhlCustomerRepliedSchema = z.object({
   contact_name: z.string().nullable().optional(),
   channel: z.string().trim().min(1).default('unknown'),
   occurred_at: z.string().trim().min(1).optional(),
-  message_attachments: GhlAttachmentsSchema.optional(),
+  message_attachments: OptionalGhlAttachmentsSchema,
   raw_payload: z.record(z.unknown()).optional(),
 });
 
