@@ -601,6 +601,17 @@ describe('ConversationWebhookService', () => {
     expect(repairCall?.[0]).toContain("WHERE status = 'waiting_window' AND next_attempt_at IS NULL");
   });
 
+  it('can skip the secondary active reconciliation for the external scheduler', async () => {
+    const dataSource = {
+      query: vi.fn().mockResolvedValue([]),
+    };
+    const service = new ConversationWebhookService(dataSource as never);
+
+    await service.processDueConversations(new Date('2026-09-11T14:00:00.000Z'), { reconcileActive: false });
+
+    expect(dataSource.query.mock.calls.some(([sql]) => String(sql).includes("status IN ('partial', 'waiting_window')"))).toBe(false);
+  });
+
   it('reconciles active conversations every due poll and queues one once the five core facts are present', async () => {
     const transcript = [
       'What vehicle are you looking for?',

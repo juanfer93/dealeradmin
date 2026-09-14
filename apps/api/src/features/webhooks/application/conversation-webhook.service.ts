@@ -20,7 +20,7 @@ export const INCOMPLETE_QUALIFICATION_WINDOW_HOURS = 0.5;
 export const OUT_OF_WINDOW_QUALIFICATION_WINDOW_HOURS = 3;
 export const QUALIFICATION_RULE_TIMEZONE = 'America/Bogota';
 export const DUE_CONVERSATION_POLL_MS = 30_000;
-export const DUE_CONVERSATION_BATCH_SIZE = 20;
+export const DUE_CONVERSATION_BATCH_SIZE = 5;
 export const ACTIVE_RECONCILIATION_BATCH_SIZE = 5;
 export const STALE_PHONE_REENTRY_DAYS = 3;
 
@@ -169,7 +169,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     try {
       // The production timer calls the same reconciliation path exposed to
       // the operator/API, so the 30-second repair is real and testable.
-      await this.processDueConversations();
+      await this.processDueConversations(undefined, { reconcileActive: false });
     } catch {
       // The next poll or the operator queue read will retry due work. Polling
       // failures must never interrupt webhook handling or crash the process.
@@ -406,7 +406,10 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     return this.persistEvent({ ...event, ghl_contact_id: contactId, ghl_conversation_id: conversationId, event_id: eventId }, source, raw, headers.testNow);
   }
 
-  async processDueConversations(now = currentLocalNow()): Promise<DueConversationResponse> {
+  async processDueConversations(
+    now = currentLocalNow(),
+    options: { reconcileActive?: boolean } = {},
+  ): Promise<DueConversationResponse> {
     if (!this.dataSource) {
       if (process.env.NODE_ENV === 'test') return { accepted: true, processed: 0 };
       throw new ServiceUnavailableException('Database connection is not available');
@@ -432,8 +435,10 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       if (await this.releaseDueConversation(row.id, now)) processed += 1;
     }
     // Reconciliation is a bounded fallback for late fields/manual corrections.
-    // It must never sit in front of due-row release or scan the whole table.
-    await this.reconcileActiveConversations(now);
+    // External cron requests skip it so due-row release stays comfortably below
+    // the serverless invocation limit. Incoming GHL events already reconcile
+    // their own transcript synchronously.
+    if (options.reconcileActive !== false) await this.reconcileActiveConversations(now);
     return { accepted: true, processed };
   }
 

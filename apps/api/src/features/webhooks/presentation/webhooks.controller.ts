@@ -49,7 +49,7 @@ export class WebhooksController {
   @Get('ghl/conversations/process-due')
   @UseGuards(HmacSignatureGuard)
   processDueConversationsCron() {
-    return this.conversationWebhookService.processDueConversations();
+    return this.conversationWebhookService.processDueConversations(undefined, { reconcileActive: false });
   }
 
   private controlledTestNow(value: string | undefined): Date | undefined {
