@@ -18,6 +18,15 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ phone: '(240) 681-5028', message: 'Ok' }).phone).toBe('+12406815028');
   });
 
+  it('does not turn prices and mileage in a Messenger message into a phone', () => {
+    expect(normalizeCollectorInput({
+      channel: 'messenger',
+      real_name: 'Negussie Gebremariam',
+      message: 'Nissan Altima, Honda, Hyundai with price maximum $15,000\nMileage not more than 70,000',
+      chat_history_log: 'Nissan Altima, Honda, Hyundai with price maximum $15,000\nMileage not more than 70,000',
+    }).phone).toBe('');
+  });
+
   it('accepts phone evidence only from messages inside the recent window', () => {
     const referenceAt = new Date('2026-09-12T15:00:00.000Z');
     expect(extractRecentMessagePhone([

@@ -285,6 +285,16 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.qualification_memory).toContain('vehicle: Sedan');
   });
 
+  it('does not normalize prices and mileage as a Messenger phone', () => {
+    const result = execute({
+      channel: 'messenger',
+      contact_name: 'Negussie Gebremariam',
+      message: 'Nissan Altima, Honda, Hyundai with price maximum $15,000\nMileage not more than 70,000',
+    });
+
+    expect(result.phone).toBe('');
+  });
+
   it.each([
     ['Tiene Mustang', 'Mustang'],
     ['Estoy buscando un Mustang', 'Mustang'],

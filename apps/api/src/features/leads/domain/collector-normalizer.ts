@@ -70,13 +70,13 @@ export function detectLeadLanguage(value: string | null | undefined): CollectorL
   return englishScore > spanishScore ? 'en' : 'es';
 }
 
-const PHONE_PATTERN = /(?:\+?1[\d\s().-]{9,16}\d|\d[\d\s().-]{8,14}\d)/g;
+const PHONE_PATTERN = /(?<!\d)(?:\+?1[\s().-]*)?(?:\([2-9]\d{2}\)|[2-9]\d{2})[\s.-]*\d{3}[\s.-]*\d{4}(?!\d)/g;
 
 function extractPhone(value: string | null | undefined): string {
   const source = clean(value);
-  const directDigits = source.replace(/\D/g, '');
-  const direct = directDigits.length === 10 || (directDigits.length === 11 && directDigits.startsWith('1'))
-    ? directDigits
+  const direct = /^\+?[\d\s().-]+$/.test(source)
+    && (source.replace(/\D/g, '').length === 10 || (source.replace(/\D/g, '').length === 11 && source.replace(/\D/g, '').startsWith('1')))
+    ? source
     : EMPTY;
   const match = direct || source.match(PHONE_PATTERN)?.[0] || EMPTY;
   if (!match) return EMPTY;

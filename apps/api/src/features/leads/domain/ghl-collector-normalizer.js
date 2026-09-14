@@ -11,7 +11,11 @@ const history = clean(rawHistory);
 const normalizeMatch = (value) => clean(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const nonVehicleIntentValues = /^(?:(?:(?:quiero|necesito|me gustar[ií]a|me interesa)\s+)?(?:m[aá]s\s+)?(?:informaci[oó]n|info|detalles?|details?|information)|more\s+(?:information|info|details?)|learn\s+more)$/i;
 const normalizePhone = (value) => {
-  const digits = String(value ?? '').replace(/\D/g, '');
+  const source = String(value ?? '').trim();
+  // A phone field may contain formatting, but a free-form message must not
+  // be treated as a phone just because its prices/mileage add up to 10 digits.
+  if (!/^\+?[\d\s().-]+$/.test(source)) return '';
+  const digits = source.replace(/\D/g, '');
   if (digits.length === 10) return `+1${digits}`;
   if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
   return '';
@@ -20,12 +24,11 @@ const phoneFrom = (...values) => {
   for (const value of values) {
     const direct = normalizePhone(value);
     if (direct) return direct;
-  }
-  const source = values.map((value) => String(value ?? '')).join(' ');
-  const matches = source.match(/(?:\+?1[\d\s().-]{9,16}\d|\d[\d\s().-]{8,14}\d)/g) || [];
-  for (const candidate of matches) {
-    const normalized = normalizePhone(candidate);
-    if (normalized) return normalized;
+    const matches = String(value ?? '').match(/(?<!\d)(?:\+?1[\s().-]*)?(?:\([2-9]\d{2}\)|[2-9]\d{2})[\s.-]*\d{3}[\s.-]*\d{4}(?!\d)/g) || [];
+    for (const candidate of matches) {
+      const normalized = normalizePhone(candidate);
+      if (normalized) return normalized;
+    }
   }
   return '';
 };
