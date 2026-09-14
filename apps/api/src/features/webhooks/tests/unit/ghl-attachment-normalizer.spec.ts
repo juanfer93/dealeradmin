@@ -1,0 +1,40 @@
+import { describe, expect, it } from 'vitest';
+import { normalizeGhlAttachments } from '../../domain/ghl-attachment-normalizer';
+
+describe('normalizeGhlAttachments', () => {
+  it('accepts a URL string and infers audio from its extension', () => {
+    expect(normalizeGhlAttachments('https://cdn.example.test/voice.ogg', 'message-1')).toEqual([
+      expect.objectContaining({
+        sourceUrl: 'https://cdn.example.test/voice.ogg',
+        kind: 'audio',
+        sourceMessageId: 'message-1',
+      }),
+    ]);
+  });
+
+  it('accepts native object metadata and preserves the raw attachment', () => {
+    const result = normalizeGhlAttachments({
+      url: 'https://cdn.example.test/id.png',
+      contentType: 'image/png',
+      filename: 'id.png',
+      size: '1200',
+      attachmentId: 'attachment-1',
+    }, 'message-2');
+
+    expect(result[0]).toMatchObject({
+      sourceUrl: 'https://cdn.example.test/id.png',
+      sourceId: 'attachment-1',
+      contentType: 'image/png',
+      kind: 'image',
+      filename: 'id.png',
+      size: 1200,
+      raw: expect.objectContaining({ attachmentId: 'attachment-1' }),
+    });
+  });
+
+  it('flattens arrays and ignores absent media without inventing attachments', () => {
+    expect(normalizeGhlAttachments([null, '', { url: 'https://cdn.example.test/photo.jpg', type: 'image' }], 'message-3'))
+      .toHaveLength(1);
+    expect(normalizeGhlAttachments(undefined, 'message-4')).toEqual([]);
+  });
+});

@@ -29,6 +29,8 @@ import { ActionPreOwnedCarsDealers1710000018000 } from './database/migrations/17
 import { EasternsMillersvilleAndFrederickDealers1710000019000 } from './database/migrations/1710000019000-EasternsMillersvilleAndFrederickDealers';
 import { RepairCustomerRepliedSourceAliases1710000020000 } from './database/migrations/1710000020000-RepairCustomerRepliedSourceAliases';
 import { EasternsLocationRoutingRules1710000021000 } from './database/migrations/1710000021000-EasternsLocationRoutingRules';
+import { ConversationAttachments1710000022000 } from './database/migrations/1710000022000-ConversationAttachments';
+import { RepairConversationAttachmentUrlIndex1710000023000 } from './database/migrations/1710000023000-RepairConversationAttachmentUrlIndex';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -61,6 +63,8 @@ const databaseModule = TypeOrmModule.forRootAsync({
           EasternsMillersvilleAndFrederickDealers1710000019000,
             RepairCustomerRepliedSourceAliases1710000020000,
             EasternsLocationRoutingRules1710000021000,
+            ConversationAttachments1710000022000,
+            RepairConversationAttachmentUrlIndex1710000023000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,

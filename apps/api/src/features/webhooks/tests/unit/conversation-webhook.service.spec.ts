@@ -116,6 +116,25 @@ describe('ConversationWebhookService', () => {
     expect(conversationUpdate?.[1]?.[1]).toBe('waiting_window');
   });
 
+  it('accepts an attachment-only inbound event without inventing a message body', async () => {
+    const service = new ConversationWebhookService();
+    const result = await service.acceptCustomerReplied(
+      {
+        message_attachments: [{ url: 'https://cdn.example.test/voice.ogg', content_type: 'audio/ogg' }],
+        channel: 'whatsapp',
+      },
+      'stafford',
+      { contactId: 'ghl-media-contact', conversationId: 'ghl-media-conversation', messageId: 'ghl-media-message' },
+    );
+
+    expect(result).toMatchObject({ accepted: true, conversationId: 'ghl-media-conversation', status: 'processed' });
+    expect(getTestConversationEvents()[0]).toMatchObject({
+      contactId: 'ghl-media-contact',
+      message: '',
+      attachments: [{ url: 'https://cdn.example.test/voice.ogg', content_type: 'audio/ogg' }],
+    });
+  });
+
   it('synchronizes an existing queued dealer row when a later Messenger message adds the make/model', async () => {
     const queryRunner = {
       query: vi.fn(async (sql: string) => {

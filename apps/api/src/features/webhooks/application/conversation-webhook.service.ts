@@ -11,6 +11,7 @@ import { GeoroutingService } from '../../routing/domain/services/georouting.serv
 import { extractConversationLocation, extractLocationCandidates } from './conversation-location';
 import { recordTestConversationEvent } from './test-conversation-store';
 import { findQueuedConversationDuplicate } from '../../leads/domain/lead-duplicate';
+import { normalizeGhlAttachments } from '../domain/ghl-attachment-normalizer';
 
 type SourceKey = 'stafford' | 'fredericksburg' | 'fredericksburg-2' | 'easterns' | 'arlington' | 'koons-fred' | 'koons-fred-eng' | 'koons-culpeper' | 'action-cars' | 'easterns-millersville' | 'easterns-frederick';
 
@@ -383,14 +384,18 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     const event = parsed.data;
     const contactId = event.ghl_contact_id;
     const message = clean(event.message_body);
+    const messageId = event.ghl_message_id || event.event_id || `event:${hash(JSON.stringify(event))}`;
+    const attachments = normalizeGhlAttachments(event.message_attachments, messageId);
     if (!contactId) throw new UnprocessableEntityException('El webhook requiere el Contact ID nativo de GHL');
-    if (!message) throw new UnprocessableEntityException('El webhook requiere el cuerpo del mensaje');
+    if (!message && attachments.length === 0) {
+      throw new UnprocessableEntityException('El webhook requiere el cuerpo del mensaje o al menos un attachment');
+    }
 
     const conversationId = event.ghl_conversation_id || `contact:${contactId}:${event.channel}`;
     const raw = rawBody || JSON.stringify(input);
     const eventId = event.event_id || `ghl:${source}:${hash(raw)}`;
     if (!this.dataSource && process.env.NODE_ENV === 'test') {
-      recordTestConversationEvent({ eventId, source, contactId, conversationId, message, channel: event.channel });
+      recordTestConversationEvent({ eventId, source, contactId, conversationId, message, channel: event.channel, attachments: event.message_attachments });
       return { accepted: true, eventId, conversationId, source, status: 'processed' };
     }
     if (!this.dataSource) throw new ServiceUnavailableException('Database connection is not available');
@@ -446,6 +451,13 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       contact_name: value.contact_name ?? customData.contact_name ?? nestedContact.name ?? value.name ?? value.full_name,
       channel: value.channel ?? customData.channel ?? defaultChannel,
       occurred_at: value.occurred_at ?? value.occurredAt ?? value.date_updated ?? value.dateUpdated,
+      message_attachments: value.message_attachments
+        ?? value.messageAttachments
+        ?? value.attachments
+        ?? customData.message_attachments
+        ?? customData.messageAttachments
+        ?? customData.attachments,
+      raw_payload: value.raw_payload ?? value,
       location: nestedLocation,
     };
   }
@@ -497,12 +509,18 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       });
       const messageId = event.ghl_message_id || event.event_id;
       const dedupeKey = event.ghl_message_id || event.event_id;
-      await runner.query(
+      const insertedMessages = await runner.query(
         `INSERT INTO conversation_messages (conversation_id, dedupe_key, ghl_message_id, body, occurred_at, raw_payload)
          VALUES ($1, $2, $3, $4, $5, $6::jsonb)
-         ON CONFLICT (conversation_id, dedupe_key) DO NOTHING`,
+         ON CONFLICT (conversation_id, dedupe_key) DO NOTHING
+         RETURNING id`,
         [conversation.id, dedupeKey, messageId, String(event.message_body ?? '').replace(/\r\n?/g, '\n').trim(), receivedAt, JSON.stringify(event.raw_payload ?? event)],
-      );
+      ) as Array<{ id: string }>;
+      const conversationMessageId = insertedMessages[0]?.id ?? (await runner.query(
+        `SELECT id FROM conversation_messages WHERE conversation_id = $1 AND dedupe_key = $2 LIMIT 1`,
+        [conversation.id, dedupeKey],
+      ) as Array<{ id: string }>)[0]?.id;
+      await this.persistAttachments(runner, conversation.id, conversationMessageId, event, source, messageId);
       const messages = await runner.query(
         `SELECT body, direction, occurred_at, raw_payload FROM conversation_messages WHERE conversation_id = $1 ORDER BY occurred_at ASC, created_at ASC`,
         [conversation.id],
@@ -681,6 +699,48 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     const candidate = clean(value);
     if (!candidate) return null;
     try { return normalizePhone(candidate); } catch { return null; }
+  }
+
+  private async persistAttachments(
+    runner: QueryRunner,
+    conversationId: string,
+    conversationMessageId: string | undefined,
+    event: GhlCustomerRepliedDto & { ghl_contact_id: string; ghl_conversation_id: string; event_id: string },
+    source: SourceKey,
+    sourceMessageId: string,
+  ): Promise<void> {
+    if (!conversationMessageId) return;
+    const attachments = normalizeGhlAttachments(event.message_attachments, sourceMessageId);
+    for (const attachment of attachments) {
+      await runner.query(
+        `INSERT INTO conversation_attachments
+          (conversation_id, conversation_message_id, ghl_location_id, ghl_conversation_id, ghl_message_id,
+           source_url, source_url_expires_at, content_type, media_kind, original_filename, byte_size,
+           processing_status, processing_metadata)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::timestamptz, $8, $9, $10, $11, 'pending', $12::jsonb)
+         ON CONFLICT (conversation_message_id, source_url) DO UPDATE SET
+           content_type = COALESCE(EXCLUDED.content_type, conversation_attachments.content_type),
+           media_kind = CASE WHEN conversation_attachments.media_kind = 'unknown' THEN EXCLUDED.media_kind ELSE conversation_attachments.media_kind END,
+           original_filename = COALESCE(EXCLUDED.original_filename, conversation_attachments.original_filename),
+           byte_size = COALESCE(EXCLUDED.byte_size, conversation_attachments.byte_size),
+           source_url_expires_at = COALESCE(EXCLUDED.source_url_expires_at, conversation_attachments.source_url_expires_at),
+           updated_at = CURRENT_TIMESTAMP`,
+        [
+          conversationId,
+          conversationMessageId,
+          GHL_SOURCE_CONFIG[source].locationId,
+          event.ghl_conversation_id,
+          sourceMessageId,
+          attachment.sourceUrl,
+          attachment.expiresAt,
+          attachment.contentType,
+          attachment.kind,
+          attachment.filename,
+          attachment.size,
+          JSON.stringify({ source_id: attachment.sourceId, raw: attachment.raw }),
+        ],
+      );
+    }
   }
 
   private extractNativeWhatsappPhone(messages: ConversationMessageRow[]): string | null {

@@ -5,6 +5,7 @@ type TestConversationEvent = {
   conversationId: string;
   message: string;
   channel: string;
+  attachments?: unknown;
 };
 
 const events: TestConversationEvent[] = [];
