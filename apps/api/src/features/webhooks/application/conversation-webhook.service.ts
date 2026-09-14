@@ -247,10 +247,20 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         : null;
       const normalized = normalizeCollectorInput({
         channel: row.channel,
-        real_name: /(?:^|[^a-z])messenger(?:$|[^a-z])/i.test(row.channel) ? contactName : undefined,
         message: transcript,
         chat_history_log: transcript,
         phone: recentPhone || '',
+        // Reconciliation is incremental: feed the previous snapshot back into
+        // the normalizer so a partial transcript cannot erase facts already
+        // captured by GHL or an earlier poll.
+        real_name: /(?:^|[^a-z])messenger(?:$|[^a-z])/i.test(row.channel) ? contactName : clean(current.real_name),
+        vehicle_type: clean(current.vehicle_type),
+        down_payment: clean(current.down_payment),
+        purchase_timeline: clean(current.purchase_timeline),
+        documents: clean(current.documents),
+        identification: clean(current.identification),
+        bank_account: clean(current.bank_account),
+        qualification_memory: clean(current.qualification_memory),
       });
       const effectivePhone = recentPhone || nativeWhatsappPhone || '';
       // A manual correction made while a conversation is waiting must survive

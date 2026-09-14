@@ -165,6 +165,56 @@ describe('normalizeCollectorInput', () => {
     expect(result.purchase_timeline).toBe('esta semana');
   });
 
+  it('normalizes the reproduced Messenger wording "para la siguiente semana" as purchase timing', () => {
+    const transcript = [
+      'Holaa',
+      'Un sedan un honda civic sport',
+      '2407293614',
+      'Me parece bien si cuento con eso',
+      'Ahorita por motivo de viaje sería para la siguiente semana',
+    ].join('\n');
+
+    expect(normalizeCollectorInput({
+      channel: 'messenger',
+      real_name: 'Garcia JDaniel',
+      chat_history_log: transcript,
+      message: 'Ahorita por motivo de viaje sería para la siguiente semana',
+    })).toMatchObject({
+      phone: '+12407293614',
+      vehicle_type: 'Honda Sedan',
+      purchase_timeline: 'próxima semana',
+    });
+  });
+
+  it.each([
+    ['Just looking', 'exploring options'],
+    ['Solo mirar por el momento', 'explorando opciones'],
+  ])('preserves non-committal purchase intent from the reproduced transcript: %s', (message, expected) => {
+    expect(normalizeCollectorInput({ message }).purchase_timeline).toBe(expected);
+  });
+
+  it('does not lose earlier qualification facts when a later poll only contains vehicle and phone', () => {
+    const result = normalizeCollectorInput({
+      channel: 'messenger',
+      real_name: 'Alynn Campos',
+      phone: '+17176989246',
+      message: 'Sedan\n7176989246',
+      chat_history_log: 'Sedan\n7176989246',
+      qualification_memory: 'real_name: Alynn Campos; vehicle: Sedan; timeline: este mes; documents: identification: yes; proof of income: yes; bank account: yes',
+    });
+
+    expect(result).toMatchObject({
+      phone: '+17176989246',
+      vehicle_type: 'Sedan',
+      purchase_timeline: 'este mes',
+      identification: 'yes',
+      has_income_proof: 'yes',
+      bank_account: 'yes',
+    });
+    expect(result.qualification_memory).toContain('timeline: este mes');
+    expect(result.qualification_memory).toContain('bank account: yes');
+  });
+
   it('normalizes Hummer vehicle text and immediate timing from the reproduced inbound wording', () => {
     const result = normalizeCollectorInput({
       channel: 'messenger',
