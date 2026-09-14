@@ -38,6 +38,7 @@ export const GHL_SOURCE_CONFIG: Record<SourceKey, { locationId: string; defaultC
 type LeadRow = { id: string; canonical_phone: string | null; first_name: string | null; last_name: string | null };
 type DealerRow = { id: string; code: string; name: string; timezone: string; routing_config: { group?: string; language?: CollectorLanguage; allocation_key?: string; allocation_order?: number } | null };
 type ConversationRow = { id: string; status: string; qualification_snapshot: Record<string, unknown>; location_snapshot: Record<string, unknown>; ready_at?: string | null; isExisting?: boolean };
+type ConversationMessageRow = { body: string; direction: string; occurred_at: string; raw_payload?: unknown };
 type ExistingDealerLead = {
   status: string;
   routing_status: string;
@@ -227,9 +228,9 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       const source = configured[0] as SourceKey;
       const current = row.qualification_snapshot ?? {} as ConversationSnapshot;
       const messages = await runner.query(
-        `SELECT body, direction, occurred_at FROM conversation_messages WHERE conversation_id = $1 ORDER BY occurred_at ASC, created_at ASC`,
+        `SELECT body, direction, occurred_at, raw_payload FROM conversation_messages WHERE conversation_id = $1 ORDER BY occurred_at ASC, created_at ASC`,
         [id],
-      ) as Array<{ body: string; direction: string; occurred_at: string }>;
+      ) as ConversationMessageRow[];
       const transcript = messages.map((item) => clean(item.body)).filter(Boolean).join('\n');
       if (!transcript) {
         await runner.rollbackTransaction();
@@ -242,7 +243,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       // never types the number in the conversation. Messenger must continue
       // to rely on recent inbound phone evidence.
       const nativeWhatsappPhone = isStaffordWhatsApp(source, row.channel)
-        ? this.safePhone(row.canonical_phone)
+        ? this.safePhone(row.canonical_phone) || this.extractNativeWhatsappPhone(messages)
         : null;
       const normalized = normalizeCollectorInput({
         channel: row.channel,
@@ -493,9 +494,9 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         [conversation.id, dedupeKey, messageId, String(event.message_body ?? '').replace(/\r\n?/g, '\n').trim(), receivedAt, JSON.stringify(event.raw_payload ?? event)],
       );
       const messages = await runner.query(
-        `SELECT body, direction, occurred_at FROM conversation_messages WHERE conversation_id = $1 ORDER BY occurred_at ASC, created_at ASC`,
+        `SELECT body, direction, occurred_at, raw_payload FROM conversation_messages WHERE conversation_id = $1 ORDER BY occurred_at ASC, created_at ASC`,
         [conversation.id],
-      ) as Array<{ body: string; direction: string; occurred_at: string }>;
+      ) as ConversationMessageRow[];
       const transcript = messages
         .map((item) => String(item.body ?? '').replace(/\r\n?/g, '\n').trim())
         .filter(Boolean)
@@ -506,7 +507,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       // sender identity. On Messenger, only recent inbound text evidence is
       // eligible, so a stale registered phone cannot enter the queue.
       const nativeWhatsappPhone = isStaffordWhatsApp(source, event.channel)
-        ? this.safePhone(event.contact_phone)
+        ? this.safePhone(event.contact_phone) || this.extractNativeWhatsappPhone(messages)
         : null;
       if (conversation.isExisting && conversation.status === 'sent') {
         await runner.query(
@@ -672,6 +673,16 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     try { return normalizePhone(candidate); } catch { return null; }
   }
 
+  private extractNativeWhatsappPhone(messages: ConversationMessageRow[]): string | null {
+    for (const message of [...messages].reverse()) {
+      if (!message.raw_payload || typeof message.raw_payload !== 'object' || Array.isArray(message.raw_payload)) continue;
+      const value = (message.raw_payload as Record<string, unknown>).contact_phone;
+      const phone = this.safePhone(typeof value === 'string' ? value : null);
+      if (phone) return phone;
+    }
+    return null;
+  }
+
   private async findStalePhoneReentry(runner: QueryRunner, phone: string, now: Date): Promise<{ sent_at: string } | null> {
     const cutoff = new Date(now.getTime() - STALE_PHONE_REENTRY_DAYS * 24 * 60 * 60 * 1000).toISOString();
     const rows = await runner.query(
@@ -798,7 +809,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     const hasLocation = Boolean(location.city || location.state || location.easterns_zone || location.zip_code);
     const routingReady = Boolean(
       hasMinimumRoutingQualification({ phone: snapshot.phone }) &&
-      (source !== 'stafford' || (snapshot.vehicle_type && (snapshot.down_payment || snapshot.purchase_timeline))),
+      (source !== 'stafford' || snapshot.vehicle_type),
     );
     if (!routingReady) return { status: 'partial', nextAttemptAt: null };
     if (phase === 'capture') {
@@ -808,6 +819,10 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     // initial phone-only event remains visible during stabilization, but it
     // must not be released into georouting without a location.
     if (isEasterns && !hasLocation) return { status: 'partial', nextAttemptAt: null };
+    // Stafford conversations are always native WhatsApp. A valid WhatsApp
+    // sender already provides the phone identity; vehicle type is the only
+    // qualification needed to enter the dealer queue.
+    if (source === 'stafford' && snapshot.vehicle_type) return { status: 'ready', nextAttemptAt: null };
     if (snapshot.qualification_complete) return { status: 'ready', nextAttemptAt: null };
     const delayHours = withinDispatchWindow(QUALIFICATION_RULE_TIMEZONE, now)
       ? INCOMPLETE_QUALIFICATION_WINDOW_HOURS

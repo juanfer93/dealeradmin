@@ -88,7 +88,7 @@ describe('ConversationWebhookService', () => {
         if (sql.includes('FROM conversations c')) return [];
         if (sql.includes('FROM conversations')) return [];
         if (sql.includes('INSERT INTO conversations')) return [{ id: 'conversation-stafford-whatsapp', status: 'partial', qualification_snapshot: {}, location_snapshot: {} }];
-        if (sql.includes('SELECT body, direction, occurred_at FROM conversation_messages')) {
+        if (sql.includes('SELECT body, direction, occurred_at, raw_payload FROM conversation_messages')) {
           return transcript.map((body) => ({ body, direction: 'inbound', occurred_at: '2026-09-13T13:30:00.000Z' }));
         }
         return [];
@@ -304,7 +304,7 @@ describe('ConversationWebhookService', () => {
         if (sql.includes('FROM dealers')) return [{ id: 'dealer-stafford', code: 'STAFFORD', name: 'Offlease Motors Stafford', timezone: 'America/New_York', routing_config: {} }];
         if (sql.includes('FROM leads WHERE ghl_location_id')) return [{ id: 'lead-existing', canonical_phone: '+13015550123', first_name: 'Ana', last_name: 'Torres' }];
         if (sql.includes('FROM conversations')) return [{ id: 'conversation-existing', status: 'partial', qualification_snapshot: {}, location_snapshot: {} }];
-        if (sql.includes('SELECT body, direction, occurred_at FROM conversation_messages')) return [{ body: 'I am looking for an SUV.', direction: 'inbound', occurred_at: new Date().toISOString() }];
+        if (sql.includes('SELECT body, direction, occurred_at, raw_payload FROM conversation_messages')) return [{ body: 'I am looking for an SUV.', direction: 'inbound', occurred_at: new Date().toISOString() }];
         return [];
       }),
     };
@@ -339,7 +339,7 @@ describe('ConversationWebhookService', () => {
         if (sql.includes('FROM conversations c')) return [];
         if (sql.includes('FROM conversations')) return [];
         if (sql.includes('INSERT INTO conversations')) return [{ id: 'conversation-messenger-phone', status: 'partial', qualification_snapshot: {}, location_snapshot: {} }];
-        if (sql.includes('SELECT body, direction, occurred_at FROM conversation_messages')) return [{ body: 'Un SUV', direction: 'inbound', occurred_at: '2026-09-13T13:30:00.000Z' }];
+        if (sql.includes('SELECT body, direction, occurred_at, raw_payload FROM conversation_messages')) return [{ body: 'Un SUV', direction: 'inbound', occurred_at: '2026-09-13T13:30:00.000Z' }];
         return [];
       }),
     };
@@ -399,7 +399,7 @@ describe('ConversationWebhookService', () => {
         if (sql.includes('FROM dealers')) return [{ id: 'dealer-stafford', code: 'STAFFORD', name: 'Stafford', timezone: 'America/New_York', routing_config: {} }];
         if (sql.includes('FROM leads WHERE ghl_location_id')) return [{ id: 'lead-status-cast', canonical_phone: '+13015550123', first_name: 'Ana', last_name: 'Torres' }];
         if (sql.includes('FROM conversations')) return [{ id: 'conversation-status-cast', status: 'partial', qualification_snapshot: {}, location_snapshot: {} }];
-        if (sql.includes('SELECT body, direction, occurred_at FROM conversation_messages')) return [{ body: 'I need an SUV.', direction: 'inbound', occurred_at: new Date().toISOString() }];
+        if (sql.includes('SELECT body, direction, occurred_at, raw_payload FROM conversation_messages')) return [{ body: 'I need an SUV.', direction: 'inbound', occurred_at: new Date().toISOString() }];
         return [];
       }),
     };
@@ -440,7 +440,7 @@ describe('ConversationWebhookService', () => {
         }];
         if (sql.includes('FROM conversations')) return [];
         if (sql.includes('INSERT INTO conversations')) return [{ id: 'conversation-new', status: 'partial', qualification_snapshot: {}, location_snapshot: {} }];
-        if (sql.includes('SELECT body, direction, occurred_at FROM conversation_messages')) return [{ body: 'I am looking for an SUV.\n+13015550123', direction: 'inbound', occurred_at: new Date().toISOString() }];
+        if (sql.includes('SELECT body, direction, occurred_at, raw_payload FROM conversation_messages')) return [{ body: 'I am looking for an SUV.\n+13015550123', direction: 'inbound', occurred_at: new Date().toISOString() }];
         return [];
       }),
     };
@@ -467,9 +467,21 @@ describe('ConversationWebhookService', () => {
     expect(result.nextAttemptAt).toBe(new Date(now.getTime() + CONVERSATION_STABILIZATION_MS).toISOString());
   });
 
-  it('does not open Stafford WhatsApp wait with only phone and vehicle', () => {
+  it('opens Stafford WhatsApp stabilization with only phone and vehicle', () => {
     const now = new Date('2026-09-11T14:00:00.000Z');
     expect(evaluateStatus(staffordVehicleOnlySnapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'capture'))
+      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:00:15.000Z' });
+  });
+
+  it('queues Stafford WhatsApp after stabilization with only phone and vehicle', () => {
+    const now = new Date('2026-09-11T14:00:15.000Z');
+    expect(evaluateStatus(staffordVehicleOnlySnapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'due', '2026-09-11T14:00:00.000Z'))
+      .toEqual({ status: 'ready', nextAttemptAt: null });
+  });
+
+  it('keeps Stafford WhatsApp partial when the vehicle is missing', () => {
+    const now = new Date('2026-09-11T14:00:00.000Z');
+    expect(evaluateStatus({ ...staffordVehicleOnlySnapshot, vehicle_type: '' }, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'capture'))
       .toEqual({ status: 'partial', nextAttemptAt: null });
   });
 
@@ -525,7 +537,7 @@ describe('ConversationWebhookService', () => {
         if (sql.includes('FROM dealers')) return [{ id: 'dealer-stafford', code: 'STAFFORD', name: 'Stafford', timezone: 'America/New_York', routing_config: {} }];
         if (sql.includes('FROM leads WHERE ghl_location_id')) return [{ id: 'lead-phone-correction', canonical_phone: '+13015550123', first_name: 'Ana', last_name: 'Torres' }];
         if (sql.includes('FROM conversations')) return [{ id: 'conversation-phone-correction', status: 'partial', qualification_snapshot: {}, location_snapshot: {} }];
-        if (sql.includes('SELECT body, direction, occurred_at FROM conversation_messages')) return [{ body: 'Mi nuevo número es 804-309-2531', direction: 'inbound', occurred_at: new Date().toISOString() }];
+        if (sql.includes('SELECT body, direction, occurred_at, raw_payload FROM conversation_messages')) return [{ body: 'Mi nuevo número es 804-309-2531', direction: 'inbound', occurred_at: new Date().toISOString() }];
         if (sql.includes('UPDATE leads') && sql.includes('canonical_phone = $2')) return [{ id: 'lead-phone-correction', canonical_phone: '+18043092531', first_name: 'Ana', last_name: 'Torres' }];
         return [];
       }),
@@ -605,7 +617,7 @@ describe('ConversationWebhookService', () => {
           first_name: 'Emma',
           last_name: 'Oertly',
         }];
-        if (sql.includes('SELECT body, direction, occurred_at FROM conversation_messages')) return transcript.split('\n').map((body) => ({ body, direction: 'inbound', occurred_at: '2026-09-11T14:00:00.000Z' }));
+        if (sql.includes('SELECT body, direction, occurred_at, raw_payload FROM conversation_messages')) return transcript.split('\n').map((body) => ({ body, direction: 'inbound', occurred_at: '2026-09-11T14:00:00.000Z' }));
         if (sql.includes('FROM dealers')) return [{ id: 'dealer-easterns', code: 'EAST', name: 'Easterns Automotive Group', timezone: 'America/New_York', routing_config: {} }];
         if (sql.includes('FROM lead_dealers')) return [];
         if (sql.includes('SELECT l.id, l.first_name, l.last_name, l.canonical_phone')) return [];
