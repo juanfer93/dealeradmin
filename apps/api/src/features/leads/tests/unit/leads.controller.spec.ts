@@ -101,6 +101,32 @@ describe('LeadsController deletion', () => {
   });
 });
 
+describe('LeadsController queue read', () => {
+  afterEach(() => {
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+  });
+
+  it('does not reconcile conversations synchronously before reading the queue', async () => {
+    process.env.NODE_ENV = 'production';
+    const dataSource = {
+      query: vi.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]),
+    };
+    const authService = { verifySession: vi.fn(() => true) };
+    const copyLeadService = { execute: vi.fn() };
+    const controller = new LeadsController(
+      dataSource as never,
+      authService as never,
+      copyLeadService as never,
+    );
+
+    await expect(controller.list({ cookies: {} } as never, 'pending')).resolves.toEqual({ dealers: [], leads: [] });
+    expect(dataSource.query).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('LeadsController lead editing', () => {
   afterEach(() => {
     if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
