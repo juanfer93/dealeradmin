@@ -497,6 +497,36 @@ describe('normalizeCollectorInput', () => {
     expect(result.qualification_progress.predicted_bot_question).toBe('¿Cuándo planeas comprar?');
   });
 
+  it('does not promote a location question and combines a colloquial truck with its Ford make', () => {
+    const transcript = [
+      'Donde estan hubicados',
+      'Javier ayala',
+      'Tendras una tropical ford',
+      'Trokita',
+      '4 puertas',
+      '1000',
+      'Down',
+      'X el momento solo cuento con 1000..',
+      'Me esperaria a junta esa cantidad gracias..si se puede con 1000 esta semana',
+      'Si',
+      'Despues de las7',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      channel: 'whatsapp',
+      phone: '+19842986568',
+      message: transcript,
+      chat_history_log: transcript,
+      qualification_memory: 'documents: identification: yes; proof of income: yes',
+    });
+
+    expect(result.real_name).toBe('Javier Ayala');
+    expect(result.vehicle_type).toBe('Ford Truck');
+    expect(result.down_payment).toBe('1000');
+    expect(result.purchase_timeline).toBe('esta semana');
+    expect(result.identification).toBe('yes');
+    expect(result.has_income_proof).toBe('yes');
+  });
+
   it('extracts a declared personal name from the complete inbound transcript', () => {
     const result = normalizeCollectorInput({
       real_name: 'EliasJosue 🕊Mnegra',

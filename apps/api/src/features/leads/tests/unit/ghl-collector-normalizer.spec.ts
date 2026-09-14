@@ -383,6 +383,36 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(execute({ channel: 'whatsapp', message: 'Quiero ver si puedo con 1000' }).down_payment).toBe('1000');
   });
 
+  it('does not promote a location question and combines a colloquial truck with its Ford make in Custom Code', () => {
+    const transcript = [
+      'Donde estan hubicados',
+      'Javier ayala',
+      'Tendras una tropical ford',
+      'Trokita',
+      '4 puertas',
+      '1000',
+      'Down',
+      'X el momento solo cuento con 1000..',
+      'Me esperaria a junta esa cantidad gracias..si se puede con 1000 esta semana',
+      'Si',
+      'Despues de las7',
+    ].join('\n');
+    expect(execute({
+      channel: 'whatsapp',
+      phone: '+19842986568',
+      message: transcript,
+      chat_history_log: transcript,
+      documents: 'identification: yes; proof of income: yes',
+    })).toMatchObject({
+      real_name: 'Javier Ayala',
+      vehicle_type: 'Ford Truck',
+      down_payment: '1000',
+      purchase_timeline: 'esta semana',
+      identification: 'yes',
+      has_income_proof: 'yes',
+    });
+  });
+
   it.each([
     ['elias alvarado', 'Elias Alvarado'],
     ['JUAN de la cruz', 'Juan de la Cruz'],
