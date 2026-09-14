@@ -20,6 +20,8 @@ export const INCOMPLETE_QUALIFICATION_WINDOW_HOURS = 0.5;
 export const OUT_OF_WINDOW_QUALIFICATION_WINDOW_HOURS = 3;
 export const QUALIFICATION_RULE_TIMEZONE = 'America/Bogota';
 export const DUE_CONVERSATION_POLL_MS = 30_000;
+export const DUE_CONVERSATION_BATCH_SIZE = 20;
+export const ACTIVE_RECONCILIATION_BATCH_SIZE = 5;
 export const STALE_PHONE_REENTRY_DAYS = 3;
 
 export const GHL_SOURCE_CONFIG: Record<SourceKey, { locationId: string; defaultChannel: 'whatsapp' | 'messenger'; splitByLanguage?: boolean; alternatingGroup?: string }> = {
@@ -183,7 +185,8 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
        FROM conversations
        WHERE status IN ('partial', 'waiting_window')
        ORDER BY updated_at ASC
-       LIMIT 100`,
+       LIMIT $1`,
+      [ACTIVE_RECONCILIATION_BATCH_SIZE],
     ) as Array<{ id: string }>;
     for (const row of rows) await this.reconcileConversation(row.id, now);
   }
@@ -408,9 +411,6 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       if (process.env.NODE_ENV === 'test') return { accepted: true, processed: 0 };
       throw new ServiceUnavailableException('Database connection is not available');
     }
-    // Re-read active conversations so late GHL fields and manual corrections
-    // are normalized before due rows are released.
-    await this.reconcileActiveConversations(now);
     // Manual corrections may set waiting_window before next_attempt_at. Give those
     // rows an immediate due time so they cannot remain invisible indefinitely.
     await this.dataSource.query(
@@ -424,13 +424,16 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
        FROM conversations c
        WHERE c.status = 'waiting_window' AND c.next_attempt_at IS NOT NULL AND c.next_attempt_at <= $1
        ORDER BY c.next_attempt_at ASC
-       LIMIT 100`,
-      [now.toISOString()],
+       LIMIT $2`,
+      [now.toISOString(), DUE_CONVERSATION_BATCH_SIZE],
     ) as Array<{ id: string }>;
     let processed = 0;
     for (const row of due) {
       if (await this.releaseDueConversation(row.id, now)) processed += 1;
     }
+    // Reconciliation is a bounded fallback for late fields/manual corrections.
+    // It must never sit in front of due-row release or scan the whole table.
+    await this.reconcileActiveConversations(now);
     return { accepted: true, processed };
   }
 

@@ -1,0 +1,20 @@
+name: Process due conversations
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  process-due:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Release due conversations
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          test -n "$CRON_SECRET"
+          curl --fail-with-body --silent --show-error --request GET \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/process-due

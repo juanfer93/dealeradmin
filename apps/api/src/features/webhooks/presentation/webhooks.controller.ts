@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { WebhookService } from '../application/webhook.service';
 import { normalizeGhlOutboundPayload } from '../application/ghl-outbound-payload';
@@ -44,6 +44,12 @@ export class WebhooksController {
   processDueConversations(@Req() request: Request) {
     const requestedNow = request.header('X-DealerADMIN-Test-Now');
     return this.conversationWebhookService.processDueConversations(this.controlledTestNow(requestedNow));
+  }
+
+  @Get('ghl/conversations/process-due')
+  @UseGuards(HmacSignatureGuard)
+  processDueConversationsCron() {
+    return this.conversationWebhookService.processDueConversations();
   }
 
   private controlledTestNow(value: string | undefined): Date | undefined {

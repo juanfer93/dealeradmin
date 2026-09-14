@@ -661,6 +661,6 @@ describe('ConversationWebhookService', () => {
       qualification_complete: true,
     });
     expect(runner.query.mock.calls.some(([sql]) => sql.includes("SET status = 'queued'"))).toBe(true);
-    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining("status IN ('partial', 'waiting_window')"));
+    expect(dataSource.query.mock.calls.some(([sql]) => String(sql).includes("status IN ('partial', 'waiting_window')"))).toBe(true);
   });
 });

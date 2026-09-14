@@ -29,6 +29,15 @@ export class HmacSignatureGuard implements CanActivate {
     const sharedSecretHeader = request.header('X-DealerADMIN-Webhook-Secret');
     const rawBody = request.rawBody;
     const configuredSecret = parseEnvironment().GHL_WEBHOOK_SECRET;
+    const authorization = request.header('Authorization');
+    const cronSecret = process.env.CRON_SECRET?.trim();
+    const bearerSecret = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+
+    if (
+      request.method === 'GET'
+      && request.path.endsWith('/webhooks/ghl/conversations/process-due')
+      && verifySharedSecret(bearerSecret, cronSecret ?? '')
+    ) return true;
 
     // GHL's native outbound Webhook action does not calculate an HMAC. It can
     // send a fixed custom header, so accept that transport while keeping the
