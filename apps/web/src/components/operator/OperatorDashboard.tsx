@@ -19,6 +19,73 @@ type LeadResponse = { dealers: Dealer[]; leads: Lead[] };
 
 function clean(value: string | null | undefined) { return value?.trim() ?? ''; }
 
+const IDENTIFICATION_DOCUMENT_PATTERN = 'id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b';
+const INCOME_DOCUMENT_PATTERN = 'proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina|bank account|cuenta bancaria|cuenta de banco';
+const POSITIVE_DOCUMENT_VALUE = 'yes|sí|si|true|yeah|yep|correct|tengo|have it|i do|i have|available';
+const NEGATIVE_DOCUMENT_VALUE = 'no|n[oó]|false|not available|not indicated|not specified|no indicado|no especificado|sin|dont|don\'t|no tengo|i do not|do not have|don\'t have';
+
+type DocumentStatus = 'yes' | 'no' | '';
+
+function valueStatus(value: string): DocumentStatus {
+  const normalized = clean(value);
+  if (!normalized) return '';
+  if (new RegExp(`^\\s*(?:${NEGATIVE_DOCUMENT_VALUE})\\s*$`, 'i').test(normalized)) return 'no';
+  if (new RegExp(`^\\s*(?:${POSITIVE_DOCUMENT_VALUE})\\s*$`, 'i').test(normalized)) return 'yes';
+  return '';
+}
+
+function documentStatus(value: string | null, fieldPattern: string): DocumentStatus {
+  const source = clean(value);
+  if (!source) return '';
+
+  const labeled = source.match(new RegExp(`(?:^|[;,])\\s*(?:${fieldPattern})\\s*[:=]\\s*([^;,]+)`, 'i'))?.[1];
+  const labeledStatus = labeled ? valueStatus(labeled) : '';
+  if (labeledStatus) return labeledStatus;
+
+  const field = new RegExp(fieldPattern, 'i');
+  const match = field.exec(source);
+  if (!match || match.index === undefined) return '';
+  const context = source.slice(Math.max(0, match.index - 90), Math.min(source.length, match.index + match[0].length + 90));
+  if (new RegExp(`(?:${NEGATIVE_DOCUMENT_VALUE})[^;,|\\n]{0,90}(?:${fieldPattern})|(?:${fieldPattern})[^;,|\\n]{0,90}(?:${NEGATIVE_DOCUMENT_VALUE})`, 'i').test(context)) return 'no';
+  if (new RegExp(`(?:${POSITIVE_DOCUMENT_VALUE})[^;,|\\n]{0,90}(?:${fieldPattern})|(?:${fieldPattern})[^;,|\\n]{0,90}(?:${POSITIVE_DOCUMENT_VALUE})`, 'i').test(context)) return 'yes';
+  return 'yes';
+}
+
+function remainingDocumentText(value: string | null): string {
+  return clean(value)
+    .split(/[;,]/)
+    .map((part) => part.trim())
+    .filter((part) => part && !new RegExp(`^(?:${IDENTIFICATION_DOCUMENT_PATTERN}|${INCOME_DOCUMENT_PATTERN})\\s*[:=]`, 'i').test(part))
+    .join(', ');
+}
+
+export function formatQualificationLabels(lead: Pick<Lead, 'identification' | 'documents'>, language: 'es' | 'en') {
+  const documentIdentification = documentStatus(lead.documents, IDENTIFICATION_DOCUMENT_PATTERN);
+  const documentIncome = documentStatus(lead.documents, INCOME_DOCUMENT_PATTERN);
+  const identificationStatus = documentIdentification || valueStatus(lead.identification ?? '') || (clean(lead.identification) ? 'yes' : '');
+  const incomeStatus = documentIncome;
+  const hasIdentification = identificationStatus === 'yes';
+  const hasIncome = incomeStatus === 'yes';
+  const incomeLabel = language === 'es' ? 'prueba de ingresos' : 'proof of income';
+  const combinedLabel = language === 'es' ? 'ID y prueba de ingresos' : 'ID and proof of income';
+  const identification = hasIdentification && hasIncome
+    ? ''
+    : hasIdentification
+      ? 'ID'
+      : valueStatus(lead.identification ?? '') === 'no'
+        ? ''
+        : clean(lead.identification)
+          ? `ID ${clean(lead.identification)}`
+          : '';
+  const documents = hasIdentification && hasIncome
+    ? combinedLabel
+    : hasIncome
+      ? incomeLabel
+      : remainingDocumentText(lead.documents);
+
+  return { identification, documents };
+}
+
 function detectLeadLanguage(lead: Lead): 'es' | 'en' {
   const text = [lead.vehicleType, lead.downPayment, lead.identification, lead.bankAccount, lead.documents, lead.purchaseTimeline].filter(Boolean).join(' ').toLowerCase();
   const englishSignals = [' and ', 'wants', 'buy', 'week', 'proof', 'income', 'truck', 'cash', 'bank account', 'today', 'month', 'next'];
@@ -31,12 +98,11 @@ function formatLeadMessage(lead: Lead, language?: 'es' | 'en') {
   const identity = [clean(lead.name), clean(lead.phone), clean(lead.vehicleType)].filter(Boolean).join(' ');
   const downValue = clean(lead.downPayment);
   const down = downValue ? (resolvedLanguage === 'es' ? `${downValue} de down` : `${downValue} down`) : '';
-  const identificationValue = clean(lead.identification);
-  const identification = identificationValue ? `ID ${identificationValue}` : '';
+  const qualificationLabels = formatQualificationLabels(lead, resolvedLanguage);
+  const identification = qualificationLabels.identification;
   const bankValue = clean(lead.bankAccount);
   const bank = bankValue ? (resolvedLanguage === 'es' ? `cuenta bancaria ${bankValue}` : `bank account ${bankValue}`) : '';
-  const documentsValue = clean(lead.documents);
-  const documents = documentsValue ? (resolvedLanguage === 'es' ? `documentos ${documentsValue}` : documentsValue) : '';
+  const documents = qualificationLabels.documents;
   const timelineValue = clean(lead.purchaseTimeline);
   const timeline = timelineValue ? (resolvedLanguage === 'es' ? `quiere comprar ${timelineValue.toLowerCase()}` : `wants to buy ${timelineValue.toLowerCase()}`) : '';
   return [identity, down, identification, bank, documents, timeline].filter(Boolean).join(', ') + '.';
@@ -67,10 +133,10 @@ function Qualification({ lead, language, empty }: { lead: Lead; language: 'es' |
     if (!normalized) return '';
     return /^yes$/i.test(normalized) ? label : `${label} ${normalized}`;
   };
-  const identification = evidence('ID', lead.identification);
+  const labels = formatQualificationLabels(lead, language);
+  const identification = labels.identification || (labels.documents ? '' : evidence('ID', lead.identification));
   const bankAccount = evidence(language === 'es' ? 'cuenta bancaria' : 'bank account', lead.bankAccount);
-  const incomeEvidence = /proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina/i.test(clean(lead.documents));
-  const documents = incomeEvidence ? (language === 'es' ? 'prueba de ingresos' : 'proof of income') : clean(lead.documents).replace(/(?:identification|id|proof of income|income proof|prueba de ingresos|comprobante de ingresos)\s*:\s*yes/gi, '').replace(/^[,;\s]+|[,;\s]+$/g, '');
+  const documents = labels.documents;
   const tag = (value: string, fallback: string) => value ? <span className="rounded bg-[var(--brand-soft)] px-2 py-1 text-xs">{value}</span> : <span className="rounded bg-[var(--surface-raised)] px-2 py-1 text-xs text-[var(--text-muted)]">{fallback}</span>;
   return <div className="flex max-w-[260px] flex-wrap gap-1.5">{tag(lead.downPayment ? lead.downPayment : '', empty.downPayment)}{tag(identification, empty.identification)}{tag(bankAccount, empty.bankAccount)}{tag(documents, empty.documents)}{tag(lead.purchaseTimeline ?? '', empty.purchaseTimeline)}</div>;
 }

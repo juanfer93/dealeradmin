@@ -421,6 +421,15 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.bank_account).toBe('');
   });
 
+  it('keeps mixed document statuses attached to their own document', () => {
+    const result = execute({
+      documents: 'identification: yes, proof of income: no',
+    });
+
+    expect(result.identification).toBe('yes');
+    expect(result.has_income_proof).toBe('no');
+  });
+
   it('does not convert vehicle digits in qualification memory into a phone', () => {
     const result = execute({
       qualification_memory: 'real_name: Stefanni.veliz; vehicle: SUV20202020202020; timeline: today',

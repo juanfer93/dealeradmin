@@ -410,6 +410,17 @@ describe('normalizeCollectorInput', () => {
     expect(result.next_question).toBe('What is your full name?');
   });
 
+  it('preserves an explicit negative proof-of-income answer', () => {
+    const result = normalizeCollectorInput({
+      identification: 'yes',
+      documents: 'identification: yes, proof of income: no',
+    });
+
+    expect(result.has_identification).toBe('yes');
+    expect(result.has_income_proof).toBe('no');
+    expect(result.documents).toContain('proof of income: no');
+  });
+
   it('deduplicates repeated document facts before persistence', () => {
     const result = normalizeCollectorInput({
       documents: 'identification: yes; identification: yes; proof of income: yes; identification: yes',

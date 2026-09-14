@@ -604,7 +604,10 @@ function mergeDocuments(current: string, message: string): { value: string; id: 
     const context = source.match(new RegExp(`(?:${positive}|${negative})[^!?]{0,160}(?:${documentPattern})|(?:${documentPattern})[^!?]{0,160}(?:${positive}|${negative})`, 'i'))?.[0] ?? '';
     const explicit = yesNo(context);
     if (explicit) return explicit;
-    if (new RegExp(documentPattern, 'i').test(currentSource) && !/\b(?:no|n[oó]|dont|don't|no tengo|do not have|not available)\b/i.test(currentSource)) {
+    const currentSegment = currentSource.split(/[;,]/).find((segment) => new RegExp(documentPattern, 'i').test(segment)) ?? '';
+    if (currentSegment) {
+      const currentExplicit = yesNo(currentSegment);
+      if (currentExplicit) return currentExplicit;
       return 'yes';
     }
     return '';

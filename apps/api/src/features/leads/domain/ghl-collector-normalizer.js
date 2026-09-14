@@ -312,7 +312,19 @@ const conversationalEvidence = (...values) => values
   .filter(Boolean)
   .filter((line) => !line.includes('?') && !/^\s*(?:do you|does|did|what|which|when|where|how|can you|are you|tienes|tiene|cu[aá]l|qu[eé]|cu[aá]ndo|d[oó]nde|c[oó]mo)\b/i.test(line))
   .join('; ');
+const documentFieldStatus = (value, pattern) => {
+  const source = clean(value);
+  if (!source) return '';
+  const labeled = source.match(new RegExp(`(?:^|[;,])\\s*(?:${pattern})\\s*[:=]\\s*([^;,]+)`, 'i'))?.[1] || '';
+  const labeledStatus = labeled ? yesNo(labeled) : '';
+  if (labeledStatus) return labeledStatus;
+  const segment = source.split(/[;,]/).find((part) => new RegExp(pattern, 'i').test(part)) || '';
+  if (!segment) return '';
+  return yesNo(segment) || 'yes';
+};
 const documentStatus = (pattern, memoryAliases, custom) => {
+  const fieldStatus = emptyMarker(custom) ? '' : documentFieldStatus(custom, pattern);
+  if (fieldStatus) return fieldStatus;
   const customStatus = emptyMarker(custom) ? '' : yesNo(custom);
   if (customStatus) return customStatus;
   if (new RegExp(pattern, 'i').test(clean(custom)) && !/\b(?:no|n[oó]|sin|not|dont|don't|no tengo|do not have|not available)\b/i.test(clean(custom))) return 'yes';
