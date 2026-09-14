@@ -147,6 +147,19 @@ export class LeadsController {
     if (result.length === 0) {
       throw new BadRequestException('Lead not found or already sent');
     }
+    await this.dataSource.query(
+      `UPDATE conversations c
+       SET status = 'sent', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP
+       WHERE c.lead_id = $1
+         AND c.status = 'queued'
+         AND NOT EXISTS (
+           SELECT 1
+           FROM lead_dealers other
+           WHERE other.lead_id = c.lead_id
+             AND other.status = 'pending'
+         )`,
+      [leadId],
+    );
     return { success: true };
   }
 

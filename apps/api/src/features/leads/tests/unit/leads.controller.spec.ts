@@ -167,3 +167,31 @@ describe('LeadsController lead editing', () => {
     expect(runner.release).toHaveBeenCalledOnce();
   });
 });
+
+describe('LeadsController queue status synchronization', () => {
+  afterEach(() => {
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+  });
+
+  it('marks the queued conversation sent after its last pending dealer relation is sent', async () => {
+    process.env.NODE_ENV = 'production';
+    const dataSource = {
+      query: vi.fn()
+        .mockResolvedValueOnce([{ lead_id: 'lead-1' }])
+        .mockResolvedValueOnce([]),
+    };
+    const authService = { verifySession: vi.fn(() => true) };
+    const copyLeadService = { execute: vi.fn() };
+    const controller = new LeadsController(dataSource as never, authService as never, copyLeadService as never);
+
+    await expect(controller.updateStatus({ cookies: {} } as never, 'lead-1', {
+      status: 'sent',
+      dealerId: 'dealer-1',
+    })).resolves.toEqual({ success: true });
+
+    expect(dataSource.query).toHaveBeenCalledTimes(2);
+    expect(dataSource.query.mock.calls[1]?.[0]).toContain("SET status = 'sent'");
+    expect(dataSource.query.mock.calls[1]?.[0]).toContain("other.status = 'pending'");
+  });
+});
