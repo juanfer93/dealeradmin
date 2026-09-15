@@ -69,16 +69,49 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--brand); outline
 .landing-grid {
   /* Keep the class hook without decorative grid texture. */
   background-image: none;
-  padding-top: clamp(4rem, 8vw, 6rem) !important;
+  padding-top: clamp(3.5rem, 6vw, 4.5rem) !important;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .landing-grid > div {
     align-items: start !important;
   }
 
   .landing-grid > div > :last-child {
     margin-top: 3rem !important;
+  }
+
+  #capabilities {
+    display: flex !important;
+    flex-direction: column;
+    gap: 3.5rem;
+  }
+
+  #capabilities > :last-child {
+    order: -1;
+    width: 100%;
+  }
+
+  #capabilities > :first-child {
+    order: 1;
+    width: 100%;
+  }
+
+  #capabilities > :first-child > div > div:last-child {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+
+  #capabilities > :first-child > div > div:last-child > div {
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  #capabilities > :first-child > div > div:last-child {
+    display: grid;
+    gap: 1rem;
   }
 }
 
