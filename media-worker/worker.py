@@ -32,8 +32,11 @@ WHISPER_MODEL_NAME = os.getenv("WHISPER_MODEL", "small")
 DOWNLOAD_TIMEOUT = int(os.getenv("MEDIA_DOWNLOAD_TIMEOUT_SECONDS", "30"))
 MAX_DURATION_SECONDS = int(os.getenv("MEDIA_MAX_DURATION_SECONDS", "180"))
 DEALERADMIN_API_URL = os.getenv("DEALERADMIN_API_URL", "").strip().rstrip("/")
-DEALERADMIN_WEBHOOK_SECRET = os.getenv("DEALERADMIN_WEBHOOK_SECRET", "").strip()
+GHL_WEBHOOK_SECRET = os.getenv("GHL_WEBHOOK_SECRET", os.getenv("DEALERADMIN_WEBHOOK_SECRET", "")).strip()
 RECONCILIATION_TIMEOUT = int(os.getenv("DEALERADMIN_RECONCILIATION_TIMEOUT_SECONDS", "15"))
+MEDIA_RUN_ONCE = os.getenv("MEDIA_RUN_ONCE", "false").strip().lower() in {"1", "true", "yes", "on"}
+
+_WHISPER_MODEL: Any | None = None
 
 
 class NotRetrievable(Exception):
@@ -111,12 +114,15 @@ def download_attachment(row: dict[str, Any], destination: Path) -> tuple[str, in
 
 
 def transcribe_audio(path: Path) -> tuple[str, dict[str, Any]]:
+    global _WHISPER_MODEL
     try:
         from faster_whisper import WhisperModel
     except ImportError as exc:
         raise RetryableMediaError("faster_whisper_unavailable") from exc
 
-    model = WhisperModel(WHISPER_MODEL_NAME, device="cpu", compute_type="int8")
+    if _WHISPER_MODEL is None:
+        _WHISPER_MODEL = WhisperModel(WHISPER_MODEL_NAME, device="cpu", compute_type="int8")
+    model = _WHISPER_MODEL
     try:
         segments, info = model.transcribe(str(path), vad_filter=True)
         segment_rows: list[dict[str, Any]] = []
@@ -341,14 +347,14 @@ def save_success(connection: psycopg.Connection[Any], row: dict[str, Any], diges
 
 def notify_reconciliation(conversation_id: Any) -> bool:
     """Ask the API to recalculate the snapshot after derived text is stored."""
-    if not DEALERADMIN_API_URL or not DEALERADMIN_WEBHOOK_SECRET:
+    if not DEALERADMIN_API_URL or not GHL_WEBHOOK_SECRET:
         LOG.warning("media_reconciliation_skipped reason=missing_callback_config")
         return False
     try:
         response = requests.post(
             f"{DEALERADMIN_API_URL}/webhooks/ghl/conversations/{conversation_id}/reconcile-media",
             json={},
-            headers={"X-DealerADMIN-Webhook-Secret": DEALERADMIN_WEBHOOK_SECRET},
+            headers={"X-DealerADMIN-Webhook-Secret": GHL_WEBHOOK_SECRET},
             timeout=RECONCILIATION_TIMEOUT,
         )
     except requests.RequestException:
@@ -394,26 +400,38 @@ def process_one(connection: psycopg.Connection[Any], row: dict[str, Any]) -> Non
             raise RetryableMediaError("reconciliation_callback_failed")
 
 
+def process_pending_attachment() -> bool:
+    """Process one available attachment and report whether work was found."""
+    with psycopg.connect(database_url(), autocommit=False) as connection:
+        row = claim_attachment(connection)
+        if not row:
+            return False
+        try:
+            process_one(connection, row)
+            LOG.info("media_processed attachment_id=%s status=done", row["id"])
+        except NotRetrievable as exc:
+            save_failure(connection, row, "not_retrievable", str(exc))
+            LOG.warning("media_processed attachment_id=%s status=not_retrievable", row["id"])
+        except Exception as exc:  # pragma: no cover - native dependencies/network
+            save_failure(connection, row, "failed", type(exc).__name__)
+            LOG.warning("media_processed attachment_id=%s status=failed", row["id"])
+        return True
+
+
 def main() -> None:
     logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s")
     while True:
         try:
-            with psycopg.connect(database_url(), autocommit=False) as connection:
-                row = claim_attachment(connection)
-                if not row:
-                    time.sleep(POLL_SECONDS)
-                    continue
-                try:
-                    process_one(connection, row)
-                    LOG.info("media_processed attachment_id=%s status=done", row["id"])
-                except NotRetrievable as exc:
-                    save_failure(connection, row, "not_retrievable", str(exc))
-                    LOG.warning("media_processed attachment_id=%s status=not_retrievable", row["id"])
-                except Exception as exc:  # pragma: no cover - native dependencies/network
-                    save_failure(connection, row, "failed", type(exc).__name__)
-                    LOG.warning("media_processed attachment_id=%s status=failed", row["id"])
+            did_work = process_pending_attachment()
+            if MEDIA_RUN_ONCE and not did_work:
+                LOG.info("media_worker_complete reason=no_pending_attachments")
+                return
+            if not did_work:
+                time.sleep(POLL_SECONDS)
         except Exception as exc:  # pragma: no cover - deployment/runtime
             LOG.error("media_worker_cycle_failed error=%s", type(exc).__name__)
+            if MEDIA_RUN_ONCE:
+                raise
             time.sleep(POLL_SECONDS)
 
 
