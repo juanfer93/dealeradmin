@@ -69,6 +69,17 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--brand); outline
 .landing-grid {
   /* Keep the class hook without decorative grid texture. */
   background-image: none;
+  padding-top: clamp(4rem, 8vw, 6rem) !important;
+}
+
+@media (min-width: 1024px) {
+  .landing-grid > div {
+    align-items: start !important;
+  }
+
+  .landing-grid > div > :last-child {
+    margin-top: 3rem !important;
+  }
 }
 
 img[src="/captures/ghl-workflow.svg"] {
