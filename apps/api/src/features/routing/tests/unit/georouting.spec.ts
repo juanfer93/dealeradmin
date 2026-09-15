@@ -176,6 +176,56 @@ describe('Easterns georouting engine', () => {
     });
   });
 
+  it('consulta el último asignado de Baltimore dentro del GHL Location ID', async () => {
+    const calls: Array<{ sql: string; parameters?: unknown[] }> = [];
+    const query = vi.fn(async (sql: string, parameters?: unknown[]) => {
+      calls.push({ sql, parameters });
+      if (sql.includes('FROM locations')) return [{ state_code: 'MD', easterns_routing_zone: 'baltimore_overlap' }];
+      if (sql.includes('FROM lead_dealers ld')) return [{ assigned_dealer_id: EASTERN_DEALER_IDS.rosedale }];
+      return [];
+    });
+    const service = new GeoroutingService({ query } as never);
+
+    await expect(service.resolveDealer(
+      { city: 'Baltimore', state: 'MD' },
+      undefined as never,
+      EASTERN_DEALER_IDS.rosedale,
+      'ghl-easterns-location',
+    )).resolves.toMatchObject({ dealerId: EASTERN_DEALER_IDS.laurel });
+
+    const historyCall = calls.find(({ sql }) => sql.includes('FROM lead_dealers ld'))!;
+    expect(historyCall.sql).toContain('l.ghl_location_id = $3');
+    expect(historyCall.sql).toContain('routing_override = false');
+    expect(historyCall.sql).toContain("NOT LIKE 'Explicit Easterns Zone:%'");
+    expect(historyCall.parameters).toEqual([
+      [EASTERN_DEALER_IDS.rosedale, EASTERN_DEALER_IDS.laurel],
+      'Baltimore Overlap:%',
+      'ghl-easterns-location',
+      ['%baltimore%'],
+    ]);
+  });
+
+  it('recupera el histórico antiguo desde la conversación si falta routing_reason', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('FROM locations') && !sql.includes('conversations c')) {
+        return [{ state_code: 'MD', easterns_routing_zone: 'baltimore_overlap' }];
+      }
+      if (sql.includes('conversations c')) return [{ assigned_dealer_id: EASTERN_DEALER_IDS.rosedale }];
+      return [];
+    });
+    const service = new GeoroutingService({ query } as never);
+
+    await expect(service.resolveDealer(
+      { city: 'Baltimore', state: 'MD' },
+      undefined as never,
+      EASTERN_DEALER_IDS.rosedale,
+      'ghl-easterns-location',
+    )).resolves.toMatchObject({
+      dealerId: EASTERN_DEALER_IDS.laurel,
+      reason: 'Baltimore Overlap: Round-Robin (Previous: Rosedale)',
+    });
+  });
+
   it('no fuerza dealer cuando el booleano explícito es false', async () => {
     const { service } = createService(EASTERN_DEALER_IDS.rosedale);
     await expect(service.resolveDealer({ easterns_zone: 'Baltimore', easterns_dealer_selected: false })).resolves.toMatchObject({
@@ -233,6 +283,25 @@ describe('Easterns georouting engine', () => {
     await expect(routedService.resolveDealer({ state: 'MD', city: 'Waldorf' }, undefined as never, EASTERN_DEALER_IDS.sterling)).resolves.toMatchObject({
       dealerId: EASTERN_DEALER_IDS.sterling,
       reason: 'Southern MD/DC Overlap: Round-Robin (Previous: Laurel)',
+    });
+  });
+
+  it('rota Southern Maryland hacia Laurel cuando Sterling fue el último asignado', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('FROM locations')) return [{ state_code: 'MD', easterns_routing_zone: 'southern_md_overlap' }];
+      if (sql.includes('FROM lead_dealers ld')) return [{ assigned_dealer_id: EASTERN_DEALER_IDS.sterling }];
+      return [];
+    });
+    const service = new GeoroutingService({ query } as never);
+
+    await expect(service.resolveDealer(
+      { state: 'MD', city: 'Waldorf' },
+      undefined as never,
+      EASTERN_DEALER_IDS.sterling,
+      'ghl-easterns-location',
+    )).resolves.toMatchObject({
+      dealerId: EASTERN_DEALER_IDS.laurel,
+      reason: 'Southern MD/DC Overlap: Round-Robin (Previous: Sterling/None)',
     });
   });
 });

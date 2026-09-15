@@ -191,6 +191,75 @@ describe('ConversationWebhookService', () => {
     expect(leadDealerUpsert?.[1]?.[0]).toBe('lead-sarah-saints');
   });
 
+  it('recalcula una asignación automática anterior para respetar la rotación Easterns', async () => {
+    const queryRunner = {
+      query: vi.fn(async (sql: string) => sql.includes('FROM lead_dealers') ? [{
+        status: 'pending', routing_status: 'resolved', assigned_dealer_id: 'd1111111-1111-1111-1111-111111111111',
+        routing_override: false, routing_reason: 'Baltimore Overlap: Round-Robin (Previous: Laurel)', vehicle_type: 'SUV',
+        down_payment: '', identification: '', bank_account: '', purchase_timeline: '', documents: '',
+      }] : []),
+    };
+    const resolveDealer = vi.fn(async () => ({
+      dealerId: 'd2222222-2222-2222-2222-222222222222',
+      reason: 'Baltimore Overlap: Round-Robin (Previous: Rosedale)',
+    }));
+    const service = new ConversationWebhookService({} as never, { resolveDealer } as never);
+
+    await (service as unknown as { syncLeadDealer: (...args: unknown[]) => Promise<void> }).syncLeadDealer(
+      queryRunner,
+      { id: 'd1111111-1111-1111-1111-111111111111', code: 'DLR-EAST-ROSE', name: 'Easterns Rosedale', timezone: 'America/New_York', routing_config: { group: 'Easterns' } },
+      'lead-easterns-rotation',
+      {
+        real_name: 'Tony Goussen', phone: '+14435550123', vehicle_type: 'SUV', down_payment: '',
+        purchase_timeline: '', documents: '', identification: '', bank_account: '', qualification_memory: '',
+        qualification_complete: false, missing_qualification: [], message_count: 1,
+      },
+      { city: 'Baltimore', state: 'MD', zip_code: null, easterns_zone: 'baltimore' },
+      'easterns',
+    );
+
+    const upsert = queryRunner.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO lead_dealers')) as [string, unknown[]] | undefined;
+    expect(resolveDealer).toHaveBeenCalledWith(
+      expect.objectContaining({ city: 'Baltimore', easterns_zone: 'baltimore' }),
+      queryRunner,
+      'd1111111-1111-1111-1111-111111111111',
+      'xN2LSSl62okzv9GnOJPU',
+    );
+    expect(upsert?.[1]?.[9]).toBe('d2222222-2222-2222-2222-222222222222');
+  });
+
+  it('conserva una reasignación manual Easterns aunque llegue una nueva ruta automática', async () => {
+    const queryRunner = {
+      query: vi.fn(async (sql: string) => sql.includes('FROM lead_dealers') ? [{
+        status: 'pending', routing_status: 'manual_override', assigned_dealer_id: 'd2222222-2222-2222-2222-222222222222',
+        routing_override: true, routing_reason: 'Manual override: Easterns Rosedale -> Easterns Laurel', vehicle_type: 'SUV',
+        down_payment: '', identification: '', bank_account: '', purchase_timeline: '', documents: '',
+      }] : []),
+    };
+    const resolveDealer = vi.fn(async () => ({
+      dealerId: 'd1111111-1111-1111-1111-111111111111',
+      reason: 'Baltimore Overlap: Round-Robin (Previous: Laurel)',
+    }));
+    const service = new ConversationWebhookService({} as never, { resolveDealer } as never);
+
+    await (service as unknown as { syncLeadDealer: (...args: unknown[]) => Promise<void> }).syncLeadDealer(
+      queryRunner,
+      { id: 'd1111111-1111-1111-1111-111111111111', code: 'DLR-EAST-ROSE', name: 'Easterns Rosedale', timezone: 'America/New_York', routing_config: { group: 'Easterns' } },
+      'lead-easterns-manual',
+      {
+        real_name: 'Kenneth Lopez', phone: '+14435550124', vehicle_type: 'SUV', down_payment: '',
+        purchase_timeline: '', documents: '', identification: '', bank_account: '', qualification_memory: '',
+        qualification_complete: false, missing_qualification: [], message_count: 1,
+      },
+      { city: 'Baltimore', state: 'MD', zip_code: null, easterns_zone: 'baltimore' },
+      'easterns',
+    );
+
+    const upsert = queryRunner.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO lead_dealers')) as [string, unknown[]] | undefined;
+    expect(upsert?.[1]?.[9]).toBe('d2222222-2222-2222-2222-222222222222');
+    expect(upsert?.[1]?.[10]).toBe(true);
+  });
+
   it('rejects a message when the native contact id is absent', async () => {
     const service = new ConversationWebhookService();
     await expect(service.acceptCustomerReplied({ message_body: 'SUV' }, 'stafford', {})).rejects.toThrow('Contact ID');

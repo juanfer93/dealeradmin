@@ -80,6 +80,7 @@ export class GeoroutingService {
     payload: LocationPayload,
     queryClient: QueryClient = this.dataSource,
     sourceDealerId?: string,
+    sourceGhlLocationId?: string,
   ): Promise<{ dealerId: string; reason: string }> {
     const stateValue = normalizeText(payload.state);
     const explicitState = this.resolveState(stateValue);
@@ -134,6 +135,7 @@ export class GeoroutingService {
         [EASTERN_DEALER_IDS.rosedale, EASTERN_DEALER_IDS.laurel],
         'Baltimore Overlap',
         queryClient,
+        sourceGhlLocationId,
       );
       if (lastAssigned === EASTERN_DEALER_IDS.rosedale) {
         return { dealerId: EASTERN_DEALER_IDS.laurel, reason: 'Baltimore Overlap: Round-Robin (Previous: Rosedale)' };
@@ -151,6 +153,7 @@ export class GeoroutingService {
         [EASTERN_DEALER_IDS.laurel, EASTERN_DEALER_IDS.sterling],
         'Southern MD/DC Overlap',
         queryClient,
+        sourceGhlLocationId,
       );
       if (lastAssigned === EASTERN_DEALER_IDS.laurel) {
         return { dealerId: EASTERN_DEALER_IDS.sterling, reason: 'Southern MD/DC Overlap: Round-Robin (Previous: Laurel)' };
@@ -172,19 +175,56 @@ export class GeoroutingService {
     dealerIds: string[],
     reasonPrefix: string,
     queryClient: QueryClient,
+    sourceGhlLocationId?: string,
   ): Promise<string | null> {
     await queryClient.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`easterns:${reasonPrefix}`]);
+    const scope = sourceGhlLocationId?.trim() || '';
+    const locationPatterns = reasonPrefix === 'Baltimore Overlap'
+      ? ['%baltimore%']
+      : ['%southern maryland%', '%sur de maryland%', '%south maryland%'];
+    const routingZone = reasonPrefix === 'Baltimore Overlap' ? 'baltimore_overlap' : 'southern_md_overlap';
     const rows = (await queryClient.query(
-      `SELECT assigned_dealer_id
-       FROM lead_dealers
-       WHERE assigned_dealer_id = ANY($1::uuid[])
-         AND routing_override = false
-         AND routing_reason LIKE $2
-       ORDER BY created_at DESC, updated_at DESC
+      `SELECT ld.assigned_dealer_id
+       FROM lead_dealers ld
+       INNER JOIN leads l ON l.id = ld.lead_id
+       WHERE ld.assigned_dealer_id = ANY($1::uuid[])
+         AND ld.routing_override = false
+         AND (ld.routing_reason IS NULL OR ld.routing_reason NOT LIKE 'Explicit Easterns Zone:%')
+         AND ($3::varchar = '' OR l.ghl_location_id = $3)
+         AND (ld.routing_reason LIKE $2::text OR LOWER(COALESCE(ld.easterns_zone, '')) LIKE ANY($4::text[]))
+       ORDER BY ld.updated_at DESC, ld.created_at DESC
        LIMIT 1`,
-      [dealerIds, `${reasonPrefix}:%`],
+      [dealerIds, `${reasonPrefix}:%`, scope, locationPatterns],
     )) as Array<{ assigned_dealer_id: string | null }>;
-    return rows[0]?.assigned_dealer_id ?? null;
+    if (rows[0]?.assigned_dealer_id) return rows[0].assigned_dealer_id;
+
+    // Conversation-based routing predates the routing_reason/easterns_zone
+    // fields. Recover its geographic evidence from the persisted snapshot so
+    // old automatic assignments still participate in the rotation.
+    const contextualRows = (await queryClient.query(
+      `SELECT ld.assigned_dealer_id
+       FROM lead_dealers ld
+       INNER JOIN leads l ON l.id = ld.lead_id
+       INNER JOIN conversations c ON c.lead_id = ld.lead_id
+       WHERE ld.assigned_dealer_id = ANY($1::uuid[])
+         AND ld.routing_override = false
+         AND (ld.routing_reason IS NULL OR ld.routing_reason NOT LIKE 'Explicit Easterns Zone:%')
+         AND ($2::varchar = '' OR l.ghl_location_id = $2)
+         AND ($2::varchar = '' OR c.ghl_location_id = $2)
+         AND (
+           LOWER(COALESCE(c.location_snapshot->>'easterns_zone', '')) LIKE ANY($3::text[])
+           OR EXISTS (
+             SELECT 1
+             FROM locations loc
+             WHERE loc.normalized_name = LOWER(COALESCE(c.location_snapshot->>'city', ''))
+               AND loc.easterns_routing_zone = $4
+           )
+         )
+       ORDER BY ld.updated_at DESC, ld.created_at DESC
+       LIMIT 1`,
+      [dealerIds, scope, locationPatterns, routingZone],
+    )) as Array<{ assigned_dealer_id: string | null }>;
+    return contextualRows[0]?.assigned_dealer_id ?? null;
   }
 
   private async lookupLocation(city: string, queryClient: QueryClient, stateHint = ''): Promise<{ state_code: string; easterns_routing_zone: string | null } | null> {

@@ -1,0 +1,12 @@
+[
+  { "id": "qa-01", "message": "I live in Baltimore and need an SUV.", "easterns_zone": "Baltimore", "easterns_dealer_selected": false },
+  { "id": "qa-02", "message": "I live in Baltimore and need a sedan.", "easterns_zone": "Baltimore", "easterns_dealer_selected": false },
+  { "id": "qa-03", "message": "I want my car with Easterns Laurel.", "easterns_zone": "Laurel", "easterns_dealer_selected": true },
+  { "id": "qa-04", "message": "I live in Baltimore and need a truck.", "easterns_zone": "Baltimore", "easterns_dealer_selected": false },
+  { "id": "qa-05", "message": "I live in Waldorf, Maryland and need an SUV.", "easterns_zone": "Southern Maryland", "easterns_dealer_selected": false },
+  { "id": "qa-06", "message": "I live in Southern Maryland and need a sedan.", "easterns_zone": "Southern Maryland", "easterns_dealer_selected": false },
+  { "id": "qa-07", "message": "I live in Alexandria, Virginia and need an SUV.", "state": "VA", "easterns_dealer_selected": false },
+  { "id": "qa-08", "message": "I live in Wilmington, Delaware and need a sedan.", "state": "DE", "easterns_dealer_selected": false },
+  { "id": "qa-09", "message": "I live in central Maryland and need an SUV.", "easterns_zone": "Central Maryland", "state": "MD", "easterns_dealer_selected": false },
+  { "id": "qa-10", "message": "I live in Baltimore and need a sedan.", "easterns_zone": "Baltimore", "easterns_dealer_selected": false }
+]

@@ -982,10 +982,15 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     const current = existing[0];
     const isEasterns = sourceDealer.routing_config?.group === 'Easterns';
     const routing = isEasterns
-      ? await this.georoutingService.resolveDealer({ ...location, qualification_memory: snapshot.qualification_memory }, runner, sourceDealer.id)
+      ? await this.georoutingService.resolveDealer(
+        { ...location, qualification_memory: snapshot.qualification_memory },
+        runner,
+        sourceDealer.id,
+        GHL_SOURCE_CONFIG[source].locationId,
+      )
       : { dealerId: sourceDealer.id, reason: `GHL ${source} source dealer` };
     const alreadySent = current?.status === 'sent';
-    const preservesAssignment = Boolean(current?.routing_override || alreadySent || current?.assigned_dealer_id);
+    const preservesAssignment = Boolean(current?.routing_override || alreadySent);
     const assignedDealerId = preservesAssignment ? current?.assigned_dealer_id || routing.dealerId : routing.dealerId;
     const messageText = buildWhatsAppMessage(snapshot.real_name || 'Lead', snapshot.phone, snapshot);
     await runner.query(

@@ -227,6 +227,7 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
       expect.objectContaining({ qualification_memory: expect.stringContaining('BALTIMORE') }),
       queryRunner,
       'dealer-easterns',
+      'loc-easterns',
     );
   });
 
