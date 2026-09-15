@@ -47,6 +47,11 @@ export type QualificationProgress = {
 };
 
 const EMPTY = '';
+export const ADVISOR_HANDOFF_VEHICLE = 'Quiere hablar con un asesor';
+
+export function isAdvisorHandoffVehicle(value: string | null | undefined): boolean {
+  return clean(value).toLocaleLowerCase() === ADVISOR_HANDOFF_VEHICLE.toLocaleLowerCase();
+}
 
 const ENGLISH_LANGUAGE_SIGNALS = [
   /\b(?:i|i'm|im|my|want|wants|need|looking|have|this|next|today|where|what|can|with|and|the|yes|yeah|yep|do|does|when|how)\b/gi,
@@ -193,11 +198,11 @@ const VEHICLE_MODELS = /\b(?:grand caravan|grand cherokee|transit connect|promas
 const VEHICLE_CATEGORIES = /\b(?:suv|sedan|truck|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camion|camión)\b/i;
 const VEHICLE_TRIMS = /\b(?:\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i;
 const VEHICLE_CONTEXT = /\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
-const WHATSAPP_ECONOMIC_CAR_INTENT = /\b(?:carro|auto|coche|veh[ií]culo)\s+econ[oó]mic[oa]s?\b/i;
+const ECONOMIC_CAR_INTENT = /\b(?:carro|auto|coche|veh[ií]culo)\s+econ[oó]mic[oa]s?\b/i;
 const TRADE_IN_INTENT = /\btrade[- ]?in\b|\bmy (?:car|vehicle)\b|\bmi (?:carro|auto|veh[ií]culo)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b|\bchange\s+(?:my\s+)?(?:vehicle|car)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b/i;
 
 function canonicalVehicleLabel(value: string): string {
-  return clean(value)
+  const normalized = clean(value)
     .replace(/\bcorola\b/gi, 'Corolla')
     .replace(/\bcivc\b/gi, 'Civic')
     .replace(/\btacma\b/gi, 'Tacoma')
@@ -209,6 +214,18 @@ function canonicalVehicleLabel(value: string): string {
     .replace(/\bhilander\b/gi, 'Highlander')
     .replace(/\bcrv\b/gi, 'CR-V')
     .replace(/\bhrv\b/gi, 'HR-V');
+  const canonicalToken = (token: string): string => {
+    const lower = token.toLocaleLowerCase();
+    if (lower === 'gmc' || lower === 'bmw' || lower === 'vw') return lower.toLocaleUpperCase();
+    if (lower === 'rav4') return 'RAV4';
+    if (lower === '4runner') return '4Runner';
+    if (lower === 'cr-v' || lower === 'hr-v') return lower.toLocaleUpperCase();
+    if (/^f-?\d+$/.test(lower)) return lower.replace(/^f/, 'F-');
+    return `${lower[0].toLocaleUpperCase()}${lower.slice(1)}`;
+  };
+  return normalized
+    .replace(VEHICLE_BRANDS, (match) => canonicalToken(match))
+    .replace(VEHICLE_MODELS, (match) => match.split(/\s+/).map(canonicalToken).join(' '));
 }
 
 function canonicalVehicleCategory(value: string): string {
@@ -435,6 +452,7 @@ function firstValidAmount(...values: Array<string | null | undefined>): string {
 
 function normalizeVehicle(value: string): string {
   let source = clean(value).replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
+  if (isAdvisorHandoffVehicle(source)) return ADVISOR_HANDOFF_VEHICLE;
   if (isCampaignButton(source) || isNonVehicleIntent(source)) return EMPTY;
   // HighLevel can concatenate the Custom Code output and the AI output
   // without a separator. Keep the value before a repeated label such as
@@ -674,7 +692,7 @@ export function isQualificationComplete(input: {
   return Boolean(
     clean(input.real_name) &&
     clean(input.phone) &&
-    clean(input.vehicle_type) &&
+    clean(input.vehicle_type) && !isAdvisorHandoffVehicle(input.vehicle_type) &&
     clean(input.down_payment) &&
     clean(input.purchase_timeline),
   );
@@ -740,12 +758,13 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
         : [suppliedName, ...extractedNames]
       ).map(normalizeRealName).find(Boolean) ?? EMPTY;
   const chatPhone = extractPhone(input.chat_history_log) || extractPhone(input.message) || extractPhone(input.phone);
+  const phoneFromConversation = extractPhone(input.chat_history_log) || extractPhone(input.message);
   const memoryDown = normalizeMemoryDownPayment(memoryValue(memory, ['down payment', 'down_payment', 'downpayment']));
   const inputDown = clean(input.down_payment ?? EMPTY);
   const vehicleSource = [rawHistory, messageForExtraction].filter(Boolean).join('\n');
-  // WhatsApp buyers use "carro económico" as a category request. Keep this
-  // deterministic so it cannot be mistaken for a make/model or lost in prose.
-  const vehicle = isWhatsAppChannel(input.channel) && WHATSAPP_ECONOMIC_CAR_INTENT.test(vehicleSource)
+  // Buyers on WhatsApp and Messenger use "carro económico" as a category
+  // request. Keep this deterministic so it cannot be mistaken for a make/model.
+  const extractedVehicle = ECONOMIC_CAR_INTENT.test(vehicleSource)
     ? 'Sedan'
     : normalizeVehicle(firstNonEmpty(
       extractVehicle(vehicleSource),
@@ -759,6 +778,14 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
       memoryValue(memory, ['vehicle', 'vehicle_type']),
       input.vehicle_type,
     ));
+  const hasExistingAdvisorMarker = [
+    memoryValue(memory, ['vehicle_type', 'vehicle', 'type']),
+    input.vehicle_type,
+  ].some((value) => isAdvisorHandoffVehicle(value));
+  const vehicle = extractedVehicle || (hasExistingAdvisorMarker || phoneFromConversation || (isWhatsAppChannel(input.channel) && chatPhone)
+    ? ADVISOR_HANDOFF_VEHICLE
+    : EMPTY);
+  const hasRealVehicle = Boolean(vehicle) && !isAdvisorHandoffVehicle(vehicle);
   const explicitCashDown = firstValidAmount(
     extractDownPayment(messageForExtraction),
     extractDownPayment(rawHistory),
@@ -818,7 +845,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
 
   const step: QualificationStep = !realName
     ? 'real_name'
-    : !vehicle
+    : !hasRealVehicle
       ? 'vehicle_type'
       : !down
         ? 'down_payment'
@@ -853,7 +880,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const completedOrder: Array<[string, boolean]> = [
     ['real_name', Boolean(realName)],
     ['phone', Boolean(chatPhone)],
-    ['vehicle_type', Boolean(vehicle)],
+    ['vehicle_type', hasRealVehicle],
     ['down_payment', Boolean(down)],
     ['purchase_timeline', Boolean(timeline)],
     ['documents', docs.id === 'yes' && docs.income === 'yes'],
@@ -881,7 +908,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const missingQualification = [
     !realName ? 'real_name' : EMPTY,
     !chatPhone ? 'phone' : EMPTY,
-    !vehicle ? 'vehicle_type' : EMPTY,
+    !hasRealVehicle ? 'vehicle_type' : EMPTY,
     !down ? 'down_payment' : EMPTY,
     !timeline ? 'purchase_timeline' : EMPTY,
     docs.id !== 'yes' ? 'identification' : EMPTY,

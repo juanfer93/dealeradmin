@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dealerIdentity, formatQualificationLabels } from './OperatorDashboard';
+import { dealerIdentity, formatLeadMessage, formatPurchaseTimelineLabel, formatQualificationLabels } from './OperatorDashboard';
 
 describe('dealerIdentity', () => {
   it('keeps Koons dealer names out of the Offlease group', () => {
@@ -38,5 +38,24 @@ describe('formatQualificationLabels', () => {
       identification: '',
       documents: 'ID y prueba de ingresos',
     });
+  });
+});
+
+describe('operator qualification message normalization', () => {
+  it('hides affirmative yes values and localizes an urgent Spanish timeline', () => {
+    const message = formatLeadMessage({
+      id: '1', dealerId: 'd', dealerName: 'Stafford', name: 'Luis', phone: '+19196497529', vehicleType: 'Toyota Tacoma',
+      downPayment: 'cash', identification: 'yes', bankAccount: 'yes', documents: 'identification: yes; proof of income: yes',
+      purchaseTimeline: 'hoy', status: 'pending', messageText: '', createdAt: '2026-09-15T12:00:00.000Z',
+    }, 'es');
+
+    expect(message).toContain('cuenta bancaria');
+    expect(message).toContain('quiere comprar lo más pronto posible');
+    expect(message).not.toMatch(/(?:ID|cuenta bancaria|proof of income|prueba de ingresos|comprobante de ingresos):?\s+yes/i);
+  });
+
+  it('normalizes the advisor-facing timeline in the lead tags', () => {
+    expect(formatPurchaseTimelineLabel('Wants to buy today', 'es')).toBe('wants to buy asap');
+    expect(formatPurchaseTimelineLabel('hoy', 'es')).toBe('quiere comprar lo más pronto posible');
   });
 });

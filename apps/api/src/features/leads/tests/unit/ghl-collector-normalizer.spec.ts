@@ -50,7 +50,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.qualification_complete).toBe(false);
   });
 
-  it('normalizes carro económico to Sedan only for WhatsApp contacts in Custom Code', () => {
+  it('normalizes carro económico to Sedan for WhatsApp and Messenger contacts in Custom Code', () => {
     expect(execute({
       channel: 'whatsapp',
       message: 'Busco un carro economico para esta semana',
@@ -59,7 +59,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(execute({
       channel: 'messenger',
       message: 'Busco un carro economico para esta semana',
-    }).vehicle_type).toBe('');
+    }).vehicle_type).toBe('Sedan');
   });
 
   it('skips a greeting and extracts the following simple name from the Stafford WhatsApp transcript in Custom Code', () => {
@@ -151,7 +151,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     const transcript = '*Headline:* Financiamiento interno! Quiero financiar un auto!\nElias alvarado\nAun auto económico para el trabajo';
     expect(execute({ real_name: 'EliasJosue 🕊Mnegra', message: transcript, chat_history_log: transcript })).toMatchObject({
       real_name: 'Elias Alvarado',
-      vehicle_type: '',
+      vehicle_type: 'Sedan',
     });
   });
 
@@ -232,6 +232,21 @@ describe('HighLevel collector custom-code normalizer', () => {
       qualification_complete: true,
     });
     expect(result.bank_account).toBe('');
+  });
+
+  it('marks a phone-only inbound handoff as advisor contact without qualifying it as a vehicle', () => {
+    const result = execute({
+      real_name: 'Oscar Hernández',
+      message: '804 546 1032',
+    });
+
+    expect(result).toMatchObject({
+      phone: '+18045461032',
+      vehicle_type: 'Quiere hablar con un asesor',
+      qualification_step: 'vehicle_type',
+      qualification_complete: false,
+    });
+    expect(result.missing_qualification).toContain('vehicle_type');
   });
 
   it.each(['Quiero cambiar mi vehículo', 'Cambio de auto', 'I want to change my vehicle'])('maps vehicle-change language to trade-in: %s', (message) => {
@@ -489,7 +504,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
 
     expect(result.real_name).toBe('');
-    expect(result.qualification_memory).toBe('');
+    expect(result.qualification_memory).toBe('vehicle: Quiere hablar con un asesor');
     expect(result.phone).toBe('+15714223667');
   });
 });

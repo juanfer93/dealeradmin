@@ -1,6 +1,8 @@
 // Body for the HighLevel Custom Code action used by all four collector workflows.
 // Keep this executable without imports: HighLevel provides inputData at runtime.
 const clean = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
+const advisorHandoffVehicle = 'Quiere hablar con un asesor';
+const isAdvisorHandoffVehicle = (value) => clean(value).toLocaleLowerCase() === advisorHandoffVehicle.toLocaleLowerCase();
 const emptyMarker = (value) => /^(?:--|-|n\/?a|not indicated|not specified|no indicado|no especificado)$/i.test(clean(value));
 const first = (...values) => values.map(clean).find((value) => value && !emptyMarker(value)) || '';
 const rawMemory = String(inputData.qualification_memory ?? '').trim();
@@ -64,7 +66,7 @@ const vehicleBrands = /\b(?:toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyun
 const vehicleModels = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacoma|tacma|rav\s*4|civic|civc|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
 const vehicleCategories = /suv|sedan|truck|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camion|camión/i;
 const vehicleContext = /\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
-const whatsappEconomicCarIntent = /\b(?:carro|auto|coche|veh[ií]culo)\s+econ[oó]mic[oa]s?\b/i;
+const economicCarIntent = /\b(?:carro|auto|coche|veh[ií]culo)\s+econ[oó]mic[oa]s?\b/i;
 const canonicalVehicleLabel = (value) => clean(value)
   .replace(/\bcorola\b/gi, 'Corolla')
   .replace(/\bcivc\b/gi, 'Civic')
@@ -73,7 +75,20 @@ const canonicalVehicleLabel = (value) => clean(value)
   .replace(/\b4\s*runner\b/gi, '4Runner')
   .replace(/\bhilander\b/gi, 'Highlander')
   .replace(/\bcrv\b/gi, 'CR-V')
-  .replace(/\bhrv\b/gi, 'HR-V');
+  .replace(/\bhrv\b/gi, 'HR-V')
+  .replace(vehicleBrands, (match) => {
+    const lower = match.toLocaleLowerCase();
+    if (lower === 'gmc' || lower === 'bmw' || lower === 'vw') return lower.toLocaleUpperCase();
+    return `${lower[0].toLocaleUpperCase()}${lower.slice(1)}`;
+  })
+  .replace(vehicleModels, (match) => match.split(/\s+/).map((token) => {
+    const lower = token.toLocaleLowerCase();
+    if (lower === 'rav4') return 'RAV4';
+    if (lower === '4runner') return '4Runner';
+    if (lower === 'cr-v' || lower === 'hr-v') return lower.toLocaleUpperCase();
+    if (/^f-?\d+$/.test(lower)) return lower.replace(/^f/, 'F-');
+    return `${lower[0].toLocaleUpperCase()}${lower.slice(1)}`;
+  }).join(' '));
 const canonicalVehicleCategory = (value) => clean(value).replace(/\b(?:troca|trokita|troquita|troque|trokas|camioneta|camion|camión)\b/gi, 'truck');
 const tradeInLanguage = /\btrade[- ]?in\b|\bmy (?:car|vehicle)\b|\bmi (?:carro|auto|veh[ií]culo)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b|\bchange\s+(?:my\s+)?(?:vehicle|car)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b/i;
 const vehicleLabel = (value) => {
@@ -342,17 +357,23 @@ const documentStatus = (pattern, memoryAliases, custom) => {
   return '';
 };
 const vehicleSource = [rawHistory, rawMessage].filter(Boolean).join('\n');
-// Keep the WhatsApp shorthand "carro económico" as the stable Sedan category.
-const vehicle = isWhatsAppChannel(inputData.channel) && whatsappEconomicCarIntent.test(vehicleSource)
+const phoneFromConversation = phoneFrom(message, history);
+// Keep the WhatsApp/Messenger shorthand "carro económico" as the stable
+// Sedan category.
+const extractedVehicle = economicCarIntent.test(vehicleSource)
   ? 'Sedan'
   : first(
     campaign ? '' : cleanVehicleValue(vehicleFrom(vehicleSource)),
     cleanVehicleValue(memoryValue(['vehicle', 'vehicle_type'])),
     cleanVehicleValue(inputData.vehicle_type),
   );
+const existingAdvisorMarker = [memoryValue(['vehicle', 'vehicle_type']), inputData.vehicle_type].some(isAdvisorHandoffVehicle);
+const phone = phoneFrom(message, history, inputData.phone);
+const vehicle = extractedVehicle || (existingAdvisorMarker || phoneFromConversation || (isWhatsAppChannel(inputData.channel) && phone)
+  ? advisorHandoffVehicle
+  : '');
 // Prefer a phone found in the conversation before accepting custom/memory down values.
 // This prevents a stale area-code-only value (e.g. 443) from becoming a down payment.
-const phone = phoneFrom(message, history, inputData.phone);
 const memoryDown = memoryValue(['down payment', 'down_payment', 'downpayment']);
 const inputDown = clean(inputData.down_payment);
 const cashDown = campaign ? '' : first(
@@ -385,14 +406,15 @@ const language = message || history ? (englishSignals > spanishSignals ? 'en' : 
 const timeline = language === 'es'
   ? ({ today: 'hoy', 'this week': 'esta semana', 'this month': 'este mes', 'next week': 'próxima semana', 'next month': 'próximo mes', 'within 30 days': 'en 30 días', 'exploring options': 'explorando opciones' }[rawTimeline] || rawTimeline)
   : rawTimeline;
-const coreMissing = [!realName ? 'real_name' : '', !phone ? 'phone' : '', !vehicle ? 'vehicle_type' : '', !down ? 'down_payment' : '', !timeline ? 'purchase_timeline' : ''].filter(Boolean);
+const hasRealVehicle = Boolean(vehicle) && !isAdvisorHandoffVehicle(vehicle);
+const coreMissing = [!realName ? 'real_name' : '', !phone ? 'phone' : '', !hasRealVehicle ? 'vehicle_type' : '', !down ? 'down_payment' : '', !timeline ? 'purchase_timeline' : ''].filter(Boolean);
 const missing = [...coreMissing, identification !== 'yes' ? 'identification' : '', income !== 'yes' ? 'proof_of_income' : '', bankAccount !== 'yes' ? 'bank_account' : ''].filter(Boolean);
 const parts = memoryText(rawMemory).split(';').map((part) => clean(part).replace(/^\d+(?=(?:vehicle|vehicle[_ ]?type|down|down[_ ]?payment|documents?|timeline)\b)/i, '')).filter((part) => Boolean(part) && !/^\$?\d[\d,.]*$/.test(part));
 const canonical = [['real_name', realName], ['vehicle', vehicle], ['down payment', down], ['documents', documents], ['timeline', timeline]].filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).replace(/\s*;\s*/g, ', ')}`);
 const qualificationMemory = [...new Set([...parts.filter((part) => !/^(?:real_name|real name|name|nombre|nombre real|nombre completo|vehicle|vehicle_type|down|down payment|down_payment|documents?|docs|timeline|purchase timeline|purchase_timeline)\s*(?::|=|-)/i.test(part)), ...canonical])].join('; ');
 const qualificationStep = !realName
   ? 'real_name'
-  : !vehicle
+    : !hasRealVehicle
     ? 'vehicle_type'
     : !down
       ? 'down_payment'
@@ -418,7 +440,7 @@ const questions = {
 const predictedBotQuestion = questions[language][qualificationStep];
 const lastAnsweredField = qualificationStep === 'complete'
   ? 'bank_account'
-  : [['real_name', realName], ['phone', phone], ['vehicle_type', vehicle], ['down_payment', down], ['purchase_timeline', timeline], ['documents', identification === 'yes' && income === 'yes'], ['bank_account', bankAccount === 'yes']]
+  : [['real_name', realName], ['phone', phone], ['vehicle_type', hasRealVehicle], ['down_payment', down], ['purchase_timeline', timeline], ['documents', identification === 'yes' && income === 'yes'], ['bank_account', bankAccount === 'yes']]
     .reverse().find(([, complete]) => Boolean(complete))?.[0] || null;
 // Prefer a phone written in the conversation, but preserve a validated native
 // GHL contact phone when the webhook delivers the conversation message

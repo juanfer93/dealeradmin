@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isQualificationComplete, normalizeCollectorInput } from '../../domain/collector-normalizer';
+import { ADVISOR_HANDOFF_VEHICLE, detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isAdvisorHandoffVehicle, isQualificationComplete, normalizeCollectorInput } from '../../domain/collector-normalizer';
 
 describe('normalizeCollectorInput', () => {
   it.each([
@@ -16,6 +16,30 @@ describe('normalizeCollectorInput', () => {
 
   it('preserves a valid native GHL contact phone when the latest message is separate', () => {
     expect(normalizeCollectorInput({ phone: '(240) 681-5028', message: 'Ok' }).phone).toBe('+12406815028');
+  });
+
+  it('marks a phone-only inbound handoff as advisor contact without qualifying it as a vehicle', () => {
+    const result = normalizeCollectorInput({
+      channel: 'messenger',
+      real_name: 'Oscar Hernández',
+      message: '804 546 1032',
+    });
+
+    expect(result).toMatchObject({
+      phone: '+18045461032',
+      vehicle_type: ADVISOR_HANDOFF_VEHICLE,
+      qualification_step: 'vehicle_type',
+      qualification_complete: false,
+    });
+    expect(result.missing_qualification).toContain('vehicle_type');
+    expect(isAdvisorHandoffVehicle(result.vehicle_type)).toBe(true);
+    expect(isQualificationComplete({
+      real_name: 'Oscar Hernández',
+      phone: '+18045461032',
+      vehicle_type: ADVISOR_HANDOFF_VEHICLE,
+      down_payment: '2000',
+      purchase_timeline: 'today',
+    })).toBe(false);
   });
 
   it('does not turn prices and mileage in a Messenger message into a phone', () => {
@@ -535,7 +559,7 @@ describe('normalizeCollectorInput', () => {
     expect(result.has_income_proof).toBe('yes');
   });
 
-  it('normalizes carro económico to Sedan only for WhatsApp contacts', () => {
+  it('normalizes carro económico to Sedan for WhatsApp and Messenger contacts', () => {
     expect(normalizeCollectorInput({
       channel: 'whatsapp',
       message: 'Busco un carro economico para esta semana',
@@ -544,7 +568,7 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({
       channel: 'messenger',
       message: 'Busco un carro economico para esta semana',
-    }).vehicle_type).toBe('');
+    }).vehicle_type).toBe('Sedan');
   });
 
   it('extracts a declared personal name from the complete inbound transcript', () => {
@@ -554,7 +578,7 @@ describe('normalizeCollectorInput', () => {
       chat_history_log: '*Headline:* Financiamiento interno! Quiero financiar un auto!\nElias alvarado\nAun auto económico para el trabajo',
     });
     expect(result.real_name).toBe('Elias Alvarado');
-    expect(result.vehicle_type).toBe('');
+    expect(result.vehicle_type).toBe('Sedan');
   });
 
   it('uses the Messenger contact name as real_name', () => {
@@ -829,7 +853,7 @@ describe('normalizeCollectorInput', () => {
     });
 
     expect(result.real_name).toBe('');
-    expect(result.qualification_memory).toBe('');
+    expect(result.qualification_memory).toBe('vehicle: Quiere hablar con un asesor');
   });
 
   it('does not treat a document confirmation as bank-account confirmation', () => {

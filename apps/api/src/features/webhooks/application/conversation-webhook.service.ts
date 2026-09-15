@@ -4,7 +4,7 @@ import { GhlCustomerRepliedSchema } from '@dealeradmin/contracts';
 import { createHash } from 'node:crypto';
 import { DataSource, QueryRunner } from 'typeorm';
 import { buildWhatsAppMessage } from '../../leads/domain/message-builder';
-import { detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isQualificationComplete, normalizeCollectorInput, normalizeRealName, type CollectorLanguage, type QualificationProgress } from '../../leads/domain/collector-normalizer';
+import { detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isAdvisorHandoffVehicle, isQualificationComplete, normalizeCollectorInput, normalizeRealName, type CollectorLanguage, type QualificationProgress } from '../../leads/domain/collector-normalizer';
 import { normalizeDownPayment } from '../../leads/domain/down-payment';
 import { normalizePhone } from '../../leads/domain/phone-normalizer';
 import { GeoroutingService } from '../../routing/domain/services/georouting.service';
@@ -319,7 +319,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       const missingQualification = [
         !realName ? 'real_name' : '',
         !effectivePhone ? 'phone' : '',
-        !vehicle ? 'vehicle_type' : '',
+        !vehicle || isAdvisorHandoffVehicle(vehicle) ? 'vehicle_type' : '',
         !downPayment ? 'down_payment' : '',
         !purchaseTimeline ? 'purchase_timeline' : '',
         identification !== 'yes' ? 'identification' : '',
@@ -639,7 +639,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         missing_qualification: [
           !normalized.real_name ? 'real_name' : '',
           !effectivePhone ? 'phone' : '',
-          !normalized.vehicle_type ? 'vehicle_type' : '',
+          !normalized.vehicle_type || isAdvisorHandoffVehicle(normalized.vehicle_type) ? 'vehicle_type' : '',
           !normalized.down_payment ? 'down_payment' : '',
           !normalized.purchase_timeline ? 'purchase_timeline' : '',
           normalized.identification !== 'yes' ? 'identification' : '',

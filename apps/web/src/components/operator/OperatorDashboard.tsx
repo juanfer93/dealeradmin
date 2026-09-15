@@ -20,7 +20,7 @@ type LeadResponse = { dealers: Dealer[]; leads: Lead[] };
 function clean(value: string | null | undefined) { return value?.trim() ?? ''; }
 
 const IDENTIFICATION_DOCUMENT_PATTERN = 'id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b';
-const INCOME_DOCUMENT_PATTERN = 'proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina|bank account|cuenta bancaria|cuenta de banco';
+const INCOME_DOCUMENT_PATTERN = 'proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina';
 const POSITIVE_DOCUMENT_VALUE = 'yes|sí|si|true|yeah|yep|correct|tengo|have it|i do|i have|available';
 const NEGATIVE_DOCUMENT_VALUE = 'no|n[oó]|false|not available|not indicated|not specified|no indicado|no especificado|sin|dont|don\'t|no tengo|i do not|do not have|don\'t have';
 
@@ -88,23 +88,50 @@ export function formatQualificationLabels(lead: Pick<Lead, 'identification' | 'd
 
 function detectLeadLanguage(lead: Lead): 'es' | 'en' {
   const text = [lead.vehicleType, lead.downPayment, lead.identification, lead.bankAccount, lead.documents, lead.purchaseTimeline].filter(Boolean).join(' ').toLowerCase();
+  if (/\bquiere\s+comprar\b/i.test(text)) return 'es';
+  if (/\bwants?\s+to\s+buy\b/i.test(text)) return 'en';
   const englishSignals = [' and ', 'wants', 'buy', 'week', 'proof', 'income', 'truck', 'cash', 'bank account', 'today', 'month', 'next'];
   const spanishSignals = ['quiere', 'comprar', 'semana', 'prueba', 'ingreso', 'camioneta', 'cuenta', 'documento', 'hoy', 'mes', 'este', 'esta'];
   return englishSignals.filter((signal) => text.includes(signal)).length > spanishSignals.filter((signal) => text.includes(signal)).length ? 'en' : 'es';
 }
 
-function formatLeadMessage(lead: Lead, language?: 'es' | 'en') {
+function formatBankAccountLabel(value: string | null, language: 'es' | 'en'): string {
+  const normalized = clean(value);
+  if (!normalized || valueStatus(normalized) === 'no') return '';
+  const label = language === 'es' ? 'cuenta bancaria' : 'bank account';
+  if (valueStatus(normalized) === 'yes' || /^(?:bank account|cuenta bancaria|cuenta de banco)$/i.test(normalized)) return label;
+  return `${label} ${normalized}`;
+}
+
+export function formatPurchaseTimelineLabel(value: string | null, language: 'es' | 'en'): string {
+  const normalized = clean(value);
+  if (!normalized) return '';
+  const sourceLanguage = /\bquiere\s+comprar\b/i.test(normalized) ? 'es' : /\bwants?\s+to\s+buy\b/i.test(normalized) ? 'en' : language;
+  const source = normalized.replace(/\b(?:quiere\s+comprar|wants?\s+to\s+buy)\b/gi, '').trim().toLowerCase();
+  const localized = /^(?:today|hoy|now|ahora|asap|as soon as possible|lo m[aá]s pronto posible|lo antes posible)$/i.test(source)
+    ? (sourceLanguage === 'es' ? 'lo más pronto posible' : 'asap')
+    : /^(?:this|esta)\s+(?:week|semana)$/i.test(source)
+      ? (sourceLanguage === 'es' ? 'esta semana' : 'this week')
+      : /^(?:next|pr[oó]xima?|siguiente)\s+(?:week|semana)$/i.test(source)
+        ? (sourceLanguage === 'es' ? 'próxima semana' : 'next week')
+        : /^(?:this|este|esta)\s+(?:month|mes)$/i.test(source)
+          ? (sourceLanguage === 'es' ? 'este mes' : 'this month')
+          : /^(?:next|pr[oó]ximo?|siguiente)\s+(?:month|mes)$/i.test(source)
+            ? (sourceLanguage === 'es' ? 'próximo mes' : 'next month')
+            : source;
+  return sourceLanguage === 'es' ? `quiere comprar ${localized}` : `wants to buy ${localized}`;
+}
+
+export function formatLeadMessage(lead: Lead, language?: 'es' | 'en') {
   const resolvedLanguage = language ?? detectLeadLanguage(lead);
   const identity = [clean(lead.name), clean(lead.phone), clean(lead.vehicleType)].filter(Boolean).join(' ');
   const downValue = clean(lead.downPayment);
   const down = downValue ? (resolvedLanguage === 'es' ? `${downValue} de down` : `${downValue} down`) : '';
   const qualificationLabels = formatQualificationLabels(lead, resolvedLanguage);
   const identification = qualificationLabels.identification;
-  const bankValue = clean(lead.bankAccount);
-  const bank = bankValue ? (resolvedLanguage === 'es' ? `cuenta bancaria ${bankValue}` : `bank account ${bankValue}`) : '';
+  const bank = formatBankAccountLabel(lead.bankAccount, resolvedLanguage);
   const documents = qualificationLabels.documents;
-  const timelineValue = clean(lead.purchaseTimeline);
-  const timeline = timelineValue ? (resolvedLanguage === 'es' ? `quiere comprar ${timelineValue.toLowerCase()}` : `wants to buy ${timelineValue.toLowerCase()}`) : '';
+  const timeline = formatPurchaseTimelineLabel(lead.purchaseTimeline, resolvedLanguage);
   return [identity, down, identification, bank, documents, timeline].filter(Boolean).join(', ') + '.';
 }
 
@@ -135,10 +162,10 @@ function Qualification({ lead, language, empty }: { lead: Lead; language: 'es' |
   };
   const labels = formatQualificationLabels(lead, language);
   const identification = labels.identification || (labels.documents ? '' : evidence('ID', lead.identification));
-  const bankAccount = evidence(language === 'es' ? 'cuenta bancaria' : 'bank account', lead.bankAccount);
+  const bankAccount = formatBankAccountLabel(lead.bankAccount, language);
   const documents = labels.documents;
   const tag = (value: string, fallback: string) => value ? <span className="rounded bg-[var(--brand-soft)] px-2 py-1 text-xs">{value}</span> : <span className="rounded bg-[var(--surface-raised)] px-2 py-1 text-xs text-[var(--text-muted)]">{fallback}</span>;
-  return <div className="flex max-w-[260px] flex-wrap gap-1.5">{tag(lead.downPayment ? lead.downPayment : '', empty.downPayment)}{tag(identification, empty.identification)}{tag(bankAccount, empty.bankAccount)}{tag(documents, empty.documents)}{tag(lead.purchaseTimeline ?? '', empty.purchaseTimeline)}</div>;
+  return <div className="flex max-w-[260px] flex-wrap gap-1.5">{tag(lead.downPayment ? lead.downPayment : '', empty.downPayment)}{tag(identification, empty.identification)}{tag(bankAccount, empty.bankAccount)}{tag(documents, empty.documents)}{tag(formatPurchaseTimelineLabel(lead.purchaseTimeline, language).replace(/^(?:quiere comprar|wants to buy)\s+/i, ''), empty.purchaseTimeline)}</div>;
 }
 
 export default function OperatorDashboard() {
