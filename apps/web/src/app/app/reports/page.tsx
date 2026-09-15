@@ -8,10 +8,24 @@ import { getPortfolioLeadResponse, isPortfolioMode, portfolioWriteBlockedMessage
 import { LanguageSwitch, useLanguage } from '../../../lib/i18n';
 
 type Dealer = { id: string; code: string; name: string; pendingCount?: number };
+type MonthlyStatus = {
+  enabled: boolean;
+  dayOfMonth: 1;
+  sendHour: number;
+  sendMinute: number;
+  timezone: string;
+  nextRunAt: string | null;
+};
 
 function buildQuery(dealerId: string, from: string, to: string): string {
   const params = new URLSearchParams({ dealerId, from, to });
   return params.toString();
+}
+
+function formatScheduleTime(hour: number, minute: number, language: 'es' | 'en'): string {
+  const hour12 = hour % 12 || 12;
+  const suffix = language === 'es' ? (hour < 12 ? 'a. m.' : 'p. m.') : (hour < 12 ? 'AM' : 'PM');
+  return `${hour12}:${String(minute).padStart(2, '0')} ${suffix}`;
 }
 
 export default function ReportsPage() {
@@ -20,6 +34,8 @@ export default function ReportsPage() {
   const errorRef = useRef<HTMLParagraphElement>(null);
   const [dealers, setDealers] = useState<Dealer[]>([]);
   const [dealersLoading, setDealersLoading] = useState(true);
+  const [monthlyStatus, setMonthlyStatus] = useState<MonthlyStatus | null>(null);
+  const [monthlyStatusLoading, setMonthlyStatusLoading] = useState(true);
   const [selectedDealer, setSelectedDealer] = useState('all');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -54,6 +70,34 @@ export default function ReportsPage() {
       .finally(() => setDealersLoading(false));
     return () => controller.abort();
   }, [router, t.reports.errors.dealers]);
+
+  useEffect(() => {
+    if (isPortfolioMode) {
+      setMonthlyStatus({ enabled: false, dayOfMonth: 1, sendHour: 12, sendMinute: 0, timezone: 'America/Bogota', nextRunAt: null });
+      setMonthlyStatusLoading(false);
+      return undefined;
+    }
+    const controller = new AbortController();
+    setMonthlyStatusLoading(true);
+    fetch('/api/reports/monthly/status', { credentials: 'include', signal: controller.signal })
+      .then(async (response) => {
+        if (response.status === 401) {
+          router.replace('/login');
+          return null;
+        }
+        if (!response.ok) throw new Error(t.reports.monthlyUnavailable);
+        return response.json() as Promise<MonthlyStatus>;
+      })
+      .then((data) => {
+        if (data) setMonthlyStatus(data);
+      })
+      .catch((statusError: unknown) => {
+        if (statusError instanceof DOMException && statusError.name === 'AbortError') return;
+        setMonthlyStatus(null);
+      })
+      .finally(() => setMonthlyStatusLoading(false));
+    return () => controller.abort();
+  }, [router, t.reports.monthlyUnavailable]);
 
   const hasDates = Boolean(fromDate && toDate);
   const hasValidRange = hasDates && fromDate <= toDate;
@@ -148,6 +192,28 @@ export default function ReportsPage() {
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">{t.reports.description}</p>
           </div>
           <span className="rounded-[4px] border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs text-[var(--text-muted)]">{t.reports.memory}</span>
+        </div>
+
+        <div className="mb-6 flex flex-col gap-4 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-4 py-4 shadow-[0_8px_20px_rgba(19,32,29,0.035)] sm:flex-row sm:items-center sm:justify-between sm:px-5" aria-live="polite">
+          {monthlyStatusLoading ? (
+            <p className="text-sm text-[var(--text-muted)]">{t.reports.monthlyLoading}</p>
+          ) : monthlyStatus ? (
+            <div className="flex items-start gap-3">
+              <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${monthlyStatus.enabled ? 'bg-[var(--brand)]' : 'bg-[var(--text-muted)]'}`} aria-hidden="true" />
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{t.reports.monthlyEyebrow}</p>
+                <h2 className="mt-1 text-base font-semibold">{t.reports.monthlyTitle}: {monthlyStatus.enabled ? t.reports.monthlyActive : t.reports.monthlyInactive}</h2>
+                <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">
+                  {monthlyStatus.enabled
+                    ? t.reports.monthlyActiveDescription(formatScheduleTime(monthlyStatus.sendHour, monthlyStatus.sendMinute, language), monthlyStatus.timezone)
+                    : t.reports.monthlyInactiveDescription}
+                </p>
+                {monthlyStatus.enabled && monthlyStatus.nextRunAt && <p className="mt-1 text-xs text-[var(--text-muted)]">{t.reports.monthlyNextRun(new Intl.DateTimeFormat(language === 'es' ? 'es-CO' : 'en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: monthlyStatus.timezone }).format(new Date(monthlyStatus.nextRunAt)))}</p>}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-[var(--text-muted)]">{t.reports.monthlyUnavailable}</p>
+          )}
         </div>
 
         <div className="overflow-hidden rounded-[8px] border border-[var(--border)] bg-[var(--surface)] shadow-[0_10px_24px_rgba(19,32,29,0.04)]">

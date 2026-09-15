@@ -31,6 +31,7 @@ import { RepairCustomerRepliedSourceAliases1710000020000 } from './database/migr
 import { EasternsLocationRoutingRules1710000021000 } from './database/migrations/1710000021000-EasternsLocationRoutingRules';
 import { ConversationAttachments1710000022000 } from './database/migrations/1710000022000-ConversationAttachments';
 import { RepairConversationAttachmentUrlIndex1710000023000 } from './database/migrations/1710000023000-RepairConversationAttachmentUrlIndex';
+import { MonthlyReportDeliveries1710000024000 } from './database/migrations/1710000024000-MonthlyReportDeliveries';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -65,6 +66,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             EasternsLocationRoutingRules1710000021000,
             ConversationAttachments1710000022000,
             RepairConversationAttachmentUrlIndex1710000023000,
+            MonthlyReportDeliveries1710000024000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,

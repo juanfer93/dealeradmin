@@ -23,6 +23,7 @@ import { RepairCustomerRepliedSourceAliases1710000020000 } from './migrations/17
 import { EasternsLocationRoutingRules1710000021000 } from './migrations/1710000021000-EasternsLocationRoutingRules';
 import { ConversationAttachments1710000022000 } from './migrations/1710000022000-ConversationAttachments';
 import { RepairConversationAttachmentUrlIndex1710000023000 } from './migrations/1710000023000-RepairConversationAttachmentUrlIndex';
+import { MonthlyReportDeliveries1710000024000 } from './migrations/1710000024000-MonthlyReportDeliveries';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -59,6 +60,7 @@ export const AppDataSource = new DataSource({
     EasternsLocationRoutingRules1710000021000,
     ConversationAttachments1710000022000,
     RepairConversationAttachmentUrlIndex1710000023000,
+    MonthlyReportDeliveries1710000024000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,

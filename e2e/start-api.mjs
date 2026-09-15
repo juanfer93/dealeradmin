@@ -16,6 +16,8 @@ const child = spawn(process.execPath, ['apps/api/dist/apps/api/src/main.js'], {
     GHL_WEBHOOK_SECRET: 'test-ghl-secret-123456',
     ADMIN_USERNAME: 'operator',
     ADMIN_PASSWORD_HASH: passwordHash,
+    CRON_SECRET: 'test-cron-secret',
+    MONTHLY_REPORTS_ENABLED: 'false',
   },
 });
 

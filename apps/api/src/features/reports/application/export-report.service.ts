@@ -40,6 +40,13 @@ type DetailRow = {
   sent_at: string | Date | null;
 };
 
+export type MonthlyReportResult = {
+  buffer: Buffer;
+  rowCount: number;
+  dealerCounts: Array<{ dealerId: string; dealerName: string; count: number }>;
+  sheetCount: number;
+};
+
 function formatExportPhone(value: string | null | undefined): string {
   const digits = (value ?? '').replace(/\D/g, '');
   if (!digits) return '';
@@ -146,6 +153,105 @@ export class ExportReportService {
       if (exportId) await this.recordExportFailed(exportId, error);
       throw error;
     }
+  }
+
+  async generateMonthlyReport(from: Date, to: Date, fileName: string): Promise<MonthlyReportResult> {
+    if (!this.dataSource) {
+      const leads = this.getTestLeads({ from, to }, 'all').filter((lead) => new Date(lead.createdAt) < to);
+      const groups = this.groupTestDetails(leads);
+      const buffer = await this.buildWorkbook(groups, 'all');
+      return {
+        buffer,
+        rowCount: leads.length,
+        dealerCounts: testDealers.map((dealer) => ({
+          dealerId: dealer.id,
+          dealerName: dealer.name,
+          count: leads.filter((lead) => lead.dealerId === dealer.id).length,
+        })),
+        sheetCount: groups.length || 1,
+      };
+    }
+
+    const exportId = randomUUID();
+    await this.recordExportStarted(exportId, 'all', from, to, fileName);
+    try {
+      const [detailsData, activeDealers] = await Promise.all([
+        this.dataSource.query(
+          `SELECT
+             d.id AS dealer_id,
+             d.name AS dealer_name,
+             ld.created_at AS received_at,
+             CONCAT_WS(' ', l.first_name, l.last_name) AS name,
+             l.canonical_phone AS phone,
+             ld.vehicle_type,
+             ld.down_payment,
+             ld.purchase_timeline,
+             ld.documents,
+             ld.identification,
+             ld.bank_account,
+             ld.status,
+             ld.sent_at
+           FROM lead_dealers ld
+           JOIN dealers d ON d.id = COALESCE(ld.assigned_dealer_id, ld.dealer_id)
+           JOIN leads l ON l.id = ld.lead_id
+           WHERE ld.created_at >= $1 AND ld.created_at < $2
+           ORDER BY d.name ASC, ld.created_at DESC`,
+          [from, to],
+        ),
+        this.dataSource.query(`SELECT id, name FROM dealers WHERE active = true ORDER BY name ASC`),
+      ]);
+      const details = detailsData as DetailRow[];
+      const groups = this.groupDetailRows(details);
+      const counts = new Map<string, { dealerId: string; dealerName: string; count: number }>();
+      for (const dealer of activeDealers as Array<{ id: string; name: string }>) {
+        counts.set(dealer.id, { dealerId: dealer.id, dealerName: dealer.name, count: 0 });
+      }
+      for (const row of details) {
+        const current = counts.get(row.dealer_id);
+        if (current) current.count += 1;
+        else counts.set(row.dealer_id, { dealerId: row.dealer_id, dealerName: row.dealer_name, count: 1 });
+      }
+      const buffer = await this.buildWorkbook(groups, 'all');
+      await this.recordExportCompleted(exportId, details.length, groups.length || 1);
+      return { buffer, rowCount: details.length, dealerCounts: [...counts.values()], sheetCount: groups.length || 1 };
+    } catch (error) {
+      await this.recordExportFailed(exportId, error);
+      throw error;
+    }
+  }
+
+  private async buildWorkbook(
+    detailGroups: Array<{ dealerName: string; rows: Array<Record<string, string | Date>> }>,
+    dealerId: string,
+  ): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'dealerADMIN Engine';
+    workbook.created = new Date();
+    workbook.modified = new Date();
+    for (const group of detailGroups) {
+      const sheet = workbook.addWorksheet(this.uniqueDealerSheetName(group.dealerName, workbook));
+      sheet.columns = [
+        { header: 'Ref', key: 'ref', width: 4 },
+        { header: 'Nombre', key: 'name', width: 20.21875 },
+        { header: 'Número', key: 'phone', width: 11 },
+        { header: 'Comentarios', key: 'comments', width: 145.44140625 },
+      ];
+      sheet.addRows(group.rows.map((row, index) => ({ ref: index + 1, ...row })));
+      sheet.getColumn('phone').numFmt = '@';
+      sheet.views = [{ state: 'normal', showGridLines: true, zoomScale: 100 }];
+    }
+    if (workbook.worksheets.length === 0) {
+      const sheet = workbook.addWorksheet(this.uniqueDealerSheetName(dealerId === 'all' ? 'Sin leads' : dealerId, workbook));
+      sheet.columns = [
+        { header: 'Ref', key: 'ref', width: 4 },
+        { header: 'Nombre', key: 'name', width: 20.21875 },
+        { header: 'Número', key: 'phone', width: 11 },
+        { header: 'Comentarios', key: 'comments', width: 145.44140625 },
+      ];
+      sheet.getColumn('phone').numFmt = '@';
+      sheet.views = [{ state: 'normal', showGridLines: true, zoomScale: 100 }];
+    }
+    return Buffer.from(await workbook.xlsx.writeBuffer());
   }
 
   private async recordExportStarted(id: string, dealerId: string, from: Date, to: Date, fileName?: string): Promise<void> {

@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import cookieParser from 'cookie-parser';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { NestFactory } from '@nestjs/core';
+import { parseMonthlyReportsConfig } from '@dealeradmin/config';
 import { AppModule } from './app.module';
 
 type ServerlessRequest = IncomingMessage & { rawBody?: Buffer };
@@ -9,6 +10,7 @@ type ServerlessRequest = IncomingMessage & { rawBody?: Buffer };
 let appPromise: ReturnType<typeof createApp> | undefined;
 
 async function createApp() {
+  parseMonthlyReportsConfig();
   const app = await NestFactory.create(AppModule, { rawBody: true });
   app.use(cookieParser());
   app.setGlobalPrefix('api');

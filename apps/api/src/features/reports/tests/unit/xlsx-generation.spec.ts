@@ -128,4 +128,45 @@ describe('Día 6 - generación de reportes XLSX', () => {
     })).resolves.toBe(7);
     expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('COALESCE(ld.assigned_dealer_id, ld.dealer_id)'), expect.any(Array));
   });
+
+  it('genera el reporte mensual con corte semiabierto y dealers activos con cero', async () => {
+    mockQuery
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{
+        dealer_id: 'dealer-1',
+        dealer_name: 'Dealer Uno',
+        received_at: '2026-09-01T17:00:00.000Z',
+        name: 'Ana Lopez',
+        phone: '+15550001111',
+        vehicle_type: 'SUV',
+        down_payment: null,
+        purchase_timeline: null,
+        documents: null,
+        identification: null,
+        bank_account: null,
+        status: 'pending',
+        sent_at: null,
+      }])
+      .mockResolvedValueOnce([
+        { id: 'dealer-1', name: 'Dealer Uno' },
+        { id: 'dealer-2', name: 'Dealer Cero' },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const from = new Date('2026-09-01T17:00:00.000Z');
+    const to = new Date('2026-10-01T17:00:00.000Z');
+    const result = await service.generateMonthlyReport(from, to, 'Reporte leads (Octubre 2026).xlsx');
+
+    expect(result.rowCount).toBe(1);
+    expect(result.dealerCounts).toEqual([
+      { dealerId: 'dealer-1', dealerName: 'Dealer Uno', count: 1 },
+      { dealerId: 'dealer-2', dealerName: 'Dealer Cero', count: 0 },
+    ]);
+    expect(mockQuery.mock.calls[1]?.[0]).toContain('ld.created_at >= $1 AND ld.created_at < $2');
+    expect(mockQuery.mock.calls[1]?.[0]).not.toContain('BETWEEN');
+    expect(mockQuery.mock.calls[1]?.[1]).toEqual([from, to]);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(result.buffer as unknown as Parameters<typeof workbook.xlsx.load>[0]);
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual(['Dealer Uno']);
+  });
 });
