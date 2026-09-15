@@ -52,6 +52,15 @@ export class WebhooksController {
     return this.conversationWebhookService.processDueConversations(undefined, { reconcileActive: false });
   }
 
+  @Post('ghl/conversations/:conversationId/reconcile-media')
+  @UseGuards(HmacSignatureGuard)
+  reconcileMediaConversation(@Param('conversationId') conversationId: string, @Req() request: Request) {
+    return this.conversationWebhookService.reconcileMediaConversation(
+      conversationId,
+      this.controlledTestNow(request.header('X-DealerADMIN-Test-Now')),
+    );
+  }
+
   private controlledTestNow(value: string | undefined): Date | undefined {
     const parsed = value ? new Date(value) : undefined;
     return process.env.NODE_ENV !== 'production' && parsed && !Number.isNaN(parsed.getTime()) ? parsed : undefined;

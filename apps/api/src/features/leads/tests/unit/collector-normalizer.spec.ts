@@ -292,6 +292,14 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message }).vehicle_type).toBe(expected);
   });
 
+  it('normalizes common Whisper Spanish phonetics from a three-row audio answer', () => {
+    const result = normalizeCollectorInput({
+      channel: 'whatsapp',
+      message: 'Estoy interesado en tres filas de asiento, bien sea odisea o una paila o tajo.',
+    });
+    expect(result.vehicle_type).toBe('Odyssey');
+  });
+
   it('keeps the cash portion when vehicle-change language is combined with a payment', () => {
     expect(normalizeCollectorInput({ message: 'Quiero cambiar mi vehículo y poner $2,000' }).down_payment).toBe('2000 + trade-in');
     expect(normalizeCollectorInput({ down_payment: 'cambio mi auto + 2K' }).down_payment).toBe('2000 + trade-in');

@@ -31,6 +31,9 @@ RETRY_BASE_SECONDS = int(os.getenv("MEDIA_RETRY_BASE_SECONDS", "30"))
 WHISPER_MODEL_NAME = os.getenv("WHISPER_MODEL", "small")
 DOWNLOAD_TIMEOUT = int(os.getenv("MEDIA_DOWNLOAD_TIMEOUT_SECONDS", "30"))
 MAX_DURATION_SECONDS = int(os.getenv("MEDIA_MAX_DURATION_SECONDS", "180"))
+DEALERADMIN_API_URL = os.getenv("DEALERADMIN_API_URL", "").strip().rstrip("/")
+DEALERADMIN_WEBHOOK_SECRET = os.getenv("DEALERADMIN_WEBHOOK_SECRET", "").strip()
+RECONCILIATION_TIMEOUT = int(os.getenv("DEALERADMIN_RECONCILIATION_TIMEOUT_SECONDS", "15"))
 
 
 class NotRetrievable(Exception):
@@ -336,6 +339,28 @@ def save_success(connection: psycopg.Connection[Any], row: dict[str, Any], diges
             )
 
 
+def notify_reconciliation(conversation_id: Any) -> bool:
+    """Ask the API to recalculate the snapshot after derived text is stored."""
+    if not DEALERADMIN_API_URL or not DEALERADMIN_WEBHOOK_SECRET:
+        LOG.warning("media_reconciliation_skipped reason=missing_callback_config")
+        return False
+    try:
+        response = requests.post(
+            f"{DEALERADMIN_API_URL}/webhooks/ghl/conversations/{conversation_id}/reconcile-media",
+            json={},
+            headers={"X-DealerADMIN-Webhook-Secret": DEALERADMIN_WEBHOOK_SECRET},
+            timeout=RECONCILIATION_TIMEOUT,
+        )
+    except requests.RequestException:
+        LOG.warning("media_reconciliation_failed conversation_id=%s reason=request_failed", conversation_id)
+        return False
+    if not 200 <= response.status_code < 300:
+        LOG.warning("media_reconciliation_failed conversation_id=%s status_code=%s", conversation_id, response.status_code)
+        return False
+    LOG.info("media_reconciliation conversation_id=%s status=ok", conversation_id)
+    return True
+
+
 def process_one(connection: psycopg.Connection[Any], row: dict[str, Any]) -> None:
     suffix = Path(row.get("original_filename") or "").suffix or mimetypes.guess_extension(row.get("content_type") or "") or ".bin"
     with tempfile.TemporaryDirectory(prefix="dealeradmin-media-") as temporary:
@@ -365,6 +390,8 @@ def process_one(connection: psycopg.Connection[Any], row: dict[str, Any]) -> Non
         else:
             raise NotRetrievable("unsupported_media_kind")
         save_success(connection, row, digest, content_type, byte_size, text, metadata)
+        if not notify_reconciliation(row["conversation_id"]):
+            raise RetryableMediaError("reconciliation_callback_failed")
 
 
 def main() -> None:

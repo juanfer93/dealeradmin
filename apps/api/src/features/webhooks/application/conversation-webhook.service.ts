@@ -90,6 +90,12 @@ export type ConversationWebhookResponse = {
 };
 
 export type DueConversationResponse = { accepted: true; processed: number };
+export type MediaReconciliationResponse = {
+  accepted: true;
+  conversationId: string;
+  status: string;
+  qualificationSnapshot: ConversationSnapshot | null;
+};
 
 function clean(value: unknown): string {
   return value === undefined || value === null ? '' : String(value).replace(/\s+/g, ' ').trim();
@@ -189,6 +195,29 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       [ACTIVE_RECONCILIATION_BATCH_SIZE],
     ) as Array<{ id: string }>;
     for (const row of rows) await this.reconcileConversation(row.id, now);
+  }
+
+  /**
+   * Re-run qualification after the media worker has inserted a derived
+   * inbound message. The worker must not need database credentials for this;
+   * it calls the guarded API endpoint instead.
+   */
+  async reconcileMediaConversation(id: string, now = currentLocalNow()): Promise<MediaReconciliationResponse> {
+    if (!this.dataSource) throw new ServiceUnavailableException('Base de datos no disponible');
+    await this.reconcileConversation(id, now);
+    const rows = await this.dataSource.query(
+      `SELECT status, qualification_snapshot
+       FROM conversations
+       WHERE id = $1`,
+      [id],
+    ) as Array<{ status: string; qualification_snapshot: ConversationSnapshot | null }>;
+    if (!rows[0]) throw new BadRequestException('Conversación no encontrada');
+    return {
+      accepted: true,
+      conversationId: id,
+      status: rows[0].status,
+      qualificationSnapshot: rows[0].qualification_snapshot,
+    };
   }
 
   private async reconcileConversation(id: string, now: Date): Promise<void> {
