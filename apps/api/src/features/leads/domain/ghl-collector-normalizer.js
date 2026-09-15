@@ -64,6 +64,7 @@ const vehicleBrands = /\b(?:toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyun
 const vehicleModels = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacoma|tacma|rav\s*4|civic|civc|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
 const vehicleCategories = /suv|sedan|truck|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camion|camión/i;
 const vehicleContext = /\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
+const whatsappEconomicCarIntent = /\b(?:carro|auto|coche|veh[ií]culo)\s+econ[oó]mic[oa]s?\b/i;
 const canonicalVehicleLabel = (value) => clean(value)
   .replace(/\bcorola\b/gi, 'Corolla')
   .replace(/\bcivc\b/gi, 'Civic')
@@ -340,11 +341,15 @@ const documentStatus = (pattern, memoryAliases, custom) => {
   }
   return '';
 };
-const vehicle = first(
-  campaign ? '' : cleanVehicleValue(vehicleFrom([rawHistory, rawMessage].filter(Boolean).join('\n'))),
-  cleanVehicleValue(memoryValue(['vehicle', 'vehicle_type'])),
-  cleanVehicleValue(inputData.vehicle_type),
-);
+const vehicleSource = [rawHistory, rawMessage].filter(Boolean).join('\n');
+// Keep the WhatsApp shorthand "carro económico" as the stable Sedan category.
+const vehicle = isWhatsAppChannel(inputData.channel) && whatsappEconomicCarIntent.test(vehicleSource)
+  ? 'Sedan'
+  : first(
+    campaign ? '' : cleanVehicleValue(vehicleFrom(vehicleSource)),
+    cleanVehicleValue(memoryValue(['vehicle', 'vehicle_type'])),
+    cleanVehicleValue(inputData.vehicle_type),
+  );
 // Prefer a phone found in the conversation before accepting custom/memory down values.
 // This prevents a stale area-code-only value (e.g. 443) from becoming a down payment.
 const phone = phoneFrom(message, history, inputData.phone);

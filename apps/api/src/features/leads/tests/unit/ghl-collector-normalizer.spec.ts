@@ -50,6 +50,18 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.qualification_complete).toBe(false);
   });
 
+  it('normalizes carro económico to Sedan only for WhatsApp contacts in Custom Code', () => {
+    expect(execute({
+      channel: 'whatsapp',
+      message: 'Busco un carro economico para esta semana',
+    }).vehicle_type).toBe('Sedan');
+
+    expect(execute({
+      channel: 'messenger',
+      message: 'Busco un carro economico para esta semana',
+    }).vehicle_type).toBe('');
+  });
+
   it('skips a greeting and extracts the following simple name from the Stafford WhatsApp transcript in Custom Code', () => {
     const result = execute({
       channel: 'whatsapp',

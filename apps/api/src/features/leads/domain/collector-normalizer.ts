@@ -193,6 +193,7 @@ const VEHICLE_MODELS = /\b(?:grand caravan|grand cherokee|transit connect|promas
 const VEHICLE_CATEGORIES = /\b(?:suv|sedan|truck|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camion|camión)\b/i;
 const VEHICLE_TRIMS = /\b(?:\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i;
 const VEHICLE_CONTEXT = /\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
+const WHATSAPP_ECONOMIC_CAR_INTENT = /\b(?:carro|auto|coche|veh[ií]culo)\s+econ[oó]mic[oa]s?\b/i;
 const TRADE_IN_INTENT = /\btrade[- ]?in\b|\bmy (?:car|vehicle)\b|\bmi (?:carro|auto|veh[ií]culo)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b|\bchange\s+(?:my\s+)?(?:vehicle|car)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b/i;
 
 function canonicalVehicleLabel(value: string): string {
@@ -733,18 +734,23 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const chatPhone = extractPhone(input.chat_history_log) || extractPhone(input.message) || extractPhone(input.phone);
   const memoryDown = normalizeMemoryDownPayment(memoryValue(memory, ['down payment', 'down_payment', 'downpayment']));
   const inputDown = clean(input.down_payment ?? EMPTY);
-  const vehicle = normalizeVehicle(firstNonEmpty(
-    extractVehicle([rawHistory, messageForExtraction].filter(Boolean).join('\n')),
-    [
-      memoryValue(memory, ['vehicle_type', 'vehicle', 'type']),
+  const vehicleSource = [rawHistory, messageForExtraction].filter(Boolean).join('\n');
+  // WhatsApp buyers use "carro económico" as a category request. Keep this
+  // deterministic so it cannot be mistaken for a make/model or lost in prose.
+  const vehicle = isWhatsAppChannel(input.channel) && WHATSAPP_ECONOMIC_CAR_INTENT.test(vehicleSource)
+    ? 'Sedan'
+    : normalizeVehicle(firstNonEmpty(
+      extractVehicle(vehicleSource),
       [
-        memoryValue(memory, ['make', 'brand', 'marca']),
-        memoryValue(memory, ['model', 'vehicle_model', 'modelo']),
-      ].filter(Boolean).join(' '),
-    ].filter(Boolean).join(' — '),
-    memoryValue(memory, ['vehicle', 'vehicle_type']),
-    input.vehicle_type,
-  ));
+        memoryValue(memory, ['vehicle_type', 'vehicle', 'type']),
+        [
+          memoryValue(memory, ['make', 'brand', 'marca']),
+          memoryValue(memory, ['model', 'vehicle_model', 'modelo']),
+        ].filter(Boolean).join(' '),
+      ].filter(Boolean).join(' — '),
+      memoryValue(memory, ['vehicle', 'vehicle_type']),
+      input.vehicle_type,
+    ));
   const explicitCashDown = firstValidAmount(
     extractDownPayment(messageForExtraction),
     extractDownPayment(rawHistory),

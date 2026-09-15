@@ -527,6 +527,18 @@ describe('normalizeCollectorInput', () => {
     expect(result.has_income_proof).toBe('yes');
   });
 
+  it('normalizes carro económico to Sedan only for WhatsApp contacts', () => {
+    expect(normalizeCollectorInput({
+      channel: 'whatsapp',
+      message: 'Busco un carro economico para esta semana',
+    }).vehicle_type).toBe('Sedan');
+
+    expect(normalizeCollectorInput({
+      channel: 'messenger',
+      message: 'Busco un carro economico para esta semana',
+    }).vehicle_type).toBe('');
+  });
+
   it('extracts a declared personal name from the complete inbound transcript', () => {
     const result = normalizeCollectorInput({
       real_name: 'EliasJosue 🕊Mnegra',
