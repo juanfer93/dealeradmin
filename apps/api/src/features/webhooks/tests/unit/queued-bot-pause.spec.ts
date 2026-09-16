@@ -248,4 +248,68 @@ describe('queued Conversation AI pause', () => {
       else process.env.GHL_QUEUED_PAUSE_WEBHOOK_URL_EASTERNS = previous;
     }
   });
+
+  it('posts the complete payload to the source-specific local webhook URL', async () => {
+    const previous = process.env.GHL_QUEUED_PAUSE_WEBHOOK_URL_EASTERNS;
+    process.env.GHL_QUEUED_PAUSE_WEBHOOK_URL_EASTERNS = 'http://127.0.0.1:3999/mock-ghl-webhook';
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 204 });
+    vi.stubGlobal('fetch', fetchMock);
+    const payload: QueuedPausePayload = {
+      event: 'dealeradmin.conversation_queued',
+      eventId: 'local-post-event',
+      queued: true,
+      status: 'queued',
+      conversationId: 'conversation-post',
+      contactId: 'contact-post',
+      locationId: GHL_SOURCE_CONFIG.easterns.locationId,
+      leadId: 'lead-post',
+      pauseHours: 24,
+      emittedAt: '2026-09-16T15:00:00.000Z',
+    };
+
+    try {
+      await expect(new GhlQueuedPauseNotifier().send('easterns', payload)).resolves.toEqual({ delivered: true });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock.mock.calls[0][0]).toEqual(new URL('http://127.0.0.1:3999/mock-ghl-webhook'));
+      expect(fetchMock.mock.calls[0][1]).toEqual(expect.objectContaining({
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: expect.any(AbortSignal),
+      }));
+    } finally {
+      vi.unstubAllGlobals();
+      if (previous === undefined) delete process.env.GHL_QUEUED_PAUSE_WEBHOOK_URL_EASTERNS;
+      else process.env.GHL_QUEUED_PAUSE_WEBHOOK_URL_EASTERNS = previous;
+    }
+  });
+
+  it('turns a local fetch timeout into a safe delivery error', async () => {
+    const previous = process.env.GHL_QUEUED_PAUSE_WEBHOOK_URL_EASTERNS;
+    process.env.GHL_QUEUED_PAUSE_WEBHOOK_URL_EASTERNS = 'http://127.0.0.1:3999/mock-ghl-webhook';
+    const fetchMock = vi.fn().mockRejectedValue(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      await expect(new GhlQueuedPauseNotifier().send('easterns', {
+        event: 'dealeradmin.conversation_queued',
+        eventId: 'local-timeout-event',
+        queued: true,
+        status: 'queued',
+        conversationId: 'conversation-timeout',
+        contactId: 'contact-timeout',
+        locationId: GHL_SOURCE_CONFIG.easterns.locationId,
+        leadId: 'lead-timeout',
+        pauseHours: 24,
+        emittedAt: '2026-09-16T15:00:00.000Z',
+      })).rejects.toMatchObject({
+        name: 'QueuedPauseDeliveryError',
+        message: 'Queued pause webhook timed out after 5000ms',
+      });
+    } finally {
+      vi.unstubAllGlobals();
+      if (previous === undefined) delete process.env.GHL_QUEUED_PAUSE_WEBHOOK_URL_EASTERNS;
+      else process.env.GHL_QUEUED_PAUSE_WEBHOOK_URL_EASTERNS = previous;
+    }
+  });
 });
