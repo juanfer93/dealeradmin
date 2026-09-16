@@ -5,6 +5,7 @@ import {
 } from '../../application/conversation-webhook.service';
 import {
   GhlQueuedPauseNotifier,
+  isQueuedPauseSourceEnabled,
   isQueuedTransition,
   QUEUED_PAUSE_HOURS,
   QueuedPauseDeliveryError,
@@ -95,6 +96,25 @@ describe('queued Conversation AI pause', () => {
     expect(runner.query).not.toHaveBeenCalled();
   });
 
+  it('excludes Stafford WhatsApp from the Messenger-only rollout', async () => {
+    expect(isQueuedPauseSourceEnabled('stafford')).toBe(false);
+    const runner = { query: vi.fn() };
+    const service = new ConversationWebhookService();
+    const result = await (service as unknown as {
+      createQueuedPauseEvent: (...args: unknown[]) => Promise<unknown>;
+    }).createQueuedPauseEvent(runner, 'waiting_window', 'queued', {
+      conversationId: 'db-stafford-conversation',
+      ghlConversationId: 'ghl-stafford-conversation',
+      contactId: 'ghl-stafford-contact',
+      locationId: GHL_SOURCE_CONFIG.stafford.locationId,
+      leadId: 'lead-stafford',
+      source: 'stafford',
+      emittedAt: new Date(),
+    });
+    expect(result).toBeNull();
+    expect(runner.query).not.toHaveBeenCalled();
+  });
+
   it('allocates a new eventId for a later queued re-entry', async () => {
     const inserted: unknown[][] = [];
     let sequence = 0;
@@ -112,9 +132,9 @@ describe('queued Conversation AI pause', () => {
       conversationId: 'db-conversation-reentry',
       ghlConversationId: 'ghl-conversation-reentry',
       contactId: 'ghl-contact-reentry',
-      locationId: GHL_SOURCE_CONFIG.stafford.locationId,
+      locationId: GHL_SOURCE_CONFIG.easterns.locationId,
       leadId: 'lead-reentry',
-      source: 'stafford',
+      source: 'easterns',
       emittedAt: new Date('2026-09-16T15:00:00.000Z'),
     });
     const first = await makeEvent();
@@ -134,7 +154,7 @@ describe('queued Conversation AI pause', () => {
       status: 'queued',
       conversationId: 'ghl-conversation-retry',
       contactId: 'ghl-contact-retry',
-      locationId: GHL_SOURCE_CONFIG.stafford.locationId,
+      locationId: GHL_SOURCE_CONFIG.easterns.locationId,
       leadId: 'lead-retry',
       pauseHours: 24,
       emittedAt: '2026-09-16T15:00:00.000Z',
@@ -206,26 +226,26 @@ describe('queued Conversation AI pause', () => {
   });
 
   it('does not call an external target when the source webhook is unconfigured', async () => {
-    const previous = process.env.GHL_QUEUED_PAUSE_WEBHOOK_URL_STAFFORD;
-    delete process.env.GHL_QUEUED_PAUSE_WEBHOOK_URL_STAFFORD;
+    const previous = process.env.GHL_QUEUED_PAUSE_WEBHOOK_URL_EASTERNS;
+    delete process.env.GHL_QUEUED_PAUSE_WEBHOOK_URL_EASTERNS;
     try {
       const notifier = new GhlQueuedPauseNotifier();
-      const result = await notifier.send('stafford', {
+      const result = await notifier.send('easterns', {
         event: 'dealeradmin.conversation_queued',
         eventId: 'unconfigured-event',
         queued: true,
         status: 'queued',
         conversationId: 'conversation-unconfigured',
         contactId: 'contact-unconfigured',
-        locationId: GHL_SOURCE_CONFIG.stafford.locationId,
+        locationId: GHL_SOURCE_CONFIG.easterns.locationId,
         leadId: 'lead-unconfigured',
         pauseHours: QUEUED_PAUSE_HOURS,
         emittedAt: '2026-09-16T15:00:00.000Z',
       });
       expect(result).toEqual({ delivered: false, reason: 'webhook_not_configured' });
     } finally {
-      if (previous === undefined) delete process.env.GHL_QUEUED_PAUSE_WEBHOOK_URL_STAFFORD;
-      else process.env.GHL_QUEUED_PAUSE_WEBHOOK_URL_STAFFORD = previous;
+      if (previous === undefined) delete process.env.GHL_QUEUED_PAUSE_WEBHOOK_URL_EASTERNS;
+      else process.env.GHL_QUEUED_PAUSE_WEBHOOK_URL_EASTERNS = previous;
     }
   });
 });

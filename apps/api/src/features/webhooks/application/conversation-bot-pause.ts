@@ -31,6 +31,12 @@ export function isQueuedTransition(previousStatus: string | null | undefined, ne
   return previousStatus !== 'queued' && nextStatus === 'queued';
 }
 
+export function isQueuedPauseSourceEnabled(source: string): boolean {
+  // Stafford is WhatsApp and is intentionally out of this rollout. The
+  // Conversation AI pause workflow currently covers Messenger sources only.
+  return source !== 'stafford';
+}
+
 export function queuedPauseWebhookEnvName(source: string): string {
   return `GHL_QUEUED_PAUSE_WEBHOOK_URL_${source.replace(/[^a-z0-9]+/gi, '_').toUpperCase()}`;
 }
@@ -45,6 +51,7 @@ export class QueuedPauseDeliveryError extends Error {
 @Injectable()
 export class GhlQueuedPauseNotifier implements QueuedPauseNotifier {
   async send(source: QueuedPauseSource, payload: QueuedPausePayload): Promise<QueuedPauseDeliveryResult> {
+    if (!isQueuedPauseSourceEnabled(source)) return { delivered: false, reason: 'source_disabled' };
     const webhookUrl = process.env[queuedPauseWebhookEnvName(source)];
     if (!webhookUrl) return { delivered: false, reason: 'webhook_not_configured' };
 

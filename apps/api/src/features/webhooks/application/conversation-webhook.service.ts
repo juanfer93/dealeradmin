@@ -12,7 +12,7 @@ import { extractConversationLocation, extractLocationCandidates } from './conver
 import { recordTestConversationEvent } from './test-conversation-store';
 import { findQueuedConversationDuplicate } from '../../leads/domain/lead-duplicate';
 import { normalizeGhlAttachments } from '../domain/ghl-attachment-normalizer';
-import { isQueuedTransition, QUEUED_PAUSE_HOURS, type QueuedPauseNotifier, type QueuedPausePayload } from './conversation-bot-pause';
+import { isQueuedPauseSourceEnabled, isQueuedTransition, QUEUED_PAUSE_HOURS, type QueuedPauseNotifier, type QueuedPausePayload } from './conversation-bot-pause';
 import { QUEUED_PAUSE_NOTIFIER } from '../presentation/queued-pause.tokens';
 
 type SourceKey = 'stafford' | 'fredericksburg' | 'fredericksburg-2' | 'easterns' | 'arlington' | 'koons-fred' | 'koons-fred-eng' | 'koons-culpeper' | 'action-cars' | 'easterns-millersville' | 'easterns-frederick';
@@ -777,7 +777,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       emittedAt: Date;
     },
   ): Promise<QueuedPauseDispatch | null> {
-    if (!isQueuedTransition(previousStatus, nextStatus)) return null;
+    if (!isQueuedTransition(previousStatus, nextStatus) || !isQueuedPauseSourceEnabled(input.source)) return null;
     if (GHL_SOURCE_CONFIG[input.source].locationId !== input.locationId) {
       throw new BadRequestException(`Location ID no coincide con la fuente GHL ${input.source}`);
     }
@@ -880,6 +880,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         );
         continue;
       }
+      if (!isQueuedPauseSourceEnabled(configured[0])) continue;
       await this.dispatchQueuedPauseEvent({
         source: configured[0] as SourceKey,
         payload: {
