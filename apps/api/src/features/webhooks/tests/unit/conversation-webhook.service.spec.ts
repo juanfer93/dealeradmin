@@ -581,10 +581,16 @@ describe('ConversationWebhookService', () => {
       .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:00:15.000Z' });
   });
 
-  it('queues Stafford WhatsApp after stabilization with only phone and vehicle', () => {
+  it('keeps Stafford WhatsApp in the same daytime qualification window after stabilization', () => {
     const now = new Date('2026-09-11T14:00:15.000Z');
     expect(evaluateStatus(staffordVehicleOnlySnapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'due', '2026-09-11T14:00:00.000Z'))
-      .toEqual({ status: 'ready', nextAttemptAt: null });
+      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:30:00.000Z' });
+  });
+
+  it('uses the overnight Stafford qualification window outside the dispatch hours', () => {
+    const now = new Date('2026-09-11T20:00:15.000Z');
+    expect(evaluateStatus(staffordVehicleOnlySnapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'due', '2026-09-11T20:00:00.000Z'))
+      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T23:00:00.000Z' });
   });
 
   it('keeps Stafford WhatsApp partial when the vehicle is missing', () => {

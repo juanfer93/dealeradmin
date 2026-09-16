@@ -1095,10 +1095,6 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     // initial phone-only event remains visible during stabilization, but it
     // must not be released into georouting without a location.
     if (isEasterns && !hasLocation) return { status: 'partial', nextAttemptAt: null };
-    // Stafford conversations are always native WhatsApp. A valid WhatsApp
-    // sender already provides the phone identity; vehicle type is the only
-    // qualification needed to enter the dealer queue.
-    if (source === 'stafford' && snapshot.vehicle_type) return { status: 'ready', nextAttemptAt: null };
     if (snapshot.qualification_complete) return { status: 'ready', nextAttemptAt: null };
     const delayHours = withinDispatchWindow(QUALIFICATION_RULE_TIMEZONE, now)
       ? INCOMPLETE_QUALIFICATION_WINDOW_HOURS
