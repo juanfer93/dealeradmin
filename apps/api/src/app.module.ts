@@ -32,6 +32,7 @@ import { EasternsLocationRoutingRules1710000021000 } from './database/migrations
 import { ConversationAttachments1710000022000 } from './database/migrations/1710000022000-ConversationAttachments';
 import { RepairConversationAttachmentUrlIndex1710000023000 } from './database/migrations/1710000023000-RepairConversationAttachmentUrlIndex';
 import { MonthlyReportDeliveries1710000024000 } from './database/migrations/1710000024000-MonthlyReportDeliveries';
+import { ConversationBotPauseEvents1710000025000 } from './database/migrations/1710000025000-ConversationBotPauseEvents';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -67,6 +68,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             ConversationAttachments1710000022000,
             RepairConversationAttachmentUrlIndex1710000023000,
             MonthlyReportDeliveries1710000024000,
+            ConversationBotPauseEvents1710000025000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,

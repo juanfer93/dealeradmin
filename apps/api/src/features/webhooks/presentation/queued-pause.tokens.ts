@@ -1,0 +1,1 @@
+export const QUEUED_PAUSE_NOTIFIER = Symbol('QUEUED_PAUSE_NOTIFIER');
