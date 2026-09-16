@@ -47,6 +47,15 @@ class RetryableMediaError(Exception):
     pass
 
 
+def safe_error_code(error: Exception) -> str:
+    """Return a bounded, non-sensitive error code for the attachment row."""
+    if isinstance(error, (NotRetrievable, RetryableMediaError)):
+        message = str(error).strip()
+        if message and re.fullmatch(r"[A-Za-z0-9_.-]+", message):
+            return message[:160]
+    return type(error).__name__[:160]
+
+
 def database_url() -> str:
     value = os.getenv("DATABASE_URL", "").strip()
     if not value:
@@ -410,10 +419,10 @@ def process_pending_attachment() -> bool:
             process_one(connection, row)
             LOG.info("media_processed attachment_id=%s status=done", row["id"])
         except NotRetrievable as exc:
-            save_failure(connection, row, "not_retrievable", str(exc))
+            save_failure(connection, row, "not_retrievable", safe_error_code(exc))
             LOG.warning("media_processed attachment_id=%s status=not_retrievable", row["id"])
         except Exception as exc:  # pragma: no cover - native dependencies/network
-            save_failure(connection, row, "failed", type(exc).__name__)
+            save_failure(connection, row, "failed", safe_error_code(exc))
             LOG.warning("media_processed attachment_id=%s status=failed", row["id"])
         return True
 

@@ -47,6 +47,19 @@ function inferKind(contentType: string | null, filename: string | null, declared
 
 function flattenAttachments(value: unknown): unknown[] {
   if (value === undefined || value === null || value === '') return [];
+  if (typeof value === 'string') {
+    const text = value.trim();
+    if (!text) return [];
+    // GHL collectors can serialize message_attachments as a JSON string.
+    // Decode that representation when present, while preserving plain URLs.
+    try {
+      const parsed = JSON.parse(text) as unknown;
+      if (parsed !== text) return flattenAttachments(parsed);
+    } catch {
+      // A plain URL is the normal collector representation.
+    }
+    return [text];
+  }
   return Array.isArray(value) ? value.flatMap((item) => flattenAttachments(item)) : [value];
 }
 

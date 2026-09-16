@@ -37,4 +37,19 @@ describe('normalizeGhlAttachments', () => {
       .toHaveLength(1);
     expect(normalizeGhlAttachments(undefined, 'message-4')).toEqual([]);
   });
+
+  it('decodes a collector attachment array serialized as JSON text', () => {
+    const result = normalizeGhlAttachments(
+      JSON.stringify([
+        { url: 'https://cdn.example.test/photo.jpg', content_type: 'image/jpeg' },
+        { url: 'https://cdn.example.test/voice.ogg', content_type: 'audio/ogg' },
+      ]),
+      'message-serialized',
+    );
+
+    expect(result).toHaveLength(2);
+    expect(result.map((item) => item.kind)).toEqual(['image', 'audio']);
+    expect(result[0]?.sourceUrl).toBe('https://cdn.example.test/photo.jpg');
+    expect(JSON.stringify(result)).not.toMatch(/secret|token|password/i);
+  });
 });

@@ -28,7 +28,7 @@ jobs:
           cache-dependency-path: media-worker/requirements.txt
 
       - name: Install ffmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg tesseract-ocr tesseract-ocr-spa
 
       - name: Cache Whisper model
         uses: actions/cache@v4
@@ -36,8 +36,8 @@ jobs:
           path: ~/.cache/huggingface
           key: whisper-${{ runner.os }}-small-v1
 
-      - name: Install audio worker dependencies
-        run: python -m pip install --upgrade pip && python -m pip install faster-whisper psycopg[binary] requests
+      - name: Install media worker dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r media-worker/requirements.txt
 
       - name: Process pending attachments
         run: python media-worker/worker.py
