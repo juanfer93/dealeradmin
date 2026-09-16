@@ -77,10 +77,6 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--brand); outline
     align-items: start !important;
   }
 
-  .landing-grid > div > :last-child {
-    margin-top: 3rem !important;
-  }
-
   #capabilities {
     display: flex !important;
     flex-direction: column;
