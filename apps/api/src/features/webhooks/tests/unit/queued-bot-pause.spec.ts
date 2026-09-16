@@ -96,9 +96,11 @@ describe('queued Conversation AI pause', () => {
     expect(runner.query).not.toHaveBeenCalled();
   });
 
-  it('excludes Stafford WhatsApp from the Messenger-only rollout', async () => {
-    expect(isQueuedPauseSourceEnabled('stafford')).toBe(false);
-    const runner = { query: vi.fn() };
+  it('includes Stafford WhatsApp in the individual queued-pause rollout', async () => {
+    expect(isQueuedPauseSourceEnabled('stafford')).toBe(true);
+    const runner = {
+      query: vi.fn(async (sql: string) => sql.includes('MAX(transition_number)') ? [{ transition_number: 1 }] : []),
+    };
     const service = new ConversationWebhookService();
     const result = await (service as unknown as {
       createQueuedPauseEvent: (...args: unknown[]) => Promise<unknown>;
@@ -111,8 +113,20 @@ describe('queued Conversation AI pause', () => {
       source: 'stafford',
       emittedAt: new Date(),
     });
-    expect(result).toBeNull();
-    expect(runner.query).not.toHaveBeenCalled();
+    expect(result).not.toBeNull();
+    expect(runner.query).toHaveBeenCalledTimes(2);
+    expect(result).toMatchObject({
+      source: 'stafford',
+      payload: {
+        queued: true,
+        status: 'queued',
+        locationId: GHL_SOURCE_CONFIG.stafford.locationId,
+        contactId: 'ghl-stafford-contact',
+        conversationId: 'ghl-stafford-conversation',
+        leadId: 'lead-stafford',
+        pauseHours: 24,
+      },
+    });
   });
 
   it('allocates a new eventId for a later queued re-entry', async () => {

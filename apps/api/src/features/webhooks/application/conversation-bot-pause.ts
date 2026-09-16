@@ -32,9 +32,10 @@ export function isQueuedTransition(previousStatus: string | null | undefined, ne
 }
 
 export function isQueuedPauseSourceEnabled(source: string): boolean {
-  // Stafford is WhatsApp and is intentionally out of this rollout. The
-  // Conversation AI pause workflow currently covers Messenger sources only.
-  return source !== 'stafford';
+  // Every configured source now has an individual queued-pause workflow,
+  // including Stafford's native WhatsApp workflow. Keep the guard explicit so
+  // an empty source cannot be treated as a routable delivery target.
+  return source.trim().length > 0;
 }
 
 export function queuedPauseWebhookEnvName(source: string): string {
