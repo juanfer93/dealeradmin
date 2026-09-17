@@ -40,7 +40,7 @@ export function formatIdentification(value: string | null | undefined): string {
   const withoutLabel = normalized.replace(/^identification\s*:\s*/i, '').trim();
   if (!withoutLabel || isNegative(withoutLabel)) return '';
   if (isAffirmative(withoutLabel) || /^(?:id|driver(?:'s)? license|license|licencia|itin|passport|pasaporte)$/i.test(withoutLabel)) return 'ID';
-  return `ID ${withoutLabel}`;
+  return `ID: ${withoutLabel}`;
 }
 
 export function formatBankAccount(value: string | null | undefined, language: 'es' | 'en'): string {

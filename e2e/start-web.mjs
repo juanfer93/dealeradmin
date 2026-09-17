@@ -10,7 +10,7 @@ const child = spawn(process.execPath, [resolve('node_modules/next/dist/bin/next'
 const stop = () => {
   if (process.platform === 'win32') {
     spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
-    return;
+    process.exit(0);
   }
   child.kill('SIGTERM');
 };

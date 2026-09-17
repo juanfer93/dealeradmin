@@ -23,6 +23,8 @@ export const CaptureFieldSchema = z.object({
 export const QualificationStepSchema = z.enum([
   'real_name',
   'vehicle_type',
+  'customer_location',
+  'phone',
   'down_payment',
   'purchase_timeline',
   'documents',

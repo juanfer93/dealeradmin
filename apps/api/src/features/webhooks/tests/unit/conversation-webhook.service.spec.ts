@@ -25,7 +25,7 @@ describe('ConversationWebhookService', () => {
     snapshot: Record<string, unknown>,
     location: Record<string, unknown>,
     dealer: Record<string, unknown>,
-    source: 'stafford' | 'easterns',
+    source: 'stafford' | 'fredericksburg' | 'fredericksburg-2' | 'easterns',
     now: Date,
     phase: 'capture' | 'due',
     readyAt?: string,
@@ -40,7 +40,6 @@ describe('ConversationWebhookService', () => {
   const incompleteSnapshot = { phone: '+13015550123', vehicle_type: 'SUV', qualification_complete: false };
   const staffordVehicleOnlySnapshot = { phone: '+13015550123', vehicle_type: 'SUV', down_payment: '', purchase_timeline: '', qualification_complete: false };
   const staffordWithDownSnapshot = { phone: '+13015550123', vehicle_type: 'SUV', down_payment: '2000', purchase_timeline: '', qualification_complete: false };
-  const staffordWithTimelineSnapshot = { phone: '+13015550123', vehicle_type: 'SUV', down_payment: '', purchase_timeline: 'this week', qualification_complete: false };
   const easternsLocation = { city: 'Laurel', state: 'MD', zip_code: null, easterns_zone: null };
   const easternsDealer = { timezone: 'America/New_York', routing_config: { group: 'Easterns' } };
 
@@ -71,7 +70,7 @@ describe('ConversationWebhookService', () => {
       '¡Un gusto, Fidel! 👍 ¿Qué tipo de vehículo estás buscando actualmente? ¿Un sedán, un SUV o una troca?',
       'Un SUV',
       'Perfecto 👍 Sabiendo esto, ¿con cuánto contarías aproximadamente para iniciar el trámite de tu SUV?',
-      '1,500',
+      '2,000',
     ];
     const queryRunner = {
       connect: vi.fn(),
@@ -97,7 +96,7 @@ describe('ConversationWebhookService', () => {
     const service = new ConversationWebhookService({ createQueryRunner: () => queryRunner } as never);
 
     await service.acceptCustomerReplied(
-      { message_body: '1,500', contact_phone: '+1 (443) 814-4460', contact_name: 'Miguel Aparicio', channel: 'whatsapp' },
+      { message_body: '2,000', contact_phone: '+1 (443) 814-4460', contact_name: 'Miguel Aparicio', channel: 'whatsapp' },
       'stafford',
       { contactId: 'ghl-miguel-aparicio', conversationId: 'ghl-miguel-aparicio-conversation', testNow: new Date('2026-09-13T13:30:15.000Z') },
     );
@@ -109,7 +108,7 @@ describe('ConversationWebhookService', () => {
       real_name: 'Fidel Aparicio',
       phone: '+14438144460',
       vehicle_type: 'SUV',
-      down_payment: '1500',
+      down_payment: '2000',
       qualification_complete: false,
       missing_qualification: expect.arrayContaining(['purchase_timeline']),
     });
@@ -263,6 +262,15 @@ describe('ConversationWebhookService', () => {
   it('rejects a message when the native contact id is absent', async () => {
     const service = new ConversationWebhookService();
     await expect(service.acceptCustomerReplied({ message_body: 'SUV' }, 'stafford', {})).rejects.toThrow('Contact ID');
+  });
+
+  it('rejects non-WhatsApp Stafford conversations', async () => {
+    const service = new ConversationWebhookService();
+    await expect(service.acceptCustomerReplied(
+      { message_body: 'Busco un SUV.', channel: 'messenger' },
+      'stafford',
+      { contactId: 'ghl-stafford-messenger-contact', conversationId: 'ghl-stafford-messenger-conversation' },
+    )).rejects.toThrow('Stafford solo acepta conversaciones de WhatsApp');
   });
 
   it('keeps the source mapping for Easterns independent of free-form dealer text', async () => {
@@ -575,22 +583,22 @@ describe('ConversationWebhookService', () => {
     expect(result.nextAttemptAt).toBe(new Date(now.getTime() + CONVERSATION_STABILIZATION_MS).toISOString());
   });
 
-  it('opens Stafford WhatsApp stabilization with only phone and vehicle', () => {
+  it('keeps Stafford partial with only phone and vehicle because down is mandatory', () => {
     const now = new Date('2026-09-11T14:00:00.000Z');
     expect(evaluateStatus(staffordVehicleOnlySnapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'capture'))
-      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:00:15.000Z' });
+      .toEqual({ status: 'partial', nextAttemptAt: null });
   });
 
-  it('keeps Stafford WhatsApp in the same daytime qualification window after stabilization', () => {
+  it('keeps Stafford partial after stabilization when down is missing', () => {
     const now = new Date('2026-09-11T14:00:15.000Z');
     expect(evaluateStatus(staffordVehicleOnlySnapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'due', '2026-09-11T14:00:00.000Z'))
-      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:30:00.000Z' });
+      .toEqual({ status: 'partial', nextAttemptAt: null });
   });
 
-  it('uses the overnight Stafford qualification window outside the dispatch hours', () => {
+  it('keeps Stafford partial overnight when down is missing', () => {
     const now = new Date('2026-09-11T20:00:15.000Z');
     expect(evaluateStatus(staffordVehicleOnlySnapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'due', '2026-09-11T20:00:00.000Z'))
-      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T23:00:00.000Z' });
+      .toEqual({ status: 'partial', nextAttemptAt: null });
   });
 
   it('keeps Stafford WhatsApp partial when the vehicle is missing', () => {
@@ -599,10 +607,43 @@ describe('ConversationWebhookService', () => {
       .toEqual({ status: 'partial', nextAttemptAt: null });
   });
 
-  it.each([staffordWithDownSnapshot, staffordWithTimelineSnapshot])('opens Stafford wait when one additional qualification is present', (snapshot) => {
+  it('opens Stafford wait when the SUV minimum down is present', () => {
     const now = new Date('2026-09-11T14:00:00.000Z');
-    const result = evaluateStatus(snapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'capture');
+    const result = evaluateStatus(staffordWithDownSnapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'capture');
     expect(result).toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:00:15.000Z' });
+  });
+
+  it.each([
+    ['stafford', 'Honda Civic', '1499'],
+    ['fredericksburg', 'Toyota Corolla', '1499'],
+    ['fredericksburg-2', 'Toyota Tacoma', '2999'],
+  ] as const)('blocks %s below the vehicle minimum (%s)', (source, vehicle, down) => {
+    const now = new Date('2026-09-11T14:00:00.000Z');
+    expect(evaluateStatus({ phone: '+13015550123', vehicle_type: vehicle, down_payment: down, qualification_complete: false }, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, source, now, 'capture'))
+      .toEqual({ status: 'partial', nextAttemptAt: null });
+  });
+
+  it('allows an Offlease trade-in to enter waiting_window even below the cash minimum', () => {
+    const now = new Date('2026-09-11T14:00:00.000Z');
+    expect(evaluateStatus({ phone: '+13015550123', vehicle_type: 'Toyota Tacoma', down_payment: '2000 + trade-in', qualification_complete: false }, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'fredericksburg', now, 'capture'))
+      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:00:15.000Z' });
+  });
+
+  it('allows a trade-in-only Offlease down payment to enter waiting_window', () => {
+    const now = new Date('2026-09-11T14:00:00.000Z');
+    expect(evaluateStatus({ phone: '+13015550123', vehicle_type: 'Toyota Tacoma', down_payment: 'trade-in', qualification_complete: false }, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'capture'))
+      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:00:15.000Z' });
+  });
+
+  it.each([
+    ['stafford', 'Honda Civic', '1500'],
+    ['fredericksburg', 'Chevrolet Camaro', '2000'],
+    ['fredericksburg-2', 'Toyota Tacoma', '3000'],
+    ['fredericksburg', 'Toyota Tacoma', 'Cash'],
+  ] as const)('opens %s when vehicle, phone and required down are present', (source, vehicle, down) => {
+    const now = new Date('2026-09-11T14:00:00.000Z');
+    expect(evaluateStatus({ phone: '+13015550123', vehicle_type: vehicle, down_payment: down, qualification_complete: false }, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, source, now, 'capture'))
+      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:00:15.000Z' });
   });
 
   it('queues a complete conversation after the stabilization window', () => {

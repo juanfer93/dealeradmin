@@ -62,6 +62,95 @@ describe('HighLevel collector custom-code normalizer', () => {
     }).vehicle_type).toBe('Sedan');
   });
 
+  it.each([
+    ['1000', '1000'],
+    ['2000', '2000'],
+    ['3000', '3000'],
+    ['3 mil', '3000'],
+    ['dos mil', '2000'],
+    ['tres mil', '3000'],
+    ['1K', '1000'],
+    ['2K', '2000'],
+    ['3K', '3000'],
+  ])('normalizes down-payment spelling %s in Custom Code', (message, expected) => {
+    expect(execute({ message }).down_payment).toBe(expected);
+  });
+
+  it('keeps Offlease strict and predicts the minimum after an insufficient down payment', () => {
+    const result = execute({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      phone: '+15405550123',
+      message: 'Toyota Corolla, tengo 1K',
+    });
+    expect(result).toMatchObject({
+      vehicle_type: 'Toyota Corolla',
+      vehicle_category: 'sedan',
+      required_down_payment: 1500,
+      down_payment: '1000',
+      down_payment_sufficient: false,
+      qualification_step: 'down_payment',
+      qualification_complete: false,
+    });
+    expect(result.next_question).toContain('$1500');
+  });
+
+  it('allows Offlease trade-in to satisfy the down-payment requirement', () => {
+    const result = execute({
+      source: 'stafford',
+      channel: 'messenger',
+      real_name: 'Carlos',
+      phone: '+15405550123',
+      message: 'Toyota Tacoma, 2K y trade-in',
+      purchase_timeline: 'this week',
+    });
+    expect(result).toMatchObject({
+      vehicle_category: 'truck',
+      required_down_payment: 3000,
+      down_payment: '2000 + trade-in',
+      down_payment_sufficient: true,
+      qualification_complete: true,
+      qualification_step: 'documents',
+    });
+  });
+
+  it.each(['Tacoma con trade in', 'Busco una Tacoma y tengo mi carro para entregar', 'Quiero una Tacoma, cambio mi vehículo'])('accepts flexible trade-in wording for Offlease: %s', (message) => {
+    expect(execute({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      phone: '+15405550123',
+      message,
+    })).toMatchObject({
+      vehicle_category: 'truck',
+      required_down_payment: 3000,
+      down_payment: 'trade-in',
+      down_payment_sufficient: true,
+      qualification_step: 'purchase_timeline',
+    });
+  });
+
+  it('recognizes no tengo pago inicial as a flexible-dealer down answer', () => {
+    expect(execute({ source: 'easterns', message: 'No tengo pago inicial' })).toMatchObject({
+      down_payment: 'No down payment',
+      qualification_step: 'vehicle_type',
+    });
+  });
+
+  it('lets Offlease cash payment continue past the down-payment step', () => {
+    expect(execute({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      phone: '+15405550123',
+      message: 'Busco una Tacoma y voy a pagar de contado',
+    })).toMatchObject({
+      down_payment: 'Pagara en cash',
+      vehicle_category: 'truck',
+      required_down_payment: 3000,
+      down_payment_sufficient: true,
+      qualification_step: 'purchase_timeline',
+    });
+  });
+
   it('skips a greeting and extracts the following simple name from the Stafford WhatsApp transcript in Custom Code', () => {
     const result = execute({
       channel: 'whatsapp',
@@ -161,6 +250,20 @@ describe('HighLevel collector custom-code normalizer', () => {
       contact_name: 'Hay Les Aviso',
       message: 'Que requisitos necesito',
     }).real_name).toBe('Hay Les Aviso');
+  });
+
+  it('keeps the requested vehicle after a name intro separated by a comma', () => {
+    expect(execute({
+      channel: 'messenger',
+      contact_name: 'QA Igual',
+      message: 'Soy QA Igual, busco un Honda Civic y tengo 1500 de down; compro esta semana.',
+    })).toMatchObject({
+      vehicle_type: 'Honda Civic',
+      down_payment: '1500',
+      vehicle_category: 'sedan',
+      required_down_payment: 1500,
+      down_payment_sufficient: true,
+    });
   });
 
   it('uses only a declared chat name for WhatsApp in Custom Code', () => {
@@ -340,6 +443,13 @@ describe('HighLevel collector custom-code normalizer', () => {
     ['1000', '1000'],
     ['2000', '2000'],
     ['3000', '3000'],
+    ['3 mil', '3000'],
+    ['dos mil', '2000'],
+    ['tres mil', '3000'],
+    ['1K', '1000'],
+    ['2K', '2000'],
+    ['3K', '3000'],
+    ['five thousand', '5000'],
   ])('keeps standalone cash amount %s as down payment in Custom Code', (message, expected) => {
     expect(execute({ message }).down_payment).toBe(expected);
   });

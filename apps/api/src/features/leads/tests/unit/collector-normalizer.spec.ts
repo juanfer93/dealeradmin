@@ -255,7 +255,7 @@ describe('normalizeCollectorInput', () => {
       message: 'What vehicles are eligible?\nHummer sut\nI could pay for it cash\nNow if possible',
     });
     expect(result.vehicle_type).toBe('Hummer sut');
-    expect(result.down_payment).toBe('Cash');
+    expect(result.down_payment).toBe('Pagara en cash');
     expect(result.purchase_timeline).toBe('today');
   });
 
@@ -314,6 +314,21 @@ describe('normalizeCollectorInput', () => {
     ['camioneta', 'truck'],
   ])('normalizes common dealer vehicle request: %s', (message, expected) => {
     expect(normalizeCollectorInput({ message }).vehicle_type).toBe(expected);
+  });
+
+  it.each([
+    ['1000', '1000'],
+    ['2000', '2000'],
+    ['3000', '3000'],
+    ['3 mil', '3000'],
+    ['dos mil', '2000'],
+    ['tres mil', '3000'],
+    ['1K', '1000'],
+    ['2K', '2000'],
+    ['3K', '3000'],
+    ['five thousand', '5000'],
+  ])('normalizes the down payment wording %s', (message, expected) => {
+    expect(normalizeCollectorInput({ message: `Tengo ${message} para el enganche` }).down_payment).toBe(expected);
   });
 
   it('normalizes common Whisper Spanish phonetics from a three-row audio answer', () => {
@@ -396,6 +411,66 @@ describe('normalizeCollectorInput', () => {
       last_answered_field: 'vehicle_type',
       predicted_bot_question: '¿Cuánto tienes para el enganche?',
       language: 'es',
+    });
+  });
+
+  it('uses the injected Offlease order and vehicle-specific minimum without an AI call', () => {
+    const first = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      real_name: 'Cliente Offlease',
+      message: 'Busco una Toyota Corolla',
+    });
+    expect(first.qualification_progress).toMatchObject({ step: 'phone', predicted_bot_question: '¿Cuál es el mejor número para contactarte?' });
+
+    const second = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      real_name: 'Cliente Offlease',
+      phone: '+18045550123',
+      message: 'Busco una Toyota Corolla y tengo 1000 para el enganche',
+    });
+    expect(second).toMatchObject({ vehicle_type: 'Toyota Corolla', down_payment: '1000', down_payment_sufficient: false });
+    expect(second.qualification_progress).toMatchObject({ step: 'down_payment' });
+    expect(second.next_question).toContain('$1500');
+  });
+
+  it('relates Easterns location to the location step and skips it when already mentioned', () => {
+    expect(normalizeCollectorInput({ source: 'easterns', channel: 'messenger', message: 'I want an SUV' }).qualification_progress).toMatchObject({
+      step: 'customer_location',
+      predicted_bot_question: 'What city are you located in?',
+    });
+    expect(normalizeCollectorInput({ source: 'easterns', channel: 'messenger', message: 'I want an SUV in Laurel' }).qualification_progress.step).toBe('phone');
+  });
+
+  it('uses the Stafford name-first flow while treating the WhatsApp phone as known', () => {
+    expect(normalizeCollectorInput({ source: 'stafford', channel: 'whatsapp', phone: '+18045550123', message: 'Carlos' }).qualification_progress).toMatchObject({
+      step: 'vehicle_type',
+      predicted_bot_question: '¿Qué vehículo estás buscando?',
+    });
+  });
+
+  it('keeps no-down as a known flexible-dealer answer', () => {
+    expect(normalizeCollectorInput({ source: 'easterns', channel: 'messenger', real_name: 'Cliente', message: 'No tengo pago inicial' })).toMatchObject({
+      down_payment: 'No down payment',
+      qualification_step: 'vehicle_type',
+    });
+  });
+
+  it('allows cash payment to bypass the Offlease down minimum', () => {
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      phone: '+15405550123',
+      message: 'Busco una Tacoma y voy a pagar de contado',
+    });
+    expect(result).toMatchObject({
+      down_payment: 'Pagara en cash',
+      vehicle_category: 'truck',
+      required_down_payment: 3000,
+      down_payment_sufficient: true,
+      qualification_step: 'purchase_timeline',
+      qualification_complete: false,
     });
   });
 

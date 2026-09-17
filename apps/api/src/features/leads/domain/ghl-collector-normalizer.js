@@ -2,6 +2,7 @@
 // Keep this executable without imports: HighLevel provides inputData at runtime.
 const clean = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
 const advisorHandoffVehicle = 'Quiere hablar con un asesor';
+const cashDownPayment = 'Pagara en cash';
 const isAdvisorHandoffVehicle = (value) => clean(value).toLocaleLowerCase() === advisorHandoffVehicle.toLocaleLowerCase();
 const emptyMarker = (value) => /^(?:--|-|n\/?a|not indicated|not specified|no indicado|no especificado)$/i.test(clean(value));
 const first = (...values) => values.map(clean).find((value) => value && !emptyMarker(value)) || '';
@@ -67,6 +68,7 @@ const vehicleModels = /\b(?:grand caravan|grand cherokee|transit connect|promast
 const vehicleCategories = /suv|sedan|truck|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camion|camión/i;
 const vehicleContext = /\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
 const economicCarIntent = /\b(?:carro|auto|coche|veh[ií]culo)\s+econ[oó]mic[oa]s?\b/i;
+const noDownPaymentResponse = /\b(?:no(?:\s+\w+){0,3}\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)?)\b/i;
 const canonicalVehicleLabel = (value) => clean(value)
   .replace(/\bcorola\b/gi, 'Corolla')
   .replace(/\bcivc\b/gi, 'Civic')
@@ -212,6 +214,7 @@ const campaign = isCampaignButton(message);
 const amount = (value) => {
   const source = clean(value).toLowerCase();
   if (!source || emptyMarker(source)) return '';
+  if (noDownPaymentResponse.test(source)) return 'No down payment';
   const tradeMarker = tradeInLanguage;
   if (tradeMarker.test(source)) {
     const cash = source.match(/\$?\s*(\d[\d,.]*\s*k?)\b/i)?.[1];
@@ -221,18 +224,37 @@ const amount = (value) => {
   const compound = source.match(/^(.+?)\s*\+\s*trade[- ]?in\d*$/i);
   if (compound) { const base = amount(compound[1]); return base ? `${base} + trade-in` : ''; }
   if (source.replace(/\D/g, '').length >= 10) return '';
-  if (/\b(?:cash|contado|efectivo|paid in full|paga(?:r)? de contado)\b/i.test(source)) return 'Cash';
+  if (/\b(?:cash|contado|efectivo|paid in full|paga(?:r)? de contado)\b/i.test(source)) return cashDownPayment;
   const compact = source.replace(/[$,]/g, '').trim();
   const k = compact.match(/^(\d+(?:\.\d+)?)\s*k$/i);
   if (k) return String(Math.round(Number(k[1]) * 1000));
   const numeric = compact.match(/^(\d+(?:\.\d+)?)(?:\s*(?:dollars?|usd))?$/i);
-  return numeric ? String(Math.round(Number(numeric[1]))) : '';
+  if (numeric) return String(Math.round(Number(numeric[1])));
+  const thousand = source.match(/\b(\d{1,2})\s*(?:mil|thousand)\b/i);
+  if (thousand) return String(Number(thousand[1]) * 1000);
+  const words = {
+    mil: 1000, 'un mil': 1000, 'one thousand': 1000,
+    'mil quinientos': 1500, 'one thousand five hundred': 1500,
+    'dos mil': 2000, 'two thousand': 2000, 'dos mil quinientos': 2500,
+    'two thousand five hundred': 2500, 'tres mil': 3000, 'three thousand': 3000,
+    'tres mil quinientos': 3500, 'three thousand five hundred': 3500,
+    'cuatro mil': 4000, 'four thousand': 4000, 'cinco mil': 5000,
+    'five thousand': 5000, 'seis mil': 6000, 'six thousand': 6000,
+    'siete mil': 7000, 'seven thousand': 7000, 'ocho mil': 8000,
+    'eight thousand': 8000, 'nueve mil': 9000, 'nine thousand': 9000,
+    'diez mil': 10000, 'ten thousand': 10000,
+  };
+  for (const [phrase, value] of Object.entries(words).sort((left, right) => right[0].length - left[0].length)) {
+    if (source.includes(phrase)) return String(value);
+  }
+  return '';
 };
 const validAmount = (value) => amount(value);
+const amountToken = '(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?|\\d{1,2}\\s*(?:mil|thousand)|mil(?:\\s+quinientos)?|(?:un|one|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+(?:mil|thousand)(?:\\s+(?:quinientos|five hundred))?)';
 const tradeIn = (text) => {
   const source = clean(text);
   if (!source || campaign || isNonVehicleIntent(source)) return '';
-  const token = '(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?)';
+  const token = amountToken;
   const trade = '(?:trade[- ]?in|my car|my vehicle|mi carro|mi auto|mi vehículo|carro como enganche|(?:entregar|entrego|entregue|dar|doy)\\s+(?:(?:mi|el|de)\\s+)?(?:vehículo|carro|auto))';
   const match = source.match(new RegExp(`\\$?\\s*(${token})\\s*(?:down|payment|enganche|inicial)?\\s*(?:\\+|and|y)\\s*${trade}`, 'i')) || source.match(new RegExp(`${trade}\\s*(?:(?:and|plus|with|y|mas|más|con)\\s*(?:put|poner|pay|pagar|give|dar)?\\s*|[^0-9;.!?]{0,16}(?:down|payment|enganche|inicial|deposit|dep[oó]sito)[^0-9;.!?]{0,8})\\$?\\s*(${token})`, 'i'));
   const value = validAmount(match?.[1]);
@@ -241,12 +263,14 @@ const tradeIn = (text) => {
 const downFrom = (text) => {
   const source = String(text ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source || campaign) return '';
-  const token = '(\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?)';
+  if (noDownPaymentResponse.test(source)) return 'No down payment';
+  if (/\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b/i.test(source)) return cashDownPayment;
+  const token = `(${amountToken})`;
   const explicit = source.match(new RegExp(`(?:down|enganche|inicial|deposit|dep[oó]sito)[ \\t]*(?:payment|pago)?[ \\t]*(?:is|es|de|:)?[ \\t]*\\$?[ \\t]*${token}`, 'i'));
   const withAmount = source.match(new RegExp(`\\b(?:puedo|puede|can|could|i can|i could)[ \\t]+(?:con|with)[ \\t]*\\$?[ \\t]*${token}\\b`, 'i'));
   const declared = source.match(new RegExp(`\\b(?:i have|tengo|i can put|puedo poner)[ \\t]+\\$?[ \\t]*${token}[ \\t]*(?:down|payment|enganche|inicial)?\\b`, 'i'));
   const safeSource = source.split('\\n').filter((line) => !isPhoneOnlyLine(line)).join('\\n');
-  const standalone = safeSource.match(/(?:^|\n)\$?[ \t]*(\d{1,3}(?:[,.]\d{3})+|\d+(?:[,.]\d+)?\s*k?)[ \t]*\$?[ \t]*(?:tengo|have|available|disponible|i have|i can put)?[ \t]*\d{0,2}[ \t]*\.?[ \t]*(?=\n|$)/im);
+  const standalone = safeSource.match(new RegExp(`(?:^|\\n)\\$?[ \\t]*${token}[ \\t]*\\$?[ \\t]*(?:tengo|have|available|disponible|i have|i can put)?[ \\t]*\\d{0,2}[ \\t]*\\.?[ \\t]*(?=\\n|$)`, 'im'));
   const candidate = standalone?.[1]?.replace(/[$,\s]/g, '') || '';
   if (!explicit && /^20(?:1\d|2\d)$/.test(candidate)) return '';
   return validAmount(explicit?.[1] || withAmount?.[1] || declared?.[1] || standalone?.[1]);
@@ -259,12 +283,19 @@ const vehicleFrom = (text) => {
   for (const [lineIndex, line] of lines.entries()) {
     const candidate = stripCampaignButtonPhrases(line);
     if (!candidate || isCampaignButton(candidate) || isNonVehicleIntent(candidate)) continue;
-    if (tradeInLanguage.test(candidate) && /\b(?:tengo|tiene|have|has|my|mi)\b/i.test(candidate)) continue;
-    const cleaned = candidate
+    if (tradeInLanguage.test(candidate)
+      && /\b(?:tengo|tiene|have|has|my|mi)\b/i.test(candidate)
+      && !/\b(?:looking for|busco|quiero|want|interested in|interesado en)\b/i.test(candidate)) continue;
+    const candidateForVehicle = /\b(?:looking for|busco|quiero|want|interested in|interesado en)\b/i.test(candidate)
+      ? candidate
+      : candidate.split(/[;,]/, 1)[0];
+    const cleaned = candidateForVehicle
       .replace(/(?:\+?1[\s().-]*)?(?:\(?[2-9]\d{2}\)?[\s.-]*)\d{3}[\s.-]?\d{4}/g, ' ')
       .replace(/(?:down|enganche|inicial|deposit|dep[oó]sito)\s*(?:payment|pago)?\s*(?:is|es|de|:)?\s*\$?[\d,.]+\s*k?/gi, '')
       .replace(/\b(?:today|hoy|asap|immediately|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes)\b/gi, '')
-      .split(/[;,]/, 1)[0]
+      // Keep comma-separated natural language such as "Soy Ana, busco un Civic".
+      // Semicolon remains the transcript separator used to stop at the next field.
+      .split(/;/, 1)[0]
       .trim();
     const requested = cleaned.match(/(?:looking for|busco|quiero|want|interested in|interesado en)\s+(?:a|an|un|una)?\s*([^.!?]+)/i)?.[1];
     if (requested && !isNonVehicleIntent(requested)) {
@@ -388,6 +419,26 @@ const conversationalDownSource = `${message}; ${history}`;
 const down = validAmount(cashDown && /trade[- ]?in|my car|my vehicle|mi carro|mi auto|carro como enganche|(?:cambiar|cambio)\\s+(?:(?:mi|el|de)\\s+)?(?:veh[ií]culo|carro|auto)|change\\s+(?:my\\s+)?(?:vehicle|car)/i.test(conversationalDownSource) && !/trade[- ]?in/i.test(cashDown)
   ? `${cashDown} + trade-in`
   : downCandidate);
+const source = clean(inputData.source).toLocaleLowerCase();
+const sourceAware = Boolean(source);
+const offlease = ['stafford', 'fredericksburg', 'fredericksburg-2'].includes(source);
+const stafford = source === 'stafford';
+const requiresLocation = ['easterns', 'easterns-millersville'].includes(source);
+const phoneSatisfiedByNative = stafford && isWhatsAppChannel(inputData.channel);
+const customerLocation = first(inputData.customer_location, message.match(/\b(?:Baltimore|Laurel|Sterling|Millersville|Frederick|Fredericksburg|Woodbridge|Alexandria|Culpeper|Stafford)\b/i)?.[0] || '');
+const vehicleCategory = /\b(?:truck|troca|trokita|troquita|troque|trokas|pickup|pick[- ]?up|camioneta|camion|camión|tacoma|tundra|f[- ]?150|f[- ]?250|f[- ]?350|maverick|ranger|silverado|sierra|colorado|frontier|titan|ridgeline|gladiator|ram)\b/i.test(vehicle)
+  ? 'truck'
+  : /\b(?:suv|van|minivan|crossover|highlander|rav\s*4|4\s*runner|sienna|grand caravan|caravan|pacifica|odyssey|transit|promaster|pilot|passport|cr[- ]?v|hr[- ]?v|tahoe|suburban|traverse|equinox|blazer|yukon|acadia|terrain|wrangler|cherokee|compass|renegade|durango|explorer|expedition|escape|edge|armada|rogue|pathfinder|sportage|telluride|sorento|palisade|santa fe|tucson|forester|outback|ascent|atlas|tiguan|cayenne|range rover|defender)\b/i.test(vehicle)
+    ? 'suv_or_van'
+    : /\b(?:camaro|challenger|charger|mercedes(?:[- ]?benz)?|bmw|audi|lexus|acura|infiniti|genesis|cadillac|lincoln|volvo|tesla|porsche|jaguar)\b/i.test(vehicle)
+      ? 'luxury_sedan'
+      : /\b(?:sedan|civic|corolla|camry|accord|altima|sentra|versa|maxima|malibu|jetta|passat|sonata|elantra|optima|forte|rio|impala|avalon|prius|mustang|coupe|hatchback)\b/i.test(vehicle)
+        ? 'sedan'
+        : '';
+const requiredDownPayment = ({ sedan: 1500, luxury_sedan: 2000, suv_or_van: 2000, truck: 3000 }[vehicleCategory] || null);
+const downPaymentAmount = /^\d+(?:\.\d+)?$/.test(String(down).replace(/[$,\s]/g, '')) ? Number(String(down).replace(/[$,\s]/g, '')) : null;
+const tradeInDownPayment = /\btrade[\s-]?in\b|\b(?:my|mi)\s+(?:car|vehicle|carro|auto|veh[ií]culo)\b|\bcarro\s+como\s+enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b|\bchange\s+(?:my\s+)?(?:vehicle|car)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b/i.test(down);
+const downPaymentSufficient = requiredDownPayment !== null && (tradeInDownPayment || down === cashDownPayment || down.toLocaleLowerCase().includes(cashDownPayment.toLocaleLowerCase()) || (downPaymentAmount !== null && downPaymentAmount >= requiredDownPayment));
 const rawTimeline = first(timelineFrom(message), timelineFrom(history), memoryValue(['timeline', 'purchase timeline', 'purchase_timeline']), inputData.purchase_timeline);
 const identification = documentStatus('id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b', ['identification', 'id', 'itin', 'passport', 'pasaporte'], inputData.identification || inputData.documents);
 const income = documentStatus('proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina|bank account|cuenta bancaria|cuenta de banco', ['income', 'proof of income', 'estados de cuenta', 'account statements', 'bank statements', 'check stubs', 'bank account', 'cuenta bancaria'], inputData.documents);
@@ -407,40 +458,80 @@ const timeline = language === 'es'
   ? ({ today: 'hoy', 'this week': 'esta semana', 'this month': 'este mes', 'next week': 'próxima semana', 'next month': 'próximo mes', 'within 30 days': 'en 30 días', 'exploring options': 'explorando opciones' }[rawTimeline] || rawTimeline)
   : rawTimeline;
 const hasRealVehicle = Boolean(vehicle) && !isAdvisorHandoffVehicle(vehicle);
-const coreMissing = [!realName ? 'real_name' : '', !phone ? 'phone' : '', !hasRealVehicle ? 'vehicle_type' : '', !down ? 'down_payment' : '', !timeline ? 'purchase_timeline' : ''].filter(Boolean);
-const missing = [...coreMissing, identification !== 'yes' ? 'identification' : '', income !== 'yes' ? 'proof_of_income' : '', bankAccount !== 'yes' ? 'bank_account' : ''].filter(Boolean);
+const needsOffleaseMinimum = offlease && hasRealVehicle && Boolean(down) && !downPaymentSufficient;
+const coreMissing = (sourceAware
+  ? [stafford && !realName ? 'real_name' : '', !phone && !phoneSatisfiedByNative ? 'phone' : '', !hasRealVehicle ? 'vehicle_type' : '', !down ? 'down_payment' : '', needsOffleaseMinimum ? 'down_payment_minimum' : '', !timeline ? 'purchase_timeline' : '']
+  : [!realName ? 'real_name' : '', !phone ? 'phone' : '', !hasRealVehicle ? 'vehicle_type' : '', !down ? 'down_payment' : '', !timeline ? 'purchase_timeline' : ''])
+  .filter(Boolean);
+const qualificationMissing = [
+  ...coreMissing,
+  requiresLocation && !customerLocation ? 'customer_location' : '',
+  identification !== 'yes' ? 'identification' : '',
+  income !== 'yes' ? 'proof_of_income' : '',
+  bankAccount !== 'yes' ? 'bank_account' : '',
+].filter(Boolean);
 const parts = memoryText(rawMemory).split(';').map((part) => clean(part).replace(/^\d+(?=(?:vehicle|vehicle[_ ]?type|down|down[_ ]?payment|documents?|timeline)\b)/i, '')).filter((part) => Boolean(part) && !/^\$?\d[\d,.]*$/.test(part));
 const canonical = [['real_name', realName], ['vehicle', vehicle], ['down payment', down], ['documents', documents], ['timeline', timeline]].filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).replace(/\s*;\s*/g, ', ')}`);
 const qualificationMemory = [...new Set([...parts.filter((part) => !/^(?:real_name|real name|name|nombre|nombre real|nombre completo|vehicle|vehicle_type|down|down payment|down_payment|documents?|docs|timeline|purchase timeline|purchase_timeline)\s*(?::|=|-)/i.test(part)), ...canonical])].join('; ');
-const qualificationStep = !realName
-  ? 'real_name'
+const qualificationStep = sourceAware
+  ? (stafford && !realName
+    ? 'real_name'
     : !hasRealVehicle
-    ? 'vehicle_type'
-    : !down
-      ? 'down_payment'
-      : !timeline
-        ? 'purchase_timeline'
-        : identification !== 'yes' || income !== 'yes'
-          ? 'documents'
-          : !bankAccount || bankAccount !== 'yes'
-            ? 'bank_account'
-            : 'complete';
+      ? 'vehicle_type'
+      : requiresLocation && !customerLocation
+        ? 'customer_location'
+        : !phone && !phoneSatisfiedByNative
+          ? 'phone'
+          : !down || needsOffleaseMinimum
+            ? 'down_payment'
+            : !timeline
+              ? 'purchase_timeline'
+              : identification !== 'yes' || income !== 'yes'
+                ? 'documents'
+                : !bankAccount || bankAccount !== 'yes'
+                  ? 'bank_account'
+                  : 'complete')
+  : (!realName
+    ? 'real_name'
+      : !hasRealVehicle
+      ? 'vehicle_type'
+      : !down
+        ? 'down_payment'
+        : !timeline
+          ? 'purchase_timeline'
+          : identification !== 'yes' || income !== 'yes'
+            ? 'documents'
+            : !bankAccount || bankAccount !== 'yes'
+              ? 'bank_account'
+              : 'complete');
 const questions = {
   en: {
-    real_name: 'What is your full name?', vehicle_type: 'What vehicle are you looking for?',
+    real_name: 'What is your full name?', vehicle_type: 'What vehicle are you looking for?', customer_location: 'What city are you located in?', phone: "What's the best phone number to reach you?",
     down_payment: 'How much do you have for the down payment?', purchase_timeline: 'When are you planning to buy?',
     documents: 'Do you have identification and proof of income?', bank_account: 'Do you have a bank account?', complete: '',
   },
   es: {
-    real_name: '¿Cuál es tu nombre completo?', vehicle_type: '¿Qué vehículo estás buscando?',
+    real_name: '¿Cuál es tu nombre completo?', vehicle_type: '¿Qué vehículo estás buscando?', customer_location: '¿En qué ciudad te encuentras?', phone: '¿Cuál es el mejor número para contactarte?',
     down_payment: '¿Cuánto tienes para el enganche?', purchase_timeline: '¿Cuándo planeas comprar?',
     documents: '¿Tienes identificación y comprobante de ingresos?', bank_account: '¿Tienes una cuenta bancaria?', complete: '',
   },
 };
-const predictedBotQuestion = questions[language][qualificationStep];
+const minimumQuestion = requiredDownPayment
+  ? (language === 'es' ? `Para este vehículo requerimos un enganche mínimo de $${requiredDownPayment}. ¿Con cuánto cuentas para el enganche?` : `This vehicle requires a minimum down payment of $${requiredDownPayment}. How much do you have available?`)
+  : questions[language][qualificationStep];
+const shortfallQuestion = language === 'es'
+  ? `Te comento que el mínimo para este vehículo es de $${requiredDownPayment}. ¿Crees que podrías conseguir un poco más?`
+  : `The minimum for this vehicle is $${requiredDownPayment}. Do you think you could bring a little more?`;
+const predictedBotQuestion = qualificationStep === 'down_payment' && needsOffleaseMinimum
+  ? shortfallQuestion
+  : qualificationStep === 'down_payment' && offlease
+    ? minimumQuestion
+    : questions[language][qualificationStep];
 const lastAnsweredField = qualificationStep === 'complete'
   ? 'bank_account'
-  : [['real_name', realName], ['phone', phone], ['vehicle_type', hasRealVehicle], ['down_payment', down], ['purchase_timeline', timeline], ['documents', identification === 'yes' && income === 'yes'], ['bank_account', bankAccount === 'yes']]
+  : (sourceAware
+    ? [['real_name', stafford && Boolean(realName)], ['vehicle_type', hasRealVehicle], ['customer_location', Boolean(customerLocation)], ['phone', Boolean(phone) || phoneSatisfiedByNative], ['down_payment', Boolean(down) && !needsOffleaseMinimum], ['purchase_timeline', timeline], ['documents', identification === 'yes' && income === 'yes'], ['bank_account', bankAccount === 'yes']]
+    : [['real_name', realName], ['phone', phone], ['vehicle_type', hasRealVehicle], ['down_payment', down], ['purchase_timeline', timeline], ['documents', identification === 'yes' && income === 'yes'], ['bank_account', bankAccount === 'yes']])
     .reverse().find(([, complete]) => Boolean(complete))?.[0] || null;
 // Prefer a phone written in the conversation, but preserve a validated native
 // GHL contact phone when the webhook delivers the conversation message
@@ -454,6 +545,11 @@ return {
   channel: String(inputData.channel ?? ''),
   real_name: realName,
   vehicle_type: vehicle,
+  customer_location: customerLocation,
+  vehicle_category: vehicleCategory || null,
+  required_down_payment: requiredDownPayment,
+  down_payment_amount: downPaymentAmount,
+  down_payment_sufficient: downPaymentSufficient,
   down_payment: down,
   purchase_timeline: timeline,
   documents,
@@ -477,7 +573,7 @@ return {
     confidence: qualificationStep === 'complete' ? 1 : 0.95,
     evidence: qualificationStep === 'complete' ? 'complete' : 'normalized_fields',
   },
-  qualification_complete: coreMissing.length === 0,
-  missing_qualification: missing,
+  qualification_complete: coreMissing.length === 0 && (!requiresLocation || Boolean(customerLocation)),
+  missing_qualification: qualificationMissing,
   qualification_source: qualificationSource,
 };

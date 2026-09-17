@@ -1,0 +1,294 @@
+{
+  "report": {
+    "title": "Offlease qualification and prediction QA",
+    "generatedAt": "2026-09-17T17:15:00Z",
+    "repository": "C:/dev/dealeradmin",
+    "environment": "local Docker PostgreSQL + local API + local Next.js frontend",
+    "productionNeonWrites": 0,
+    "githubPush": false,
+    "overall": "PASS",
+    "overallPassRate": 1.0
+  },
+  "provenanceAndComparison": {
+    "importantClarification": "The qa-offlease-v4 conversations were generated for this local QA run. The Neon conversations were read-only reference samples taken from the database for comparison; they were not modified and were not used as production inserts.",
+    "operatorGeneratedLocalCases": {
+      "prefix": "qa-offlease-v4-",
+      "count": 10,
+      "location": "local Docker PostgreSQL",
+      "purpose": "controlled equal, superior, inferior, trade-in and cash cases in Stafford and Fredericksburg",
+      "synthetic": true
+    },
+    "neonReferenceSamples": {
+      "readOnly": true,
+      "productionWrites": 0,
+      "purpose": "compare real wording and normalized patterns before local injection",
+      "samples": [
+        {"conversationId": "0a33b745-...", "sourceLocation": "xN2LSSl62okzv9GnOJPU", "observedPattern": "trade-in with truck context"},
+        {"conversationId": "ed438069-...", "sourceLocation": "9v8zH9Y5eLiiJwZTZDci", "observedPattern": "1500 down with Sedan"},
+        {"conversationId": "aa3c7231-...", "sourceLocation": "9v8zH9Y5eLiiJwZTZDci", "observedPattern": "cash with Toyota Corolla"},
+        {"conversationId": "388763cf-...", "sourceLocation": "9v8zH9Y5eLiiJwZTZDci", "observedPattern": "2000 down with GMC 350"},
+        {"conversationId": "2c95df24-...", "sourceLocation": "xN2LSSl62okzv9GnOJPU", "observedPattern": "1200 plus trade-in with SUV"},
+        {"conversationId": "c254ef68-...", "sourceLocation": "xuHo0opTO2g5edIuPJRl", "observedPattern": "cash with sedan"}
+      ]
+    },
+    "comparisonMethod": "Neon samples informed realistic wording; generated local cases provide deterministic expected outcomes and are the only records evaluated for the 100 percent acceptance matrix."
+  },
+  "rules": {
+    "offleaseSources": ["stafford", "fredericksburg", "fredericksburg-2"],
+    "staffordChannel": "whatsapp-only",
+    "fredericksburgChannel": "messenger",
+    "minimumDownPayments": {
+      "sedan": 1500,
+      "luxury_sedan": 2000,
+      "suv_or_van": 2000,
+      "truck": 3000
+    },
+    "acceptedPaths": [
+      "numeric down payment equal to or greater than the vehicle minimum",
+      "cash payment",
+      "trade-in"
+    ],
+    "cashNormalizedValue": "Pagara en cash",
+    "queueRequirement": "vehicle + phone + accepted down-payment path",
+    "botPauseHours": 24
+  },
+  "dockerDatabaseMatrix": {
+    "runId": "qa-offlease-v4-20260917",
+    "database": "dealeradmin-postgres / dealeradmin",
+    "totalCases": 10,
+    "passedCases": 10,
+    "passRate": 1.0,
+    "cases": [
+      {
+        "source": "stafford",
+        "channel": "whatsapp",
+        "case": "inferior",
+        "vehicle": "Honda Civic",
+        "category": "sedan",
+        "requiredDown": 1500,
+        "normalizedDown": "1000",
+        "downSufficient": false,
+        "initialStatus": "partial",
+        "predictedStep": "down_payment",
+        "predictedQuestion": "Te comento que el mínimo para este vehículo es de $1500. ¿Crees que podrías conseguir un poco más?",
+        "pass": true
+      },
+      {
+        "source": "stafford",
+        "channel": "whatsapp",
+        "case": "equal",
+        "vehicle": "Honda Civic",
+        "category": "sedan",
+        "requiredDown": 1500,
+        "normalizedDown": "1500",
+        "downSufficient": true,
+        "initialStatus": "waiting_window",
+        "predictedStep": "documents",
+        "predictedQuestion": "¿Tienes identificación y comprobante de ingresos?",
+        "pass": true
+      },
+      {
+        "source": "stafford",
+        "channel": "whatsapp",
+        "case": "superior",
+        "vehicle": "Honda Civic",
+        "category": "sedan",
+        "requiredDown": 1500,
+        "normalizedDown": "2500",
+        "downSufficient": true,
+        "initialStatus": "waiting_window",
+        "predictedStep": "documents",
+        "predictedQuestion": "¿Tienes identificación y comprobante de ingresos?",
+        "pass": true
+      },
+      {
+        "source": "stafford",
+        "channel": "whatsapp",
+        "case": "trade_in",
+        "vehicle": "Toyota Tacoma",
+        "category": "truck",
+        "requiredDown": 3000,
+        "normalizedDown": "trade-in",
+        "downSufficient": true,
+        "initialStatus": "waiting_window",
+        "predictedStep": "documents",
+        "predictedQuestion": "¿Tienes identificación y comprobante de ingresos?",
+        "pass": true
+      },
+      {
+        "source": "stafford",
+        "channel": "whatsapp",
+        "case": "cash",
+        "vehicle": "Toyota Tacoma",
+        "category": "truck",
+        "requiredDown": 3000,
+        "normalizedDown": "Pagara en cash",
+        "downSufficient": true,
+        "initialStatus": "waiting_window",
+        "predictedStep": "documents",
+        "predictedQuestion": "¿Tienes identificación y comprobante de ingresos?",
+        "pass": true
+      },
+      {
+        "source": "fredericksburg",
+        "channel": "messenger",
+        "case": "inferior",
+        "vehicle": "Honda Civic",
+        "category": "sedan",
+        "requiredDown": 1500,
+        "normalizedDown": "1000",
+        "downSufficient": false,
+        "initialStatus": "partial",
+        "predictedStep": "down_payment",
+        "predictedQuestion": "Te comento que el mínimo para este vehículo es de $1500. ¿Crees que podrías conseguir un poco más?",
+        "pass": true
+      },
+      {
+        "source": "fredericksburg",
+        "channel": "messenger",
+        "case": "equal",
+        "vehicle": "Honda Civic",
+        "category": "sedan",
+        "requiredDown": 1500,
+        "normalizedDown": "1500",
+        "downSufficient": true,
+        "initialStatus": "waiting_window",
+        "predictedStep": "documents",
+        "predictedQuestion": "¿Tienes identificación y comprobante de ingresos?",
+        "pass": true
+      },
+      {
+        "source": "fredericksburg",
+        "channel": "messenger",
+        "case": "superior",
+        "vehicle": "Honda Civic",
+        "category": "sedan",
+        "requiredDown": 1500,
+        "normalizedDown": "2500",
+        "downSufficient": true,
+        "initialStatus": "waiting_window",
+        "predictedStep": "documents",
+        "predictedQuestion": "¿Tienes identificación y comprobante de ingresos?",
+        "pass": true
+      },
+      {
+        "source": "fredericksburg",
+        "channel": "messenger",
+        "case": "trade_in",
+        "vehicle": "Toyota Tacoma",
+        "category": "truck",
+        "requiredDown": 3000,
+        "normalizedDown": "trade-in",
+        "downSufficient": true,
+        "initialStatus": "waiting_window",
+        "predictedStep": "documents",
+        "predictedQuestion": "¿Tienes identificación y comprobante de ingresos?",
+        "pass": true
+      },
+      {
+        "source": "fredericksburg",
+        "channel": "messenger",
+        "case": "cash",
+        "vehicle": "Toyota Tacoma",
+        "category": "truck",
+        "requiredDown": 3000,
+        "normalizedDown": "Pagara en cash",
+        "downSufficient": true,
+        "initialStatus": "waiting_window",
+        "predictedStep": "documents",
+        "predictedQuestion": "¿Tienes identificación y comprobante de ingresos?",
+        "pass": true
+      }
+    ]
+  },
+  "normalizationCoverage": {
+    "testedInputs": ["1000", "2000", "3000", "3 mil", "2 mil", "mil", "1K", "2K", "3K", "cash", "contado", "efectivo", "trade-in", "mi carro para entregar"],
+    "unitAssertions": "PASS",
+    "tradeInReplacesMinimum": true,
+    "cashWritesExactValue": true,
+    "naturalCommaIntroVehicleRegression": "PASS"
+  },
+  "routingAndPause": {
+    "staffordMessengerResponse": 422,
+    "staffordMessengerRejected": true,
+    "queuedPauseCases": 8,
+    "queuedPauseCasesWith24Hours": 8,
+    "pausePassRate": 1.0,
+    "note": "The waiting_window cases later advanced to queued during the local run; the bot pause record stored pause_hours=24."
+  },
+  "regressionOtherAlgorithms": {
+    "database": "dealeradmin-postgres / dealeradmin; local Docker only",
+    "totalCases": 14,
+    "passedCases": 14,
+    "failedCases": 0,
+    "passRate": 1.0,
+    "databaseWrites": "0 persistent writes; round-robin state checks ran inside a rolled-back transaction",
+    "geozones": [
+      "Virginia -> Sterling",
+      "Maryland Laurel -> Laurel",
+      "Delaware -> Rosedale",
+      "Pennsylvania -> Rosedale",
+      "New York -> Rosedale",
+      "New Jersey -> Rosedale",
+      "District of Columbia -> Sterling"
+    ],
+    "roundRobin": [
+      "Baltimore overlap: alternates Rosedale/Laurel after the latest persisted assignment",
+      "Southern Maryland overlap: alternates Laurel/Sterling after the latest persisted assignment",
+      "easterns-millersville: alternates Easterns Millersville/Nissan of White Marsh"
+    ],
+    "languageRouting": [
+      "Action Pre Owned Cars Español -> ACTION-CARS-ES",
+      "Action Pre Owned Cars English -> ACTION-CARS-EN"
+    ],
+    "cases": [
+      {"name": "Virginia exclusive zone -> Sterling", "actual": "Sterling", "expected": "Sterling", "pass": true},
+      {"name": "Maryland Laurel exclusive zone -> Laurel", "actual": "Laurel", "expected": "Laurel", "pass": true},
+      {"name": "Delaware exclusive zone -> Rosedale", "actual": "Rosedale", "expected": "Rosedale", "pass": true},
+      {"name": "Pennsylvania exclusive zone -> Rosedale", "actual": "Rosedale", "expected": "Rosedale", "pass": true},
+      {"name": "New York exclusive zone -> Rosedale", "actual": "Rosedale", "expected": "Rosedale", "pass": true},
+      {"name": "New Jersey exclusive zone -> Rosedale", "actual": "Rosedale", "expected": "Rosedale", "pass": true},
+      {"name": "District of Columbia exclusive zone -> Sterling", "actual": "Sterling", "expected": "Sterling", "pass": true},
+      {"name": "Baltimore round robin", "actual": "Rosedale", "expected": "Rosedale", "pass": true},
+      {"name": "Southern Maryland round robin", "actual": "Laurel", "expected": "Laurel", "pass": true},
+      {"name": "Millersville/White Marsh round robin first turn", "actual": "EAST-WHITE-MARSH", "expected": "EAST-WHITE-MARSH", "pass": true},
+      {"name": "Millersville/White Marsh round robin second turn", "actual": "EAST-MILLERSVILLE", "expected": "EAST-MILLERSVILLE", "pass": true},
+      {"name": "Millersville/White Marsh alternation", "actual": "EAST-WHITE-MARSH->EAST-MILLERSVILLE", "expected": "EAST-WHITE-MARSH->EAST-MILLERSVILLE", "pass": true},
+      {"name": "Action Cars Spanish", "actual": "ACTION-CARS-ES", "expected": "ACTION-CARS-ES", "pass": true},
+      {"name": "Action Cars English", "actual": "ACTION-CARS-EN", "expected": "ACTION-CARS-EN", "pass": true}
+    ]
+  },
+  "frontend": {
+    "localPlaywrightRuns": 2,
+    "passedRuns": 2,
+    "passRate": 1.0,
+    "visibleFields": ["Normalizado", "categoria", "mínimo", "suficiente", "paso", "Pagara en cash"],
+    "inferiorCasesVisibleInPendingQueue": false
+  },
+  "automatedChecks": [
+    {"command": "vitest focused API + web", "result": "336 passed / 336 total", "pass": true},
+    {"command": "pnpm typecheck", "result": "exit 0", "pass": true},
+    {"command": "pnpm build", "result": "exit 0", "pass": true},
+    {"command": "git diff --check", "result": "pass; only CRLF conversion warnings", "pass": true},
+    {"command": "Docker HTTP injection + PostgreSQL assertions", "result": "10 passed / 10 total", "pass": true},
+    {"command": "Docker prediction assertions", "result": "10 passed / 10 total", "pass": true},
+    {"command": "local frontend Playwright smoke", "result": "2 passed / 2 total", "pass": true},
+    {"command": "full Vitest suite", "result": "517 passed / 517 executable; 5 DB tests separately enabled", "pass": true},
+    {"command": "Docker PostgreSQL integration suite", "result": "5 passed / 5 total", "pass": true},
+    {"command": "full local Playwright E2E suite", "result": "16 passed / 16 total", "pass": true},
+    {"command": "Docker geozone + round-robin regression", "result": "14 passed / 14 total", "pass": true}
+  ],
+  "changedFiles": [
+    "apps/api/src/features/leads/domain/down-payment.ts",
+    "apps/api/src/features/leads/domain/collector-normalizer.ts",
+    "apps/api/src/features/leads/domain/ghl-collector-normalizer.js",
+    "apps/api/src/features/webhooks/application/conversation-webhook.service.ts",
+    "apps/api/src/features/leads/presentation/leads.controller.ts",
+    "apps/web/src/components/operator/OperatorDashboard.tsx"
+  ],
+  "releaseGate": {
+    "githubPushAllowed": false,
+    "reason": "User requested JSON and PDF review before GitHub publication.",
+    "nextStep": "Human review of this JSON and the PDF, then explicit authorization before push."
+  }
+}

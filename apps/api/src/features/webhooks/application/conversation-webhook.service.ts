@@ -5,7 +5,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { DataSource, QueryRunner } from 'typeorm';
 import { buildWhatsAppMessage } from '../../leads/domain/message-builder';
 import { detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isAdvisorHandoffVehicle, isQualificationComplete, normalizeCollectorInput, normalizeRealName, type CollectorLanguage, type QualificationProgress } from '../../leads/domain/collector-normalizer';
-import { normalizeDownPayment } from '../../leads/domain/down-payment';
+import { evaluateDownPayment, normalizeDownPayment } from '../../leads/domain/down-payment';
 import { normalizePhone } from '../../leads/domain/phone-normalizer';
 import { GeoroutingService } from '../../routing/domain/services/georouting.service';
 import { extractConversationLocation, extractLocationCandidates } from './conversation-location';
@@ -62,6 +62,11 @@ type ConversationSnapshot = {
   real_name: string;
   phone: string;
   vehicle_type: string;
+  customer_location?: string;
+  vehicle_category?: string | null;
+  required_down_payment?: number | null;
+  down_payment_amount?: number | null;
+  down_payment_sufficient?: boolean;
   down_payment: string;
   purchase_timeline: string;
   documents: string;
@@ -113,6 +118,10 @@ function sourceKey(value: string): SourceKey {
 
 function isStaffordWhatsApp(source: SourceKey, channel: string): boolean {
   return source === 'stafford' && channel.trim().toLowerCase() === 'whatsapp';
+}
+
+function isOffleaseSource(source: SourceKey): boolean {
+  return source === 'fredericksburg' || source === 'fredericksburg-2' || source === 'stafford';
 }
 
 function parseOccurredAt(value: string | undefined): string {
@@ -289,10 +298,11 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         ? this.safePhone(row.canonical_phone) || this.extractNativeWhatsappPhone(messages)
         : null;
       const normalized = normalizeCollectorInput({
+        source,
         channel: row.channel,
         message: transcript,
         chat_history_log: transcript,
-        phone: recentPhone || '',
+        phone: recentPhone || nativeWhatsappPhone || '',
         // Reconciliation is incremental: feed the previous snapshot back into
         // the normalizer so a partial transcript cannot erase facts already
         // captured by GHL or an earlier poll.
@@ -304,6 +314,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         identification: clean(current.identification),
         bank_account: clean(current.bank_account),
         qualification_memory: clean(current.qualification_memory),
+        customer_location: clean(current.customer_location),
       });
       const effectivePhone = recentPhone || nativeWhatsappPhone || '';
       // A manual correction made while a conversation is waiting must survive
@@ -316,6 +327,8 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       const documents = normalized.documents || clean(current.documents);
       const identification = normalized.identification || clean(current.identification);
       const bankAccount = normalized.bank_account || clean(current.bank_account);
+      const downPaymentRule = evaluateDownPayment(vehicle, downPayment);
+      const offlease = isOffleaseSource(source);
       const qualificationComplete = isQualificationComplete({
         real_name: realName,
         phone: effectivePhone,
@@ -325,12 +338,12 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         has_identification: identification,
         has_income_proof: documents,
         bank_account: bankAccount,
-      });
+      }) && (!offlease || downPaymentRule.meetsMinimum);
       const missingQualification = [
         !realName ? 'real_name' : '',
         !effectivePhone ? 'phone' : '',
-        !vehicle || isAdvisorHandoffVehicle(vehicle) ? 'vehicle_type' : '',
-        !downPayment ? 'down_payment' : '',
+        !vehicle || isAdvisorHandoffVehicle(vehicle) || (offlease && !downPaymentRule.category) ? 'vehicle_type' : '',
+        !downPayment ? 'down_payment' : (offlease && !downPaymentRule.meetsMinimum ? 'down_payment_minimum' : ''),
         !purchaseTimeline ? 'purchase_timeline' : '',
         identification !== 'yes' ? 'identification' : '',
         !/proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina/i.test(documents) ? 'proof_of_income' : '',
@@ -344,6 +357,11 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         real_name: realName,
         phone: effectivePhone,
         vehicle_type: vehicle,
+        customer_location: normalized.customer_location || clean(current.customer_location),
+        vehicle_category: downPaymentRule.category,
+        required_down_payment: downPaymentRule.minimum,
+        down_payment_amount: downPaymentRule.amount,
+        down_payment_sufficient: downPaymentRule.meetsMinimum,
         down_payment: downPayment,
         purchase_timeline: purchaseTimeline,
         documents,
@@ -434,6 +452,9 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     }
 
     const event = parsed.data;
+    if (source === 'stafford' && event.channel.trim().toLowerCase() !== 'whatsapp') {
+      throw new UnprocessableEntityException('Stafford solo acepta conversaciones de WhatsApp');
+    }
     const contactId = event.ghl_contact_id;
     const message = clean(event.message_body);
     const messageId = event.ghl_message_id || event.event_id || `event:${hash(JSON.stringify(event))}`;
@@ -607,11 +628,12 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         return { accepted: true, eventId: event.event_id, conversationId: conversation.id, source, status: 'processed' };
       }
       const normalized = normalizeCollectorInput({
+        source,
         channel: event.channel,
         real_name: /(?:^|[^a-z])messenger(?:$|[^a-z])/i.test(event.channel) ? displayName : undefined,
         message: transcript,
         chat_history_log: transcript,
-        phone: recentPhone || '',
+        phone: recentPhone || nativeWhatsappPhone || '',
       });
       // A lead can correct the phone in a later inbound message. Keep the
       // same GHL contact/lead identity and promote that conversational phone
@@ -633,6 +655,9 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       }
       const location = await this.resolveLocation(runner, transcript);
       const language = GHL_SOURCE_CONFIG[source].splitByLanguage ? detectLeadLanguage(transcript) : undefined;
+      const downPayment = normalizeDownPayment(normalized.down_payment);
+      const downPaymentRule = evaluateDownPayment(normalized.vehicle_type, downPayment);
+      const offlease = isOffleaseSource(source);
       const snapshot: ConversationSnapshot = {
         // Messenger uses the contact display name as real_name. WhatsApp
         // only receives a real_name when it was declared/repeated in chat.
@@ -641,7 +666,12 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         real_name: normalized.real_name,
         phone: effectivePhone || '',
         vehicle_type: normalized.vehicle_type,
-        down_payment: normalizeDownPayment(normalized.down_payment),
+        customer_location: normalized.customer_location,
+        vehicle_category: downPaymentRule.category,
+        required_down_payment: downPaymentRule.minimum,
+        down_payment_amount: downPaymentRule.amount,
+        down_payment_sufficient: downPaymentRule.meetsMinimum,
+        down_payment: downPayment,
         purchase_timeline: normalized.purchase_timeline,
         documents: normalized.documents,
         identification: normalized.identification,
@@ -651,17 +681,17 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
           real_name: normalized.real_name,
           phone: effectivePhone,
           vehicle_type: normalized.vehicle_type,
-          down_payment: normalizeDownPayment(normalized.down_payment),
+          down_payment: downPayment,
           purchase_timeline: normalized.purchase_timeline,
           has_identification: normalized.identification,
           has_income_proof: normalized.documents,
           bank_account: normalized.bank_account,
-        }),
+        }) && (!offlease || downPaymentRule.meetsMinimum),
         missing_qualification: [
           !normalized.real_name ? 'real_name' : '',
           !effectivePhone ? 'phone' : '',
-          !normalized.vehicle_type || isAdvisorHandoffVehicle(normalized.vehicle_type) ? 'vehicle_type' : '',
-          !normalized.down_payment ? 'down_payment' : '',
+          !normalized.vehicle_type || isAdvisorHandoffVehicle(normalized.vehicle_type) || (offlease && !downPaymentRule.category) ? 'vehicle_type' : '',
+          !downPayment ? 'down_payment' : (offlease && !downPaymentRule.meetsMinimum ? 'down_payment_minimum' : ''),
           !normalized.purchase_timeline ? 'purchase_timeline' : '',
           normalized.identification !== 'yes' ? 'identification' : '',
           normalized.has_income_proof !== 'yes' ? 'proof_of_income' : '',
@@ -1082,10 +1112,12 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     readyAt?: string | null,
   ): { status: 'partial' | 'ready' | 'waiting_window'; nextAttemptAt: string | null } {
     const isEasterns = dealer.routing_config?.group === 'Easterns';
+    const offlease = isOffleaseSource(source);
+    const downPaymentRule = evaluateDownPayment(snapshot.vehicle_type, snapshot.down_payment);
     const hasLocation = Boolean(location.city || location.state || location.easterns_zone || location.zip_code);
     const routingReady = Boolean(
       hasMinimumRoutingQualification({ phone: snapshot.phone }) &&
-      (source !== 'stafford' || snapshot.vehicle_type),
+      (!offlease || (snapshot.vehicle_type && downPaymentRule.meetsMinimum)),
     );
     if (!routingReady) return { status: 'partial', nextAttemptAt: null };
     if (phase === 'capture') {

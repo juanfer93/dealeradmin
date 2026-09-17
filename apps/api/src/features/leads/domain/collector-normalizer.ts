@@ -1,4 +1,7 @@
+import { CASH_DOWN_PAYMENT, evaluateDownPayment, type VehicleCategory } from './down-payment';
+
 export type CollectorInput = {
+  source?: string | null;
   channel?: string | null;
   real_name?: string | null;
   message?: string | null;
@@ -11,11 +14,17 @@ export type CollectorInput = {
   bank_account?: string | null;
   qualification_memory?: string | null;
   chat_history_log?: string | null;
+  customer_location?: string | null;
 };
 
 export type CollectorOutput = {
   real_name: string;
   vehicle_type: string;
+  customer_location: string;
+  vehicle_category: VehicleCategory | null;
+  required_down_payment: number | null;
+  down_payment_amount: number | null;
+  down_payment_sufficient: boolean;
   down_payment: string;
   purchase_timeline: string;
   documents: string;
@@ -36,7 +45,7 @@ export type CollectorOutput = {
 };
 
 export type CollectorLanguage = 'es' | 'en';
-export type QualificationStep = 'real_name' | 'vehicle_type' | 'down_payment' | 'purchase_timeline' | 'documents' | 'bank_account' | 'complete';
+export type QualificationStep = 'real_name' | 'vehicle_type' | 'customer_location' | 'phone' | 'down_payment' | 'purchase_timeline' | 'documents' | 'bank_account' | 'complete';
 export type QualificationProgress = {
   step: QualificationStep;
   last_answered_field: string | null;
@@ -156,6 +165,40 @@ function isWhatsAppChannel(value: string | null | undefined): boolean {
   return /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(clean(value));
 }
 
+type CollectorFlowPolicy = {
+  sourceAware: boolean;
+  offlease: boolean;
+  stafford: boolean;
+  requiresLocation: boolean;
+  phoneSatisfiedByNative: boolean;
+  requiresRealName: boolean;
+};
+
+function collectorFlowPolicy(input: CollectorInput): CollectorFlowPolicy {
+  const source = clean(input.source).toLocaleLowerCase();
+  const sourceAware = Boolean(source);
+  const stafford = source === 'stafford';
+  const offlease = source === 'stafford' || source === 'fredericksburg' || source === 'fredericksburg-2';
+  const requiresLocation = source === 'easterns' || source === 'easterns-millersville';
+  return {
+    sourceAware,
+    offlease,
+    stafford,
+    requiresLocation,
+    phoneSatisfiedByNative: stafford && isWhatsAppChannel(input.channel),
+    // Stafford's supplied prompt explicitly collects the customer's name;
+    // the other flows use the GHL/Messenger contact identity when available.
+    requiresRealName: stafford,
+  };
+}
+
+function extractCustomerLocation(input: CollectorInput, transcript: string): string {
+  const supplied = firstNonEmpty(input.customer_location);
+  if (supplied) return supplied;
+  const match = transcript.match(/\b(Baltimore|Laurel|Sterling|Millersville|Frederick|Fredericksburg|Woodbridge|Alexandria|Culpeper|Stafford)\b/i)?.[1];
+  return match ? `${match[0].toLocaleUpperCase()}${match.slice(1).toLocaleLowerCase()}` : EMPTY;
+}
+
 function memoryText(memory: string): string {
   const normalized = memory.trim();
   if (!normalized) return EMPTY;
@@ -199,6 +242,7 @@ const VEHICLE_CATEGORIES = /\b(?:suv|sedan|truck|troca|trokita|troquita|troque|t
 const VEHICLE_TRIMS = /\b(?:\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i;
 const VEHICLE_CONTEXT = /\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
 const ECONOMIC_CAR_INTENT = /\b(?:carro|auto|coche|veh[ií]culo)\s+econ[oó]mic[oa]s?\b/i;
+const NO_DOWN_PAYMENT_RESPONSE = /\b(?:no(?:\s+\w+){0,3}\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)?)\b/i;
 const TRADE_IN_INTENT = /\btrade[- ]?in\b|\bmy (?:car|vehicle)\b|\bmi (?:carro|auto|veh[ií]culo)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b|\bchange\s+(?:my\s+)?(?:vehicle|car)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b/i;
 
 function canonicalVehicleLabel(value: string): string {
@@ -389,6 +433,7 @@ function stripCampaignButtonPhrases(value: string): string {
 function normalizeAmount(value: string): string {
   const source = clean(value).toLowerCase();
   if (!source || isEmptyMarker(source)) return EMPTY;
+  if (NO_DOWN_PAYMENT_RESPONSE.test(source)) return 'No down payment';
   if (TRADE_IN_INTENT.test(source)) {
     const withoutTradeIn = source
       .replace(TRADE_IN_INTENT, '')
@@ -408,7 +453,7 @@ function normalizeAmount(value: string): string {
   // down_payment field or into qualification memory.
   const digits = source.replace(/\D/g, '');
   if (digits.length >= 10 && digits.length <= 15) return EMPTY;
-  if (/\b(?:cash|contado|efectivo|paid in full|paga(?:r)? de contado)\b/i.test(source)) return 'Cash';
+  if (/\b(?:cash|contado|efectivo|paid in full|paga(?:r)? de contado)\b/i.test(source)) return CASH_DOWN_PAYMENT;
 
   const compact = source.replace(/\$/g, '').replace(/,/g, '').trim();
   if (!compact || /^[.]+$/.test(compact)) return EMPTY;
@@ -418,15 +463,40 @@ function normalizeAmount(value: string): string {
   const amountMatch = compact.match(/^(\d+(?:\.\d+)?)\s*(?:dollars?|usd)?$/i);
   if (amountMatch) return String(Math.round(Number(amountMatch[1])));
 
+  const thousandMatch = source.match(/\b(\d{1,2})\s*(?:mil|thousand)\b/i);
+  if (thousandMatch) return String(Number(thousandMatch[1]) * 1000);
   const words: Record<string, number> = {
     hundred: 100,
     thousand: 1000,
+    mil: 1000,
     'one thousand': 1000,
+    'un mil': 1000,
+    'mil quinientos': 1500,
+    'one thousand five hundred': 1500,
     'dos mil': 2000,
+    'two thousand': 2000,
+    'dos mil quinientos': 2500,
+    'two thousand five hundred': 2500,
     'tres mil': 3000,
+    'three thousand': 3000,
+    'tres mil quinientos': 3500,
+    'three thousand five hundred': 3500,
+    'cuatro mil': 4000,
+    'four thousand': 4000,
     'cinco mil': 5000,
+    'five thousand': 5000,
+    'seis mil': 6000,
+    'six thousand': 6000,
+    'siete mil': 7000,
+    'seven thousand': 7000,
+    'ocho mil': 8000,
+    'eight thousand': 8000,
+    'nueve mil': 9000,
+    'nine thousand': 9000,
+    'diez mil': 10000,
+    'ten thousand': 10000,
   };
-  for (const [phrase, amount] of Object.entries(words)) {
+  for (const [phrase, amount] of Object.entries(words).sort((left, right) => right[0].length - left[0].length)) {
     if (source.includes(phrase)) return String(amount);
   }
   return clean(value);
@@ -436,7 +506,7 @@ function normalizeMemoryDownPayment(value: string): string {
   const source = clean(value);
   if (!source) return EMPTY;
   const tradeIn = TRADE_IN_INTENT.test(source);
-  const amount = source.match(/\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?)\b/i)?.[1];
+  const amount = source.match(/\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?|\d{1,2}\s*(?:mil|thousand)|mil(?:\s+quinientos)?|(?:un|one|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\s+mil(?:\s+(?:quinientos|five hundred))?)\b/i)?.[1];
   const normalized = amount ? normalizeAmount(amount) : normalizeAmount(source);
   if (!normalized) return tradeIn ? 'trade-in' : EMPTY;
   return tradeIn && !/trade[- ]?in/i.test(normalized) ? `${normalized} + trade-in` : normalized;
@@ -492,12 +562,19 @@ function extractVehicle(message: string): string {
     // A trade-in vehicle is evidence for the down-payment/trade-in field, not
     // the vehicle the lead wants to buy. Keep the requested category/model
     // separate from the vehicle they are offering.
-    if (TRADE_IN_INTENT.test(candidate) && /\b(?:tengo|tiene|have|has|my|mi)\b/i.test(candidate)) continue;
-    const withoutOtherFacts = candidate
+    if (TRADE_IN_INTENT.test(candidate)
+      && /\b(?:tengo|tiene|have|has|my|mi)\b/i.test(candidate)
+      && !/\b(?:looking for|busco|quiero|want|interested in|interesado en)\b/i.test(candidate)) continue;
+    const candidateForVehicle = /\b(?:looking for|busco|quiero|want|interested in|interesado en)\b/i.test(candidate)
+      ? candidate
+      : candidate.split(/[;,]/, 1)[0];
+    const withoutOtherFacts = candidateForVehicle
       .replace(/(?:\+?1[\s().-]*)?(?:\(?[2-9]\d{2}\)?[\s.-]*)\d{3}[\s.-]?\d{4}/g, ' ')
       .replace(/(?:down|enganche|inicial|deposit|dep[oó]sito)\s*(?:payment|pago)?\s*(?:is|es|de|:)?\s*\$?\s*[\d,.]+\s*k?/gi, '')
       .replace(/\b(?:today|hoy|asap|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes)\b/gi, '')
-      .split(/[;,]/, 1)[0]
+      // Keep comma-separated natural language such as "Soy Ana, busco un Civic".
+      // Semicolon remains the transcript separator used to stop at the next field.
+      .split(/;/, 1)[0]
       .trim();
     const requested = withoutOtherFacts.match(/(?:looking for|busco|quiero|want|interested in|interesado en)\s+(?:a|an|un|una)?\s*([^.!?]+)/i)?.[1];
     if (requested && !isNonVehicleIntent(requested)) {
@@ -555,10 +632,13 @@ function extractDownPayment(message: string): string {
   // first three digits from a phone on the next inbound line.
   const source = String(message ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source || isCampaignButton(source)) return EMPTY;
-  if (/\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b/i.test(source)) return 'Cash';
-  const amount = source.match(/(?:down|enganche|inicial|deposit|dep[oó]sito)[ \t]*(?:payment|pago)?[ \t]*(?:is|es|de|:)?[ \t]*\$?[ \t]*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?)/i)?.[1]
-    ?? source.match(/\$?[ \t]*(\d+(?:[,.]\d+)?\s*k?)[ \t]*(?:(?:for|para|as|on|de|del)[ \t]*)?(?:down|enganche|inicial)/i)?.[1]
-    ?? source.match(/\b(?:puedo|puede|can|could|i can|i could)[ \t]+(?:con|with)[ \t]+\$?[ \t]*(\d+(?:[,.]\d+)?\s*k?)\b/i)?.[1];
+  if (NO_DOWN_PAYMENT_RESPONSE.test(source)) return 'No down payment';
+  if (/\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b/i.test(source)) return CASH_DOWN_PAYMENT;
+  const amountToken = '(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?|\\d{1,2}\\s*(?:mil|thousand)|mil(?:\\s+quinientos)?|(?:un|one|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+(?:mil|thousand)(?:\\s+(?:quinientos|five hundred))?)';
+  const amount = source.match(new RegExp(`(?:down|enganche|inicial|deposit|dep[oó]sito)[ \\t]*(?:payment|pago)?[ \\t]*(?:is|es|de|:)?[ \\t]*\\$?[ \\t]*(${amountToken})`, 'i'))?.[1]
+    ?? source.match(new RegExp(`\\$?[ \\t]*(${amountToken})[ \\t]*(?:(?:for|para|as|on|de|del)[ \\t]*(?:el|la|the)?[ \\t]*)?(?:down|enganche|inicial)`, 'i'))?.[1]
+    ?? source.match(new RegExp(`\\b(?:tengo|have|i have|i can put|puedo poner)[ \\t]+\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
+    ?? source.match(new RegExp(`\\b(?:puedo|puede|can|could|i can|i could)[ \\t]+(?:con|with)[ \\t]+\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1];
   return amount ? normalizeAmount(amount) : EMPTY;
 }
 
@@ -567,7 +647,7 @@ function extractTradeInDownPayment(message: string): string {
   if (!source || isCampaignButton(source)) return EMPTY;
   const tradeIn = TRADE_IN_INTENT.test(source);
 
-  const amountPattern = '(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?)';
+  const amountPattern = '(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?|\\d{1,2}\\s*(?:mil|thousand)|mil(?:\\s+quinientos)?|(?:un|one|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+mil(?:\\s+(?:quinientos|five hundred))?)';
   const tradeInPattern = '(?:trade[- ]?in|my car|my vehicle|mi carro|mi auto|carro como enganche|(?:cambiar|cambio)\\s+(?:(?:mi|el|de)\\s+)?(?:veh[ií]culo|carro|auto)|change\\s+(?:my\\s+)?(?:vehicle|car))';
   const beforeTradeIn = source.match(new RegExp(`\\$?\\s*(${amountPattern})\\s*(?:down|payment|enganche|inicial)?\\s*(?:\\+|and|y)\\s*${tradeInPattern}`, 'i'));
   const afterTradeIn = source.match(new RegExp(
@@ -584,8 +664,9 @@ function extractStandaloneDownPayment(message: string): string {
   // (for example the standalone "1000" message) is not lost.
   const source = String(message ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source || isCampaignButton(source)) return EMPTY;
+  if (NO_DOWN_PAYMENT_RESPONSE.test(source)) return 'No down payment';
   const safeSource = source.split('\n').filter((line) => !isPhoneOnlyLine(line)).join('\n');
-  const matches = [...safeSource.matchAll(/(?:^|\n)\$?[ \t]*(\d{1,3}(?:[,.]\d{3})+|\d+(?:[,.]\d+)?\s*k?)[ \t]*\$?[ \t]*(?:tengo|have|available|disponible|i have|i can put)?[ \t]*\d{0,2}[ \t]*\.?[ \t]*(?=\n|$)/gim)];
+  const matches = [...safeSource.matchAll(/(?:^|\n)\$?[ \t]*(\d{1,3}(?:[,.]\d{3})+|\d+(?:[,.]\d+)?\s*k?|\d{1,2}\s*(?:mil|thousand)|mil(?:\s+quinientos)?|(?:un|one|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\s+(?:mil|thousand)(?:\s+(?:quinientos|five hundred))?)[ \t]*\$?[ \t]*(?:tengo|have|available|disponible|i have|i can put)?[ \t]*\d{0,2}[ \t]*\.?[ \t]*(?=\n|$)/gim)];
   const standalone = matches.reverse().find((match) => !/^20(?:1\d|2\d)$/.test(match[1].replace(/[$,\s]/g, '')));
   if (!standalone) return EMPTY;
   // A standalone recent four-digit answer is a vehicle year, not a down
@@ -739,6 +820,8 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   // keep the established English fallback while transcript replies are
   // detected in Spanish or English.
   const language = languageText ? detectLeadLanguage(languageText) : 'en';
+  const policy = collectorFlowPolicy(input);
+  const customerLocation = extractCustomerLocation(input, languageText);
   const campaignReply = isCampaignButton(message);
   const messageForExtraction = stripCampaignButtonPhrases(rawMessage);
   const suppliedName = normalizeRealName(input.real_name);
@@ -810,6 +893,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const down = baseDown && TRADE_IN_INTENT.test(conversationalSource) && !/trade[- ]?in/i.test(baseDown)
     ? `${baseDown} + trade-in`
     : baseDown;
+  const downPaymentRule = evaluateDownPayment(vehicle, down);
   const normalizedTimeline = normalizeTimeline(firstNonEmpty(
     extractTimeline(messageForExtraction),
     extractTimeline(history),
@@ -843,11 +927,17 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     timeline,
   });
 
-  const step: QualificationStep = !realName
+  const needsOffleaseMinimum = policy.offlease && hasRealVehicle && Boolean(down) && !downPaymentRule.meetsMinimum;
+
+  const step: QualificationStep = (!policy.sourceAware || policy.requiresRealName) && !realName
     ? 'real_name'
     : !hasRealVehicle
       ? 'vehicle_type'
-      : !down
+      : policy.requiresLocation && !customerLocation
+        ? 'customer_location'
+        : policy.sourceAware && !policy.phoneSatisfiedByNative && !chatPhone
+          ? 'phone'
+          : !down || needsOffleaseMinimum
         ? 'down_payment'
         : !timeline
           ? 'purchase_timeline'
@@ -860,6 +950,8 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     en: {
       real_name: 'What is your full name?',
       vehicle_type: 'What vehicle are you looking for?',
+      customer_location: 'What city are you located in?',
+      phone: "What's the best phone number to reach you?",
       down_payment: 'How much do you have for the down payment?',
       purchase_timeline: 'When are you planning to buy?',
       documents: 'Do you have identification and proof of income?',
@@ -869,6 +961,8 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     es: {
       real_name: '¿Cuál es tu nombre completo?',
       vehicle_type: '¿Qué vehículo estás buscando?',
+      customer_location: '¿En qué ciudad te encuentras?',
+      phone: '¿Cuál es el mejor número para contactarte?',
       down_payment: '¿Cuánto tienes para el enganche?',
       purchase_timeline: '¿Cuándo planeas comprar?',
       documents: '¿Tienes identificación y comprobante de ingresos?',
@@ -876,16 +970,35 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
       complete: EMPTY,
     },
   };
-  const nextQuestion = questions[language][step];
-  const completedOrder: Array<[string, boolean]> = [
-    ['real_name', Boolean(realName)],
-    ['phone', Boolean(chatPhone)],
-    ['vehicle_type', hasRealVehicle],
-    ['down_payment', Boolean(down)],
-    ['purchase_timeline', Boolean(timeline)],
-    ['documents', docs.id === 'yes' && docs.income === 'yes'],
-    ['bank_account', bankAccount === 'yes'],
-  ];
+  const minimumQuestion = downPaymentRule.minimum
+    ? language === 'es'
+      ? `Para este vehículo requerimos un enganche mínimo de $${downPaymentRule.minimum}. ¿Con cuánto cuentas para el enganche?`
+      : `This vehicle requires a minimum down payment of $${downPaymentRule.minimum}. How much do you have available?`
+    : questions[language][step];
+  const shortfallQuestion = language === 'es'
+    ? `Te comento que el mínimo para este vehículo es de $${downPaymentRule.minimum}. ¿Crees que podrías conseguir un poco más?`
+    : `The minimum for this vehicle is $${downPaymentRule.minimum}. Do you think you could bring a little more?`;
+  const nextQuestion = step === 'down_payment' && needsOffleaseMinimum ? shortfallQuestion : step === 'down_payment' && policy.offlease ? minimumQuestion : questions[language][step];
+  const completedOrder: Array<[string, boolean]> = policy.sourceAware
+    ? [
+      ['real_name', Boolean(realName)],
+      ['vehicle_type', hasRealVehicle],
+      ['customer_location', Boolean(customerLocation)],
+      ['phone', Boolean(chatPhone) || policy.phoneSatisfiedByNative],
+      ['down_payment', Boolean(down)],
+      ['purchase_timeline', Boolean(timeline)],
+      ['documents', docs.id === 'yes' && docs.income === 'yes'],
+      ['bank_account', bankAccount === 'yes'],
+    ]
+    : [
+      ['real_name', Boolean(realName)],
+      ['phone', Boolean(chatPhone)],
+      ['vehicle_type', hasRealVehicle],
+      ['down_payment', Boolean(down)],
+      ['purchase_timeline', Boolean(timeline)],
+      ['documents', docs.id === 'yes' && docs.income === 'yes'],
+      ['bank_account', bankAccount === 'yes'],
+    ];
   const lastAnsweredField = [...completedOrder].reverse().find(([, complete]) => complete)?.[0] ?? null;
   const qualificationProgress: QualificationProgress = {
     step,
@@ -904,12 +1017,16 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     has_identification: docs.id,
     has_income_proof: docs.income,
     bank_account: bankAccount,
-  });
+  })
+    && (!policy.offlease || downPaymentRule.meetsMinimum)
+    && (!policy.requiresLocation || Boolean(customerLocation))
+    && (!policy.sourceAware || policy.phoneSatisfiedByNative || Boolean(chatPhone));
   const missingQualification = [
     !realName ? 'real_name' : EMPTY,
-    !chatPhone ? 'phone' : EMPTY,
+    !chatPhone && !policy.phoneSatisfiedByNative ? 'phone' : EMPTY,
     !hasRealVehicle ? 'vehicle_type' : EMPTY,
-    !down ? 'down_payment' : EMPTY,
+    policy.requiresLocation && !customerLocation ? 'customer_location' : EMPTY,
+    !down ? 'down_payment' : (policy.offlease && !downPaymentRule.meetsMinimum ? 'down_payment_minimum' : EMPTY),
     !timeline ? 'purchase_timeline' : EMPTY,
     docs.id !== 'yes' ? 'identification' : EMPTY,
     docs.income !== 'yes' ? 'proof_of_income' : EMPTY,
@@ -918,6 +1035,11 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   return {
     real_name: realName,
     vehicle_type: vehicle,
+    customer_location: customerLocation,
+    vehicle_category: downPaymentRule.category,
+    required_down_payment: downPaymentRule.minimum,
+    down_payment_amount: downPaymentRule.amount,
+    down_payment_sufficient: downPaymentRule.meetsMinimum,
     down_payment: down,
     purchase_timeline: timeline,
     documents: docs.value,

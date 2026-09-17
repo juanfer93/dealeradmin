@@ -24,7 +24,7 @@ const child = spawn(process.execPath, ['apps/api/dist/apps/api/src/main.js'], {
 const stop = () => {
   if (process.platform === 'win32') {
     spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
-    return;
+    process.exit(0);
   }
   child.kill('SIGTERM');
 };

@@ -86,6 +86,15 @@ export class LeadsController {
          ld.bank_account AS "bankAccount",
          ld.documents,
          ld.purchase_timeline AS "purchaseTimeline",
+         latest_conversation.qualification_snapshot->>'vehicle_category' AS "vehicleCategory",
+         NULLIF(latest_conversation.qualification_snapshot->>'required_down_payment', '')::int AS "requiredDownPayment",
+         NULLIF(latest_conversation.qualification_snapshot->>'down_payment_amount', '')::numeric AS "downPaymentAmount",
+         CASE latest_conversation.qualification_snapshot->>'down_payment_sufficient'
+           WHEN 'true' THEN true
+           WHEN 'false' THEN false
+           ELSE NULL
+         END AS "downPaymentSufficient",
+         latest_conversation.qualification_snapshot->'qualification_progress'->>'step' AS "qualificationStep",
          ld.status,
          ld.message_text AS "messageText",
          ld.created_at AS "createdAt",
@@ -94,6 +103,13 @@ export class LeadsController {
        FROM lead_dealers ld
        INNER JOIN leads l ON l.id = ld.lead_id
        INNER JOIN dealers d ON d.id = COALESCE(ld.assigned_dealer_id, ld.dealer_id)
+       LEFT JOIN LATERAL (
+         SELECT c.qualification_snapshot
+         FROM conversations c
+         WHERE c.lead_id = ld.lead_id
+         ORDER BY c.last_message_at DESC NULLS LAST, c.created_at DESC
+         LIMIT 1
+       ) latest_conversation ON true
        WHERE ld.status = $1 ${dealerFilter}
        ORDER BY ld.created_at ASC`,
       params,

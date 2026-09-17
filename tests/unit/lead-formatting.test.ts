@@ -20,7 +20,7 @@ describe('lead formatting', () => {
       identification: 'A1234567',
       bank_account: 'Chase',
       purchase_timeline: 'Esta semana',
-    })).toBe('Carlos Mendoza +15551234567 SUV, $2,000 de down, ID A1234567, cuenta bancaria Chase, quiere comprar esta semana.');
+    })).toBe('Carlos Mendoza +15551234567 SUV, $2,000 de down, ID: A1234567, cuenta bancaria Chase, quiere comprar esta semana.');
   });
 
   it('replaces only-looking answers with the operator-facing options label', () => {

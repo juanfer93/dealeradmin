@@ -14,7 +14,7 @@ import { selectInitialQueueLeads } from './queue-selection';
 
 type LeadStatus = 'pending' | 'sent';
 type Dealer = { id: string; code: string; name: string; pendingCount: number };
-type Lead = { id: string; dealerId: string; dealerName: string; name: string; phone: string; vehicleType: string | null; downPayment: string | null; identification: string | null; bankAccount: string | null; documents: string | null; purchaseTimeline: string | null; status: LeadStatus; messageText: string; createdAt: string };
+type Lead = { id: string; dealerId: string; dealerName: string; name: string; phone: string; vehicleType: string | null; downPayment: string | null; vehicleCategory?: string | null; requiredDownPayment?: number | null; downPaymentAmount?: number | null; downPaymentSufficient?: boolean | null; qualificationStep?: string | null; identification: string | null; bankAccount: string | null; documents: string | null; purchaseTimeline: string | null; status: LeadStatus; messageText: string; createdAt: string };
 type LeadResponse = { dealers: Dealer[]; leads: Lead[] };
 
 function clean(value: string | null | undefined) { return value?.trim() ?? ''; }
@@ -68,14 +68,16 @@ export function formatQualificationLabels(lead: Pick<Lead, 'identification' | 'd
   const hasIncome = incomeStatus === 'yes';
   const incomeLabel = language === 'es' ? 'prueba de ingresos' : 'proof of income';
   const combinedLabel = language === 'es' ? 'ID y prueba de ingresos' : 'ID and proof of income';
+  const identificationValue = clean(lead.identification);
+  const identificationLabel = identificationValue && !/^yes$/i.test(identificationValue) ? `ID: ${identificationValue}` : 'ID';
   const identification = hasIdentification && hasIncome
     ? ''
     : hasIdentification
-      ? 'ID'
+      ? identificationLabel
       : valueStatus(lead.identification ?? '') === 'no'
         ? ''
         : clean(lead.identification)
-          ? `ID ${clean(lead.identification)}`
+          ? `ID: ${clean(lead.identification)}`
           : '';
   const documents = hasIdentification && hasIncome
     ? combinedLabel
@@ -122,6 +124,20 @@ export function formatPurchaseTimelineLabel(value: string | null, language: 'es'
   return sourceLanguage === 'es' ? `quiere comprar ${localized}` : `wants to buy ${localized}`;
 }
 
+function formatVehicleCategory(value: string | null | undefined, language: 'es' | 'en'): string {
+  const labels: Record<string, string> = language === 'es'
+    ? { sedan: 'Sedán', luxury_sedan: 'Sedán de lujo', suv_or_van: 'SUV o van', truck: 'Troca o camión' }
+    : { sedan: 'Sedan', luxury_sedan: 'Luxury sedan', suv_or_van: 'SUV or van', truck: 'Truck' };
+  return value ? labels[value] ?? value : '';
+}
+
+function formatQualificationStep(value: string | null | undefined, language: 'es' | 'en'): string {
+  const labels: Record<string, string> = language === 'es'
+    ? { real_name: 'nombre', vehicle_type: 'vehículo', phone: 'teléfono', down_payment: 'down payment', purchase_timeline: 'tiempo de compra', documents: 'documentos', bank_account: 'cuenta bancaria', complete: 'completo' }
+    : { real_name: 'name', vehicle_type: 'vehicle', phone: 'phone', down_payment: 'down payment', purchase_timeline: 'purchase timing', documents: 'documents', bank_account: 'bank account', complete: 'complete' };
+  return value ? labels[value] ?? value : '';
+}
+
 export function formatLeadMessage(lead: Lead, language?: 'es' | 'en') {
   const resolvedLanguage = language ?? detectLeadLanguage(lead);
   const identity = [clean(lead.name), clean(lead.phone), clean(lead.vehicleType)].filter(Boolean).join(' ');
@@ -165,7 +181,15 @@ function Qualification({ lead, language, empty }: { lead: Lead; language: 'es' |
   const bankAccount = formatBankAccountLabel(lead.bankAccount, language);
   const documents = labels.documents;
   const tag = (value: string, fallback: string) => value ? <span className="rounded bg-[var(--brand-soft)] px-2 py-1 text-xs">{value}</span> : <span className="rounded bg-[var(--surface-raised)] px-2 py-1 text-xs text-[var(--text-muted)]">{fallback}</span>;
-  return <div className="flex max-w-[260px] flex-wrap gap-1.5">{tag(lead.downPayment ? lead.downPayment : '', empty.downPayment)}{tag(identification, empty.identification)}{tag(bankAccount, empty.bankAccount)}{tag(documents, empty.documents)}{tag(formatPurchaseTimelineLabel(lead.purchaseTimeline, language).replace(/^(?:quiere comprar|wants to buy)\s+/i, ''), empty.purchaseTimeline)}</div>;
+  const category = formatVehicleCategory(lead.vehicleCategory, language);
+  const minimum = lead.requiredDownPayment != null ? `$${lead.requiredDownPayment.toLocaleString('en-US')}` : '';
+  const downRule = lead.downPaymentSufficient == null
+    ? ''
+    : lead.downPaymentSufficient
+      ? (language === 'es' ? 'suficiente' : 'meets minimum')
+      : (language === 'es' ? 'insuficiente' : 'below minimum');
+  const step = formatQualificationStep(lead.qualificationStep, language);
+  return <div className="space-y-2"><div className="flex max-w-[300px] flex-wrap gap-1.5">{tag(lead.downPayment ? lead.downPayment : '', empty.downPayment)}{tag(identification, empty.identification)}{tag(bankAccount, empty.bankAccount)}{tag(documents, empty.documents)}{tag(formatPurchaseTimelineLabel(lead.purchaseTimeline, language).replace(/^(?:quiere comprar|wants to buy)\s+/i, ''), empty.purchaseTimeline)}</div>{(category || minimum || downRule || step) && <div className="max-w-[340px] rounded border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-2 text-[11px] leading-5 text-[var(--text-muted)]"><span className="font-semibold text-[var(--text)]">{language === 'es' ? 'Normalizado' : 'Normalized'}</span>{category && <span className="ml-2">{language === 'es' ? 'categoría' : 'category'}: {category}</span>}{minimum && <span className="ml-2">{language === 'es' ? 'mínimo' : 'minimum'}: {minimum}</span>}{downRule && <span className={`ml-2 font-semibold ${lead.downPaymentSufficient ? 'text-[var(--brand-strong)]' : 'text-[var(--error)]'}`}>{downRule}</span>}{step && <span className="ml-2">{language === 'es' ? 'paso' : 'step'}: {step}</span>}</div>}</div>;
 }
 
 export default function OperatorDashboard() {
