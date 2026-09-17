@@ -367,7 +367,7 @@ describe('ConversationWebhookService', () => {
     await expect(findSourceDealer.call(service, queryRunner, 'ZxadcudjvBz7KFCB1od4', 'action-cars', 'en')).resolves.toMatchObject({ id: 'dealer-action-en' });
   });
 
-  it('alternates the shared Millersville source between Millersville and White Marsh', async () => {
+  it('alternates the shared Millersville source even when the durable state is many days old', async () => {
     expect(GHL_SOURCE_CONFIG['easterns-millersville']).toEqual({
       locationId: '113zMWQlhKKBUu5wOYtR',
       defaultChannel: 'messenger',
@@ -385,7 +385,7 @@ describe('ConversationWebhookService', () => {
           { id: 'dealer-millersville', code: 'EAST-MILLERSVILLE', name: 'Easterns Millersville', timezone: 'America/New_York', routing_config: { group: 'Easterns Direct', allocation_key: 'easterns-millersville', allocation_order: 0 } },
           { id: 'dealer-white-marsh', code: 'EAST-WHITE-MARSH', name: 'Easterns Nissan of White Marsh', timezone: 'America/New_York', routing_config: { group: 'Easterns Direct', allocation_key: 'easterns-millersville', allocation_order: 1 } },
         ];
-        if (sql.includes('SELECT next_index FROM dealer_round_robin_state')) return [{ next_index: nextIndex }];
+        if (sql.includes('SELECT next_index FROM dealer_round_robin_state')) return [{ next_index: nextIndex, updated_at: '2020-01-01T00:00:00.000Z' }];
         if (sql.includes('UPDATE dealer_round_robin_state')) nextIndex = Number(parameters?.[1]);
         return [];
       }),

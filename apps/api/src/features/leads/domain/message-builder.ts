@@ -14,7 +14,11 @@ export const LOOKING_OPTIONS_LABEL = 'Quiere ver opciones';
 const ONLY_LOOKING_PATTERNS = [
   /\b(?:solo|sólo)\s+(?:estoy\s+|est[aá]\s+|ando\s+)?(?:mirando|observando|viendo|buscando|busco|cotizando|explorando|curioseando|revisando)\b/i,
   /\b(?:estoy|est[aá]|ando)\s+(?:solo|sólo)\s+(?:mirando|observando|viendo|buscando|busco|cotizando|explorando|curioseando|revisando)\b/i,
-  /\b(?:just|only)\s+(?:looking|browsing|shopping\s+around|checking)\b/i,
+  /\b(?:just|only)\s+(?:looking|browsing|shopping\s+around|checking|exploring)\b/i,
+  /\b(?:exploring|explorando|browsing|viendo)\s+options?\b/i,
+  /\b(?:quiere\s+comprar\s+)?quiere\s+ver\s+opciones\b/i,
+  /\b(?:wants?\s+to\s+buy\s+)?wants?\s+to\s+see\s+options\b/i,
+  /\b(?:wants?\s+to\s+buy\s+)?(?:exploring|explorando)\s+options?\b/i,
 ];
 
 function clean(value: string | null | undefined): string | undefined {
@@ -108,11 +112,11 @@ export function detectMessageLanguage(data: MessageLeadData): 'es' | 'en' {
 
   const timeline = data.purchase_timeline?.toLowerCase() ?? '';
   if (/\b(?:solo|sólo|mirando|observando|viendo|buscando|opciones)\b/i.test(timeline)) return 'es';
-  if (/\b(?:just|only|looking|browsing|shopping)\b/i.test(timeline)) return 'en';
+  if (/\b(?:just|only|looking|browsing|shopping|exploring)\b/i.test(timeline)) return 'en';
   if (/\b(?:today|this|next|week|month|as soon as possible|asap|now)\b/i.test(timeline)) return 'en';
   if (/\b(?:hoy|esta|este|pr[oó]xima?|siguiente|semana|mes|lo m[aá]s pronto|lo antes posible|ahora)\b/i.test(timeline)) return 'es';
 
-  const englishSignals = [' and ', 'wants', 'buy', 'week', 'proof', 'income', 'truck', 'cash', 'bank account', 'today', 'month', 'next'];
+  const englishSignals = [' and ', 'wants', 'buy', 'week', 'proof', 'income', 'truck', 'cash', 'bank account', 'today', 'month', 'next', 'exploring'];
   const spanishSignals = ['quiere', 'comprar', 'semana', 'prueba', 'ingreso', 'camioneta', 'cuenta', 'documento', 'hoy', 'mes', 'este', 'esta'];
   const englishScore = englishSignals.filter((signal) => text.includes(signal)).length;
   const spanishScore = spanishSignals.filter((signal) => text.includes(signal)).length;

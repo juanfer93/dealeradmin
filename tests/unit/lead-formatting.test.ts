@@ -26,10 +26,22 @@ describe('lead formatting', () => {
   it('replaces only-looking answers with the operator-facing options label', () => {
     expect(normalizePurchaseTimeline('Solo estoy mirando')).toBe('Quiere ver opciones');
     expect(normalizePurchaseTimeline('just browsing')).toBe('Quiere ver opciones');
+    expect(normalizePurchaseTimeline('exploring options')).toBe('Quiere ver opciones');
+    expect(normalizePurchaseTimeline('wants to buy exploring options')).toBe('Quiere ver opciones');
+    expect(normalizePurchaseTimeline('quiere comprar quiere ver opciones')).toBe('Quiere ver opciones');
     expect(buildWhatsAppMessage('Carlos Mendoza', '+15551234567', {
       vehicle_type: 'Troca',
       purchase_timeline: 'solo viendo opciones',
     })).toBe('Carlos Mendoza +15551234567 Troca, Quiere ver opciones.');
+  });
+
+  it('keeps the purchase prefix for real purchase timing', () => {
+    expect(buildWhatsAppMessage('Carlos Mendoza', '+15551234567', {
+      purchase_timeline: 'lo más pronto posible',
+    })).toContain('quiere comprar lo más pronto posible');
+    expect(buildWhatsAppMessage('Jason Smith', '+15551234567', {
+      purchase_timeline: 'asap',
+    })).toContain('wants to buy asap');
   });
 
   it('uses empty strings for missing optional values', () => {

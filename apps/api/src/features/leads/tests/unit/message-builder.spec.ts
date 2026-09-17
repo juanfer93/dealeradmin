@@ -32,4 +32,15 @@ describe('qualification message normalization', () => {
     expect(message).not.toContain('quiere comprar');
     expect(message).not.toContain('bank account yes');
   });
+
+  it.each([
+    ['exploring options', 'wants to see options'],
+    ['wants to buy exploring options', 'wants to see options'],
+    ['quiere comprar quiere ver opciones', 'Quiere ver opciones'],
+  ])('renders only-looking intent without a purchase prefix: %s', (purchase_timeline, expected) => {
+    const message = buildWhatsAppMessage('Lead', '+15550001111', { purchase_timeline });
+    expect(message).toContain(expected);
+    expect(message).not.toContain('wants to buy exploring options');
+    expect(message).not.toContain('quiere comprar quiere ver opciones');
+  });
 });

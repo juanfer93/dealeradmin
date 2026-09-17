@@ -192,7 +192,7 @@ export class GeoroutingService {
          AND (ld.routing_reason IS NULL OR ld.routing_reason NOT LIKE 'Explicit Easterns Zone:%')
          AND ($3::varchar = '' OR l.ghl_location_id = $3)
          AND (ld.routing_reason LIKE $2::text OR LOWER(COALESCE(ld.easterns_zone, '')) LIKE ANY($4::text[]))
-       ORDER BY ld.updated_at DESC, ld.created_at DESC
+       ORDER BY COALESCE(ld.updated_at, ld.created_at) DESC, ld.created_at DESC, ld.lead_id DESC
        LIMIT 1`,
       [dealerIds, `${reasonPrefix}:%`, scope, locationPatterns],
     )) as Array<{ assigned_dealer_id: string | null }>;
@@ -220,7 +220,7 @@ export class GeoroutingService {
                AND loc.easterns_routing_zone = $4
            )
          )
-       ORDER BY ld.updated_at DESC, ld.created_at DESC
+       ORDER BY COALESCE(ld.updated_at, ld.created_at) DESC, ld.created_at DESC, ld.lead_id DESC
        LIMIT 1`,
       [dealerIds, scope, locationPatterns, routingZone],
     )) as Array<{ assigned_dealer_id: string | null }>;
