@@ -642,6 +642,43 @@ function extractDownPayment(message: string): string {
   return amount ? normalizeAmount(amount) : EMPTY;
 }
 
+const AFFIRMATIVE_DOWN_CONFIRMATION = /^(?:yes|yeah|yep|correct|that's right|thats right|si|claro|correcto|okay|ok|bien|esta bien|seria bien|me parece bien|that works|works for me)(?:\s+(?:eso|that|works|for me))?$/i;
+const DOWN_CONTEXT_MARKERS = /\b(?:down|payment|enganche|pago\s+inicial|dinero|cash|contado|trade[- ]?in|tradein|m[ií]nimo|minimum|required|conseguir|bring|subir|subirle|raise|increase|m[aá]s|more)\b/i;
+const NON_DOWN_AFFIRMATION_CONTEXT = /\b(?:phone|number|n[uú]mero|tel[eé]fono|document|documentos?|identificaci[oó]n|license|licencia|income|ingresos?|proof|prueba|bank|banco|cuenta|vehicle|veh[ií]culo|carro|auto|suv|sedan|truck|troca|van|hoy|today|semana|week|mes|month|ubicad|located|location)\b/i;
+
+function affirmativeDownConfirmation(value: string): boolean {
+  const source = clean(value);
+  if (!source || source.length > 120 || NON_DOWN_AFFIRMATION_CONTEXT.test(source)) return false;
+  const compact = source
+    .replace(/[.,!?¡¿-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  if (AFFIRMATIVE_DOWN_CONFIRMATION.test(compact)
+    || /^(?:bien|esta bien|seria bien|me parece bien|that works|works for me)(?=\s|$)/i.test(compact)) {
+    return true;
+  }
+  // A shortfall answer commonly adds the action to the confirmation:
+  // "sí, puedo subirle" / "yes, I can raise it". Keep this constrained to
+  // an affirmative prefix plus an explicit increase/ability phrase so a
+  // generic "sí" cannot qualify a down payment by itself.
+  return /^(?:yes|yeah|yep|si|claro|correcto|okay|ok)(?=\s|$)\s*(?:puedo|podria|can|could|i can|i could)\b.*\b(?:subir(?:le|lo)?|raise|increase|more|mas|conseguir|bring|put)\b/i.test(compact);
+}
+
+function extractQuestionedDownPayment(history: string): string {
+  const questions = history.match(/[^?\n]*\?/g) ?? [];
+  const lastQuestion = questions.at(-1) ?? EMPTY;
+  if (!lastQuestion || !DOWN_CONTEXT_MARKERS.test(lastQuestion)) return EMPTY;
+  const amountToken = '(?:\\d{1,3}(?:,\\d{3})+|\\d{1,2}\\s*(?:mil|thousand)|mil(?:\\s+quinientos)?|(?:un|one|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+(?:mil|thousand)(?:\\s+(?:quinientos|five hundred))?|\\d+(?:[,.]\\d+)?\\s*k?)';
+  const amount = lastQuestion.match(new RegExp(`(?:down|payment|enganche|inicial|deposit|dep[oó]sito|m[ií]nimo|minimum|required)[^?\\n]{0,80}?\\$?[ \\t]*(${amountToken})`, 'i'))?.[1]
+    ?? lastQuestion.match(new RegExp(`\\$?[ \\t]*(${amountToken})[^?\\n]{0,80}?(?:down|payment|enganche|inicial|deposit|dep[oó]sito|m[ií]nimo|minimum|required)`, 'i'))?.[1]
+    ?? (/(?:conseguir|bring|subir|raise|increase|m[aá]s|more)/i.test(lastQuestion)
+      ? lastQuestion.match(new RegExp(`\\$?[ \\t]*(${amountToken})`, 'i'))?.[1]
+      : undefined);
+  return amount ? normalizeAmount(amount) : EMPTY;
+}
+
 function extractTradeInDownPayment(message: string): string {
   const source = clean(message);
   if (!source || isCampaignButton(source)) return EMPTY;
@@ -873,8 +910,17 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     extractDownPayment(messageForExtraction),
     extractDownPayment(rawHistory),
   );
+  // Some bot prompts ask for confirmation of a concrete minimum (for example
+  // "$2,000 ... ¿con cuánto contarías?") and the buyer answers "sí", "sería
+  // bien" or an equivalent short affirmation. Treat that answer as the
+  // amount asked about only when it is the last down-payment question; a
+  // generic "sí" elsewhere must not invent a down payment.
+  const confirmedQuestionDown = affirmativeDownConfirmation(messageForExtraction)
+    ? extractQuestionedDownPayment(rawHistory)
+    : EMPTY;
   const cashDownCandidate = firstValidAmount(
     explicitCashDown,
+    confirmedQuestionDown,
     extractStandaloneDownPayment(rawMessage),
     extractStandaloneDownPayment(rawHistory),
     isPhoneAreaCodeAmount(memoryDown, chatPhone) ? EMPTY : memoryDown,

@@ -43,7 +43,24 @@ export const GHL_SOURCE_CONFIG: Record<SourceKey, { locationId: string; defaultC
 type LeadRow = { id: string; canonical_phone: string | null; first_name: string | null; last_name: string | null };
 type DealerRow = { id: string; code: string; name: string; timezone: string; routing_config: { group?: string; language?: CollectorLanguage; allocation_key?: string; allocation_order?: number } | null };
 type ConversationRow = { id: string; status: string; qualification_snapshot: Record<string, unknown>; location_snapshot: Record<string, unknown>; ready_at?: string | null; isExisting?: boolean };
-type ConversationMessageRow = { body: string; direction: string; occurred_at: string; raw_payload?: unknown };
+type ConversationMessageRow = {
+  body: string;
+  direction: string;
+  occurred_at: string;
+  raw_payload?: unknown;
+  attachment_extracted_text?: string | null;
+};
+
+function addProcessedImageEvidence(messages: ConversationMessageRow[]): ConversationMessageRow[] {
+  return messages.flatMap((message) => message.attachment_extracted_text
+    ? [message, {
+      body: message.attachment_extracted_text,
+      direction: 'inbound',
+      occurred_at: message.occurred_at,
+      raw_payload: { source: 'image_ocr_attachment_fallback' },
+    }]
+    : [message]);
+}
 type ExistingDealerLead = {
   status: string;
   routing_status: string;
@@ -280,16 +297,32 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       const source = configured[0] as SourceKey;
       const current = row.qualification_snapshot ?? {} as ConversationSnapshot;
       const messages = await runner.query(
-        `SELECT body, direction, occurred_at, raw_payload FROM conversation_messages WHERE conversation_id = $1 ORDER BY occurred_at ASC, created_at ASC`,
+        `SELECT cm.body, cm.direction, cm.occurred_at, cm.raw_payload,
+                ca.extracted_text AS attachment_extracted_text
+         FROM conversation_messages cm
+         LEFT JOIN conversation_attachments ca
+           ON ca.conversation_message_id = cm.id
+          AND ca.processing_status = 'done'
+          AND ca.media_kind = 'image'
+          AND ca.extracted_text IS NOT NULL
+         WHERE cm.conversation_id = $1
+         ORDER BY cm.occurred_at ASC, cm.created_at ASC`,
         [id],
       ) as ConversationMessageRow[];
-      const transcript = messages.map((item) => clean(item.body)).filter(Boolean).join('\n');
+      // The media worker normally inserts a derived inbound message. Keep a
+      // direct attachment fallback as well: GHL never writes the OCR phone
+      // into its native Contact Phone field, and a callback can arrive after
+      // the attachment is marked done but before a derived-message read sees
+      // it. The attachment itself is authoritative evidence tied to the
+      // original inbound message timestamp.
+      const evidenceMessages = addProcessedImageEvidence(messages);
+      const transcript = evidenceMessages.map((item) => clean(item.body)).filter(Boolean).join('\n');
       if (!transcript) {
         await runner.rollbackTransaction();
         return;
       }
       const contactName = clean(`${row.first_name || ''} ${row.last_name || ''}`) || 'Lead';
-      const recentPhone = this.safePhone(extractRecentMessagePhone(messages, now));
+      const recentPhone = this.safePhone(extractRecentMessagePhone(evidenceMessages, now));
       // Stafford is the only WhatsApp source. For WhatsApp, GHL's native
       // contact phone identifies the inbound sender even when the customer
       // never types the number in the conversation. Messenger must continue
@@ -397,9 +430,15 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       await runner.query(
         `UPDATE conversations
          SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
-             next_attempt_at = $5, updated_at = CURRENT_TIMESTAMP
+             next_attempt_at = $5,
+             ready_at = CASE
+               WHEN $2::varchar IN ('ready', 'waiting_window', 'queued')
+               THEN COALESCE(ready_at, $6::timestamptz)
+               ELSE ready_at
+             END,
+             updated_at = CURRENT_TIMESTAMP
          WHERE id = $1`,
-        [id, status.status, JSON.stringify(snapshot), JSON.stringify(location), status.nextAttemptAt],
+        [id, status.status, JSON.stringify(snapshot), JSON.stringify(location), status.nextAttemptAt, now.toISOString()],
       );
       if (status.status === 'ready') {
         const duplicate = await findQueuedConversationDuplicate(
@@ -601,15 +640,25 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       ) as Array<{ id: string }>)[0]?.id;
       await this.persistAttachments(runner, conversation.id, conversationMessageId, event, source, messageId);
       const messages = await runner.query(
-        `SELECT body, direction, occurred_at, raw_payload FROM conversation_messages WHERE conversation_id = $1 ORDER BY occurred_at ASC, created_at ASC`,
+        `SELECT cm.body, cm.direction, cm.occurred_at, cm.raw_payload,
+                ca.extracted_text AS attachment_extracted_text
+         FROM conversation_messages cm
+         LEFT JOIN conversation_attachments ca
+           ON ca.conversation_message_id = cm.id
+          AND ca.processing_status = 'done'
+          AND ca.media_kind = 'image'
+          AND ca.extracted_text IS NOT NULL
+         WHERE cm.conversation_id = $1
+         ORDER BY cm.occurred_at ASC, cm.created_at ASC`,
         [conversation.id],
       ) as ConversationMessageRow[];
-      const transcript = messages
+      const evidenceMessages = addProcessedImageEvidence(messages);
+      const transcript = evidenceMessages
         .map((item) => String(item.body ?? '').replace(/\r\n?/g, '\n').trim())
         .filter(Boolean)
         .join('\n');
       const now = controlledNow ?? currentLocalNow();
-      const recentPhone = this.safePhone(extractRecentMessagePhone(messages, now));
+      const recentPhone = this.safePhone(extractRecentMessagePhone(evidenceMessages, now));
       // On Stafford WhatsApp, the native contact phone is authoritative
       // sender identity. On Messenger, only recent inbound text evidence is
       // eligible, so a stale registered phone cannot enter the queue.
@@ -1249,8 +1298,17 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       const status = this.statusForConversation(row.qualification_snapshot, row.location_snapshot, dealer, source, now, 'due', row.ready_at);
       if (status.status !== 'ready') {
         await runner.query(
-          `UPDATE conversations SET status = $2, next_attempt_at = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-          [id, status.status, status.nextAttemptAt],
+          `UPDATE conversations
+           SET status = $2,
+               next_attempt_at = $3,
+               ready_at = CASE
+                 WHEN $2::varchar IN ('ready', 'waiting_window', 'queued')
+                 THEN COALESCE(ready_at, $4::timestamptz)
+                 ELSE ready_at
+               END,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [id, status.status, status.nextAttemptAt, now.toISOString()],
         );
         await runner.commitTransaction();
         return false;

@@ -84,6 +84,47 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message: '500$' }).down_payment).toBe('500');
   });
 
+  it('inherits the amount from the last down-payment question when the buyer confirms it affirmatively', () => {
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg-2',
+      channel: 'messenger',
+      real_name: 'Subaniel Salinas Torres',
+      phone: '+12408311746',
+      vehicle_type: 'Sedan',
+      message: 'Sería. Bien eso. A solo. Ke trabajo de lunes a sábado',
+      chat_history_log: 'Perfecto. Para este tipo de sedanes finos requerimos un enganche mínimo de $2000. ¿Con cuánto contarías para el enganche?\nSería. Bien eso. A solo. Ke trabajo de lunes a sábado',
+    });
+    expect(result).toMatchObject({ down_payment: '2000', down_payment_amount: 2000, required_down_payment: 1500, down_payment_sufficient: true });
+  });
+
+  it('does not turn a confirmation for another field into a down payment', () => {
+    expect(normalizeCollectorInput({
+      source: 'fredericksburg-2',
+      channel: 'messenger',
+      message: 'Sí, tengo cuenta bancaria',
+      chat_history_log: 'Para este tipo de sedanes finos requerimos un enganche mínimo de $2000. ¿Con cuánto contarías para el enganche?\nSí, tengo cuenta bancaria',
+    }).down_payment).toBe('');
+  });
+
+  it('inherits the minimum when the buyer confirms they can raise an insufficient down payment', () => {
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      message: 'Sí, puedo subirle',
+      chat_history_log: 'Para esta troca el mínimo es $3000. ¿Crees que podrías conseguir un poco más?\nSí, puedo subirle',
+    });
+    expect(result.down_payment).toBe('3000');
+  });
+
+  it('does not reuse an old down question after the bot moves to the timeline question', () => {
+    expect(normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      message: 'Sí',
+      chat_history_log: 'Para este vehículo requerimos un enganche mínimo de $2000. ¿Con cuánto cuentas?\nExcelente. ¿Para cuándo te gustaría comprar?',
+    }).down_payment).toBe('');
+  });
+
   it('never stores a phone-shaped value as down payment', () => {
     const result = normalizeCollectorInput({
       phone: '3019876543',
