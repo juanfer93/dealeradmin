@@ -67,13 +67,47 @@ describe('HighLevel collector custom-code normalizer', () => {
     ['2000', '2000'],
     ['3000', '3000'],
     ['3 mil', '3000'],
+    ['Tengo 2 mil', '2000'],
     ['dos mil', '2000'],
     ['tres mil', '3000'],
+    ['4 mil', '4000'],
+    ['5 mil', '5000'],
+    ['10 mil', '10000'],
     ['1K', '1000'],
     ['2K', '2000'],
     ['3K', '3000'],
+    ['4K', '4000'],
+    ['five thousand', '5000'],
+    ['siete mil', '7000'],
+    ['six thousand', '6000'],
   ])('normalizes down-payment spelling %s in Custom Code', (message, expected) => {
     expect(execute({ message }).down_payment).toBe(expected);
+  });
+
+  it('keeps the full "Tengo 2 mil" amount when the transcript also contains a phone', () => {
+    const result = execute({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      real_name: 'Rafael Araque',
+      phone: '+18644842725',
+      message: 'Yes sir.',
+      chat_history_log: [
+        'Quiero Financiar!',
+        'Suv',
+        '8644842725 tex',
+        'Tengo 2 mil',
+        'Westa semana',
+        'Yes sir.',
+      ].join('\n'),
+    });
+    expect(result).toMatchObject({
+      vehicle_type: 'Suv',
+      down_payment: '2000',
+      down_payment_amount: 2000,
+      required_down_payment: 2000,
+      down_payment_sufficient: true,
+      qualification_step: 'purchase_timeline',
+    });
   });
 
   it('keeps Offlease strict and predicts the minimum after an insufficient down payment', () => {
@@ -143,7 +177,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       phone: '+15405550123',
       message: 'Busco una Tacoma y voy a pagar de contado',
     })).toMatchObject({
-      down_payment: 'Pagara en cash',
+      down_payment: 'Pagara en cash / de contado',
       vehicle_category: 'truck',
       required_down_payment: 3000,
       down_payment_sufficient: true,
@@ -444,11 +478,18 @@ describe('HighLevel collector custom-code normalizer', () => {
     ['2000', '2000'],
     ['3000', '3000'],
     ['3 mil', '3000'],
+    ['Tengo 2 mil', '2000'],
     ['dos mil', '2000'],
     ['tres mil', '3000'],
+    ['4 mil', '4000'],
+    ['5 mil', '5000'],
+    ['10 mil', '10000'],
     ['1K', '1000'],
     ['2K', '2000'],
     ['3K', '3000'],
+    ['4K', '4000'],
+    ['siete mil', '7000'],
+    ['six thousand', '6000'],
     ['five thousand', '5000'],
   ])('keeps standalone cash amount %s as down payment in Custom Code', (message, expected) => {
     expect(execute({ message }).down_payment).toBe(expected);

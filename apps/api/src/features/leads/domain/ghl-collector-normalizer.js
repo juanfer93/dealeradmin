@@ -2,7 +2,7 @@
 // Keep this executable without imports: HighLevel provides inputData at runtime.
 const clean = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
 const advisorHandoffVehicle = 'Quiere hablar con un asesor';
-const cashDownPayment = 'Pagara en cash';
+const cashDownPayment = 'Pagara en cash / de contado';
 const isAdvisorHandoffVehicle = (value) => clean(value).toLocaleLowerCase() === advisorHandoffVehicle.toLocaleLowerCase();
 const emptyMarker = (value) => /^(?:--|-|n\/?a|not indicated|not specified|no indicado|no especificado)$/i.test(clean(value));
 const first = (...values) => values.map(clean).find((value) => value && !emptyMarker(value)) || '';
@@ -250,7 +250,7 @@ const amount = (value) => {
   return '';
 };
 const validAmount = (value) => amount(value);
-const amountToken = '(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?|\\d{1,2}\\s*(?:mil|thousand)|mil(?:\\s+quinientos)?|(?:un|one|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+(?:mil|thousand)(?:\\s+(?:quinientos|five hundred))?)';
+const amountToken = '(?:\\d{1,3}(?:,\\d{3})+|\\d{1,2}\\s*(?:mil|thousand)|mil(?:\\s+quinientos)?|(?:un|one|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+(?:mil|thousand)(?:\\s+(?:quinientos|five hundred))?|\\d+(?:[,.]\\d+)?\\s*k?)';
 const tradeIn = (text) => {
   const source = clean(text);
   if (!source || campaign || isNonVehicleIntent(source)) return '';

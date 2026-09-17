@@ -7,7 +7,7 @@ export type MessageLeadData = {
   documents?: string | null;
 };
 
-import { isCashDownPayment, normalizeDownPayment } from './down-payment';
+import { CASH_DOWN_PAYMENT, isCashDownPayment, normalizeDownPayment } from './down-payment';
 
 export const LOOKING_OPTIONS_LABEL = 'Quiere ver opciones';
 
@@ -135,7 +135,7 @@ export function buildWhatsAppMessage(name: string, phone: string, data: MessageL
   const language = detectMessageLanguage(data);
   const vehicle = clean(data.vehicle_type) ?? '';
   const downValue = normalizeDownPayment(data.down_payment);
-  const down = downValue ? (isCashDownPayment(downValue) ? (language === 'es' ? 'paga en cash' : 'cash') : `${downValue}${language === 'es' ? ' de down' : ' down'}`) : '';
+  const down = downValue ? (isCashDownPayment(downValue) ? CASH_DOWN_PAYMENT : `${downValue}${language === 'es' ? ' de down' : ' down'}`) : '';
   const identification = formatIdentification(data.identification);
   const bankAccount = formatBankAccount(data.bank_account, language);
   const documents = formatDocuments(data.documents, language, Boolean(identification));

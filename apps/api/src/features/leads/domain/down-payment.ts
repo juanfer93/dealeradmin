@@ -5,7 +5,7 @@ const CASH_PATTERNS = [
   /\bpaid\s+in\s+full\b/i,
   /\bpaga(?:r[aá]|r)?\s+de\s+contado\b/i,
 ];
-export const CASH_DOWN_PAYMENT = 'Pagara en cash';
+export const CASH_DOWN_PAYMENT = 'Pagara en cash / de contado';
 const TRADE_IN_PATTERNS = [
   /\btrade[\s-]?in\b/i,
   /\b(?:my|mi)\s+(?:car|vehicle|carro|auto|veh[ií]culo)\b/i,

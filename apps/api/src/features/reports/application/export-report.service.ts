@@ -341,7 +341,7 @@ export class ExportReportService {
     const vehicle = this.clean(row.vehicle_type);
     if (vehicle) comments.push(vehicle);
     const downPayment = normalizeDownPayment(row.down_payment);
-    if (downPayment) comments.push(isCashDownPayment(downPayment) ? 'paga en cash' : /\bdown\b/i.test(downPayment) ? downPayment : `${downPayment} de down`);
+    if (downPayment) comments.push(isCashDownPayment(downPayment) ? 'Pagara en cash / de contado' : /\bdown\b/i.test(downPayment) ? downPayment : `${downPayment} de down`);
     const documents = this.clean(row.documents);
     const bankAccount = this.clean(row.bank_account);
     const hasIdentification = Boolean(this.clean(row.identification));

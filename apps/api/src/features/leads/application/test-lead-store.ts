@@ -107,13 +107,13 @@ export const easternsTestLead: TestLead = {
   name: 'Andres Felipe',
   phone: '+15550001111',
   vehicleType: 'SUV',
-  downPayment: 'Cash',
+  downPayment: 'Pagara en cash / de contado',
   identification: '',
   bankAccount: '',
   documents: '',
   purchaseTimeline: '',
   status: 'pending',
-  messageText: 'Andres Felipe +15550001111 SUV, paga en cash.',
+  messageText: 'Andres Felipe +15550001111 SUV, Pagara en cash / de contado.',
   createdAt: '2026-08-24T15:00:00.000Z',
 };
 

@@ -5,7 +5,7 @@ test.describe('Easterns routing, override y selección múltiple', () => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   });
 
-  test('rota Laurel -> Sterling, conserva Cash y copia una selección de dealers', async ({ page }) => {
+  test('rota Laurel -> Sterling, conserva el pago de contado y copia una selección de dealers', async ({ page }) => {
     await page.goto('/login');
     await page.fill('input[name="username"]', 'operator');
     await page.fill('input[name="password"]', 'test-password');
@@ -15,7 +15,7 @@ test.describe('Easterns routing, override y selección múltiple', () => {
     await page.getByRole('button', { name: /^Easterns Laurel\s+\d+$/ }).click();
     const laurelRow = page.locator('tr').filter({ hasText: 'Andres Felipe' });
     await expect(laurelRow).toBeVisible();
-    await expect(laurelRow).toContainText('Cash');
+    await expect(laurelRow).toContainText('Pagara en cash / de contado');
     await page.screenshot({ path: 'output/screenshots/day5-easterns-laurel-cash.png', fullPage: true });
 
     await laurelRow.getByLabel('Reasignar lead').selectOption({ label: 'Sterling' });
@@ -24,7 +24,7 @@ test.describe('Easterns routing, override y selección múltiple', () => {
     await page.getByRole('button', { name: /^Easterns Sterling\s+\d+$/ }).click();
     const sterlingRow = page.locator('tr').filter({ hasText: 'Andres Felipe' });
     await expect(sterlingRow).toBeVisible();
-    await expect(sterlingRow).toContainText('Cash');
+    await expect(sterlingRow).toContainText('Pagara en cash / de contado');
     await page.screenshot({ path: 'output/screenshots/day5-easterns-sterling-reassigned.png', fullPage: true });
 
     await page.getByLabel('Dealers: Easterns Rosedale').check();

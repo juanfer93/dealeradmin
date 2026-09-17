@@ -255,7 +255,7 @@ describe('normalizeCollectorInput', () => {
       message: 'What vehicles are eligible?\nHummer sut\nI could pay for it cash\nNow if possible',
     });
     expect(result.vehicle_type).toBe('Hummer sut');
-    expect(result.down_payment).toBe('Pagara en cash');
+    expect(result.down_payment).toBe('Pagara en cash / de contado');
     expect(result.purchase_timeline).toBe('today');
   });
 
@@ -323,12 +323,43 @@ describe('normalizeCollectorInput', () => {
     ['3 mil', '3000'],
     ['dos mil', '2000'],
     ['tres mil', '3000'],
+    ['4 mil', '4000'],
+    ['5 mil', '5000'],
+    ['10 mil', '10000'],
     ['1K', '1000'],
     ['2K', '2000'],
     ['3K', '3000'],
+    ['4K', '4000'],
     ['five thousand', '5000'],
+    ['siete mil', '7000'],
+    ['six thousand', '6000'],
   ])('normalizes the down payment wording %s', (message, expected) => {
     expect(normalizeCollectorInput({ message: `Tengo ${message} para el enganche` }).down_payment).toBe(expected);
+  });
+
+  it('keeps the full "Tengo 2 mil" amount when the transcript also contains a phone', () => {
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      real_name: 'Rafael Araque',
+      phone: '+18644842725',
+      message: 'Yes sir.',
+      chat_history_log: [
+        'Quiero Financiar!',
+        'Suv',
+        '8644842725 tex',
+        'Tengo 2 mil',
+        'Westa semana',
+        'Yes sir.',
+      ].join('\n'),
+    });
+    expect(result).toMatchObject({
+      vehicle_type: 'Suv',
+      down_payment: '2000',
+      down_payment_amount: 2000,
+      required_down_payment: 2000,
+      down_payment_sufficient: true,
+    });
   });
 
   it('normalizes common Whisper Spanish phonetics from a three-row audio answer', () => {
@@ -465,7 +496,7 @@ describe('normalizeCollectorInput', () => {
       message: 'Busco una Tacoma y voy a pagar de contado',
     });
     expect(result).toMatchObject({
-      down_payment: 'Pagara en cash',
+      down_payment: 'Pagara en cash / de contado',
       vehicle_category: 'truck',
       required_down_payment: 3000,
       down_payment_sufficient: true,

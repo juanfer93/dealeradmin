@@ -3,8 +3,8 @@ import { classifyVehicle, evaluateDownPayment, hasRequiredDownPayment, normalize
 import { buildWhatsAppMessage } from '../../domain/message-builder';
 
 describe('normalización de pago inicial', () => {
-  it.each(['cash', 'Cash', 'contado', 'de contado', 'efectivo', 'paid in full'])('guarda %s como Pagara en cash', (value) => {
-    expect(normalizeDownPayment(value)).toBe('Pagara en cash');
+  it.each(['cash', 'Cash', 'contado', 'de contado', 'efectivo', 'paid in full'])('guarda %s como Pagara en cash / de contado', (value) => {
+    expect(normalizeDownPayment(value)).toBe('Pagara en cash / de contado');
   });
 
   it('preserva un down payment monetario', () => {
@@ -12,7 +12,7 @@ describe('normalización de pago inicial', () => {
   });
 
   it('explica el pago en efectivo en el mensaje operativo', () => {
-    expect(buildWhatsAppMessage('Ana Perez', '+15550000000', { down_payment: 'pagará de contado' })).toContain('paga en cash');
+    expect(buildWhatsAppMessage('Ana Perez', '+15550000000', { down_payment: 'pagará de contado' })).toContain('Pagara en cash / de contado');
   });
 
   it('mantiene el resumen en inglés cuando la cualificación llega en inglés', () => {
