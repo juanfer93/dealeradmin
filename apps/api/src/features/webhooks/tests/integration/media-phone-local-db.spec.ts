@@ -14,6 +14,10 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
   const afterHoursConversationId = `${suffix}-after-hours-conversation`;
   const normalContactId = `${suffix}-normal-contact`;
   const normalConversationId = `${suffix}-normal-conversation`;
+  const imageContactId = `${suffix}-image-contact`;
+  const imageConversationId = `${suffix}-image-conversation`;
+  const audioContactId = `${suffix}-audio-contact`;
+  const audioConversationId = `${suffix}-audio-conversation`;
   const now = '2026-09-17T17:19:00.000Z';
 
   beforeAll(async () => {
@@ -24,7 +28,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
 
   afterAll(async () => {
     if (!dataSource?.isInitialized) return;
-    for (const qaContactId of [contactId, afterHoursContactId, normalContactId]) {
+    for (const qaContactId of [contactId, afterHoursContactId, normalContactId, imageContactId, audioContactId]) {
       await dataSource.query('DELETE FROM conversation_bot_pause_events WHERE ghl_contact_id = $1', [qaContactId]);
       await dataSource.query('DELETE FROM conversations WHERE ghl_contact_id = $1', [qaContactId]);
       await dataSource.query('DELETE FROM leads WHERE ghl_contact_id = $1', [qaContactId]);
@@ -238,5 +242,116 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
     expect(rows[0].qualification_snapshot.phone).toBe('+12408414211');
     expect(Number(rows[0].message_count)).toBe(1);
     expect(Number(rows[0].attachment_count)).toBe(0);
+  });
+
+  it('reinjects interpreted vehicle and document evidence into the normalizer', async () => {
+    const service = new ConversationWebhookService(dataSource);
+    await service.acceptCustomerReplied({
+      event_id: `${suffix}-interpreted-image`,
+      ghl_message_id: `${suffix}-interpreted-image-message`,
+      ghl_contact_id: imageContactId,
+      ghl_conversation_id: imageConversationId,
+      channel: 'messenger',
+      contact_name: 'Aldair M Denilson',
+      contact_phone: '',
+      message_body: 'Como este modelo',
+      occurred_at: now,
+      message_attachments: [{ url: 'https://links.example.test/equinox.jpg', content_type: 'image/jpeg' }],
+    }, 'koons-culpeper', { contactId: imageContactId, conversationId: imageConversationId });
+
+    const attachment = await dataSource.query(
+      `SELECT id FROM conversation_attachments WHERE ghl_conversation_id = $1`,
+      [imageConversationId],
+    ) as Array<{ id: string }>;
+    expect(attachment).toHaveLength(1);
+    await dataSource.query(
+      `UPDATE conversation_attachments
+       SET processing_status = 'done', extracted_text = $2, processing_metadata = $3::jsonb,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [
+        attachment[0].id,
+        "[image interpretation]\nvehicle: Chevrolet Equinox\ndocuments: I have my driver's license; I have proof of income",
+        JSON.stringify({ vision_status: 'processed', source: 'local-transformers', model: 'qa-fixture' }),
+      ],
+    );
+
+    const conversation = await dataSource.query(
+      `SELECT id FROM conversations WHERE ghl_conversation_id = $1`,
+      [imageConversationId],
+    ) as Array<{ id: string }>;
+    const result = await service.reconcileMediaConversation(conversation[0].id, new Date(now));
+
+    expect(result.qualificationSnapshot).toMatchObject({
+      vehicle_type: 'Chevrolet Equinox',
+      identification: 'yes',
+    });
+    expect(result.qualificationSnapshot?.documents).toContain('proof of income: yes');
+    expect(result.qualificationSnapshot?.missing_qualification).not.toContain('proof_of_income');
+
+    const stored = await dataSource.query(
+      `SELECT cm.body, cm.raw_payload
+       FROM conversation_messages cm
+       JOIN conversation_attachments ca ON ca.conversation_message_id = cm.id
+       WHERE ca.id = $1`,
+      [attachment[0].id],
+    ) as Array<{ body: string; raw_payload: Record<string, unknown> }>;
+    expect(stored[0].body).toBe('Como este modelo');
+    expect(stored[0].raw_payload).toMatchObject({ message_body: 'Como este modelo' });
+  });
+
+  it('injects a local audio transcription as a separate inbound conversation message', async () => {
+    const service = new ConversationWebhookService(dataSource);
+    await service.acceptCustomerReplied({
+      event_id: `${suffix}-audio`,
+      ghl_message_id: `${suffix}-audio-message`,
+      ghl_contact_id: audioContactId,
+      ghl_conversation_id: audioConversationId,
+      channel: 'messenger',
+      contact_name: 'Audio QA Customer',
+      contact_phone: '',
+      message_body: 'Te mando una nota de voz',
+      message_attachments: [{ url: 'https://links.example.test/voice.m4a', content_type: 'audio/mp4', filename: 'voice.m4a' }],
+      occurred_at: now,
+    }, 'koons-culpeper', { contactId: audioContactId, conversationId: audioConversationId, messageId: `${suffix}-audio-message` });
+
+    const attachment = await dataSource.query(
+      `SELECT id, conversation_message_id, ghl_message_id FROM conversation_attachments WHERE ghl_conversation_id = $1`,
+      [audioConversationId],
+    ) as Array<{ id: string; conversation_message_id: string; ghl_message_id: string }>;
+    expect(attachment).toHaveLength(1);
+    const transcription = 'I am looking for an SUV and can bring 3000 for the down payment';
+    await dataSource.query(
+      `UPDATE conversation_attachments
+       SET processing_status = 'done', extracted_text = $2, processing_metadata = $3::jsonb,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [attachment[0].id, transcription, JSON.stringify({ engine: 'faster-whisper', model: 'small' })],
+    );
+    await dataSource.query(
+      `INSERT INTO conversation_messages
+         (conversation_id, dedupe_key, ghl_message_id, direction, body, occurred_at, raw_payload)
+       SELECT ca.conversation_id, 'media:' || ca.id::text, ca.ghl_message_id || ':media:' || ca.id::text,
+              'inbound', $2, cm.occurred_at, $3::jsonb
+       FROM conversation_attachments ca
+       JOIN conversation_messages cm ON cm.id = ca.conversation_message_id
+       WHERE ca.id = $1`,
+      [attachment[0].id, transcription, JSON.stringify({ source: 'audio_transcription', attachment_id: attachment[0].id })],
+    );
+
+    const conversation = await dataSource.query(
+      `SELECT id FROM conversations WHERE ghl_conversation_id = $1`,
+      [audioConversationId],
+    ) as Array<{ id: string }>;
+    const result = await service.reconcileMediaConversation(conversation[0].id, new Date(now));
+    expect(result.qualificationSnapshot).toMatchObject({ vehicle_type: 'SUV' });
+
+    const stored = await dataSource.query(
+      `SELECT body, raw_payload->>'source' AS source
+       FROM conversation_messages
+       WHERE conversation_id = $1 AND dedupe_key LIKE 'media:%'`,
+      [conversation[0].id],
+    ) as Array<{ body: string; source: string }>;
+    expect(stored).toEqual([{ body: transcription, source: 'audio_transcription' }]);
   });
 });

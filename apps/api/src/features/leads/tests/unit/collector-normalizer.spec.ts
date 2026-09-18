@@ -18,6 +18,21 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ phone: '(240) 681-5028', message: 'Ok' }).phone).toBe('+12406815028');
   });
 
+  it('normalizes structured image interpretation as ordinary inbound evidence', () => {
+    const result = normalizeCollectorInput({
+      channel: 'messenger',
+      real_name: 'Aldair M Denilson',
+      message: "[image interpretation]\nvehicle: Chevrolet Equinox\nvehicle_type: SUV\ndocuments: I have my driver's license; I have proof of income",
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'Chevrolet Equinox',
+      identification: 'yes',
+      has_income_proof: 'yes',
+    });
+    expect(result.documents).toContain('proof of income: yes');
+  });
+
   it('marks a phone-only inbound handoff as advisor contact without qualifying it as a vehicle', () => {
     const result = normalizeCollectorInput({
       channel: 'messenger',

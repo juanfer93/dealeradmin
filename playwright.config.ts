@@ -16,7 +16,7 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: 'node e2e/start-web.mjs',
+      command: 'node_modules\\.bin\\cross-env.CMD API_URL=http://127.0.0.1:3010 pnpm --filter web build && node e2e/start-web.mjs',
       url: 'http://127.0.0.1:3000/login',
       reuseExistingServer: true,
       timeout: 120_000,

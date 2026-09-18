@@ -154,6 +154,30 @@ describe('ConversationWebhookService', () => {
     expect(getTestConversationEvents()[0].attachments).toBeUndefined();
   });
 
+  it('captures a native nested image attachment and message body', async () => {
+    const service = new ConversationWebhookService();
+    const result = await service.acceptCustomerReplied(
+      {
+        message: {
+          body: 'Como este modelo',
+          attachments: [{ mediaUrl: 'https://cdn.example.test/equinox.jpg', mime: 'image/jpeg' }],
+        },
+        customData: { message_attachments: '' },
+        contact: { id: 'ghl-native-contact' },
+        channel: 'messenger',
+      },
+      'koons-culpeper',
+      { conversationId: 'ghl-native-conversation', messageId: 'ghl-native-message' },
+    );
+
+    expect(result).toMatchObject({ accepted: true, conversationId: 'ghl-native-conversation', status: 'processed' });
+    expect(getTestConversationEvents()[0]).toMatchObject({
+      contactId: 'ghl-native-contact',
+      message: 'Como este modelo',
+      attachments: [{ mediaUrl: 'https://cdn.example.test/equinox.jpg', mime: 'image/jpeg' }],
+    });
+  });
+
   it('synchronizes an existing queued dealer row when a later Messenger message adds the make/model', async () => {
     const queryRunner = {
       query: vi.fn(async (sql: string) => {

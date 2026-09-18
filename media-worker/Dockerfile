@@ -11,7 +11,7 @@ RUN apt-get update \
 WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --upgrade pip \
-    && pip install -r requirements.txt
+    && pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
 
 COPY worker.py ./worker.py
 ENTRYPOINT ["python", "worker.py"]

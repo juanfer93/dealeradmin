@@ -68,8 +68,8 @@ export function normalizeGhlAttachments(value: unknown, sourceMessageId: string)
     const record = asRecord(item);
     const sourceUrl = typeof item === 'string'
       ? asText(item)
-      : firstText(record, ['url', 'href', 'download_url', 'downloadUrl', 'file_url', 'fileUrl']);
-    const contentType = typeof item === 'string' ? null : firstText(record, ['content_type', 'contentType', 'mime_type', 'mimeType']);
+      : firstText(record, ['url', 'href', 'download_url', 'downloadUrl', 'file_url', 'fileUrl', 'media_url', 'mediaUrl', 'source_url', 'sourceUrl']);
+    const contentType = typeof item === 'string' ? null : firstText(record, ['content_type', 'contentType', 'mime_type', 'mimeType', 'mime']);
     const filename = typeof item === 'string' ? null : firstText(record, ['filename', 'file_name', 'fileName', 'name']);
     const declaredKind = typeof item === 'string' ? null : firstText(record, ['kind', 'type', 'media_type', 'mediaType']);
 

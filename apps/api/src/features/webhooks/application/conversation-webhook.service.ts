@@ -61,6 +61,13 @@ function addProcessedImageEvidence(messages: ConversationMessageRow[]): Conversa
     }]
     : [message]);
 }
+
+function hasAttachmentValue(value: unknown): boolean {
+  if (value === undefined || value === null) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (Array.isArray(value)) return value.some(hasAttachmentValue);
+  return true;
+}
 type ExistingDealerLead = {
   status: string;
   routing_status: string;
@@ -556,6 +563,26 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     const nestedContact = value.contact && typeof value.contact === 'object' ? value.contact as Record<string, unknown> : {};
     const nestedLocation = value.location && typeof value.location === 'object' ? value.location as Record<string, unknown> : {};
     const customData = value.customData && typeof value.customData === 'object' ? value.customData as Record<string, unknown> : {};
+    const nestedMessage = value.message && typeof value.message === 'object' ? value.message as Record<string, unknown> : {};
+    const triggerData = value.triggerData && typeof value.triggerData === 'object' ? value.triggerData as Record<string, unknown> : {};
+    const triggerMessage = triggerData.message && typeof triggerData.message === 'object' ? triggerData.message as Record<string, unknown> : {};
+    const nativeMessage = Object.keys(nestedMessage).length > 0 ? nestedMessage : triggerMessage;
+    const attachmentValue = [
+      value.message_attachments,
+      value.messageAttachments,
+      value.attachments,
+      customData.message_attachments,
+      customData.messageAttachments,
+      customData.attachments,
+      nativeMessage.message_attachments,
+      nativeMessage.messageAttachments,
+      nativeMessage.attachments,
+      nativeMessage.media,
+      nativeMessage.attachment,
+      triggerData.message_attachments,
+      triggerData.messageAttachments,
+      triggerData.attachments,
+    ].find(hasAttachmentValue);
     return {
       ...value,
       event_id: value.event_id ?? value.eventId,
@@ -563,17 +590,19 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       ghl_message_id: value.ghl_message_id ?? value.messageId ?? headers.messageId,
       ghl_contact_id: value.ghl_contact_id ?? value.contact_id ?? value.contactId ?? headers.contactId ?? nestedContact.id ?? value.id,
       ghl_conversation_id: value.ghl_conversation_id ?? value.conversation_id ?? value.conversationId ?? headers.conversationId,
-      message_body: value.message_body ?? value.messageBody ?? customData.message_body ?? value.message ?? value.body,
+      message_body: value.message_body
+        ?? value.messageBody
+        ?? customData.message_body
+        ?? customData.messageBody
+        ?? (typeof value.message === 'string' ? value.message : undefined)
+        ?? nativeMessage.body
+        ?? nativeMessage.text
+        ?? value.body,
       contact_phone: value.contact_phone ?? customData.contact_phone ?? nestedContact.phone ?? value.phone,
       contact_name: value.contact_name ?? customData.contact_name ?? nestedContact.name ?? value.name ?? value.full_name,
       channel: value.channel ?? customData.channel ?? defaultChannel,
       occurred_at: value.occurred_at ?? value.occurredAt ?? value.date_updated ?? value.dateUpdated,
-      message_attachments: value.message_attachments
-        ?? value.messageAttachments
-        ?? value.attachments
-        ?? customData.message_attachments
-        ?? customData.messageAttachments
-        ?? customData.attachments,
+      message_attachments: attachmentValue,
       raw_payload: value.raw_payload ?? value,
       location: nestedLocation,
     };

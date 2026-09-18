@@ -35,8 +35,14 @@ DEALERADMIN_API_URL = os.getenv("DEALERADMIN_API_URL", "").strip().rstrip("/")
 GHL_WEBHOOK_SECRET = os.getenv("GHL_WEBHOOK_SECRET", os.getenv("DEALERADMIN_WEBHOOK_SECRET", "")).strip()
 RECONCILIATION_TIMEOUT = int(os.getenv("DEALERADMIN_RECONCILIATION_TIMEOUT_SECONDS", "15"))
 MEDIA_RUN_ONCE = os.getenv("MEDIA_RUN_ONCE", "false").strip().lower() in {"1", "true", "yes", "on"}
+LOCAL_VISION_MODEL_NAME = os.getenv(
+    "MEDIA_LOCAL_VISION_MODEL", "HuggingFaceTB/SmolVLM-500M-Instruct"
+).strip()
+LOCAL_VISION_REQUIRED = os.getenv("MEDIA_LOCAL_VISION_REQUIRED", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 _WHISPER_MODEL: Any | None = None
+_LOCAL_VISION_PROCESSOR: Any | None = None
+_LOCAL_VISION_MODEL: Any | None = None
 
 
 class NotRetrievable(Exception):
@@ -54,6 +60,13 @@ def safe_error_code(error: Exception) -> str:
         if message and re.fullmatch(r"[A-Za-z0-9_.-]+", message):
             return message[:160]
     return type(error).__name__[:160]
+
+
+def derived_message_source(media_kind_value: str, metadata: dict[str, Any]) -> str:
+    """Return the source marker persisted on the derived inbound message."""
+    if media_kind_value == "audio":
+        return "audio_transcription"
+    return "image_interpretation" if metadata.get("vision_status") == "processed" else "image_ocr"
 
 
 def database_url() -> str:
@@ -229,14 +242,210 @@ def tesseract_ocr(path: Path) -> tuple[str, dict[str, Any]]:
     return text, {"engine": "tesseract", "fallback": True}
 
 
-def process_image(path: Path) -> tuple[str, dict[str, Any]]:
+def _parse_vision_json(content: str) -> dict[str, Any] | None:
+    """Extract the worker's small JSON contract from local model output."""
+    if not isinstance(content, str) or not content.strip():
+        return None
+    content = content.strip()
+    if "vehicle|phone|document|other" in content.lower():
+        return None
+    fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", content, re.DOTALL | re.IGNORECASE)
+    if fenced:
+        content = fenced.group(1)
+    else:
+        start = content.find("{")
+        end = content.rfind("}")
+        if start >= 0 and end > start:
+            content = content[start : end + 1]
     try:
-        return paddle_ocr(path)
+        parsed = json.loads(content)
+    except json.JSONDecodeError:
+        return {"description": content}
+    return parsed if isinstance(parsed, dict) else {"description": str(parsed)}
+
+
+def _image_evidence_text(result: dict[str, Any]) -> str:
+    """Convert structured visual findings into normalizer-readable conversation text.
+
+    Unknown findings are deliberately omitted. A vision model must not turn an
+    unreadable document or an ambiguous vehicle into a positive qualification.
+    """
+    lines: list[str] = ["[image interpretation]"]
+    object_type = result.get("object_type") or result.get("type")
+    if isinstance(object_type, str) and object_type.strip() and "|" not in object_type:
+        lines.append(f"image type: {object_type.strip()}")
+    vehicle = result.get("vehicle")
+    if isinstance(vehicle, dict):
+        make = str(vehicle.get("make") or "").strip()
+        model = str(vehicle.get("model") or "").strip()
+        vehicle_type = str(vehicle.get("type") or vehicle.get("vehicle_type") or "").strip()
+        label = " ".join(part for part in (make, model) if part).strip()
+        if label:
+            lines.append(f"vehicle: {label}")
+        elif vehicle_type:
+            lines.append(f"vehicle_type: {vehicle_type}")
+    elif isinstance(vehicle, str) and vehicle.strip():
+        lines.append(f"vehicle: {vehicle.strip()}")
+
+    for key in ("make", "model", "vehicle_type"):
+        value = result.get(key)
+        if isinstance(value, str) and value.strip() and not any(line.lower().startswith(f"{key}:") for line in lines):
+            lines.append(f"{key}: {value.strip()}")
+
+    phone = result.get("phone") or result.get("phone_number")
+    if isinstance(phone, str) and re.search(r"\d{3}.*\d{3}.*\d{4}", phone):
+        lines.append(f"phone: {phone.strip()}")
+
+    documents = result.get("documents")
+    if isinstance(documents, dict):
+        parts: list[str] = []
+        aliases = {
+            "driver's license": ("identification", "id", "license", "driver_license", "drivers_license"),
+            "proof of income": ("proof_of_income", "income_proof", "pay_stubs", "check_stubs", "paycheck_stubs"),
+            "bank account": ("bank_account",),
+        }
+        for label, keys in aliases.items():
+            value = next((documents.get(key) for key in keys if key in documents), None)
+            normalized = str(value).strip().lower() if value is not None else ""
+            if normalized in {"yes", "no"}:
+                if label == "driver's license":
+                    parts.append("I have my driver's license" if normalized == "yes" else "I do not have my driver's license")
+                elif label == "proof of income":
+                    parts.append("I have proof of income" if normalized == "yes" else "I do not have proof of income")
+                else:
+                    parts.append("I have a bank account" if normalized == "yes" else "I do not have a bank account")
+        for label, keys in {
+            "a pay stub": ("pay_stub", "paystub", "pay_stubs", "check_stub", "check_stubs"),
+            "an insurance card": ("insurance", "insurance_card"),
+            "a vehicle registration": ("registration", "vehicle_registration"),
+        }.items():
+            value = next((documents.get(key) for key in keys if key in documents), None)
+            if str(value).strip().lower() == "yes":
+                parts.append(f"I have {label}")
+        if parts:
+            lines.append("documents: " + "; ".join(parts))
+
+    description = result.get("description")
+    if isinstance(description, str) and description.strip():
+        lines.append(f"image description: {description.strip()}")
+        description_lower = description.lower()
+        inferred_type = next(
+            (
+                label
+                for terms, label in (
+                    (("luxury sedan", "premium sedan", "luxury car"), "Luxury sedan"),
+                    (("muscle car", "sports car", "coupe"), "Sports car"),
+                    (("suv", "crossover"), "SUV"),
+                    (("truck", "pickup", "pick-up"), "Truck"),
+                    (("sedan", "saloon"), "Sedan"),
+                    (("van", "minivan"), "Van"),
+                    (("motorcycle", "motorbike", "motorcycle"), "Motorcycle"),
+                )
+                if any(term in description_lower for term in terms)
+            ),
+            None,
+        )
+        if inferred_type and not any(line.lower().startswith("vehicle_type:") for line in lines):
+            lines.append(f"vehicle_type: {inferred_type}")
+    return "\n".join(lines) if len(lines) > 1 else ""
+
+
+def _load_local_vision() -> tuple[Any, Any]:
+    """Load a cached Hugging Face multimodal model once per worker process."""
+    global _LOCAL_VISION_PROCESSOR, _LOCAL_VISION_MODEL
+    if _LOCAL_VISION_PROCESSOR is not None and _LOCAL_VISION_MODEL is not None:
+        return _LOCAL_VISION_PROCESSOR, _LOCAL_VISION_MODEL
+    try:
+        from transformers import AutoProcessor, AutoModelForImageTextToText  # type: ignore
+    except ImportError:
+        try:
+            from transformers import AutoProcessor, AutoModelForVision2Seq  # type: ignore
+            model_class = AutoModelForVision2Seq
+        except ImportError as exc:
+            raise RetryableMediaError("local_vision_library_unavailable") from exc
+    else:
+        model_class = AutoModelForImageTextToText
+    try:
+        _LOCAL_VISION_PROCESSOR = AutoProcessor.from_pretrained(LOCAL_VISION_MODEL_NAME)
+        _LOCAL_VISION_MODEL = model_class.from_pretrained(LOCAL_VISION_MODEL_NAME)
+        _LOCAL_VISION_MODEL.eval()
+        return _LOCAL_VISION_PROCESSOR, _LOCAL_VISION_MODEL
+    except Exception as exc:  # pragma: no cover - depends on downloaded model/runtime
+        _LOCAL_VISION_PROCESSOR = None
+        _LOCAL_VISION_MODEL = None
+        raise RetryableMediaError("local_vision_model_unavailable") from exc
+
+
+def interpret_image(path: Path, content_type: str, filename: str | None) -> tuple[str, dict[str, Any]]:
+    """Interpret an image with a local multimodal model, without external APIs."""
+    del content_type, filename
+    try:
+        processor, model = _load_local_vision()
+        from PIL import Image  # type: ignore
+        import torch  # type: ignore
+
+        image = Image.open(path).convert("RGB")
+        messages = [{
+            "role": "user",
+            "content": [
+                {"type": "image"},
+                {"type": "text", "text": (
+                    "Inspect this dealer image. Return ONLY JSON: "
+                    '{"description":"...","object_type":"vehicle|phone|document|other",'
+                    '"phone":"","vehicle":{"make":"","model":"","type":""},'
+                    '"documents":{"identification":"yes|no|unknown",'
+                    '"proof_of_income":"yes|no|unknown","bank_account":"yes|no|unknown",'
+                    '"pay_stubs":"yes|no|unknown","insurance":"yes|no|unknown",'
+                    '"registration":"yes|no|unknown"}}. '
+                    "Do not repeat the example values. Fill actual observations or unknown. "
+                    "Name a vehicle make/model only when visually supported. Mark a document yes only "
+                    "when that document is visibly identifiable; otherwise use unknown."
+                )},
+            ],
+        }]
+        prompt = processor.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
+        inputs = processor(text=prompt, images=[image], return_tensors="pt")
+        try:
+            device = next(model.parameters()).device
+            inputs = {key: value.to(device) if hasattr(value, "to") else value for key, value in inputs.items()}
+        except (StopIteration, AttributeError):
+            pass
+        with torch.inference_mode():
+            generated = model.generate(**inputs, max_new_tokens=120, do_sample=False)
+        prompt_tokens = inputs.get("input_ids")
+        generated_tokens = generated[:, prompt_tokens.shape[-1]:] if prompt_tokens is not None else generated
+        content = processor.batch_decode(generated_tokens, skip_special_tokens=True)[0]
+        parsed = _parse_vision_json(content)
+    except RetryableMediaError:
+        raise
+    except Exception as exc:  # pragma: no cover - depends on downloaded model/runtime
+        raise RetryableMediaError("local_vision_processing_failed") from exc
+    if not parsed:
+        raise RetryableMediaError("local_vision_invalid_response")
+    return _image_evidence_text(parsed), {
+        "vision_status": "processed",
+        "engine": "local-transformers",
+        "model": LOCAL_VISION_MODEL_NAME,
+        "findings": parsed,
+    }
+
+
+def process_image(path: Path, content_type: str, filename: str | None) -> tuple[str, dict[str, Any]]:
+    try:
+        ocr_text, ocr_metadata = paddle_ocr(path)
     except Exception as paddle_error:  # pragma: no cover - depends on native OCR runtime
-        text, metadata = tesseract_ocr(path)
-        metadata["paddleocr_error"] = "unavailable_or_failed"
-        metadata["fallback_reason"] = type(paddle_error).__name__
-        return text, metadata
+        ocr_text, ocr_metadata = tesseract_ocr(path)
+        ocr_metadata["paddleocr_error"] = "unavailable_or_failed"
+        ocr_metadata["fallback_reason"] = type(paddle_error).__name__
+    if not LOCAL_VISION_REQUIRED:
+        try:
+            vision_text, vision_metadata = interpret_image(path, content_type, filename or path.name)
+        except RetryableMediaError:
+            vision_text, vision_metadata = "", {"vision_status": "unavailable"}
+    else:
+        vision_text, vision_metadata = interpret_image(path, content_type, filename or path.name)
+    parts = [part for part in (vision_text, ocr_text) if part.strip()]
+    return "\n".join(dict.fromkeys(parts)), {"ocr": ocr_metadata, "vision": vision_metadata, "vision_status": vision_metadata.get("vision_status")}
 
 
 def claim_attachment(connection: psycopg.Connection[Any]) -> dict[str, Any] | None:
@@ -337,7 +546,7 @@ def save_success(connection: psycopg.Connection[Any], row: dict[str, Any], diges
                     (
                         text,
                         json.dumps({
-                            "source": "audio_transcription" if row["media_kind"] == "audio" else "image_ocr",
+                            "source": derived_message_source(row["media_kind"], metadata),
                             "attachment_id": str(row["id"]),
                             "ghl_message_id": row["ghl_message_id"],
                             "sha256": digest,
@@ -401,7 +610,7 @@ def process_one(connection: psycopg.Connection[Any], row: dict[str, Any]) -> Non
                 raise NotRetrievable("audio_duration_limit_exceeded")
             text, metadata = transcribe_audio(path)
         elif kind == "image":
-            text, metadata = process_image(path)
+            text, metadata = process_image(path, content_type, row.get("original_filename"))
         else:
             raise NotRetrievable("unsupported_media_kind")
         save_success(connection, row, digest, content_type, byte_size, text, metadata)

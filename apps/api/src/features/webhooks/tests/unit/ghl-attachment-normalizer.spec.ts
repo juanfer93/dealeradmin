@@ -52,4 +52,19 @@ describe('normalizeGhlAttachments', () => {
     expect(result[0]?.sourceUrl).toBe('https://cdn.example.test/photo.jpg');
     expect(JSON.stringify(result)).not.toMatch(/secret|token|password/i);
   });
+
+  it('accepts native media_url and mime aliases from a nested GHL message', () => {
+    const result = normalizeGhlAttachments({
+      mediaUrl: 'https://cdn.example.test/equinox.webp',
+      mime: 'image/webp',
+      fileName: 'equinox.webp',
+    }, 'message-native-media');
+
+    expect(result[0]).toMatchObject({
+      sourceUrl: 'https://cdn.example.test/equinox.webp',
+      contentType: 'image/webp',
+      kind: 'image',
+      filename: 'equinox.webp',
+    });
+  });
 });

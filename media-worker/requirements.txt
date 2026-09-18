@@ -1,4 +1,6 @@
 faster-whisper>=1.1,<2
+torch==2.5.1+cpu
+transformers>=4.49,<5
 paddleocr>=2.9,<3
 paddlepaddle>=3,<4
 Pillow>=10,<12

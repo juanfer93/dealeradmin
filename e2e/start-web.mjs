@@ -4,7 +4,11 @@ import { resolve } from 'node:path';
 const child = spawn(process.execPath, [resolve('node_modules/next/dist/bin/next'), 'start'], {
   cwd: resolve('apps/web'),
   stdio: 'inherit',
-  env: { ...process.env, PORT: process.env.PORT ?? '3000' },
+  env: {
+    ...process.env,
+    PORT: process.env.PORT ?? '3000',
+    API_URL: process.env.API_URL || 'http://127.0.0.1:3010',
+  },
 });
 
 const stop = () => {
