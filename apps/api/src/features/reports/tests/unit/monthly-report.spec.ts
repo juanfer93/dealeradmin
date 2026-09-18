@@ -38,9 +38,10 @@ describe('monthly lead reports', () => {
     vi.stubEnv('MONTHLY_REPORTS_ENABLED', 'true');
     vi.stubEnv('MONTHLY_REPORTS_SMTP_PASSWORD', 'unit-test-placeholder');
     const sent: ReportMail[] = [];
-    const dataSource = { query: vi.fn()
+    const query = vi.fn()
       .mockResolvedValueOnce([{ id: 'delivery-1' }])
-      .mockResolvedValueOnce([]) } as unknown as DataSource;
+      .mockResolvedValueOnce([]);
+    const dataSource = { query } as unknown as DataSource;
     const exportService = {
       generateMonthlyReport: vi.fn().mockResolvedValue({
         buffer: Buffer.from('xlsx-placeholder'),
@@ -71,6 +72,13 @@ describe('monthly lead reports', () => {
     expect(sent[0]?.text).toContain('Offlease Fredericksburg: 2');
     expect(sent[0]?.text).toContain('Offlease Stafford: 1');
     expect(sent[0]?.attachment.content).toEqual(Buffer.from('xlsx-placeholder'));
+    const archiveQuery = query.mock.calls.find(([sql]) => String(sql).includes('queue_archived_at'));
+    expect(archiveQuery?.[0]).toContain("UPDATE lead_dealers");
+    expect(archiveQuery?.[0]).toContain("status = 'sent'");
+    expect(archiveQuery?.[1]).toEqual([
+      new Date('2026-09-01T17:00:00.000Z'),
+      new Date('2026-10-01T17:00:00.000Z'),
+    ]);
   });
 
   it('does not query or generate when disabled', async () => {

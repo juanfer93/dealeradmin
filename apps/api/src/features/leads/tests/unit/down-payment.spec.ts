@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyVehicle, evaluateDownPayment, hasRequiredDownPayment, normalizeDownPayment } from '../../domain/down-payment';
+import { classifyVehicle, evaluateDownPayment, hasRequiredDownPayment, isNoDownPayment, normalizeDownPayment } from '../../domain/down-payment';
 import { buildWhatsAppMessage } from '../../domain/message-builder';
 
 describe('normalización de pago inicial', () => {
@@ -9,6 +9,12 @@ describe('normalización de pago inicial', () => {
 
   it('preserva un down payment monetario', () => {
     expect(normalizeDownPayment('$3,500')).toBe('$3,500');
+  });
+
+  it.each(['No tengo down payment', "I don't have a down payment", 'sin enganche'])('preserva la evidencia negativa %s en BD, pero no en el texto copiado', (value) => {
+    expect(isNoDownPayment(value)).toBe(true);
+    expect(normalizeDownPayment(value)).toBe('No down payment');
+    expect(buildWhatsAppMessage('Ana Perez', '+15550000000', { down_payment: value })).toBe('Ana Perez +15550000000.');
   });
 
   it('explica el pago en efectivo en el mensaje operativo', () => {

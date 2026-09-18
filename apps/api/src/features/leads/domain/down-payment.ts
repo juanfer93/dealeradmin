@@ -14,7 +14,7 @@ const TRADE_IN_PATTERNS = [
   /\bchange\s+(?:my\s+)?(?:vehicle|car)\b/i,
   /\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b/i,
 ];
-const NO_DOWN_PATTERNS = /\b(?:no\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)?)\b/i;
+const NO_DOWN_PATTERNS = /\b(?:no\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|(?:i\s+)?(?:do\s+not|don't|dont)\s+have\s+(?:any\s+)?(?:money\s+for\s+)?(?:a\s+|the\s+)?down(?:\s+payment)?|(?:no\s+tengo|no\s+cuenta\s+con)\s+(?:dinero\s+para\s+)?(?:el\s+)?(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)?)\b/i;
 
 export type VehicleCategory = 'sedan' | 'luxury_sedan' | 'suv_or_van' | 'truck';
 
@@ -83,8 +83,13 @@ export function hasRequiredDownPayment(vehicle: string | null | undefined, downP
 export function normalizeDownPayment(value: string | null | undefined): string {
   const normalized = value?.trim() || '';
   if (!normalized) return '';
-  if (NO_DOWN_PATTERNS.test(normalized)) return 'No down payment';
+  if (isNoDownPayment(normalized)) return 'No down payment';
   return CASH_PATTERNS.some((pattern) => pattern.test(normalized)) ? CASH_DOWN_PAYMENT : normalized;
+}
+
+export function isNoDownPayment(value: string | null | undefined): boolean {
+  const normalized = value?.trim() || '';
+  return Boolean(normalized) && (NO_DOWN_PATTERNS.test(normalized) || /^(?:no|none|n\/a|not available|not indicated|no down payment|sin enganche)$/i.test(normalized));
 }
 
 export function isCashDownPayment(value: string | null | undefined): boolean {

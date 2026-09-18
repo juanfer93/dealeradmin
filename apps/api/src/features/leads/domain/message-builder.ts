@@ -7,7 +7,7 @@ export type MessageLeadData = {
   documents?: string | null;
 };
 
-import { CASH_DOWN_PAYMENT, isCashDownPayment, normalizeDownPayment } from './down-payment';
+import { CASH_DOWN_PAYMENT, isCashDownPayment, isNoDownPayment, normalizeDownPayment } from './down-payment';
 
 export const LOOKING_OPTIONS_LABEL = 'Quiere ver opciones';
 
@@ -15,10 +15,11 @@ const ONLY_LOOKING_PATTERNS = [
   /\b(?:solo|sólo)\s+(?:estoy\s+|est[aá]\s+|ando\s+)?(?:mirando|observando|viendo|buscando|busco|cotizando|explorando|curioseando|revisando)\b/i,
   /\b(?:estoy|est[aá]|ando)\s+(?:solo|sólo)\s+(?:mirando|observando|viendo|buscando|busco|cotizando|explorando|curioseando|revisando)\b/i,
   /\b(?:just|only)\s+(?:looking|browsing|shopping\s+around|checking|exploring)\b/i,
-  /\b(?:exploring|explorando|browsing|viendo)\s+options?\b/i,
+  /\b(?:exploring|explorando|browsing|viendo)\s+(?:options?|opciones)\b/i,
+  /\b(?:quiere\s+comprar|wants?\s+to\s+buy)\s+(?:solo\s+|only\s+|just\s+)?(?:mirando|viendo|explorando|browsing|looking|checking)(?:\s+(?:options?|opciones))?\b/i,
   /\b(?:quiere\s+comprar\s+)?quiere\s+ver\s+opciones\b/i,
   /\b(?:wants?\s+to\s+buy\s+)?wants?\s+to\s+see\s+options\b/i,
-  /\b(?:wants?\s+to\s+buy\s+)?(?:exploring|explorando)\s+options?\b/i,
+  /\b(?:wants?\s+to\s+buy\s+)?(?:exploring|explorando)\s+(?:options?|opciones)\b/i,
 ];
 
 function clean(value: string | null | undefined): string | undefined {
@@ -135,7 +136,7 @@ export function buildWhatsAppMessage(name: string, phone: string, data: MessageL
   const language = detectMessageLanguage(data);
   const vehicle = clean(data.vehicle_type) ?? '';
   const downValue = normalizeDownPayment(data.down_payment);
-  const down = downValue ? (isCashDownPayment(downValue) ? CASH_DOWN_PAYMENT : `${downValue}${language === 'es' ? ' de down' : ' down'}`) : '';
+  const down = downValue && !isNoDownPayment(downValue) ? (isCashDownPayment(downValue) ? CASH_DOWN_PAYMENT : `${downValue}${language === 'es' ? ' de down' : ' down'}`) : '';
   const identification = formatIdentification(data.identification);
   const bankAccount = formatBankAccount(data.bank_account, language);
   const documents = formatDocuments(data.documents, language, Boolean(identification));

@@ -125,6 +125,22 @@ describe('LeadsController queue read', () => {
     await expect(controller.list({ cookies: {} } as never, 'pending')).resolves.toEqual({ dealers: [], leads: [] });
     expect(dataSource.query).toHaveBeenCalledTimes(2);
   });
+
+  it('keeps the sent view clean after monthly report archival without deleting rows', async () => {
+    process.env.NODE_ENV = 'production';
+    const dataSource = {
+      query: vi.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]),
+    };
+    const authService = { verifySession: vi.fn(() => true) };
+    const copyLeadService = { execute: vi.fn() };
+    const controller = new LeadsController(dataSource as never, authService as never, copyLeadService as never);
+
+    await controller.list({ cookies: {} } as never, 'sent');
+    expect(dataSource.query.mock.calls[0]?.[0]).toContain("$1 <> 'sent' OR ld.queue_archived_at IS NULL");
+    expect(dataSource.query.mock.calls[0]?.[0]).not.toContain('DELETE FROM');
+  });
 });
 
 describe('LeadsController lead editing', () => {

@@ -30,7 +30,7 @@ test('un lead enviado no reaparece en pendientes tras un webhook enriquecido', a
       phone: '+15551234567',
       vehicle_type: 'Troca',
       down_payment: '$3,500',
-      purchase_timeline: 'Solo estoy mirando',
+      purchase_timeline: 'quiere comprar explorando opciones',
       documents: 'Pasaporte e ID',
     },
   };

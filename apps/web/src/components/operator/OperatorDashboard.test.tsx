@@ -57,5 +57,15 @@ describe('operator qualification message normalization', () => {
   it('normalizes the advisor-facing timeline in the lead tags', () => {
     expect(formatPurchaseTimelineLabel('Wants to buy today', 'es')).toBe('wants to buy asap');
     expect(formatPurchaseTimelineLabel('hoy', 'es')).toBe('quiere comprar lo más pronto posible');
+    expect(formatPurchaseTimelineLabel('quiere comprar explorando opciones', 'es')).toBe('Quiere ver opciones');
+    expect(formatPurchaseTimelineLabel('Quiere ver opciones', 'en')).toBe('wants to see options');
+  });
+
+  it('omits an explicit negative down payment from advisor-facing copy', () => {
+    expect(formatLeadMessage({
+      id: '1', dealerId: 'd', dealerName: 'Stafford', name: 'Ana', phone: '+15550000000', vehicleType: 'SUV',
+      downPayment: 'No down payment', identification: null, bankAccount: null, documents: null,
+      purchaseTimeline: 'Quiere ver opciones', status: 'pending', messageText: '', createdAt: '2026-09-15T12:00:00.000Z',
+    }, 'es')).toBe('Ana +15550000000 SUV, Quiere ver opciones.');
   });
 });

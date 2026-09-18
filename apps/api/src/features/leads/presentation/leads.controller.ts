@@ -110,7 +110,9 @@ export class LeadsController {
          ORDER BY c.last_message_at DESC NULLS LAST, c.created_at DESC
          LIMIT 1
        ) latest_conversation ON true
-       WHERE ld.status = $1 ${dealerFilter}
+       WHERE ld.status = $1
+         AND ($1 <> 'sent' OR ld.queue_archived_at IS NULL)
+         ${dealerFilter}
        ORDER BY ld.created_at ASC`,
       params,
     );

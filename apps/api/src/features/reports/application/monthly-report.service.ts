@@ -125,6 +125,7 @@ export class MonthlyReportService {
       };
       const sent = await (this.mailer ?? new SmtpReportMailer(config)).send(message);
       await this.markSent(period.periodKey, report.rowCount, report.dealerCounts.length, fileName, attachmentSha256, sent.messageId);
+      await this.archiveReportedSentLeads(period);
       return { periodKey: period.periodKey, status: 'sent', rowCount: report.rowCount, dealerCount: report.dealerCounts.length };
     } catch (error) {
       await this.markFailed(period.periodKey, sanitizeMonthlyReportError(error));
@@ -196,6 +197,18 @@ export class MonthlyReportService {
            updated_at = CURRENT_TIMESTAMP
        WHERE period_key = $1 AND status = 'processing'`,
       [periodKey, error],
+    );
+  }
+
+  private async archiveReportedSentLeads(period: MonthlyReportPeriod): Promise<void> {
+    await this.dataSource!.query(
+      `UPDATE lead_dealers
+       SET queue_archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       WHERE status = 'sent'
+         AND queue_archived_at IS NULL
+         AND created_at >= $1
+         AND created_at < $2`,
+      [period.start, period.end],
     );
   }
 }

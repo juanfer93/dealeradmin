@@ -36,11 +36,19 @@ describe('qualification message normalization', () => {
   it.each([
     ['exploring options', 'wants to see options'],
     ['wants to buy exploring options', 'wants to see options'],
+    ['quiere comprar explorando opciones', 'Quiere ver opciones'],
     ['quiere comprar quiere ver opciones', 'Quiere ver opciones'],
   ])('renders only-looking intent without a purchase prefix: %s', (purchase_timeline, expected) => {
     const message = buildWhatsAppMessage('Lead', '+15550001111', { purchase_timeline });
     expect(message).toContain(expected);
     expect(message).not.toContain('wants to buy exploring options');
     expect(message).not.toContain('quiere comprar quiere ver opciones');
+  });
+
+  it.each([
+    ['No tengo down payment', 'Lead +15550001111.'],
+    ["I don't have a down payment", 'Lead +15550001111.'],
+  ])('omits an explicit negative down payment from copied text: %s', (down_payment, expected) => {
+    expect(buildWhatsAppMessage('Lead', '+15550001111', { down_payment })).toBe(expected);
   });
 });
