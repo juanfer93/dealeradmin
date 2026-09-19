@@ -760,6 +760,28 @@ describe('normalizeCollectorInput', () => {
     });
   });
 
+  it('keeps the latest down amount when a buyer first gives a lower amount', () => {
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg-2',
+      channel: 'messenger',
+      real_name: 'Angel Fuentes',
+      message: 'Esta bien. Gracias',
+      chat_history_log: [
+        'Buenas tardes. K requisitos pides para fonanciar una troca?',
+        'Solo cuento con $1700 ahora',
+        'Lo Maximo k puedo aseguran son $2000',
+        'Esta bien. Gracias',
+      ].join('\n'),
+    });
+    expect(result).toMatchObject({
+      vehicle_type: 'truck',
+      down_payment: '2000',
+      down_payment_amount: 2000,
+      required_down_payment: 3000,
+      down_payment_sufficient: false,
+    });
+  });
+
   it('normalizes common Whisper Spanish phonetics from a three-row audio answer', () => {
     const result = normalizeCollectorInput({
       channel: 'whatsapp',

@@ -784,6 +784,51 @@ function extractStandaloneDownPayment(message: string): string {
   return normalizeAmount(standalone[1]);
 }
 
+function extractLatestDownPayment(message: string): string {
+  const lines = String(message ?? '')
+    .replace(/\r\n?/g, '\n')
+    .split(/\n+/)
+    .map(clean)
+    .filter(Boolean)
+    .reverse();
+  for (const line of lines) {
+    // Never infer a down payment from a question asked by the bot, or from a
+    // stale bot question that appears before a later qualification step.
+    const lineDigits = line.replace(/\D/g, '');
+    if (/[?¿]/.test(line)
+      || isPhoneOnlyLine(line)
+      || PHONE_LIKE_TEXT.test(line)
+      || /\b(?:phone|telephone|tel[eé]fono|n[uú]mero|number)\b/i.test(line)
+      || lineDigits.length >= 7) continue;
+    const contextual = extractDownPayment(line);
+    if (contextual) return contextual;
+    const standalone = extractStandaloneDownPayment(line);
+    if (standalone) return standalone;
+
+    // Speech-to-text and misspellings often leave the amount in a sentence
+    // instead of the exact phrases handled above. In a range, the last value
+    // is the buyer's maximum ("1500 a 2000").
+    const amountToken = '(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?)';
+    const range = [...line.matchAll(new RegExp(`\\$?(${amountToken})\\s*(?:a|to|[-–])\\s*\\$?(${amountToken})`, 'gi'))]
+      .map((match) => normalizeAmount(match[2]))
+      .find((amount) => amount && !/^20(?:1\\d|2\\d)$/.test(amount));
+    if (range) return range;
+
+    // Keep this deliberately line-scoped and answer-shaped. Requiring a
+    // word boundary after the context word prevents "tengo10" from turning
+    // the suffix 10 into a payment, while allowing noisy phrases such as
+    // "lo maximo ... son $2000" and "Si 2000 esta bien".
+    const answerLike = /\b(?:tengo|have|cuento|cuenta|puedo|podr[ií]a|maximum|maximo|m[aá]ximo|son|available|will\s+have|down|payment|enganche|d[oó]lares?|dollars?)\b/i.test(line)
+      || /^(?:si|sí|yes|yeah|yep|claro|ok(?:ay)?|bien)\b\s*\$?\d/i.test(line);
+    if (!answerLike) continue;
+    const amounts = [...line.matchAll(new RegExp(`\\$?(${amountToken})(?!\\d)`, 'gi'))]
+      .map((match) => normalizeAmount(match[1]))
+      .filter((amount) => amount && !/^20(?:1\\d|2\\d)$/.test(amount));
+    if (amounts.length > 0) return amounts.at(-1) ?? EMPTY;
+  }
+  return EMPTY;
+}
+
 function extractTimeline(message: string): string {
   const source = clean(message);
   if (!source) return EMPTY;
@@ -980,8 +1025,9 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     : EMPTY);
   const hasRealVehicle = Boolean(vehicle) && !isAdvisorHandoffVehicle(vehicle);
   const explicitCashDown = firstValidAmount(
+    extractLatestDownPayment(rawMessage),
     extractDownPayment(messageForExtraction),
-    extractDownPayment(rawHistory),
+    extractLatestDownPayment(rawHistory),
   );
   // Some bot prompts ask for confirmation of a concrete minimum (for example
   // "$2,000 ... ¿con cuánto contarías?") and the buyer answers "sí", "sería
