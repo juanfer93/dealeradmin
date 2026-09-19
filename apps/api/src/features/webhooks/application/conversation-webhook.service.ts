@@ -214,9 +214,10 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     if (this.duePollInFlight) return;
     this.duePollInFlight = true;
     try {
-      // The production timer calls the same reconciliation path exposed to
-      // the operator/API, so the 30-second repair is real and testable.
-      await this.processDueConversations(undefined, { reconcileActive: false });
+      // The production timer also reconciles a bounded batch of active rows.
+      // This repairs historical partial conversations when the customer has
+      // already supplied the missing qualification in an earlier message.
+      await this.processDueConversations(undefined, { reconcileActive: true });
     } catch {
       // The next poll or the operator queue read will retry due work. Polling
       // failures must never interrupt webhook handling or crash the process.
@@ -550,10 +551,9 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     for (const row of due) {
       if (await this.releaseDueConversation(row.id, now)) processed += 1;
     }
-    // Reconciliation is a bounded fallback for late fields/manual corrections.
-    // External cron requests skip it so due-row release stays comfortably below
-    // the serverless invocation limit. Incoming GHL events already reconcile
-    // their own transcript synchronously.
+    // Reconciliation is bounded so late fields and historical/manual
+    // corrections are repaired without scanning the whole conversation table.
+    // Incoming GHL events also reconcile their own transcript synchronously.
     if (options.reconcileActive !== false) await this.reconcileActiveConversations(now);
     return { accepted: true, processed };
   }

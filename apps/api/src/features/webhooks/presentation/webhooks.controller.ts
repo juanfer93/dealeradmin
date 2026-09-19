@@ -49,7 +49,9 @@ export class WebhooksController {
   @Get('ghl/conversations/process-due')
   @UseGuards(HmacSignatureGuard)
   processDueConversationsCron() {
-    return this.conversationWebhookService.processDueConversations(undefined, { reconcileActive: false });
+    // The bounded active reconciliation repairs old partial conversations
+    // whose phone/vehicle/down evidence was already persisted in messages.
+    return this.conversationWebhookService.processDueConversations();
   }
 
   @Post('ghl/conversations/:conversationId/reconcile-media')

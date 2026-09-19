@@ -9,6 +9,7 @@ describe('normalización de pago inicial', () => {
 
   it('preserva un down payment monetario', () => {
     expect(normalizeDownPayment('$3,500')).toBe('$3,500');
+    expect(evaluateDownPayment('Sedan', '1.500')).toMatchObject({ amount: 1500, meetsMinimum: true });
   });
 
   it.each(['No tengo down payment', "I don't have a down payment", 'sin enganche'])('preserva la evidencia negativa %s en BD, pero no en el texto copiado', (value) => {
@@ -82,9 +83,9 @@ describe('normalización de pago inicial', () => {
     expect(hasRequiredDownPayment(vehicle, String(minimum - 1))).toBe(false);
   });
 
-  it('acepta el trade-in como una ruta válida para el waiting window', () => {
-    expect(hasRequiredDownPayment('Toyota Tacoma', 'trade-in')).toBe(true);
-    expect(hasRequiredDownPayment('Toyota Tacoma', '2000 + trade-in')).toBe(true);
+  it('exige el mínimo de efectivo aunque exista un trade-in', () => {
+    expect(hasRequiredDownPayment('Toyota Tacoma', 'trade-in')).toBe(false);
+    expect(hasRequiredDownPayment('Toyota Tacoma', '2000 + trade-in')).toBe(false);
     expect(hasRequiredDownPayment('Toyota Tacoma', '3000 + trade-in')).toBe(true);
     expect(hasRequiredDownPayment('Toyota Tacoma', '2000')).toBe(false);
   });

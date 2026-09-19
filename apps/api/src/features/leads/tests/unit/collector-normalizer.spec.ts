@@ -99,6 +99,60 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message: '500$' }).down_payment).toBe('500');
   });
 
+  it('normalizes Spanish thousands and amount confirmations like the Julio conversation', () => {
+    const transcript = [
+      'Sedan',
+      '5714439392',
+      '1.500 está perfecto',
+      'Este mes sería ideal',
+      'Si tengo licencia de conducir y cuenta en el banco',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg-2',
+      channel: 'messenger',
+      real_name: 'Julio Suarez Eguez',
+      message: transcript,
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      phone: '+15714439392',
+      vehicle_type: 'Sedan',
+      down_payment: '1500',
+      down_payment_amount: 1500,
+      required_down_payment: 1500,
+      down_payment_sufficient: true,
+    });
+  });
+
+  it('normalizes the real Javier Accord typo and qualifies its 3000 down', () => {
+    const transcript = [
+      'Me gustaria financiar un auto con ustedes.',
+      'Honda acoitd',
+      '2409060016',
+      '3 mil',
+      'Esta semana',
+      'Si',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg-2',
+      channel: 'messenger',
+      real_name: 'Javier Baez Mercedes',
+      message: transcript,
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      phone: '+12409060016',
+      vehicle_type: 'Honda Accord',
+      vehicle_category: 'sedan',
+      required_down_payment: 1500,
+      down_payment: '3000',
+      down_payment_amount: 3000,
+      down_payment_sufficient: true,
+    });
+  });
+
   it('inherits the amount from the last down-payment question when the buyer confirms it affirmatively', () => {
     const result = normalizeCollectorInput({
       source: 'fredericksburg-2',
@@ -719,6 +773,25 @@ describe('normalizeCollectorInput', () => {
     expect(result.purchase_timeline).toBe('esta semana');
     expect(result.identification).toBe('yes');
     expect(result.has_income_proof).toBe('yes');
+  });
+
+  it('extracts a down payment from transcribed cuento con phrasing with punctuation', () => {
+    const transcript = [
+      'Quiero. Una. Camioneta.',
+      'Cuento. Con. 1500.',
+      'Mi numero es 7576728541',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      channel: 'messenger',
+      message: transcript,
+      chat_history_log: transcript,
+    });
+
+    expect(result.vehicle_type).toBe('truck');
+    expect(result.phone).toBe('+17576728541');
+    expect(result.down_payment).toBe('1500');
+    expect(result.down_payment_amount).toBe(1500);
+    expect(result.down_payment_sufficient).toBe(false);
   });
 
   it('normalizes carro económico to Sedan for WhatsApp and Messenger contacts', () => {

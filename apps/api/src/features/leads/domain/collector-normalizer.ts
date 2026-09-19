@@ -242,13 +242,14 @@ const VEHICLE_CATEGORIES = /\b(?:suv|sedan|truck|troca|trokita|troquita|troque|t
 const VEHICLE_TRIMS = /\b(?:\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i;
 const VEHICLE_CONTEXT = /\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
 const ECONOMIC_CAR_INTENT = /\b(?:carro|auto|coche|veh[ií]culo)\s+econ[oó]mic[oa]s?\b/i;
-const NO_DOWN_PAYMENT_RESPONSE = /\b(?:no(?:\s+\w+){0,3}\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)?)\b/i;
+const NO_DOWN_PAYMENT_RESPONSE = /\b(?:no(?:\s+\w+){0,3}\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)|no\s+(?:cuento|cuenta)\s+con\s+(?:dinero|down|enganche|pago\s+inicial))\b/i;
 const TRADE_IN_INTENT = /\btrade[- ]?in\b|\bmy (?:car|vehicle)\b|\bmi (?:carro|auto|veh[ií]culo)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b|\bchange\s+(?:my\s+)?(?:vehicle|car)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b/i;
 
 function canonicalVehicleLabel(value: string): string {
   const normalized = clean(value)
     .replace(/\bcorola\b/gi, 'Corolla')
     .replace(/\bcivc\b/gi, 'Civic')
+    .replace(/\bacoitd\b/gi, 'Accord')
     .replace(/\btacma\b/gi, 'Tacoma')
     .replace(/\bodisea\b/gi, 'Odyssey')
     .replace(/\bpaila\b/gi, 'Pilot')
@@ -457,6 +458,10 @@ function normalizeAmount(value: string): string {
 
   const compact = source.replace(/\$/g, '').replace(/,/g, '').trim();
   if (!compact || /^[.]+$/.test(compact)) return EMPTY;
+  // Spanish-language conversations commonly use a dot as the thousands
+  // separator: "1.500" means 1500, not 1.5. Keep decimal/k formats below.
+  const dottedThousands = compact.match(/^\d{1,3}(?:\.\d{3})+$/);
+  if (dottedThousands) return String(Number(compact.replace(/\./g, '')));
   const kMatch = compact.match(/^(\d+(?:\.\d+)?)\s*k$/i);
   if (kMatch) return String(Math.round(Number(kMatch[1]) * 1000));
 
@@ -638,7 +643,13 @@ function extractDownPayment(message: string): string {
   const amount = source.match(new RegExp(`(?:down|enganche|inicial|deposit|dep[oó]sito)[ \\t]*(?:payment|pago)?[ \\t]*(?:is|es|de|:)?[ \\t]*\\$?[ \\t]*(${amountToken})`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\$?[ \\t]*(${amountToken})[ \\t]*(?:(?:for|para|as|on|de|del)[ \\t]*(?:el|la|the)?[ \\t]*)?(?:down|enganche|inicial)`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\b(?:tengo|have|i have|i can put|puedo poner)[ \\t]+\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
-    ?? source.match(new RegExp(`\\b(?:puedo|puede|can|could|i can|i could)[ \\t]+(?:con|with)[ \\t]+\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1];
+    ?? source.match(new RegExp(`\\b(?:cuento|cuenta)[ \\t.,;:]+con[ \\t.,;:]*\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
+    ?? source.match(new RegExp(`\\b(?:puedo|puede|can|could|i can|i could)[ \\t]+(?:con|with)[ \\t]+\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
+    // A buyer may answer the minimum prompt with a short amount confirmation
+    // such as "1.500 está perfecto". Require a line-leading amount and a
+    // confirmation phrase so prices, years, and unrelated numbers do not leak
+    // into the down-payment field.
+    ?? source.match(new RegExp(`(?:^|\\n)\\$?[ \\t]*(${amountToken})[ \\t]*(?:d[oó]lares?|usd)?[ \\t]*(?:est[aá]\\s+(?:perfecto|bien)|perfecto|bien|ok(?:ay)?|works?(?:\\s+for\\s+me)?|is\\s+(?:fine|perfect|okay))\\b`, 'i'))?.[1];
   return amount ? normalizeAmount(amount) : EMPTY;
 }
 

@@ -36,7 +36,9 @@ function numericDownPayment(value: string | null | undefined): number | null {
   const amount = normalized.match(/\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?)\b/i)?.[1];
   if (!amount) return null;
   const compact = amount.replace(/[$,\s]/g, '').toLowerCase();
-  const parsed = Number.parseFloat(compact.replace(/k$/, ''));
+  const parsed = /^\d{1,3}(?:\.\d{3})+$/.test(compact)
+    ? Number(compact.replace(/\./g, ''))
+    : Number.parseFloat(compact.replace(/k$/, ''));
   return Number.isFinite(parsed) ? (compact.endsWith('k') ? parsed * 1000 : parsed) : null;
 }
 
@@ -65,14 +67,14 @@ export function evaluateDownPayment(vehicle: string | null | undefined, downPaym
   const minimum = requiredDownPayment(vehicle);
   const amount = numericDownPayment(downPayment);
   const isCash = isCashDownPayment(downPayment);
-  const isTradeIn = isTradeInDownPayment(downPayment);
   return {
     category,
     minimum,
     amount: amount === Number.POSITIVE_INFINITY ? null : amount,
-    // A trade-in is an accepted path on its own. Keep any cash amount in the
-    // captured value, but do not require it to reach the vehicle minimum.
-    meetsMinimum: minimum !== null && (isCash || isTradeIn || (amount !== null && amount >= minimum)),
+    // A trade-in is additive evidence, not a substitute for the vehicle's
+    // required cash down. Keep it in the captured value, but require the
+    // cash amount to reach the vehicle minimum.
+    meetsMinimum: minimum !== null && (isCash || (amount !== null && amount >= minimum)),
   };
 }
 

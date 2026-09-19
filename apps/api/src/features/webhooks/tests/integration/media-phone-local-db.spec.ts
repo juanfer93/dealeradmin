@@ -18,6 +18,10 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
   const imageConversationId = `${suffix}-image-conversation`;
   const audioContactId = `${suffix}-audio-contact`;
   const audioConversationId = `${suffix}-audio-conversation`;
+  const julioContactId = `${suffix}-julio-contact`;
+  const julioConversationId = `${suffix}-julio-conversation`;
+  const javierContactId = `${suffix}-javier-contact`;
+  const javierConversationId = `${suffix}-javier-conversation`;
   const now = '2026-09-17T17:19:00.000Z';
 
   beforeAll(async () => {
@@ -28,7 +32,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
 
   afterAll(async () => {
     if (!dataSource?.isInitialized) return;
-    for (const qaContactId of [contactId, afterHoursContactId, normalContactId, imageContactId, audioContactId]) {
+    for (const qaContactId of [contactId, afterHoursContactId, normalContactId, imageContactId, audioContactId, julioContactId, javierContactId]) {
       await dataSource.query('DELETE FROM conversation_bot_pause_events WHERE ghl_contact_id = $1', [qaContactId]);
       await dataSource.query('DELETE FROM conversations WHERE ghl_contact_id = $1', [qaContactId]);
       await dataSource.query('DELETE FROM leads WHERE ghl_contact_id = $1', [qaContactId]);
@@ -244,6 +248,56 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
     expect(Number(rows[0].attachment_count)).toBe(0);
   });
 
+  it('reconciles a historical Spanish thousands down into waiting_window', async () => {
+    const service = new ConversationWebhookService(dataSource);
+    const common = {
+      event_type: 'CustomerReplied',
+      ghl_contact_id: julioContactId,
+      ghl_conversation_id: julioConversationId,
+      channel: 'messenger',
+      contact_name: 'Julio Suarez Eguez',
+      contact_phone: '',
+    };
+    const messages = [
+      ['vehicle', 'Sedan'],
+      ['phone', '5714439392'],
+      ['down', '1.500 está perfecto'],
+      ['timeline', 'Este mes sería ideal'],
+      ['documents', 'Si tengo licencia de conducir y cuenta en el banco'],
+    ] as const;
+    for (const [kind, messageBody] of messages) {
+      await service.acceptCustomerReplied({
+        ...common,
+        event_id: `${suffix}-julio-${kind}`,
+        ghl_message_id: `${suffix}-julio-${kind}-message`,
+        message_body: messageBody,
+        occurred_at: now,
+      }, 'fredericksburg-2', { contactId: julioContactId, conversationId: julioConversationId });
+    }
+
+    // Reproduce a row captured before the normalizer fix: the transcript is
+    // present but the row is still partial and has no due time.
+    await dataSource.query(
+      `UPDATE conversations SET status = 'partial', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP - INTERVAL '1 year' WHERE ghl_contact_id = $1`,
+      [julioContactId],
+    );
+    await service.processDueConversations(new Date('2026-09-17T17:30:00.000Z'));
+
+    const rows = await dataSource.query(
+      `SELECT status, qualification_snapshot FROM conversations WHERE ghl_contact_id = $1`,
+      [julioContactId],
+    ) as Array<{ status: string; qualification_snapshot: Record<string, unknown> }>;
+    expect(rows[0]).toMatchObject({ status: 'waiting_window' });
+    expect(rows[0].qualification_snapshot).toMatchObject({
+      phone: '+15714439392',
+      vehicle_type: 'Sedan',
+      down_payment: '1500',
+      required_down_payment: 1500,
+      down_payment_amount: 1500,
+      down_payment_sufficient: true,
+    });
+  });
+
   it('reinjects interpreted vehicle and document evidence into the normalizer', async () => {
     const service = new ConversationWebhookService(dataSource);
     await service.acceptCustomerReplied({
@@ -298,6 +352,56 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
     ) as Array<{ body: string; raw_payload: Record<string, unknown> }>;
     expect(stored[0].body).toBe('Como este modelo');
     expect(stored[0].raw_payload).toMatchObject({ message_body: 'Como este modelo' });
+  });
+
+  it('reprocesses the Javier Accord typo into waiting_window', async () => {
+    const service = new ConversationWebhookService(dataSource);
+    const common = {
+      event_type: 'CustomerReplied',
+      ghl_contact_id: javierContactId,
+      ghl_conversation_id: javierConversationId,
+      channel: 'messenger',
+      contact_name: 'Javier Baez Mercedes',
+      contact_phone: '',
+    };
+    const messages = [
+      ['intent', 'Me gustaria financiar un auto con ustedes.'],
+      ['vehicle', 'Honda acoitd'],
+      ['phone', '2409060016'],
+      ['down', '3 mil'],
+      ['timeline', 'Esta semana'],
+      ['identification', 'Si'],
+    ] as const;
+    for (const [kind, messageBody] of messages) {
+      await service.acceptCustomerReplied({
+        ...common,
+        event_id: `${suffix}-javier-${kind}`,
+        ghl_message_id: `${suffix}-javier-${kind}-message`,
+        message_body: messageBody,
+        occurred_at: now,
+      }, 'fredericksburg-2', { contactId: javierContactId, conversationId: javierConversationId });
+    }
+
+    await dataSource.query(
+      `UPDATE conversations SET status = 'partial', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP - INTERVAL '1 year' WHERE ghl_contact_id = $1`,
+      [javierContactId],
+    );
+    await service.processDueConversations(new Date('2026-09-17T17:30:00.000Z'));
+
+    const rows = await dataSource.query(
+      `SELECT status, qualification_snapshot FROM conversations WHERE ghl_contact_id = $1`,
+      [javierContactId],
+    ) as Array<{ status: string; qualification_snapshot: Record<string, unknown> }>;
+    expect(rows[0]).toMatchObject({ status: 'waiting_window' });
+    expect(rows[0].qualification_snapshot).toMatchObject({
+      phone: '+12409060016',
+      vehicle_type: 'Honda Accord',
+      vehicle_category: 'sedan',
+      down_payment: '3000',
+      required_down_payment: 1500,
+      down_payment_amount: 3000,
+      down_payment_sufficient: true,
+    });
   });
 
   it('injects a local audio transcription as a separate inbound conversation message', async () => {

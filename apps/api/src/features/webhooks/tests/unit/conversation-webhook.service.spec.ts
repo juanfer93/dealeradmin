@@ -647,16 +647,16 @@ describe('ConversationWebhookService', () => {
       .toEqual({ status: 'partial', nextAttemptAt: null });
   });
 
-  it('allows an Offlease trade-in to enter waiting_window even below the cash minimum', () => {
+  it('blocks an Offlease trade-in when the cash amount is below the vehicle minimum', () => {
     const now = new Date('2026-09-11T14:00:00.000Z');
     expect(evaluateStatus({ phone: '+13015550123', vehicle_type: 'Toyota Tacoma', down_payment: '2000 + trade-in', qualification_complete: false }, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'fredericksburg', now, 'capture'))
-      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:00:15.000Z' });
+      .toEqual({ status: 'partial', nextAttemptAt: null });
   });
 
-  it('allows a trade-in-only Offlease down payment to enter waiting_window', () => {
+  it('blocks a trade-in-only Offlease down payment', () => {
     const now = new Date('2026-09-11T14:00:00.000Z');
     expect(evaluateStatus({ phone: '+13015550123', vehicle_type: 'Toyota Tacoma', down_payment: 'trade-in', qualification_complete: false }, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'capture'))
-      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:00:15.000Z' });
+      .toEqual({ status: 'partial', nextAttemptAt: null });
   });
 
   it.each([
