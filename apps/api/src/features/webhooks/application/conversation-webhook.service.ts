@@ -92,6 +92,7 @@ type ConversationSnapshot = {
   down_payment_amount?: number | null;
   down_payment_sufficient?: boolean;
   down_payment: string;
+  previous_financing?: 'yes' | 'no' | '';
   purchase_timeline: string;
   documents: string;
   identification: string;
@@ -369,8 +370,10 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       const documents = normalized.documents || clean(current.documents);
       const identification = normalized.identification || clean(current.identification);
       const bankAccount = normalized.bank_account || clean(current.bank_account);
-      const downPaymentRule = evaluateDownPayment(vehicle, downPayment);
       const offlease = isOffleaseSource(source);
+      const downPaymentRule = evaluateDownPayment(vehicle, downPayment, {
+        allowPromotionalThousand: offlease && normalized.previous_financing === 'yes',
+      });
       const qualificationComplete = isQualificationComplete({
         real_name: realName,
         phone: effectivePhone,
@@ -405,6 +408,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         down_payment_amount: downPaymentRule.amount,
         down_payment_sufficient: downPaymentRule.meetsMinimum,
         down_payment: downPayment,
+        previous_financing: normalized.previous_financing,
         purchase_timeline: purchaseTimeline,
         documents,
         identification,
@@ -736,8 +740,10 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       const location = await this.resolveLocation(runner, transcript);
       const language = GHL_SOURCE_CONFIG[source].splitByLanguage ? detectLeadLanguage(transcript) : undefined;
       const downPayment = normalizeDownPayment(normalized.down_payment);
-      const downPaymentRule = evaluateDownPayment(normalized.vehicle_type, downPayment);
       const offlease = isOffleaseSource(source);
+      const downPaymentRule = evaluateDownPayment(normalized.vehicle_type, downPayment, {
+        allowPromotionalThousand: offlease && normalized.previous_financing === 'yes',
+      });
       const snapshot: ConversationSnapshot = {
         // Messenger uses the contact display name as real_name. WhatsApp
         // only receives a real_name when it was declared/repeated in chat.
@@ -752,6 +758,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         down_payment_amount: downPaymentRule.amount,
         down_payment_sufficient: downPaymentRule.meetsMinimum,
         down_payment: downPayment,
+        previous_financing: normalized.previous_financing,
         purchase_timeline: normalized.purchase_timeline,
         documents: normalized.documents,
         identification: normalized.identification,
@@ -1193,7 +1200,9 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
   ): { status: 'partial' | 'ready' | 'waiting_window'; nextAttemptAt: string | null } {
     const isEasterns = dealer.routing_config?.group === 'Easterns';
     const offlease = isOffleaseSource(source);
-    const downPaymentRule = evaluateDownPayment(snapshot.vehicle_type, snapshot.down_payment);
+    const downPaymentRule = evaluateDownPayment(snapshot.vehicle_type, snapshot.down_payment, {
+      allowPromotionalThousand: offlease && snapshot.previous_financing === 'yes',
+    });
     const hasLocation = Boolean(location.city || location.state || location.easterns_zone || location.zip_code);
     const routingReady = Boolean(
       hasMinimumRoutingQualification({ phone: snapshot.phone }) &&

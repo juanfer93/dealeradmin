@@ -126,7 +126,90 @@ describe('HighLevel collector custom-code normalizer', () => {
       qualification_step: 'down_payment',
       qualification_complete: false,
     });
-    expect(result.next_question).toContain('$1500');
+    expect(result.next_question).toContain('financiado');
+  });
+
+  it.each([
+    ['stafford', 'whatsapp', 'SUV', 'Sí'],
+    ['fredericksburg', 'messenger', 'Toyota Tacoma', 'Yes, I financed a vehicle before'],
+  ])('accepts the $1000 Offlease promotion only after the financing-history question: %s', (source, channel, vehicle, answer) => {
+    expect(execute({
+      source,
+      channel,
+      phone: '+15405550123',
+      real_name: 'QA Buyer',
+      message: answer,
+      chat_history_log: `QA Buyer\n${vehicle}\n1000`,
+      previous_predicted_bot_question: 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?',
+    })).toMatchObject({
+      previous_financing: 'yes',
+      down_payment: '1000',
+      down_payment_amount: 1000,
+      down_payment_sufficient: true,
+      qualification_step: 'purchase_timeline',
+    });
+  });
+
+  it('keeps the regular minimum when the financing-history answer is negative in Custom Code', () => {
+    expect(execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      phone: '+15405550123',
+      message: 'No',
+      chat_history_log: 'Carlos\nTroca\n1000',
+      previous_predicted_bot_question: 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?',
+    })).toMatchObject({
+      previous_financing: 'no',
+      down_payment: '1000',
+      down_payment_sufficient: false,
+      qualification_step: 'down_payment',
+    });
+    expect(execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      real_name: 'QA Buyer',
+      phone: '+15405550123',
+      message: 'No',
+      chat_history_log: 'QA Buyer\nToyota Tacoma\n1000',
+      previous_predicted_bot_question: 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?',
+    }).next_question).toContain('$3000');
+  });
+
+  it.each(['Sí', 'si podria', 'Sí, podría', 'si puedo', 'con este monto', 'Con este monto y no lo identifico', 'ese monto sí lo tengo', 'Claro', 'Yes, I could', 'I can finance 1000', 'Anteriormente financié un vehículo'])('accepts varied affirmative financing-history wording in Custom Code: %s', (answer) => {
+    expect(execute({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      real_name: 'QA Buyer',
+      phone: '+15405550123',
+      message: answer,
+      chat_history_log: 'Toyota Tacoma\n1000',
+      previous_predicted_bot_question: 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?',
+    })).toMatchObject({ previous_financing: 'yes', down_payment: '1000', down_payment_sufficient: true });
+  });
+
+  it('does not reuse an old financing question when the current predictor question is about the regular minimum in Custom Code', () => {
+    expect(execute({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      real_name: 'QA Buyer',
+      phone: '+15405550123',
+      message: 'Sí',
+      chat_history_log: 'Toyota Tacoma\n1000\nPara aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?\nSí',
+      previous_predicted_bot_question: 'Te comento que el mínimo para este vehículo es de $3000. ¿Crees que podrías conseguir más?',
+    })).toMatchObject({ previous_financing: '', down_payment: '3000', down_payment_sufficient: true });
+  });
+
+  it('repeats the financing-history question when Custom Code receives an unrelated answer', () => {
+    const question = 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?';
+    expect(execute({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      real_name: 'QA Buyer',
+      phone: '+15405550123',
+      message: 'Estoy en Baltimore',
+      chat_history_log: 'Toyota Tacoma\n1000',
+      previous_predicted_bot_question: question,
+    })).toMatchObject({ previous_financing: '', down_payment: '1000', down_payment_sufficient: false, next_question: question });
   });
 
   it.each([

@@ -18,6 +18,183 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ phone: '(240) 681-5028', message: 'Ok' }).phone).toBe('+12406815028');
   });
 
+  it('keeps the declared WhatsApp name and normalizes a noisy Silverado plus dollar down answer', () => {
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      real_name: 'Manda',
+      phone: '+12404427364',
+      message: 'Mi troca. No. Bale. Nada',
+      chat_history_log: '¡Hola! Quiero más información\nManda. Una. Ubicasion\nBenigno\nNo Agara. Ban. Por. Una. Silverado q. Qro. 2020\nMándame. Foto. De. Las. Troca. Y. En. Cuánto. Sale. Afinaciada\nY. No. Me. Agara. Mi. Ban\nYo. Cuento. Con. Mi. Ban. Y. 2000dolare\nMi troca. No. Bale. Nada',
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Benigno',
+      vehicle_type: 'Silverado',
+      down_payment: '2000 + trade-in',
+      qualification_step: 'down_payment',
+    });
+  });
+
+  it('accepts a van trade-in with a cash down amount even when the buyer writes it conversationally', () => {
+    expect(normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      message: 'Quiero cambiar mi van y poner 2000 de down',
+      chat_history_log: 'Benigno\nQuiero cambiar mi van y poner 2000 de down',
+    })).toMatchObject({
+      real_name: 'Benigno',
+      vehicle_type: 'van',
+      down_payment: '2000 + trade-in',
+    });
+  });
+
+  it('recognizes RLX and the natural English phrase a thousand from Messenger', () => {
+    expect(normalizeCollectorInput({
+      source: 'action-pre-owned-cars',
+      channel: 'messenger',
+      real_name: 'Snott Harris',
+      message: 'I can put down a thousand',
+      chat_history_log: '2018 RLX\n4439903443\nI can put down a thousand',
+    })).toMatchObject({
+      vehicle_type: 'RLX',
+      down_payment: '1000',
+    });
+  });
+
+  it.each([
+    ['stafford', 'whatsapp', 'Sí', 'Carlos\nSUV\n1000'],
+    ['fredericksburg', 'messenger', 'Yes, I financed a vehicle before', 'Toyota Tacoma\n1000'],
+  ])('accepts the $1000 Offlease promotion only after the financing-history question: %s', (source, channel, answer, history) => {
+    const result = normalizeCollectorInput({
+      source,
+      channel,
+      real_name: channel === 'messenger' ? 'QA Buyer' : '',
+      phone: '+12405550123',
+      message: answer,
+      chat_history_log: history,
+      previous_predicted_bot_question: 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?',
+    });
+
+    expect(result).toMatchObject({
+      previous_financing: 'yes',
+      down_payment: '1000',
+      down_payment_amount: 1000,
+      down_payment_sufficient: true,
+      qualification_step: 'purchase_timeline',
+    });
+  });
+
+  it('keeps the regular Offlease minimum when the buyer denies previous financing', () => {
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      message: 'No',
+      chat_history_log: 'Carlos\nTroca\n1000',
+      previous_predicted_bot_question: 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?',
+    });
+
+    expect(result).toMatchObject({
+      previous_financing: 'no',
+      down_payment: '1000',
+      down_payment_sufficient: false,
+      qualification_step: 'down_payment',
+    });
+    expect(result.missing_qualification).toContain('down_payment_minimum');
+    expect(result.next_question).toContain('$3000');
+  });
+
+  it.each([
+    'Sí',
+    'si podria',
+    'Sí, podría',
+    'si puedo',
+    'con este monto',
+    'Con este monto y no lo identifico',
+    'ese monto sí lo tengo',
+    'con esa cantidad está bien',
+    'Claro',
+    'Yes, I could',
+    'I can finance 1000',
+    'Anteriormente financié un vehículo',
+  ])('accepts every affirmative financing-history wording for the $1000 Offlease promotion: %s', (answer) => {
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      real_name: 'QA Buyer',
+      phone: '+12405550123',
+      message: answer,
+      chat_history_log: 'Toyota Tacoma\n1000',
+      previous_predicted_bot_question: 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?',
+    });
+
+    expect(result).toMatchObject({
+      previous_financing: 'yes',
+      down_payment: '1000',
+      down_payment_sufficient: true,
+      qualification_step: 'purchase_timeline',
+    });
+  });
+
+  it.each(['No', 'No, nunca', 'Nunca he financiado', 'No tengo historial de financiamiento'])('does not let a negative financing-history answer unlock $1000: %s', (answer) => {
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      real_name: 'QA Buyer',
+      phone: '+12405550123',
+      message: answer,
+      chat_history_log: 'QA Buyer\nToyota Tacoma\n1000',
+      previous_predicted_bot_question: 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?',
+    });
+
+    expect(result).toMatchObject({ previous_financing: 'no', down_payment_sufficient: false });
+  });
+
+  it('does not reuse a financing answer when the predictor is asking a different question', () => {
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      real_name: 'QA Buyer',
+      phone: '+12405550123',
+      message: 'Sí',
+      chat_history_log: 'Toyota Tacoma\n1000\nPara aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?\nSí',
+      previous_predicted_bot_question: 'Te comento que el mínimo para este vehículo es de $3000. ¿Crees que podrías conseguir más?',
+    });
+
+    expect(result).toMatchObject({ previous_financing: '', down_payment: '3000', down_payment_sufficient: true });
+    expect(result.next_question).toContain('¿Cuándo');
+  });
+
+  it('repeats the financing-history question when the answer is unrelated', () => {
+    const question = 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?';
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      real_name: 'QA Buyer',
+      phone: '+12405550123',
+      message: 'Estoy en Baltimore',
+      chat_history_log: 'Toyota Tacoma\n1000',
+      previous_predicted_bot_question: question,
+    });
+
+    expect(result).toMatchObject({ previous_financing: '', down_payment: '1000', down_payment_sufficient: false, next_question: question });
+  });
+
+  it('repeats the exact minimum question when the down-payment answer is unrelated', () => {
+    const question = 'Te comento que el mínimo para este vehículo es de $3000. ¿Crees que podrías conseguir un poco más?';
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      real_name: 'QA Buyer',
+      phone: '+12405550123',
+      message: 'Estoy en Baltimore',
+      chat_history_log: 'Toyota Tacoma\n1000',
+      previous_predicted_bot_question: question,
+    });
+
+    expect(result).toMatchObject({ down_payment: '1000', down_payment_sufficient: false, next_question: question });
+  });
+
   it('normalizes structured image interpretation as ordinary inbound evidence', () => {
     const result = normalizeCollectorInput({
       channel: 'messenger',
@@ -684,7 +861,7 @@ describe('normalizeCollectorInput', () => {
     });
     expect(second).toMatchObject({ vehicle_type: 'Toyota Corolla', down_payment: '1000', down_payment_sufficient: false });
     expect(second.qualification_progress).toMatchObject({ step: 'down_payment' });
-    expect(second.next_question).toContain('$1500');
+    expect(second.next_question).toContain('financiado');
   });
 
   it('relates Easterns location to the location step and skips it when already mentioned', () => {

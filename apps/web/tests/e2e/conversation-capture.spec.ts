@@ -96,3 +96,70 @@ test('acepta la conversación completa de WhatsApp con teléfono ya registrado',
     });
   }
 });
+
+test('cubre down regular y promoción Offlease en rutas positivas y negativas', async ({ request }) => {
+  const question = 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?';
+  const cases = [
+    {
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact: 'ghl-e2e-promo-stafford-positive',
+      conversation: 'ghl-e2e-promo-stafford-positive-conversation',
+      phone: '+15715557001',
+      messages: ['Carlos', 'Busco una SUV y tengo 1000 de down', question, 'Sí, podría'],
+    },
+    {
+      source: 'fredericksburg',
+      channel: 'messenger',
+      contact: 'ghl-e2e-promo-fred-negative',
+      conversation: 'ghl-e2e-promo-fred-negative-conversation',
+      phone: '+15405557002',
+      messages: ['Busco una Toyota Tacoma y tengo 1000 de down', '+1 (540) 555-7002', question, 'No, nunca'],
+    },
+    {
+      source: 'fredericksburg',
+      channel: 'messenger',
+      contact: 'ghl-e2e-down-fred-positive',
+      conversation: 'ghl-e2e-down-fred-positive-conversation',
+      phone: '+15405557003',
+      messages: ['Busco una Toyota Tacoma y tengo 3000 de down', '+1 (540) 555-7003', 'Lo compraré este mes'],
+    },
+    {
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact: 'ghl-e2e-down-stafford-negative',
+      conversation: 'ghl-e2e-down-stafford-negative-conversation',
+      phone: '+15715557004',
+      messages: ['Maria', 'Busco una Toyota Tacoma y tengo 2000 de down', 'No puedo conseguir más'],
+    },
+  ] as const;
+
+  for (const [caseIndex, scenario] of cases.entries()) {
+    for (const [messageIndex, message] of scenario.messages.entries()) {
+      const eventId = `${scenario.contact}-${messageIndex}`;
+      const response = await request.post(`http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/${scenario.source}`, {
+        data: JSON.stringify({
+          message_body: message,
+          contact_phone: scenario.phone,
+          contact_name: `E2E Buyer ${caseIndex}`,
+          channel: scenario.channel,
+          event_id: eventId,
+        }),
+        headers: {
+          'content-type': 'application/json',
+          'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
+          'X-DealerADMIN-Contact-ID': scenario.contact,
+          'X-DealerADMIN-Conversation-ID': scenario.conversation,
+          'X-DealerADMIN-Message-ID': `${eventId}-message`,
+        },
+      });
+
+      expect(response.status(), `${scenario.source} ${scenario.channel} message ${messageIndex + 1}`).toBe(201);
+      await expect(response.json()).resolves.toMatchObject({
+        accepted: true,
+        source: scenario.source,
+        conversationId: scenario.conversation,
+      });
+    }
+  }
+});
