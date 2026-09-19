@@ -151,6 +151,34 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
   });
 
+  it.each(['Con ese monto', 'Con este monto', 'Sí, con ese monto', 'Ese monto sí lo tengo', 'Con esa cantidad está bien'])('uses the predicted minimum for a contextual amount confirmation in Custom Code: %s', (reply) => {
+    expect(execute({
+      source: 'fredericksburg-2',
+      channel: 'messenger',
+      phone: '+15718351684',
+      vehicle_type: 'Toyota Tacoma',
+      message: reply,
+      chat_history_log: reply,
+      previous_predicted_bot_question: 'Perfecto. Para las trocas requerimos un enganche mínimo de $3000 (o pago de contado). ¿Con cuánto contarías tú para el enganche o cómo planeas tu pago?',
+    })).toMatchObject({
+      down_payment: '3000',
+      down_payment_amount: 3000,
+      required_down_payment: 3000,
+      down_payment_sufficient: true,
+      qualification_step: 'purchase_timeline',
+    });
+  });
+
+  it('does not treat an amount reference as a down confirmation without a predictor question in Custom Code', () => {
+    expect(execute({
+      source: 'fredericksburg-2',
+      channel: 'messenger',
+      vehicle_type: 'Toyota Tacoma',
+      message: 'Con ese monto',
+      chat_history_log: 'Con ese monto',
+    })).toMatchObject({ down_payment: '' });
+  });
+
   it('does not promote an affirmative turn without the predictor shortfall question in Custom Code', () => {
     expect(execute({
       source: 'fredericksburg',

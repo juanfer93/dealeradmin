@@ -655,6 +655,7 @@ function extractDownPayment(message: string): string {
 }
 
 const AFFIRMATIVE_DOWN_CONFIRMATION = /^(?:yes|yeah|yep|correct|that's right|thats right|si|claro|correcto|okay|ok|bien|esta bien|seria bien|me parece bien|that works|works for me)(?:\s+(?:yes|yeah|yep|si|claro|correcto|okay|ok))*?(?:\s+(?:eso|that|works|for me))?$/i;
+const REFERENCED_DOWN_CONFIRMATION = /^(?:(?:si|claro|correcto|ok(?:ay)?|bien)[,\s]+)?(?:con\s+(?:ese|este)\s+(?:monto|enganche|down)|con\s+(?:esa|esta)\s+cantidad|(?:ese|este)\s+(?:monto|enganche|down)|(?:esa|esta)\s+cantidad|con\s+eso|with\s+that\s+(?:amount|down)|that\s+(?:amount|down))(?:\s+(?:si|s[ií]\s+lo\s+tengo|s[ií]\s+puedo|esta\s+bien|est[aá]\s+bien|works?|is\s+(?:fine|okay|perfect)))?$/i;
 const DOWN_CONTEXT_MARKERS = /\b(?:down|payment|enganche|pago\s+inicial|dinero|cash|contado|trade[- ]?in|tradein|m[ií]nimo|minimum|required|conseguir|bring|subir|subirle|raise|increase|m[aá]s|more)\b/i;
 const NON_DOWN_AFFIRMATION_CONTEXT = /\b(?:phone|number|n[uú]mero|tel[eé]fono|document|documentos?|identificaci[oó]n|license|licencia|income|ingresos?|proof|prueba|bank|banco|cuenta|vehicle|veh[ií]culo|carro|auto|suv|sedan|truck|troca|van|hoy|today|semana|week|mes|month|ubicad|located|location)\b/i;
 
@@ -668,6 +669,7 @@ function affirmativeDownConfirmation(value: string): boolean {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
   if (AFFIRMATIVE_DOWN_CONFIRMATION.test(compact)
+    || REFERENCED_DOWN_CONFIRMATION.test(compact)
     || /^(?:bien|esta bien|seria bien|me parece bien|that works|works for me)(?=\s|$)/i.test(compact)) {
     return true;
   }
@@ -692,7 +694,7 @@ function predictorAskedMinimumQuestion(value: string): boolean {
   return Boolean(source)
     && /\$?\s*\d[\d,.]*/.test(source)
     && /\b(?:m[ií]nimo|minimum|required)\b/i.test(source)
-    && /\b(?:podr[ií]as?|could|can|conseguir|bring|subir(?:le|lo)?|raise|increase|m[aá]s|more)\b/i.test(source);
+    && /\b(?:podr[ií]as?|could|can|conseguir|bring|subir(?:le|lo)?|raise|increase|m[aá]s|more|cuent(?:as|a|o|en)|contar(?:[íi]as)?|how\s+much|amount)\b/i.test(source);
 }
 
 function extractQuestionedDownPayment(history: string): string {
@@ -946,7 +948,10 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   // generic "sí" elsewhere must not invent a down payment.
   const latestInboundMessage = lastMeaningfulLine(messageForExtraction);
   const confirmedQuestionDown = affirmativeDownConfirmation(latestInboundMessage)
-    ? extractQuestionedDownPayment(rawHistory)
+    ? firstNonEmpty(
+      extractQuestionedDownPayment(rawHistory),
+      extractQuestionedDownPayment(input.previous_predicted_bot_question ?? EMPTY),
+    )
     : EMPTY;
   const predictorAskedMinimum = predictorAskedMinimumQuestion(firstNonEmpty(
     input.previous_predicted_bot_question,

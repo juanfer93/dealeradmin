@@ -278,7 +278,8 @@ const downFrom = (text) => {
 const affirmativeDownConfirmation = (value) => {
   const source = normalizeMatch(value).replace(/[.,!?¡¿-]+/g, ' ').replace(/\s+/g, ' ').trim();
   if (!source || source.length > 120 || /\b(?:phone|number|n[uú]mero|tel[eé]fono|document|documentos?|identificaci[oó]n|license|licencia|income|ingresos?|proof|prueba|bank|banco|cuenta|vehicle|veh[ií]culo|carro|auto|suv|sedan|truck|troca|van|hoy|today|semana|week|mes|month|ubicad|located|location)\b/i.test(source)) return false;
-  if (/^(?:yes|yeah|yep|correct|that's right|thats right|si|claro|correcto|okay|ok|bien|esta bien|seria bien|me parece bien|that works|works for me)(?:\s+(?:yes|yeah|yep|si|claro|correcto|okay|ok))*?(?:\s+(?:eso|that|works|for me))?$/i.test(source)) return true;
+  if (/^(?:yes|yeah|yep|correct|that's right|thats right|si|claro|correcto|okay|ok|bien|esta bien|seria bien|me parece bien|that works|works for me)(?:\s+(?:yes|yeah|yep|si|claro|correcto|okay|ok))*?(?:\s+(?:eso|that|works|for me))?$/i.test(source)
+    || /^(?:(?:si|claro|correcto|ok(?:ay)?|bien)[,\s]+)?(?:con\s+(?:ese|este)\s+(?:monto|enganche|down)|con\s+(?:esa|esta)\s+cantidad|(?:ese|este)\s+(?:monto|enganche|down)|(?:esa|esta)\s+cantidad|con\s+eso|with\s+that\s+(?:amount|down)|that\s+(?:amount|down))(?:\s+(?:si|s[ií]\s+lo\s+tengo|s[ií]\s+puedo|esta\s+bien|est[aá]\s+bien|works?|is\s+(?:fine|okay|perfect)))?$/i.test(source)) return true;
   return /^(?:yes|yeah|yep|si|claro|correcto|okay|ok|bien|esta bien|seria bien|me parece bien)(?=\s|$)(?:\s+(?:yes|yeah|yep|si|claro|correcto|okay|ok))*\s*(?:puedo|podria|can|could|i can|i could)\b(?:.*\b(?:subir(?:le|lo)?|raise|increase|more|mas|conseguir|get|bring|put)\b.*|\s*)$/i.test(source);
 };
 const lastMeaningfulLine = (value) => String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter(Boolean).at(-1) || '';
@@ -295,7 +296,7 @@ const predictorAskedMinimumQuestion = (value) => {
   return Boolean(source)
     && /\$?\s*\d[\d,.]*/.test(source)
     && /\b(?:m[ií]nimo|minimum|required)\b/i.test(source)
-    && /\b(?:podr[ií]as?|could|can|conseguir|bring|subir(?:le|lo)?|raise|increase|m[aá]s|more)\b/i.test(source);
+    && /\b(?:podr[ií]as?|could|can|conseguir|bring|subir(?:le|lo)?|raise|increase|m[aá]s|more|cuent(?:as|a|o|en)|contar(?:[íi]as)?|how\s+much|amount)\b/i.test(source);
 };
 const vehicleFrom = (text) => {
   const source = String(text ?? '').replace(/\r\n?/g, '\n').trim();
@@ -430,7 +431,9 @@ const vehicle = extractedVehicle || (existingAdvisorMarker || phoneFromConversat
 const memoryDown = memoryValue(['down payment', 'down_payment', 'downpayment']);
 const inputDown = clean(inputData.down_payment);
 const latestInboundMessage = lastMeaningfulLine(rawMessage);
-const confirmedQuestionDown = affirmativeDownConfirmation(latestInboundMessage) ? questionedDownPayment(rawHistory) : '';
+const confirmedQuestionDown = affirmativeDownConfirmation(latestInboundMessage)
+  ? (questionedDownPayment(rawHistory) || questionedDownPayment(inputData.previous_predicted_bot_question || ''))
+  : '';
 const predictorAskedMinimum = predictorAskedMinimumQuestion(first(inputData.previous_predicted_bot_question, confirmedQuestionDown ? rawHistory : ''));
 const cashDown = campaign ? '' : first(
   downFrom(rawMessage),

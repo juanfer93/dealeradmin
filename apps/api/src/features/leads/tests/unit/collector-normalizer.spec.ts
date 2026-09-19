@@ -185,6 +185,36 @@ describe('normalizeCollectorInput', () => {
     expect(result.down_payment).toBe('3000');
   });
 
+  it.each(['Con ese monto', 'Con este monto', 'Sí, con ese monto', 'Ese monto sí lo tengo', 'Con esa cantidad está bien'])('uses the predictor suggested minimum for a contextual amount confirmation: %s', (reply) => {
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg-2',
+      channel: 'messenger',
+      phone: '+15718351684',
+      vehicle_type: 'Toyota Tacoma',
+      message: reply,
+      chat_history_log: reply,
+      previous_predicted_bot_question: 'Perfecto. Para las trocas requerimos un enganche mínimo de $3000 (o pago de contado). ¿Con cuánto contarías tú para el enganche o cómo planeas tu pago?',
+    });
+
+    expect(result).toMatchObject({
+      down_payment: '3000',
+      down_payment_amount: 3000,
+      required_down_payment: 3000,
+      down_payment_sufficient: true,
+      qualification_step: 'purchase_timeline',
+    });
+  });
+
+  it('does not treat an amount reference as a down confirmation without a predictor question', () => {
+    expect(normalizeCollectorInput({
+      source: 'fredericksburg-2',
+      channel: 'messenger',
+      vehicle_type: 'Toyota Tacoma',
+      message: 'Con ese monto',
+      chat_history_log: 'Con ese monto',
+    })).toMatchObject({ down_payment: '' });
+  });
+
   it.each([
     ['Sedan', 'Tengo 1000\nSí', 1500],
     ['SUV', 'Tengo 1500\nSí sí podría', 2000],
