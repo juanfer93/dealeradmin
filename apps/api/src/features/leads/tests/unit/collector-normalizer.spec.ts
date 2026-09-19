@@ -185,6 +185,87 @@ describe('normalizeCollectorInput', () => {
     expect(result.down_payment).toBe('3000');
   });
 
+  it.each([
+    ['Sedan', 'Tengo 1000\nSí', 1500],
+    ['SUV', 'Tengo 1500\nSí sí podría', 2000],
+    ['minivan', 'Tengo 1500\nSi', 2000],
+    ['Tacoma', 'Tengo 2500\nSi puedo conseguir solo que me den tiempo', 3000],
+  ])('promotes a shortfall to the suggested minimum after an affirmative buyer turn: %s', (vehicle, transcript, minimum) => {
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      phone: '+15405550123',
+      vehicle_type: vehicle,
+      message: transcript,
+      chat_history_log: transcript,
+      previous_predicted_bot_question: `Te comento que el mínimo para este vehículo es de $${minimum}. ¿Crees que podrías conseguir un poco más?`,
+    });
+
+    expect(result).toMatchObject({
+      down_payment: String(minimum),
+      down_payment_amount: minimum,
+      required_down_payment: minimum,
+      down_payment_sufficient: true,
+    });
+  });
+
+  it('preserves a larger explicit down payment when the buyer confirms the suggested minimum', () => {
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      phone: '+15405550123',
+      vehicle_type: 'Sedan',
+      message: 'Tengo 10000\nSí',
+      chat_history_log: 'Tengo 10000\nSí',
+    });
+
+    expect(result).toMatchObject({
+      down_payment: '10000',
+      down_payment_amount: 10000,
+      required_down_payment: 1500,
+      down_payment_sufficient: true,
+    });
+  });
+
+  it.each([
+    ['Sedan', '1000', 'Sí', 1500],
+    ['Sedan', '1000', 'Si si podria', 1500],
+    ['SUV', '1500', 'Sí, podría', 2000],
+    ['SUV', '1500', 'Sí puedo', 2000],
+    ['minivan', '1000', 'Claro, puedo conseguir más', 2000],
+    ['van', '1200', 'Ok, puedo subirle', 2000],
+    ['Tacoma', '2500', 'Yes, I could bring more', 3000],
+    ['truck', '2000', 'Yeah, I can get more', 3000],
+    ['pickup', '2500', 'Bien, podría conseguir más', 3000],
+    ['SUV', '1500', 'Correcto, puedo subir más', 2000],
+  ])('passes ten varied affirmative shortfall replies: %s / %s / %s', (vehicle, amount, reply, minimum) => {
+    const transcript = `${vehicle}\nTengo ${amount}\n${reply}`;
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      phone: '+15405550123',
+      vehicle_type: vehicle,
+      message: transcript,
+      chat_history_log: transcript,
+      previous_predicted_bot_question: `Te comento que el mínimo para este vehículo es de $${minimum}. ¿Crees que podrías conseguir un poco más?`,
+    });
+
+    expect(result).toMatchObject({ down_payment: String(minimum), down_payment_sufficient: true });
+  });
+
+  it('does not promote an affirmative turn when the predictor did not ask about increasing the down payment', () => {
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      phone: '+15405550123',
+      vehicle_type: 'Sedan',
+      message: 'Tengo 1000\nSí',
+      chat_history_log: 'Tengo 1000\nSí',
+    });
+
+    expect(result).toMatchObject({ down_payment: '1000', down_payment_sufficient: false });
+  });
+
   it('does not reuse an old down question after the bot moves to the timeline question', () => {
     expect(normalizeCollectorInput({
       source: 'fredericksburg',

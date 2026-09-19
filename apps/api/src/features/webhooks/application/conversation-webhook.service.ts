@@ -356,6 +356,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         bank_account: clean(current.bank_account),
         qualification_memory: clean(current.qualification_memory),
         customer_location: clean(current.customer_location),
+        previous_predicted_bot_question: clean(current.qualification_progress?.predicted_bot_question),
       });
       const effectivePhone = recentPhone || nativeWhatsappPhone || '';
       // A manual correction made while a conversation is waiting must survive
@@ -712,6 +713,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         message: transcript,
         chat_history_log: transcript,
         phone: recentPhone || nativeWhatsappPhone || '',
+        previous_predicted_bot_question: clean((conversation.qualification_snapshot?.qualification_progress as { predicted_bot_question?: unknown } | undefined)?.predicted_bot_question),
       });
       // A lead can correct the phone in a later inbound message. Keep the
       // same GHL contact/lead identity and promote that conversational phone

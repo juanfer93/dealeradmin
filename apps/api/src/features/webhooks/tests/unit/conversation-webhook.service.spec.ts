@@ -7,6 +7,7 @@ import {
   OUT_OF_WINDOW_QUALIFICATION_WINDOW_HOURS,
   QUALIFICATION_RULE_TIMEZONE,
 } from '../../application/conversation-webhook.service';
+import { normalizeCollectorInput } from '../../../leads/domain/collector-normalizer';
 import { getTestConversationEvents, resetTestConversationEvents } from '../../application/test-conversation-store';
 
 describe('ConversationWebhookService', () => {
@@ -113,6 +114,29 @@ describe('ConversationWebhookService', () => {
       missing_qualification: expect.arrayContaining(['purchase_timeline']),
     });
     expect(conversationUpdate?.[1]?.[1]).toBe('waiting_window');
+  });
+
+  it('sets the accepted suggested minimum and keeps the conversation in waiting_window', () => {
+    const normalized = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      phone: '+15405550123',
+      vehicle_type: 'Sedan',
+      message: 'Tengo 1000\nSí sí podría',
+      chat_history_log: 'Tengo 1000\nSí sí podría',
+      previous_predicted_bot_question: 'Te comento que el mínimo para este vehículo es de $1500. ¿Crees que podrías conseguir un poco más?',
+    });
+    const status = evaluateStatus(
+      { ...normalized, qualification_complete: false },
+      { city: null, state: null, zip_code: null, easterns_zone: null },
+      { timezone: 'America/New_York', routing_config: {} },
+      'fredericksburg',
+      new Date('2026-09-19T14:00:00.000Z'),
+      'capture',
+    );
+
+    expect(normalized).toMatchObject({ down_payment: '1500', down_payment_sufficient: true });
+    expect(status.status).toBe('waiting_window');
   });
 
   it('accepts an attachment-only inbound event without inventing a message body', async () => {

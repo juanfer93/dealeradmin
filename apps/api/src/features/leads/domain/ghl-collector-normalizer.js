@@ -275,6 +275,28 @@ const downFrom = (text) => {
   if (!explicit && /^20(?:1\d|2\d)$/.test(candidate)) return '';
   return validAmount(explicit?.[1] || withAmount?.[1] || declared?.[1] || standalone?.[1]);
 };
+const affirmativeDownConfirmation = (value) => {
+  const source = normalizeMatch(value).replace(/[.,!?¡¿-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!source || source.length > 120 || /\b(?:phone|number|n[uú]mero|tel[eé]fono|document|documentos?|identificaci[oó]n|license|licencia|income|ingresos?|proof|prueba|bank|banco|cuenta|vehicle|veh[ií]culo|carro|auto|suv|sedan|truck|troca|van|hoy|today|semana|week|mes|month|ubicad|located|location)\b/i.test(source)) return false;
+  if (/^(?:yes|yeah|yep|correct|that's right|thats right|si|claro|correcto|okay|ok|bien|esta bien|seria bien|me parece bien|that works|works for me)(?:\s+(?:yes|yeah|yep|si|claro|correcto|okay|ok))*?(?:\s+(?:eso|that|works|for me))?$/i.test(source)) return true;
+  return /^(?:yes|yeah|yep|si|claro|correcto|okay|ok|bien|esta bien|seria bien|me parece bien)(?=\s|$)(?:\s+(?:yes|yeah|yep|si|claro|correcto|okay|ok))*\s*(?:puedo|podria|can|could|i can|i could)\b(?:.*\b(?:subir(?:le|lo)?|raise|increase|more|mas|conseguir|get|bring|put)\b.*|\s*)$/i.test(source);
+};
+const lastMeaningfulLine = (value) => String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter(Boolean).at(-1) || '';
+const questionedDownPayment = (value) => {
+  const lastQuestion = String(value ?? '').replace(/\r\n?/g, '\n').match(/[^?\n]*\?/g)?.at(-1) || '';
+  if (!lastQuestion || !/(?:down|payment|enganche|inicial|deposit|dep[oó]sito|m[ií]nimo|minimum|required|conseguir|bring|subir|raise|increase|m[aá]s|more)/i.test(lastQuestion)) return '';
+  const amount = lastQuestion.match(new RegExp(`(?:down|payment|enganche|inicial|deposit|dep[oó]sito|m[ií]nimo|minimum|required)[^?\\n]{0,80}?\\$?[ \\t]*(${amountToken})`, 'i'))?.[1]
+    || lastQuestion.match(new RegExp(`\\$?[ \\t]*(${amountToken})[^?\\n]{0,80}?(?:down|payment|enganche|inicial|deposit|dep[oó]sito|m[ií]nimo|minimum|required)`, 'i'))?.[1]
+    || lastQuestion.match(new RegExp(`\\$?[ \\t]*(${amountToken})`, 'i'))?.[1];
+  return validAmount(amount);
+};
+const predictorAskedMinimumQuestion = (value) => {
+  const source = clean(value);
+  return Boolean(source)
+    && /\$?\s*\d[\d,.]*/.test(source)
+    && /\b(?:m[ií]nimo|minimum|required)\b/i.test(source)
+    && /\b(?:podr[ií]as?|could|can|conseguir|bring|subir(?:le|lo)?|raise|increase|m[aá]s|more)\b/i.test(source);
+};
 const vehicleFrom = (text) => {
   const source = String(text ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source || campaign) return '';
@@ -407,16 +429,20 @@ const vehicle = extractedVehicle || (existingAdvisorMarker || phoneFromConversat
 // This prevents a stale area-code-only value (e.g. 443) from becoming a down payment.
 const memoryDown = memoryValue(['down payment', 'down_payment', 'downpayment']);
 const inputDown = clean(inputData.down_payment);
+const latestInboundMessage = lastMeaningfulLine(rawMessage);
+const confirmedQuestionDown = affirmativeDownConfirmation(latestInboundMessage) ? questionedDownPayment(rawHistory) : '';
+const predictorAskedMinimum = predictorAskedMinimumQuestion(first(inputData.previous_predicted_bot_question, confirmedQuestionDown ? rawHistory : ''));
 const cashDown = campaign ? '' : first(
   downFrom(rawMessage),
   downFrom(rawHistory),
+  confirmedQuestionDown,
   isPhoneAreaCodeAmount(memoryDown, phone) ? '' : memoryDown,
   isPhoneAreaCodeAmount(inputDown, phone) ? '' : validAmount(inputDown),
 );
 const tradeDown = campaign ? '' : first(tradeIn(message), tradeIn(history), tradeIn(memoryText(rawMemory)));
 const downCandidate = cashDown || tradeDown;
 const conversationalDownSource = `${message}; ${history}`;
-const down = validAmount(cashDown && /trade[- ]?in|my car|my vehicle|mi carro|mi auto|carro como enganche|(?:cambiar|cambio)\\s+(?:(?:mi|el|de)\\s+)?(?:veh[ií]culo|carro|auto)|change\\s+(?:my\\s+)?(?:vehicle|car)/i.test(conversationalDownSource) && !/trade[- ]?in/i.test(cashDown)
+let down = validAmount(cashDown && /trade[- ]?in|my car|my vehicle|mi carro|mi auto|carro como enganche|(?:cambiar|cambio)\\s+(?:(?:mi|el|de)\\s+)?(?:veh[ií]culo|carro|auto)|change\\s+(?:my\\s+)?(?:vehicle|car)/i.test(conversationalDownSource) && !/trade[- ]?in/i.test(cashDown)
   ? `${cashDown} + trade-in`
   : downCandidate);
 const source = clean(inputData.source).toLocaleLowerCase();
@@ -436,8 +462,11 @@ const vehicleCategory = /\b(?:truck|troca|trokita|troquita|troque|trokas|pickup|
         ? 'sedan'
         : '';
 const requiredDownPayment = ({ sedan: 1500, luxury_sedan: 2000, suv_or_van: 2000, truck: 3000 }[vehicleCategory] || null);
-const downPaymentAmount = /^\d+(?:\.\d+)?$/.test(String(down).replace(/[$,\s]/g, '')) ? Number(String(down).replace(/[$,\s]/g, '')) : null;
+const downPaymentAmountBeforeAcceptance = /^\d+(?:\.\d+)?$/.test(String(down).replace(/[$,\s]/g, '')) ? Number(String(down).replace(/[$,\s]/g, '')) : null;
 const tradeInDownPayment = /\btrade[\s-]?in\b|\b(?:my|mi)\s+(?:car|vehicle|carro|auto|veh[ií]culo)\b|\bcarro\s+como\s+enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b|\bchange\s+(?:my\s+)?(?:vehicle|car)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b/i.test(down);
+const confirmsMinimumShortfall = offlease && requiredDownPayment !== null && Boolean(cashDown) && downPaymentAmountBeforeAcceptance !== null && downPaymentAmountBeforeAcceptance < requiredDownPayment && predictorAskedMinimum && affirmativeDownConfirmation(latestInboundMessage);
+if (confirmsMinimumShortfall) down = tradeInDownPayment ? `${requiredDownPayment} + trade-in` : String(requiredDownPayment);
+const downPaymentAmount = /^\d+(?:\.\d+)?$/.test(String(down).replace(/[$,\s]/g, '')) ? Number(String(down).replace(/[$,\s]/g, '')) : null;
 const downPaymentSufficient = requiredDownPayment !== null && (tradeInDownPayment || down === cashDownPayment || down.toLocaleLowerCase().includes(cashDownPayment.toLocaleLowerCase()) || (downPaymentAmount !== null && downPaymentAmount >= requiredDownPayment));
 const rawTimeline = first(timelineFrom(message), timelineFrom(history), memoryValue(['timeline', 'purchase timeline', 'purchase_timeline']), inputData.purchase_timeline);
 const identification = documentStatus('id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b', ['identification', 'id', 'itin', 'passport', 'pasaporte'], inputData.identification || inputData.documents);

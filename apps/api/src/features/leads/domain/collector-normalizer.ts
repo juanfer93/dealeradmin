@@ -15,6 +15,7 @@ export type CollectorInput = {
   qualification_memory?: string | null;
   chat_history_log?: string | null;
   customer_location?: string | null;
+  previous_predicted_bot_question?: string | null;
 };
 
 export type CollectorOutput = {
@@ -653,7 +654,7 @@ function extractDownPayment(message: string): string {
   return amount ? normalizeAmount(amount) : EMPTY;
 }
 
-const AFFIRMATIVE_DOWN_CONFIRMATION = /^(?:yes|yeah|yep|correct|that's right|thats right|si|claro|correcto|okay|ok|bien|esta bien|seria bien|me parece bien|that works|works for me)(?:\s+(?:eso|that|works|for me))?$/i;
+const AFFIRMATIVE_DOWN_CONFIRMATION = /^(?:yes|yeah|yep|correct|that's right|thats right|si|claro|correcto|okay|ok|bien|esta bien|seria bien|me parece bien|that works|works for me)(?:\s+(?:yes|yeah|yep|si|claro|correcto|okay|ok))*?(?:\s+(?:eso|that|works|for me))?$/i;
 const DOWN_CONTEXT_MARKERS = /\b(?:down|payment|enganche|pago\s+inicial|dinero|cash|contado|trade[- ]?in|tradein|m[ií]nimo|minimum|required|conseguir|bring|subir|subirle|raise|increase|m[aá]s|more)\b/i;
 const NON_DOWN_AFFIRMATION_CONTEXT = /\b(?:phone|number|n[uú]mero|tel[eé]fono|document|documentos?|identificaci[oó]n|license|licencia|income|ingresos?|proof|prueba|bank|banco|cuenta|vehicle|veh[ií]culo|carro|auto|suv|sedan|truck|troca|van|hoy|today|semana|week|mes|month|ubicad|located|location)\b/i;
 
@@ -674,7 +675,24 @@ function affirmativeDownConfirmation(value: string): boolean {
   // "sí, puedo subirle" / "yes, I can raise it". Keep this constrained to
   // an affirmative prefix plus an explicit increase/ability phrase so a
   // generic "sí" cannot qualify a down payment by itself.
-  return /^(?:yes|yeah|yep|si|claro|correcto|okay|ok)(?=\s|$)\s*(?:puedo|podria|can|could|i can|i could)\b.*\b(?:subir(?:le|lo)?|raise|increase|more|mas|conseguir|bring|put)\b/i.test(compact);
+  return /^(?:yes|yeah|yep|si|claro|correcto|okay|ok|bien|esta bien|seria bien|me parece bien)(?=\s|$)(?:\s+(?:yes|yeah|yep|si|claro|correcto|okay|ok))*\s*(?:puedo|podria|can|could|i can|i could)\b(?:.*\b(?:subir(?:le|lo)?|raise|increase|more|mas|conseguir|get|bring|put)\b.*|\s*)$/i.test(compact);
+}
+
+function lastMeaningfulLine(value: string): string {
+  return String(value ?? '')
+    .replace(/\r\n?/g, '\n')
+    .split(/\n+/)
+    .map(clean)
+    .filter(Boolean)
+    .at(-1) ?? EMPTY;
+}
+
+function predictorAskedMinimumQuestion(value: string): boolean {
+  const source = clean(value);
+  return Boolean(source)
+    && /\$?\s*\d[\d,.]*/.test(source)
+    && /\b(?:m[ií]nimo|minimum|required)\b/i.test(source)
+    && /\b(?:podr[ií]as?|could|can|conseguir|bring|subir(?:le|lo)?|raise|increase|m[aá]s|more)\b/i.test(source);
 }
 
 function extractQuestionedDownPayment(history: string): string {
@@ -926,9 +944,14 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   // bien" or an equivalent short affirmation. Treat that answer as the
   // amount asked about only when it is the last down-payment question; a
   // generic "sí" elsewhere must not invent a down payment.
-  const confirmedQuestionDown = affirmativeDownConfirmation(messageForExtraction)
+  const latestInboundMessage = lastMeaningfulLine(messageForExtraction);
+  const confirmedQuestionDown = affirmativeDownConfirmation(latestInboundMessage)
     ? extractQuestionedDownPayment(rawHistory)
     : EMPTY;
+  const predictorAskedMinimum = predictorAskedMinimumQuestion(firstNonEmpty(
+    input.previous_predicted_bot_question,
+    confirmedQuestionDown ? rawHistory : EMPTY,
+  ));
   const cashDownCandidate = firstValidAmount(
     explicitCashDown,
     confirmedQuestionDown,
@@ -947,10 +970,28 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   );
   const baseDown = cashDown || tradeDown;
   const conversationalSource = [history, message].filter(Boolean).join('; ');
-  const down = baseDown && TRADE_IN_INTENT.test(conversationalSource) && !/trade[- ]?in/i.test(baseDown)
+  let down = baseDown && TRADE_IN_INTENT.test(conversationalSource) && !/trade[- ]?in/i.test(baseDown)
     ? `${baseDown} + trade-in`
     : baseDown;
-  const downPaymentRule = evaluateDownPayment(vehicle, down);
+  let downPaymentRule = evaluateDownPayment(vehicle, down);
+  // GHL inbound history does not include the bot's outbound prompt. When the
+  // latest inbound turn is an affirmative answer and the buyer already gave
+  // an amount below the vehicle minimum, that shortfall is the only reliable
+  // field context available. Promote the amount to the minimum so "Sí" and
+  // "Sí sí podría" are treated as acceptance of the suggested down payment.
+  const confirmsMinimumShortfall = policy.offlease
+    && hasRealVehicle
+    && Boolean(cashDown)
+    && downPaymentRule.amount !== null
+    && !downPaymentRule.meetsMinimum
+    && predictorAskedMinimum
+    && affirmativeDownConfirmation(latestInboundMessage);
+  if (confirmsMinimumShortfall && downPaymentRule.minimum !== null) {
+    down = /trade[- ]?in/i.test(down)
+      ? `${downPaymentRule.minimum} + trade-in`
+      : String(downPaymentRule.minimum);
+    downPaymentRule = evaluateDownPayment(vehicle, down);
+  }
   const normalizedTimeline = normalizeTimeline(firstNonEmpty(
     extractTimeline(messageForExtraction),
     extractTimeline(history),

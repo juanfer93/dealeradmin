@@ -129,6 +129,63 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.next_question).toContain('$1500');
   });
 
+  it.each([
+    ['Sedan', 'Tengo 1000\nSí', '1500'],
+    ['SUV', 'Tengo 1500\nSí sí podría', '2000'],
+    ['minivan', 'Tengo 1500\nSi', '2000'],
+    ['Tacoma', 'Tengo 2500\nSi puedo conseguir solo que me den tiempo', '3000'],
+  ])('promotes an inbound shortfall confirmation in Custom Code: %s', (vehicle, transcript, minimum) => {
+    expect(execute({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      phone: '+15405550123',
+      vehicle_type: vehicle,
+      message: transcript,
+      chat_history_log: transcript,
+      previous_predicted_bot_question: `Te comento que el mínimo para este vehículo es de $${minimum}. ¿Crees que podrías conseguir un poco más?`,
+    })).toMatchObject({
+      down_payment: minimum,
+      down_payment_amount: Number(minimum),
+      required_down_payment: Number(minimum),
+      down_payment_sufficient: true,
+    });
+  });
+
+  it('does not promote an affirmative turn without the predictor shortfall question in Custom Code', () => {
+    expect(execute({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      phone: '+15405550123',
+      vehicle_type: 'Sedan',
+      message: 'Tengo 1000\nSí',
+      chat_history_log: 'Tengo 1000\nSí',
+    })).toMatchObject({ down_payment: '1000', down_payment_sufficient: false });
+  });
+
+  it.each([
+    ['Sedan', '1000', 'Sí', 1500],
+    ['Sedan', '1000', 'Si si podria', 1500],
+    ['SUV', '1500', 'Sí, podría', 2000],
+    ['SUV', '1500', 'Sí puedo', 2000],
+    ['minivan', '1000', 'Claro, puedo conseguir más', 2000],
+    ['van', '1200', 'Ok, puedo subirle', 2000],
+    ['Tacoma', '2500', 'Yes, I could bring more', 3000],
+    ['truck', '2000', 'Yeah, I can get more', 3000],
+    ['pickup', '2500', 'Bien, podría conseguir más', 3000],
+    ['SUV', '1500', 'Correcto, puedo subir más', 2000],
+  ])('passes ten varied affirmative shortfall replies in Custom Code: %s / %s / %s', (vehicle, amount, reply, minimum) => {
+    const transcript = `${vehicle}\nTengo ${amount}\n${reply}`;
+    expect(execute({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      phone: '+15405550123',
+      vehicle_type: vehicle,
+      message: transcript,
+      chat_history_log: transcript,
+      previous_predicted_bot_question: `Te comento que el mínimo para este vehículo es de $${minimum}. ¿Crees que podrías conseguir un poco más?`,
+    })).toMatchObject({ down_payment: String(minimum), down_payment_sufficient: true });
+  });
+
   it('allows Offlease trade-in to satisfy the down-payment requirement', () => {
     const result = execute({
       source: 'stafford',
