@@ -577,6 +577,8 @@ describe('normalizeCollectorInput', () => {
     expect(result.vehicle_type).toBe('Sedan');
     expect(result.phone).toBe('+19392249226');
     expect(result.down_payment).toBe('1000');
+    expect(result.previous_financing).toBe('yes');
+    expect(result.down_payment_sufficient).toBe(true);
   });
 
   it('does not interpret a trade-in vehicle year as the down payment and recognizes bank statements as income proof', () => {

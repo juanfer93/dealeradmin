@@ -277,6 +277,16 @@ function previousFinancingStatus(input: CollectorInput, rawHistory: string, rawM
   return '';
 }
 
+/** Recover Stafford's outbound financing answer from inbound-only history. */
+function recoverStaffordPreviousFinancing(rawHistory: string, policy: CollectorFlowPolicy, channel: string | null | undefined): 'yes' | '' {
+  if (!policy.stafford || !isWhatsAppChannel(channel)) return '';
+  const lines = rawHistory.replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter(Boolean);
+  if (!ECONOMIC_SEDAN_INTENT.test(rawHistory) || !lines.some((line) => /^\$?1[,.]?000(?:\s+m[aá]xim(?:o|um))?$/i.test(line))) return '';
+  const timelineIndex = lines.findIndex((line) => Boolean(extractTimeline(line)));
+  const beforeTimeline = timelineIndex >= 0 ? lines.slice(0, timelineIndex) : lines;
+  return beforeTimeline.some((line) => /^(?:yes|yeah|yep|si|sí|claro|correcto|tengo)$/i.test(line)) ? 'yes' : '';
+}
+
 const INVALID_REAL_NAMES = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'saludos', 'hello', 'hi', 'hey', 'hola', 'greetings', 'thu chikitha linda']);
 const BUSINESS_NAME_MARKERS = /\b(?:auto\s*sales|motors?|dealership|dealer|llc|inc(?:orporated)?|corp(?:oration)?|company|tatuajes?|tattoos?|operaciones?|operations?|transport(?:ation)?|logistics|construction|remodeling|roofing|realty|consulting|services?|servicios?|shop|tienda|salon|barbershop|restaurant)\b/i;
 const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|baltimore|maryland|where are you located|where are you|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|ubicaci[oó]n|ubicados?|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
@@ -1066,7 +1076,8 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   // amount asked about only when it is the last down-payment question; a
   // generic "sí" elsewhere must not invent a down payment.
   const latestInboundMessage = lastMeaningfulLine(messageForExtraction);
-  const previousFinancing = previousFinancingStatus(input, rawHistory, rawMessage, memory);
+  const previousFinancing = previousFinancingStatus(input, rawHistory, rawMessage, memory)
+    || recoverStaffordPreviousFinancing(rawHistory, policy, input.channel);
   const confirmedQuestionDown = affirmativeDownConfirmation(latestInboundMessage)
     ? firstNonEmpty(
       extractQuestionedDownPayment(rawHistory),

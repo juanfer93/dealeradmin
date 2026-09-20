@@ -276,7 +276,7 @@ const downFrom = (text) => {
   const declared = source.match(new RegExp(`\\b(?:i have|tengo|i can put|puedo poner)[ \\t]+\\$?[ \\t]*${token}[ \\t]*(?:down|payment|enganche|inicial)?\\b`, 'i'));
   const noisyDeclared = source.match(new RegExp(`\\b(?:cuento|cuenta)\\b[^\\n]{0,80}?(?:y|and|plus)[ \\t.,;:]*\\$?[ \\t]*${token}\\b`, 'i'));
   const safeSource = source.split('\\n').filter((line) => !isPhoneOnlyLine(line)).join('\\n');
-  const standalone = safeSource.match(new RegExp(`(?:^|\\n)\\$?[ \\t]*${token}[ \\t]*\\$?[ \\t]*(?:tengo|have|available|disponible|i have|i can put)?[ \\t]*\\d{0,2}[ \\t]*\\.?[ \\t]*(?=\\n|$)`, 'im'));
+  const standalone = safeSource.match(new RegExp(`(?:^|\\n)\\$?[ \\t]*${token}[ \\t]*\\$?[ \\t]*(?:tengo|have|available|disponible|i have|i can put|m[aá]ximo|maximum)?[ \\t]*\\d{0,2}[ \\t]*\\.?[ \\t]*(?=\\n|$)`, 'im'));
   const candidate = standalone?.[1]?.replace(/[$,\s]/g, '') || '';
   if (!explicit && /^20(?:1\d|2\d)$/.test(candidate)) return '';
   return validAmount(explicit?.[1] || withAmount?.[1] || declared?.[1] || noisyDeclared?.[1] || standalone?.[1]);
@@ -454,6 +454,17 @@ const previousFinancing = financingQuestionAsked && previousFinancingNo.test(lat
       : previousFinancingNo.test(conversationalEvidence(predictorQuestion && !financingQuestionAsked ? rawHistory.split(/\r?\n/).slice(0, -1).join('\n') : rawMessage, rawMemory))
         ? 'no'
         : first(memoryValue(['previous_financing', 'previous financing', 'financing history', 'historial de financiamiento']), '');
+const recoveredStaffordPreviousFinancing = inputData.source === 'stafford' && isWhatsAppChannel(inputData.channel)
+  && economicSedanIntent.test(rawHistory)
+  && rawHistory.split(/\r?\n/).map(clean).some((line) => /^\$?1[,.]?000(?:\s+m[aá]xim(?:o|um))?$/i.test(line))
+  ? (() => {
+    const lines = rawHistory.split(/\r?\n/).map(clean).filter(Boolean);
+    const timelineIndex = lines.findIndex((line) => /\b(?:today|hoy|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes)\b/i.test(line));
+    const beforeTimeline = timelineIndex >= 0 ? lines.slice(0, timelineIndex) : lines;
+    return beforeTimeline.some((line) => /^(?:yes|yeah|yep|si|sí|claro|correcto|tengo)$/i.test(line)) ? 'yes' : '';
+  })()
+  : '';
+const effectivePreviousFinancing = previousFinancing || recoveredStaffordPreviousFinancing;
 const confirmedQuestionDown = affirmativeDownConfirmation(latestInboundMessage)
   ? (questionedDownPayment(rawHistory) || questionedDownPayment(inputData.previous_predicted_bot_question || ''))
   : '';
@@ -493,7 +504,7 @@ const tradeInDownPayment = /\btrade[\s-]?in\b|\b(?:my|mi)\s+(?:car|vehicle|van|t
 const confirmsMinimumShortfall = offlease && requiredDownPayment !== null && Boolean(cashDown) && downPaymentAmountBeforeAcceptance !== null && downPaymentAmountBeforeAcceptance < requiredDownPayment && predictorAskedMinimum && affirmativeDownConfirmation(latestInboundMessage);
 if (confirmsMinimumShortfall) down = tradeInDownPayment ? `${requiredDownPayment} + trade-in` : String(requiredDownPayment);
 const downPaymentAmount = /^\d+(?:\.\d+)?$/.test(String(down).replace(/[$,\s]/g, '')) ? Number(String(down).replace(/[$,\s]/g, '')) : null;
-const downPaymentSufficient = requiredDownPayment !== null && (tradeInDownPayment || down === cashDownPayment || down.toLocaleLowerCase().includes(cashDownPayment.toLocaleLowerCase()) || (offlease && previousFinancing === 'yes' && downPaymentAmount === 1000) || (downPaymentAmount !== null && downPaymentAmount >= requiredDownPayment));
+const downPaymentSufficient = requiredDownPayment !== null && (tradeInDownPayment || down === cashDownPayment || down.toLocaleLowerCase().includes(cashDownPayment.toLocaleLowerCase()) || (offlease && effectivePreviousFinancing === 'yes' && downPaymentAmount === 1000) || (downPaymentAmount !== null && downPaymentAmount >= requiredDownPayment));
 const rawTimeline = first(timelineFrom(message), timelineFrom(history), memoryValue(['timeline', 'purchase timeline', 'purchase_timeline']), inputData.purchase_timeline);
 const identification = documentStatus('id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b', ['identification', 'id', 'itin', 'passport', 'pasaporte'], inputData.identification || inputData.documents);
 const income = documentStatus('proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina|bank account|cuenta bancaria|cuenta de banco', ['income', 'proof of income', 'estados de cuenta', 'account statements', 'bank statements', 'check stubs', 'bank account', 'cuenta bancaria'], inputData.documents);
@@ -526,7 +537,7 @@ const qualificationMissing = [
   bankAccount !== 'yes' ? 'bank_account' : '',
 ].filter(Boolean);
 const parts = memoryText(rawMemory).split(';').map((part) => clean(part).replace(/^\d+(?=(?:vehicle|vehicle[_ ]?type|down|down[_ ]?payment|documents?|timeline)\b)/i, '')).filter((part) => Boolean(part) && !/^\$?\d[\d,.]*$/.test(part));
-const canonical = [['real_name', realName], ['vehicle', vehicle], ['down payment', down], ['previous financing', previousFinancing], ['documents', documents], ['timeline', timeline]].filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).replace(/\s*;\s*/g, ', ')}`);
+const canonical = [['real_name', realName], ['vehicle', vehicle], ['down payment', down], ['previous financing', effectivePreviousFinancing], ['documents', documents], ['timeline', timeline]].filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).replace(/\s*;\s*/g, ', ')}`);
 const qualificationMemory = [...new Set([...parts.filter((part) => !/^(?:real_name|real name|name|nombre|nombre real|nombre completo|vehicle|vehicle_type|down|down payment|down_payment|previous financing|previous_financing|financing history|historial de financiamiento|documents?|docs|timeline|purchase timeline|purchase_timeline)\s*(?::|=|-)/i.test(part)), ...canonical])].join('; ');
 const qualificationStep = sourceAware
   ? (stafford && !realName
@@ -585,7 +596,7 @@ const repeatPreviousMinimumQuestion = qualificationStep === 'down_payment'
   && predictorAskedMinimum
   && !downPaymentSufficient
   && Boolean(clean(inputData.previous_predicted_bot_question));
-const predictedBotQuestion = qualificationStep === 'down_payment' && offlease && downPaymentAmount === 1000 && previousFinancing === '' && !predictorAskedMinimum
+const predictedBotQuestion = qualificationStep === 'down_payment' && offlease && downPaymentAmount === 1000 && effectivePreviousFinancing === '' && !predictorAskedMinimum
   ? financingHistoryQuestion
   : repeatPreviousMinimumQuestion
     ? clean(inputData.previous_predicted_bot_question)
@@ -618,7 +629,7 @@ return {
   down_payment_amount: downPaymentAmount,
   down_payment_sufficient: downPaymentSufficient,
   down_payment: down,
-  previous_financing: previousFinancing,
+  previous_financing: effectivePreviousFinancing,
   purchase_timeline: timeline,
   documents,
   identification,

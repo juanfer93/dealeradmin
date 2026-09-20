@@ -68,9 +68,9 @@ describe('HighLevel collector custom-code normalizer', () => {
       channel: 'whatsapp',
       phone: '+19392249226',
       vehicle_type: 'Quiere hablar con un asesor',
-      message: 'Gabriel Centeno\nAlgo económico\nNormal\n1,000 máximo',
-      chat_history_log: 'Gabriel Centeno\nAlgo económico\nNormal\n1,000 máximo',
-    }).vehicle_type).toBe('Sedan');
+      message: 'Gabriel Centeno\nAlgo económico\nNormal\n1,000 máximo\nPuerto Rico\nSi\nEsta semana semana me encuentro en Fayetteville NC',
+      chat_history_log: 'Gabriel Centeno\nAlgo económico\nNormal\n1,000 máximo\nPuerto Rico\nSi\nEsta semana semana me encuentro en Fayetteville NC',
+    })).toMatchObject({ vehicle_type: 'Sedan', previous_financing: 'yes', down_payment_sufficient: true });
   });
 
   it.each([
