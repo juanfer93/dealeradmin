@@ -124,6 +124,8 @@ describe('LeadsController queue read', () => {
 
     await expect(controller.list({ cookies: {} } as never, 'pending')).resolves.toEqual({ dealers: [], leads: [] });
     expect(dataSource.query).toHaveBeenCalledTimes(2);
+    expect(dataSource.query.mock.calls[0]?.[0]).toContain("$1 <> 'pending' OR COALESCE(ld.routing_status, 'resolved') <> 'not_qualified'");
+    expect(dataSource.query.mock.calls[1]?.[0]).toContain("ld.status = 'pending' AND COALESCE(ld.routing_status, 'resolved') <> 'not_qualified'");
   });
 
   it('keeps the sent view clean after monthly report archival without deleting rows', async () => {

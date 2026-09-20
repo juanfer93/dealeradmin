@@ -112,6 +112,7 @@ export class LeadsController {
        ) latest_conversation ON true
        WHERE ld.status = $1
          AND ($1 <> 'sent' OR ld.queue_archived_at IS NULL)
+         AND ($1 <> 'pending' OR COALESCE(ld.routing_status, 'resolved') <> 'not_qualified')
          ${dealerFilter}
        ORDER BY ld.created_at ASC`,
       params,
@@ -122,7 +123,7 @@ export class LeadsController {
          d.id,
          d.code,
          d.name,
-         COUNT(ld.lead_id) FILTER (WHERE ld.status = 'pending')::int AS "pendingCount"
+         COUNT(ld.lead_id) FILTER (WHERE ld.status = 'pending' AND COALESCE(ld.routing_status, 'resolved') <> 'not_qualified')::int AS "pendingCount"
        FROM dealers d
        LEFT JOIN lead_dealers ld ON COALESCE(ld.assigned_dealer_id, ld.dealer_id) = d.id
        WHERE d.active = true
