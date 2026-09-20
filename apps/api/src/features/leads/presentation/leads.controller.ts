@@ -369,6 +369,7 @@ export class LeadsController {
           `DELETE FROM lead_dealers
            WHERE lead_id = $1
              AND COALESCE(assigned_dealer_id, dealer_id) = $2
+             AND status <> 'sent'
            RETURNING lead_id`,
           [item.leadId, item.dealerId],
         ) as Array<{ lead_id: string }>;
@@ -455,9 +456,14 @@ export class LeadsController {
         `DELETE FROM lead_dealers
          WHERE lead_id = $1
            AND COALESCE(assigned_dealer_id, dealer_id) = $2
+           AND status <> 'sent'
          RETURNING lead_id`,
         [leadId, dealerIdQuery],
       ) as Array<{ lead_id: string }>;
+      if (deletedRelationships.length === 0) {
+        await queryRunner.commitTransaction();
+        return { success: true, deletedLead: false, deletedRelationship: false };
+      }
       const remainingRelationships = await queryRunner.query(
         `SELECT COUNT(*)::int AS count
          FROM lead_dealers

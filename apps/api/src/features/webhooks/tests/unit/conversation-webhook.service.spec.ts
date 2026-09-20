@@ -560,6 +560,19 @@ describe('ConversationWebhookService', () => {
     expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ phone: '', vehicle_type: 'SUV' });
   });
 
+  it('scopes stale-phone reentry protection to the target dealer', async () => {
+    const runner = { query: vi.fn(async () => []) };
+    const service = new ConversationWebhookService();
+
+    await (service as unknown as {
+      findStalePhoneReentry: (runner: unknown, phone: string, dealerId: string, now: Date) => Promise<unknown>;
+    }).findStalePhoneReentry(runner, '+19198840000', 'dealer-fredericksburg', new Date('2026-09-20T12:00:00.000Z'));
+
+    const [sql, params] = runner.query.mock.calls[0] as unknown as [string, unknown[]];
+    expect(sql).toContain("COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $3");
+    expect(params).toEqual(['+19198840000', '2026-09-17T12:00:00.000Z', 'dealer-fredericksburg']);
+  });
+
   it('fails closed when a source Location ID matches more than one active dealer', async () => {
     const queryRunner = {
       connect: vi.fn(),
@@ -859,7 +872,7 @@ describe('ConversationWebhookService', () => {
 
     await service.processDueConversations(new Date('2026-09-11T14:00:00.000Z'), { reconcileActive: false });
 
-    expect(dataSource.query.mock.calls.some(([sql]) => String(sql).includes("status IN ('partial', 'waiting_window')"))).toBe(false);
+    expect(dataSource.query.mock.calls.some(([sql]) => String(sql).includes("status IN ('partial', 'waiting_window', 'stale_phone_ignored')"))).toBe(false);
   });
 
   it('reconciles active conversations every due poll and queues one once the five core facts are present', async () => {
@@ -888,7 +901,7 @@ describe('ConversationWebhookService', () => {
           channel: 'messenger',
           ghl_location_id: GHL_SOURCE_CONFIG.easterns.locationId,
           ghl_contact_id: 'contact-reconcile',
-          status: 'waiting_window',
+          status: 'stale_phone_ignored',
           qualification_snapshot: { real_name: '', phone: '', vehicle_type: '', down_payment: '', purchase_timeline: '', documents: '', identification: '', bank_account: '', qualification_memory: '', qualification_complete: false, missing_qualification: [] },
           location_snapshot: { city: 'Laurel', state: 'MD', zip_code: null, easterns_zone: null },
           ready_at: null,
@@ -905,7 +918,7 @@ describe('ConversationWebhookService', () => {
       }),
     };
     const dataSource = {
-      query: vi.fn(async (sql: string) => sql.includes('FROM conversations') && sql.includes("status IN ('partial', 'waiting_window')") ? [{ id: 'conversation-reconcile' }] : []),
+      query: vi.fn(async (sql: string) => sql.includes('FROM conversations') && sql.includes("status IN ('partial', 'waiting_window', 'stale_phone_ignored')") ? [{ id: 'conversation-reconcile' }] : []),
       createQueryRunner: vi.fn(() => runner),
     };
     const service = new ConversationWebhookService(dataSource as never, {} as never);
@@ -922,6 +935,6 @@ describe('ConversationWebhookService', () => {
       qualification_complete: true,
     });
     expect(runner.query.mock.calls.some(([sql]) => sql.includes("SET status = 'queued'"))).toBe(true);
-    expect(dataSource.query.mock.calls.some(([sql]) => String(sql).includes("status IN ('partial', 'waiting_window')"))).toBe(true);
+    expect(dataSource.query.mock.calls.some(([sql]) => String(sql).includes("status IN ('partial', 'waiting_window', 'stale_phone_ignored')"))).toBe(true);
   });
 });

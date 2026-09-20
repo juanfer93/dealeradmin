@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LeadsController } from '../../apps/api/src/features/leads/presentation/leads.controller';
-import { addTestManualLead, deleteTestLead, getTestManualLeads, getTestDealer } from '../../apps/api/src/features/leads/application/test-lead-store';
+import { addTestManualLead, deleteTestLead, getTestManualLeads, getTestDealer, updateTestLeadStatus } from '../../apps/api/src/features/leads/application/test-lead-store';
 import { CreateManualLeadSchema } from '../../packages/contracts/src';
 
 function request() {
@@ -24,6 +24,20 @@ describe('borrado persistente de leads', () => {
     expect(deleteTestLead(lead.id, dealer.id)).toMatchObject({ ok: true, deletedLead: true, deletedRelationship: true });
     expect(getTestManualLeads()).not.toContainEqual(expect.objectContaining({ id: lead.id }));
     expect(deleteTestLead(lead.id, dealer.id)).toMatchObject({ ok: true, deletedLead: false, deletedRelationship: false });
+  });
+
+  it('no elimina un lead que ya fue marcado como enviado', () => {
+    const dealer = getTestDealer('dealer-stafford')!;
+    const lead = addTestManualLead(
+      dealer.id,
+      CreateManualLeadSchema.parse({ name: 'Lead enviado protegido', phone: '3019876501' }),
+      '+13019876501',
+      'Lead enviado protegido +13019876501.',
+    );
+
+    expect(updateTestLeadStatus(lead.id, 'sent')).toBe(true);
+    expect(deleteTestLead(lead.id, dealer.id)).toEqual({ ok: true, deletedLead: false, deletedRelationship: false });
+    expect(getTestManualLeads()).toContainEqual(expect.objectContaining({ id: lead.id, status: 'sent' }));
   });
 
   it('borra la relación y el lead principal dentro de una transacción', async () => {

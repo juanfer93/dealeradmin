@@ -40,6 +40,8 @@ export const GHL_SOURCE_CONFIG: Record<SourceKey, { locationId: string; defaultC
   'easterns-frederick': { locationId: 'MRHcOwdTqaN5cug3eSWW', defaultChannel: 'messenger' },
 };
 
+const RECONCILIATION_LOCATION_IDS = [...new Set(Object.values(GHL_SOURCE_CONFIG).map((config) => config.locationId))];
+
 type LeadRow = { id: string; canonical_phone: string | null; first_name: string | null; last_name: string | null };
 type DealerRow = { id: string; code: string; name: string; timezone: string; routing_config: { group?: string; language?: CollectorLanguage; allocation_key?: string; allocation_order?: number } | null };
 type ConversationRow = { id: string; status: string; qualification_snapshot: Record<string, unknown>; location_snapshot: Record<string, unknown>; ready_at?: string | null; isExisting?: boolean };
@@ -232,7 +234,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     const rows = await this.dataSource.query(
       `SELECT id
        FROM conversations
-       WHERE status IN ('partial', 'waiting_window')
+       WHERE status IN ('partial', 'waiting_window', 'stale_phone_ignored')
           OR (
             status = 'queued'
             AND (
@@ -241,13 +243,13 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
               OR lower(COALESCE(qualification_snapshot->>'vehicle_type', '')) = lower($3)
             )
           )
+          OR (
+            ghl_location_id = ANY($2::text[])
+            AND NOT EXISTS (SELECT 1 FROM lead_dealers orphan_ld WHERE orphan_ld.lead_id = conversations.lead_id)
+          )
        ORDER BY updated_at ASC
        LIMIT $1`,
-      [ACTIVE_RECONCILIATION_BATCH_SIZE, [
-        GHL_SOURCE_CONFIG.stafford.locationId,
-        GHL_SOURCE_CONFIG.fredericksburg.locationId,
-        GHL_SOURCE_CONFIG['fredericksburg-2'].locationId,
-      ], ADVISOR_HANDOFF_VEHICLE],
+      [ACTIVE_RECONCILIATION_BATCH_SIZE, RECONCILIATION_LOCATION_IDS, ADVISOR_HANDOFF_VEHICLE],
     ) as Array<{ id: string }>;
     for (const row of rows) await this.reconcileConversation(row.id, now);
   }
@@ -287,14 +289,12 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
                 l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name
          FROM conversations c
          JOIN leads l ON l.id = c.lead_id
-         WHERE c.id = $1 AND (c.status IN ('partial', 'waiting_window')
-           OR (c.status = 'queued' AND c.ghl_location_id = ANY($2::text[])))
+         WHERE c.id = $1 AND (c.status IN ('partial', 'waiting_window', 'stale_phone_ignored')
+           OR (c.status = 'queued' AND c.ghl_location_id = ANY($2::text[]))
+           OR (c.ghl_location_id = ANY($2::text[])
+               AND NOT EXISTS (SELECT 1 FROM lead_dealers orphan_ld WHERE orphan_ld.lead_id = c.lead_id)))
          FOR UPDATE`,
-        [id, [
-          GHL_SOURCE_CONFIG.stafford.locationId,
-          GHL_SOURCE_CONFIG.fredericksburg.locationId,
-          GHL_SOURCE_CONFIG['fredericksburg-2'].locationId,
-        ]],
+        [id, RECONCILIATION_LOCATION_IDS],
       ) as Array<{
         id: string;
         channel: string;
@@ -834,7 +834,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       const dealer = sourceDealer ?? await this.findSourceDealer(runner, GHL_SOURCE_CONFIG[source].locationId, source, language, assignedDealerId || undefined);
       snapshot.assigned_dealer_id = dealer.id;
       const stalePhone = snapshot.phone
-        ? await this.findStalePhoneReentry(runner, snapshot.phone, now)
+        ? await this.findStalePhoneReentry(runner, snapshot.phone, dealer.id, now)
         : null;
       if (stalePhone) {
         await runner.query(
@@ -1141,19 +1141,20 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     return null;
   }
 
-  private async findStalePhoneReentry(runner: QueryRunner, phone: string, now: Date): Promise<{ sent_at: string } | null> {
+  private async findStalePhoneReentry(runner: QueryRunner, phone: string, dealerId: string, now: Date): Promise<{ sent_at: string } | null> {
     const cutoff = new Date(now.getTime() - STALE_PHONE_REENTRY_DAYS * 24 * 60 * 60 * 1000).toISOString();
     const rows = await runner.query(
       `SELECT ld.sent_at
        FROM leads l
        INNER JOIN lead_dealers ld ON ld.lead_id = l.id
        WHERE l.canonical_phone = $1
+         AND COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $3
          AND ld.status = 'sent'
          AND ld.sent_at IS NOT NULL
          AND ld.sent_at <= $2::timestamptz
        ORDER BY ld.sent_at ASC
        LIMIT 1`,
-      [phone, cutoff],
+      [phone, cutoff, dealerId],
     ) as Array<{ sent_at: string }>;
     return rows[0] ?? null;
   }

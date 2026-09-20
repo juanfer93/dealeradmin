@@ -287,11 +287,13 @@ export default function OperatorDashboard() {
   async function markSent(lead: Lead) { if (isPortfolioMode) { setError(language === 'es' ? portfolioWriteBlockedMessage : 'Demo mode: this action is disabled to protect production data.'); return; } const response = await fetch(`/api/leads/${lead.id}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ status: 'sent', dealerId: lead.dealerId }) }); if (!response.ok) { setError(t.app.errors.markSent); return; } setLeads((current) => current.filter((item) => item.id !== lead.id)); setSelectedLeadIds((current) => current.filter((id) => id !== lead.id)); setDealers((current) => current.map((dealer) => dealer.id === lead.dealerId ? { ...dealer, pendingCount: Math.max(0, dealer.pendingCount - 1) } : dealer)); }
   function deleteLead(lead: Lead) {
     if (isPortfolioMode) { setError(language === 'es' ? portfolioWriteBlockedMessage : 'Demo mode: this action is disabled to protect production data.'); return; }
+    if (lead.status !== 'pending') return;
     setLeadPendingDelete(lead);
   }
   function deleteSelectedLeads() {
     if (isPortfolioMode) { setError(language === 'es' ? portfolioWriteBlockedMessage : 'Demo mode: this action is disabled to protect production data.'); return; }
     if (!selectedVisibleLeadIds.length) return;
+    if (leads.some((lead) => selectedVisibleLeadIds.includes(lead.id) && lead.status !== 'pending')) return;
     setError('');
     setLeadPendingBulkDelete(selectedVisibleLeadIds.length);
   }

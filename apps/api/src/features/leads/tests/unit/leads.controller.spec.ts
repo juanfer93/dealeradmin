@@ -41,6 +41,22 @@ describe('LeadsController deletion', () => {
     expect(runner.rollbackTransaction).not.toHaveBeenCalled();
   });
 
+  it('does not remove a dealer relationship that is already sent', async () => {
+    process.env.NODE_ENV = 'production';
+    const runner = createRunner([
+      [{ id: 'lead-sent' }],
+      [],
+    ]);
+    const controller = createController(runner);
+
+    await expect(controller.delete({ cookies: {} } as never, 'lead-sent', 'dealer-source'))
+      .resolves.toEqual({ success: true, deletedLead: false, deletedRelationship: false });
+    const calls = runner.query.mock.calls as unknown[][];
+    expect(calls[1]?.[0]).toContain("status <> 'sent'");
+    expect(calls).toHaveLength(2);
+    expect(runner.commitTransaction).toHaveBeenCalledOnce();
+  });
+
   it('removes the dealer queue relationship but preserves bulk-ingestion history', async () => {
     process.env.NODE_ENV = 'production';
     const runner = createRunner([

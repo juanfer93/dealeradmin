@@ -242,6 +242,7 @@ export function deleteTestLead(leadId: string, dealerId: string): TestDeleteLead
   );
   if (!lead) return { ok: true, deletedLead: false, deletedRelationship: false };
   if (lead.dealerId !== canonicalDealerId) return { ok: false, reason: 'wrong_dealer' };
+  if (lead.status === 'sent') return { ok: true, deletedLead: false, deletedRelationship: false };
 
   deletedTestLeadIds.add(leadId);
   const manualIndex = manualTestLeads.findIndex((item) => item.id === leadId);
