@@ -7,12 +7,12 @@ function request() {
   return { cookies: { dealeradmin_session: 'valid-session' } } as never;
 }
 
-describe('borrado persistente de leads', () => {
+describe('retiro de relaciones sin borrar leads', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('elimina un lead manual de la cola de prueba y de su almacenamiento', () => {
+  it('retira un lead manual de la cola de prueba y conserva su historial', () => {
     const dealer = getTestDealer('dealer-stafford')!;
     const lead = addTestManualLead(
       dealer.id,
@@ -21,8 +21,8 @@ describe('borrado persistente de leads', () => {
       'Lead para borrar +13019876500.',
     );
 
-    expect(deleteTestLead(lead.id, dealer.id)).toMatchObject({ ok: true, deletedLead: true, deletedRelationship: true });
-    expect(getTestManualLeads()).not.toContainEqual(expect.objectContaining({ id: lead.id }));
+    expect(deleteTestLead(lead.id, dealer.id)).toMatchObject({ ok: true, deletedLead: false, deletedRelationship: true });
+    expect(getTestManualLeads()).toContainEqual(expect.objectContaining({ id: lead.id }));
     expect(deleteTestLead(lead.id, dealer.id)).toMatchObject({ ok: true, deletedLead: false, deletedRelationship: false });
   });
 
@@ -40,7 +40,7 @@ describe('borrado persistente de leads', () => {
     expect(getTestManualLeads()).toContainEqual(expect.objectContaining({ id: lead.id, status: 'sent' }));
   });
 
-  it('borra la relación y el lead principal dentro de una transacción', async () => {
+  it('borra solo la relación dentro de una transacción y conserva el lead principal', async () => {
     const queryRunner = {
       connect: vi.fn(),
       startTransaction: vi.fn(),
@@ -52,9 +52,7 @@ describe('borrado persistente de leads', () => {
         .mockResolvedValueOnce([{ id: 'lead-1' }])
         .mockResolvedValueOnce([{ lead_id: 'lead-1' }])
         .mockResolvedValueOnce([{ count: 0 }])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([{ id: 'lead-1' }]),
+        .mockResolvedValueOnce([]),
     };
     const controller = new LeadsController(
       { createQueryRunner: () => queryRunner } as never,
@@ -64,7 +62,7 @@ describe('borrado persistente de leads', () => {
     process.env.NODE_ENV = 'production';
 
     try {
-      await expect(controller.delete(request(), 'lead-1', 'dealer-1')).resolves.toEqual({ success: true, deletedLead: true, deletedRelationship: true });
+      await expect(controller.delete(request(), 'lead-1', 'dealer-1')).resolves.toEqual({ success: true, deletedLead: false, deletedRelationship: true });
     } finally {
       process.env.NODE_ENV = previousNodeEnv;
     }
@@ -73,7 +71,7 @@ describe('borrado persistente de leads', () => {
     expect(queryRunner.commitTransaction).toHaveBeenCalledOnce();
     expect(queryRunner.rollbackTransaction).not.toHaveBeenCalled();
     expect(queryRunner.query).toHaveBeenNthCalledWith(2, expect.stringContaining('DELETE FROM lead_dealers'), ['lead-1', 'dealer-1']);
-    expect(queryRunner.query).toHaveBeenNthCalledWith(6, expect.stringContaining('DELETE FROM leads'), ['lead-1']);
+    expect(queryRunner.query).toHaveBeenCalledTimes(2);
   });
 
   it('mantiene el lead principal cuando todavía tiene otra relación de dealer', async () => {
@@ -102,7 +100,7 @@ describe('borrado persistente de leads', () => {
       process.env.NODE_ENV = previousNodeEnv;
     }
 
-    expect(queryRunner.query).toHaveBeenCalledTimes(3);
+    expect(queryRunner.query).toHaveBeenCalledTimes(2);
     expect(queryRunner.commitTransaction).toHaveBeenCalledOnce();
   });
 
@@ -136,13 +134,13 @@ describe('borrado persistente de leads', () => {
       })).resolves.toMatchObject({
         success: true,
         requestedCount: 2,
-        deletedLeadCount: 2,
+        deletedLeadCount: 0,
         deletedRelationshipCount: 2,
       });
     } finally {
       process.env.NODE_ENV = previousNodeEnv;
     }
 
-    expect(getTestManualLeads()).not.toEqual(expect.arrayContaining([first, second]));
+    expect(getTestManualLeads()).toEqual(expect.arrayContaining([first, second]));
   });
 });

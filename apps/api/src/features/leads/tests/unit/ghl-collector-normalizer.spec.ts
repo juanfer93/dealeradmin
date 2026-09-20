@@ -62,6 +62,17 @@ describe('HighLevel collector custom-code normalizer', () => {
     }).vehicle_type).toBe('Sedan');
   });
 
+  it('normalizes Stafford WhatsApp "Algo económico" to Sedan during reconciliation', () => {
+    expect(execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      phone: '+19392249226',
+      vehicle_type: 'Quiere hablar con un asesor',
+      message: 'Gabriel Centeno\nAlgo económico\nNormal\n1,000 máximo',
+      chat_history_log: 'Gabriel Centeno\nAlgo económico\nNormal\n1,000 máximo',
+    }).vehicle_type).toBe('Sedan');
+  });
+
   it.each([
     ['1000', '1000'],
     ['2000', '2000'],

@@ -68,6 +68,10 @@ const vehicleModels = /\b(?:grand caravan|grand cherokee|transit connect|promast
 const vehicleCategories = /suv|sedan|truck|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camion|camión/i;
 const vehicleContext = /\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
 const economicCarIntent = /\b(?:carro|auto|coche|veh[ií]culo)\s+econ[oó]mic[oa]s?\b/i;
+// Stafford's WhatsApp flow commonly answers the vehicle-type prompt with
+// "Algo económico" followed by "Normal". Keep it as a sedan category during
+// late GHL reconciliation instead of falling back to advisor handoff.
+const economicSedanIntent = /\b(?:carro|auto|coche|veh[ií]culo|algo)\s+econ[oó]mic[oa]s?\b/i;
 const noDownPaymentResponse = /\b(?:no(?:\s+\w+){0,3}\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)?)\b/i;
 const canonicalVehicleLabel = (value) => clean(value)
   .replace(/\bcorola\b/gi, 'Corolla')
@@ -416,7 +420,7 @@ const vehicleSource = [rawHistory, rawMessage].filter(Boolean).join('\n');
 const phoneFromConversation = phoneFrom(message, history);
 // Keep the WhatsApp/Messenger shorthand "carro económico" as the stable
 // Sedan category.
-const extractedVehicle = economicCarIntent.test(vehicleSource)
+const extractedVehicle = economicSedanIntent.test(vehicleSource)
   ? 'Sedan'
   : first(
     campaign ? '' : cleanVehicleValue(vehicleFrom(vehicleSource)),

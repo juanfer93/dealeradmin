@@ -289,7 +289,11 @@ const VEHICLE_MODELS = /\b(?:grand caravan|grand cherokee|transit connect|promas
 const VEHICLE_CATEGORIES = /\b(?:suv|sedan|truck|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camion|camión)\b/i;
 const VEHICLE_TRIMS = /\b(?:\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i;
 const VEHICLE_CONTEXT = /\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
-const ECONOMIC_CAR_INTENT = /\b(?:carro|auto|coche|veh[ií]culo)\s+econ[oó]mic[oa]s?\b/i;
+// Stafford's WhatsApp flow commonly answers the vehicle-type prompt with
+// "Algo económico" followed by "Normal". Treat that exact economic intent as
+// a sedan category so a late reconciliation cannot leave the lead as advisor
+// handoff after GHL has already completed the flow.
+const ECONOMIC_SEDAN_INTENT = /\b(?:carro|auto|coche|veh[ií]culo|algo)\s+econ[oó]mic[oa]s?\b/i;
 const NO_DOWN_PAYMENT_RESPONSE = /\b(?:no(?:\s+\w+){0,3}\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)|no\s+(?:cuento|cuenta)\s+con\s+(?:dinero|down|enganche|pago\s+inicial))\b/i;
 const TRADE_IN_INTENT = /\btrade[- ]?in\b|\bmy (?:car|vehicle|van|truck)\b|\bmi (?:carro|auto|veh[ií]culo|van|troca|camioneta|camioneta|camion)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\bchange\s+(?:my\s+)?(?:vehicle|car|van|truck)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b/i;
 
@@ -1029,7 +1033,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const vehicleSource = [rawHistory, messageForExtraction].filter(Boolean).join('\n');
   // Buyers on WhatsApp and Messenger use "carro económico" as a category
   // request. Keep this deterministic so it cannot be mistaken for a make/model.
-  const extractedVehicle = ECONOMIC_CAR_INTENT.test(vehicleSource)
+  const extractedVehicle = ECONOMIC_SEDAN_INTENT.test(vehicleSource)
     ? 'Sedan'
     : normalizeVehicle(firstNonEmpty(
       extractVehicle(vehicleSource),

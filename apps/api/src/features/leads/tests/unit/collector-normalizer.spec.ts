@@ -554,6 +554,31 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message: 'My car is the trade-in', down_payment: '2500' }).down_payment).toBe('2500 + trade-in');
   });
 
+  it('recovers Stafford WhatsApp economic-sedan wording during late reconciliation', () => {
+    const transcript = [
+      'Gabriel Centeno',
+      'Algo económico',
+      'Normal',
+      '1,000 máximo',
+      'Puerto Rico',
+      'Si',
+      'Esta semana semana me encuentro en Fayetteville NC',
+      'En la tarde',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      message: transcript,
+      chat_history_log: transcript,
+      phone: '+19392249226',
+      vehicle_type: ADVISOR_HANDOFF_VEHICLE,
+    });
+
+    expect(result.vehicle_type).toBe('Sedan');
+    expect(result.phone).toBe('+19392249226');
+    expect(result.down_payment).toBe('1000');
+  });
+
   it('does not interpret a trade-in vehicle year as the down payment and recognizes bank statements as income proof', () => {
     const transcript = [
       'pudo ver su inventario',
