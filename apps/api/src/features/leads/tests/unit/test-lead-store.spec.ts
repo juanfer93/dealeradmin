@@ -57,7 +57,7 @@ describe('Identidad de lead por dealer en fixtures', () => {
   it('permite repetir la eliminación de una cola ya vacía sin cruzar dealers', () => {
     expect(deleteTestLead(testLead.id, 'dealer-stafford')).toEqual({ ok: false, reason: 'wrong_dealer' });
     expect(deleteTestLead('missing-lead', 'dealer-fredericksburg')).toEqual({ ok: true, deletedLead: false, deletedRelationship: false });
-    expect(deleteTestLead(testLead.id, 'dealer-fredericksburg')).toEqual({ ok: true, deletedLead: true, deletedRelationship: true });
+    expect(deleteTestLead(testLead.id, 'dealer-fredericksburg')).toEqual({ ok: true, deletedLead: false, deletedRelationship: true });
     expect(deleteTestLead(testLead.id, 'dealer-fredericksburg')).toEqual({ ok: true, deletedLead: false, deletedRelationship: false });
   });
 

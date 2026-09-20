@@ -244,14 +244,14 @@ export function deleteTestLead(leadId: string, dealerId: string): TestDeleteLead
   if (lead.dealerId !== canonicalDealerId) return { ok: false, reason: 'wrong_dealer' };
   if (lead.status === 'sent') return { ok: true, deletedLead: false, deletedRelationship: false };
 
+  // The test store has no separate relationship table, so hide the queue row
+  // while preserving the lead object as durable history just like production.
   deletedTestLeadIds.add(leadId);
-  const manualIndex = manualTestLeads.findIndex((item) => item.id === leadId);
-  if (manualIndex >= 0) manualTestLeads.splice(manualIndex, 1);
   if (lead.status === 'pending') {
     const dealer = getTestDealer(canonicalDealerId);
     if (dealer) dealer.pendingCount = Math.max(0, dealer.pendingCount - 1);
   }
-  return { ok: true, deletedLead: true, deletedRelationship: true };
+  return { ok: true, deletedLead: false, deletedRelationship: true };
 }
 
 export function reassignTestLead(leadId: string, currentDealerId: string, targetDealerId: string): boolean {

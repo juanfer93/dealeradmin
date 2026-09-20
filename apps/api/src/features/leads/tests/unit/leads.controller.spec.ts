@@ -57,7 +57,7 @@ describe('LeadsController deletion', () => {
     expect(runner.commitTransaction).toHaveBeenCalledOnce();
   });
 
-  it('removes the dealer queue relationship but preserves bulk-ingestion history', async () => {
+  it('removes only the dealer queue relationship and preserves ingestion history', async () => {
     process.env.NODE_ENV = 'production';
     const runner = createRunner([
       [{ id: 'lead-1' }],
@@ -71,48 +71,37 @@ describe('LeadsController deletion', () => {
       .resolves.toEqual({ success: true, deletedLead: false, deletedRelationship: true });
     const calls = runner.query.mock.calls as unknown[][];
     expect(calls[1]?.[0]).toContain('DELETE FROM lead_dealers');
-    expect(calls[3]?.[0]).toContain('FROM lead_ingestion_rows');
-    expect(calls[4]).toBeUndefined();
+    expect(calls).toHaveLength(2);
     expect(runner.commitTransaction).toHaveBeenCalledOnce();
   });
 
-  it('removes the lead record when its last dealer relationship has no audit reference', async () => {
+  it('preserves the lead record when its last dealer relationship is removed', async () => {
     process.env.NODE_ENV = 'production';
     const runner = createRunner([
       [{ id: 'lead-1' }],
       [{ lead_id: 'lead-1' }],
-      [{ count: 0 }],
-      [],
-      [],
-      [{ id: 'lead-1' }],
     ]);
     const controller = createController(runner);
 
     await expect(controller.delete({ cookies: {} } as never, 'lead-1', 'dealer-source'))
-      .resolves.toEqual({ success: true, deletedLead: true, deletedRelationship: true });
+      .resolves.toEqual({ success: true, deletedLead: false, deletedRelationship: true });
     const calls = runner.query.mock.calls as unknown[][];
-    expect(calls[4]?.[0]).toContain('DELETE FROM conversations');
-    expect(calls[5]?.[0]).toContain('DELETE FROM leads');
+    expect(calls).toHaveLength(2);
     expect(runner.commitTransaction).toHaveBeenCalledOnce();
   });
 
-  it('removes conversations before deleting a lead that has no remaining references', async () => {
+  it('does not delete the conversation when its last dealer relationship is removed', async () => {
     process.env.NODE_ENV = 'production';
     const runner = createRunner([
       [{ id: 'lead-1' }],
       [{ lead_id: 'lead-1' }],
-      [{ count: 0 }],
-      [],
-      [],
-      [{ id: 'lead-1' }],
     ]);
     const controller = createController(runner);
 
     await expect(controller.delete({ cookies: {} } as never, 'lead-1', 'dealer-source'))
-      .resolves.toEqual({ success: true, deletedLead: true, deletedRelationship: true });
+      .resolves.toEqual({ success: true, deletedLead: false, deletedRelationship: true });
     const calls = runner.query.mock.calls as unknown[][];
-    expect(calls[4]?.[0]).toContain('DELETE FROM conversations');
-    expect(calls[5]?.[0]).toContain('DELETE FROM leads');
+    expect(calls).toHaveLength(2);
     expect(runner.commitTransaction).toHaveBeenCalledOnce();
   });
 });

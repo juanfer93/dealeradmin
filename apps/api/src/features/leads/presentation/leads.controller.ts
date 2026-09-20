@@ -376,32 +376,14 @@ export class LeadsController {
         deletedRelationshipCount += deletedRelationships.length;
       }
 
-      // Conversations are the audit trail for webhook-captured leads. Once
-      // the last dealer relationship is removed and no ingestion history
-      // protects the lead, remove that trail before deleting the parent row.
-      // conversation_messages are deleted by their FK cascade.
-      await queryRunner.query(
-        `DELETE FROM conversations
-         WHERE lead_id = ANY($1::uuid[])
-           AND NOT EXISTS (SELECT 1 FROM lead_dealers WHERE lead_id = conversations.lead_id)
-           AND NOT EXISTS (SELECT 1 FROM lead_ingestion_rows WHERE lead_id = conversations.lead_id)`,
-        [leadIds],
-      );
-
-      const deletedLeads = await queryRunner.query(
-        `DELETE FROM leads
-         WHERE id = ANY($1::uuid[])
-           AND NOT EXISTS (SELECT 1 FROM lead_dealers WHERE lead_id = leads.id)
-           AND NOT EXISTS (SELECT 1 FROM lead_ingestion_rows WHERE lead_id = leads.id)
-         RETURNING id`,
-        [leadIds],
-      ) as Array<{ id: string }>;
-
       await queryRunner.commitTransaction();
       return {
         success: true,
         requestedCount: uniqueItems.length,
-        deletedLeadCount: deletedLeads.length,
+        // Queue removal is relationship-scoped. Keep the lead and its
+        // conversation as durable audit history so a later webhook can
+        // reconcile it again without losing the original evidence.
+        deletedLeadCount: 0,
         deletedRelationshipCount,
       };
     } catch (error) {
@@ -464,41 +446,10 @@ export class LeadsController {
         await queryRunner.commitTransaction();
         return { success: true, deletedLead: false, deletedRelationship: false };
       }
-      const remainingRelationships = await queryRunner.query(
-        `SELECT COUNT(*)::int AS count
-         FROM lead_dealers
-         WHERE lead_id = $1`,
-        [leadId],
-      ) as Array<{ count: number }>;
-      let deletedLead = false;
-      if (Number(remainingRelationships[0]?.count ?? 0) === 0) {
-        // Bulk-ingestion rows are audit history and reference the lead without
-        // ON DELETE CASCADE. Keep that history and remove only the queue row.
-        const ingestionRows = await queryRunner.query(
-          `SELECT id
-           FROM lead_ingestion_rows
-           WHERE lead_id = $1
-           LIMIT 1`,
-          [leadId],
-        ) as Array<{ id: string }>;
-        if (ingestionRows.length === 0) {
-          await queryRunner.query(
-            `DELETE FROM conversations
-             WHERE lead_id = $1`,
-            [leadId],
-          );
-          const deletedLeads = await queryRunner.query(
-            `DELETE FROM leads
-             WHERE id = $1
-             RETURNING id`,
-            [leadId],
-          ) as Array<{ id: string }>;
-          deletedLead = deletedLeads.length > 0;
-        }
-      }
-
       await queryRunner.commitTransaction();
-      return { success: true, deletedLead, deletedRelationship: deletedRelationships.length > 0 };
+      // Queue removal is relationship-scoped. Never remove the lead or its
+      // conversation: webhook evidence must remain available for recovery.
+      return { success: true, deletedLead: false, deletedRelationship: deletedRelationships.length > 0 };
     } catch (error) {
       if (queryRunner.isTransactionActive) await queryRunner.rollbackTransaction();
       throw error;
