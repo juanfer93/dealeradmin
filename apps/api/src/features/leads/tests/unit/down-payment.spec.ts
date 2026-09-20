@@ -90,8 +90,10 @@ describe('normalización de pago inicial', () => {
     expect(hasRequiredDownPayment('Toyota Tacoma', '2000')).toBe(false);
   });
 
-  it('allows exactly $1000 only when the Offlease financing-history rule is enabled', () => {
+  it('allows $1000 or more when the Offlease financing-history rule is enabled', () => {
     expect(evaluateDownPayment('Toyota Tacoma', '1000')).toMatchObject({ amount: 1000, meetsMinimum: false });
     expect(evaluateDownPayment('Toyota Tacoma', '1000', { allowPromotionalThousand: true })).toMatchObject({ amount: 1000, meetsMinimum: true });
+    expect(evaluateDownPayment('Toyota Tacoma', '1500', { allowPromotionalThousand: true })).toMatchObject({ amount: 1500, meetsMinimum: true });
+    expect(evaluateDownPayment('Toyota Tacoma', '999', { allowPromotionalThousand: true })).toMatchObject({ amount: 999, meetsMinimum: false });
   });
 });

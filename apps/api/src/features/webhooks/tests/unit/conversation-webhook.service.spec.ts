@@ -936,5 +936,7 @@ describe('ConversationWebhookService', () => {
     });
     expect(runner.query.mock.calls.some(([sql]) => sql.includes("SET status = 'queued'"))).toBe(true);
     expect(dataSource.query.mock.calls.some(([sql]) => String(sql).includes("status IN ('partial', 'waiting_window', 'stale_phone_ignored')"))).toBe(true);
+    const reconciliationQuery = dataSource.query.mock.calls.find(([sql]) => String(sql).includes("status IN ('partial', 'waiting_window', 'stale_phone_ignored')"));
+    expect(String(reconciliationQuery?.[0])).toContain('ORDER BY updated_at DESC');
   });
 });

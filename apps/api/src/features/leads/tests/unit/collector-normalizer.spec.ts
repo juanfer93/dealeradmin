@@ -104,6 +104,44 @@ describe('normalizeCollectorInput', () => {
     expect(result.next_question).toContain('$3000');
   });
 
+  it('recovers an earlier standalone financing answer during GHL reconciliation and ignores a time range as down payment', () => {
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      real_name: 'Josue Acosta',
+      phone: '+12404229613',
+      message: [
+        'Josue Acosta',
+        'Tengo mil en mano ahorita',
+        'Si',
+        'Este mes',
+        'En la tarde',
+        'Entre 1:30 a 5pm',
+        'Okay',
+        'SUV',
+      ].join('\n'),
+      chat_history_log: [
+        'Josue Acosta',
+        'Tengo mil en mano ahorita',
+        'Si',
+        'Este mes',
+        'En la tarde',
+        'Entre 1:30 a 5pm',
+        'Okay',
+        'SUV',
+      ].join('\n'),
+      previous_predicted_bot_question: 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?',
+    });
+
+    expect(result).toMatchObject({
+      previous_financing: 'yes',
+      down_payment: '1000',
+      down_payment_amount: 1000,
+      down_payment_sufficient: true,
+    });
+    expect(result.down_payment).not.toBe('5');
+  });
+
   it.each([
     'Sí',
     'si podria',

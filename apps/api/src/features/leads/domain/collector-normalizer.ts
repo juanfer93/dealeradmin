@@ -245,6 +245,21 @@ function previousFinancingStatus(input: CollectorInput, rawHistory: string, rawM
   if (questionAsked && PREVIOUS_FINANCING_NO.test(latest)) return 'no';
   if (questionAsked && PREVIOUS_FINANCING_AFFIRMATIVE.test(latest)) return 'yes';
 
+  // Reconciliation only has inbound GHL messages; the bot's financing
+  // question is represented by the persisted predictor instead of appearing
+  // in the transcript. Recover a standalone answer from that transcript so
+  // an earlier "Sí" cannot be lost when later turns were replayed.
+  if (questionAsked) {
+    const historicalAnswers = rawHistory
+      .replace(/\r\n?/g, '\n')
+      .split(/\n+/)
+      .map(clean)
+      .filter((line) => line && !line.includes('?') && (PREVIOUS_FINANCING_NO.test(line) || PREVIOUS_FINANCING_AFFIRMATIVE.test(line)));
+    const historicalAnswer = historicalAnswers.at(-1) ?? EMPTY;
+    if (PREVIOUS_FINANCING_NO.test(historicalAnswer)) return 'no';
+    if (PREVIOUS_FINANCING_AFFIRMATIVE.test(historicalAnswer)) return 'yes';
+  }
+
   const historyLines = rawHistory.replace(/\r\n?/g, '\n').split(/\n+/).filter(Boolean);
   const priorHistory = historyLines.slice(0, -1).join('\n');
   const evidenceInput = predictorQuestion && !questionAsked ? priorHistory : rawMessage;
@@ -804,6 +819,12 @@ function extractLatestDownPayment(message: string): string {
     if (contextual) return contextual;
     const standalone = extractStandaloneDownPayment(line);
     if (standalone) return standalone;
+
+    // A time range such as "Entre 1:30 a 5pm" is not a payment range. Only
+    // the explicit/contextual extraction above may use a line containing a
+    // clock time.
+    const timeLikeLine = /\b\d{1,2}:\d{2}\b|\b(?:am|pm)\b/i.test(line);
+    if (timeLikeLine) continue;
 
     // Speech-to-text and misspellings often leave the amount in a sentence
     // instead of the exact phrases handled above. In a range, the last value

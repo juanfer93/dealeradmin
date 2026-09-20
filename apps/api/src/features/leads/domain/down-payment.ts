@@ -75,7 +75,10 @@ export function evaluateDownPayment(
   const minimum = requiredDownPayment(vehicle);
   const amount = numericDownPayment(downPayment);
   const isCash = isCashDownPayment(downPayment);
-  const meetsPromotionalMinimum = options.allowPromotionalThousand === true && amount === 1000;
+  // The Offlease promotion lowers the minimum to $1,000; it does not require
+  // the customer to have exactly $1,000. Larger amounts still qualify under
+  // the same prior-financing promotion (for example Oscar's $1,500).
+  const meetsPromotionalMinimum = options.allowPromotionalThousand === true && amount !== null && amount >= 1000;
   return {
     category,
     minimum,

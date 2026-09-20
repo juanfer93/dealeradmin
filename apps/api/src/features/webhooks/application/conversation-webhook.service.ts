@@ -247,7 +247,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
             ghl_location_id = ANY($2::text[])
             AND NOT EXISTS (SELECT 1 FROM lead_dealers orphan_ld WHERE orphan_ld.lead_id = conversations.lead_id)
           )
-       ORDER BY updated_at ASC
+       ORDER BY updated_at DESC
        LIMIT $1`,
       [ACTIVE_RECONCILIATION_BATCH_SIZE, RECONCILIATION_LOCATION_IDS, ADVISOR_HANDOFF_VEHICLE],
     ) as Array<{ id: string }>;
