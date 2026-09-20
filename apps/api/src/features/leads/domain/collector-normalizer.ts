@@ -938,13 +938,19 @@ export function isQualificationComplete(input: {
  * Minimum data required before a lead may enter dealerADMIN.
  *
  * Qualification fields are optional at intake. They are preserved and
- * normalized when present, but a lead must not be discarded just because the
- * person has only supplied a phone number yet.
+ * normalized when present, but a conversation needs the two routing facts
+ * common to every dealer before it can enter dealerADMIN: a valid phone and a
+ * real vehicle interest. Offlease adds its vehicle-specific down-payment gate
+ * in the conversation status evaluator.
  */
 export function hasMinimumRoutingQualification(
-  input: Pick<CollectorInput, 'phone'>,
+  input: Pick<CollectorInput, 'phone' | 'vehicle_type'>,
 ): boolean {
-  return Boolean(firstNonEmpty(input.phone));
+  return Boolean(
+    firstNonEmpty(input.phone)
+    && firstNonEmpty(input.vehicle_type)
+    && !isAdvisorHandoffVehicle(input.vehicle_type),
+  );
 }
 
 export function normalizeCollectorInput(input: CollectorInput): CollectorOutput {

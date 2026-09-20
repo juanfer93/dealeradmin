@@ -146,7 +146,7 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
     expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO lead_dealers'))).toBe(false);
   });
 
-  it('acepta un lead con solo teléfono y conserva la relación pendiente', async () => {
+  it('acepta un lead con teléfono y vehículo y conserva la relación pendiente', async () => {
     const queryRunner = {
       connect: vi.fn(),
       startTransaction: vi.fn(),
@@ -172,7 +172,7 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
       dealer_name: 'Offlease Motors Stafford',
       ghl_location_id: 'loc_stafford_phone_only',
       ghl_contact_id: 'ghl-phone-only',
-      lead: { name: 'Phone Only', phone: '+15551234567' },
+      lead: { name: 'Phone With Vehicle', phone: '+15551234567', vehicle_type: 'SUV' },
     });
 
     expect(result).toEqual({ accepted: true, eventId: 'evt-phone-only', status: 'processed' });

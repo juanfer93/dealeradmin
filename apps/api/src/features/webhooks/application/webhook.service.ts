@@ -220,11 +220,14 @@ export class WebhookService {
         qualification_memory: payload.lead.qualification_memory,
       });
       const leadName = normalized.real_name || payload.lead.name;
-      if (!hasMinimumRoutingQualification({ phone: canonicalPhone })) {
+      if (!hasMinimumRoutingQualification({ phone: canonicalPhone, vehicle_type: normalized.vehicle_type })) {
         throw new UnprocessableEntityException({
-          code: 'MISSING_LEAD_PHONE',
-          message: 'El lead requiere un teléfono válido para entrar a dealerADMIN',
-          issues: [{ path: ['lead', 'phone'], message: 'El teléfono no puede estar vacío' }],
+          code: 'MISSING_LEAD_ROUTING_FACTS',
+          message: 'El lead requiere un teléfono válido y un vehículo real para entrar a dealerADMIN',
+          issues: [
+            ...(!canonicalPhone ? [{ path: ['lead', 'phone'], message: 'El teléfono no puede estar vacío' }] : []),
+            ...(!normalized.vehicle_type ? [{ path: ['lead', 'vehicle_type'], message: 'El vehículo no puede estar vacío' }] : []),
+          ],
         });
       }
 

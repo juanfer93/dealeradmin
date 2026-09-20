@@ -26,7 +26,7 @@ describe('ConversationWebhookService', () => {
     snapshot: Record<string, unknown>,
     location: Record<string, unknown>,
     dealer: Record<string, unknown>,
-    source: 'stafford' | 'fredericksburg' | 'fredericksburg-2' | 'easterns',
+    source: keyof typeof GHL_SOURCE_CONFIG,
     now: Date,
     phase: 'capture' | 'due',
     readyAt?: string,
@@ -675,6 +675,34 @@ describe('ConversationWebhookService', () => {
       .toEqual({ status: 'partial', nextAttemptAt: null });
   });
 
+  it('opens a normal Action conversation with phone and vehicle without an Offlease down gate', () => {
+    const now = new Date('2026-09-11T14:00:00.000Z');
+    expect(evaluateStatus({ phone: '+13015550123', vehicle_type: 'Sedan', down_payment: '', qualification_complete: false }, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'action-cars', now, 'capture'))
+      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:00:15.000Z' });
+  });
+
+  it('keeps a normal Action conversation partial when the vehicle is missing', () => {
+    const now = new Date('2026-09-11T14:00:00.000Z');
+    expect(evaluateStatus({ phone: '+13015550123', vehicle_type: '', down_payment: '5000', qualification_complete: false }, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'action-cars', now, 'capture'))
+      .toEqual({ status: 'partial', nextAttemptAt: null });
+  });
+
+  it('applies the down-payment gate only to the three Offlease sources', () => {
+    const now = new Date('2026-09-11T14:00:00.000Z');
+    const allSources = Object.keys(GHL_SOURCE_CONFIG) as Array<keyof typeof GHL_SOURCE_CONFIG>;
+    const offleaseSources = ['stafford', 'fredericksburg', 'fredericksburg-2'] as const;
+    const normalSources = allSources.filter((source) => !offleaseSources.includes(source as typeof offleaseSources[number]));
+
+    for (const source of offleaseSources) {
+      expect(evaluateStatus({ phone: '+13015550123', vehicle_type: 'Sedan', down_payment: '' }, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, source, now, 'capture'))
+        .toEqual({ status: 'partial', nextAttemptAt: null });
+    }
+    for (const source of normalSources) {
+      expect(evaluateStatus({ phone: '+13015550123', vehicle_type: 'Sedan', down_payment: '' }, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, source, now, 'capture'))
+        .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:00:15.000Z' });
+    }
+  });
+
   it('keeps Stafford partial after stabilization when down is missing', () => {
     const now = new Date('2026-09-11T14:00:15.000Z');
     expect(evaluateStatus(staffordVehicleOnlySnapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'due', '2026-09-11T14:00:00.000Z'))
@@ -795,17 +823,17 @@ describe('ConversationWebhookService', () => {
     expect(phoneUpdate?.[1]).toEqual(['lead-phone-correction', '+18043092531']);
   });
 
-  it('keeps an Easterns phone-only capture visible during stabilization without georouting it', () => {
+  it('keeps an Easterns phone-and-vehicle capture visible during stabilization without georouting it', () => {
     const now = new Date('2026-09-11T14:00:00.000Z');
-    const result = evaluateStatus({ phone: '+13015550123', vehicle_type: '', qualification_complete: false }, { city: null, state: null, zip_code: null, easterns_zone: null }, easternsDealer, 'easterns', now, 'capture');
+    const result = evaluateStatus({ phone: '+13015550123', vehicle_type: 'SUV', qualification_complete: false }, { city: null, state: null, zip_code: null, easterns_zone: null }, easternsDealer, 'easterns', now, 'capture');
 
     expect(result.status).toBe('waiting_window');
     expect(result.nextAttemptAt).toBe(new Date(now.getTime() + CONVERSATION_STABILIZATION_MS).toISOString());
   });
 
-  it('does not release an Easterns phone-only capture without a location', () => {
+  it('does not release an Easterns phone-and-vehicle capture without a location', () => {
     const now = new Date('2026-09-11T14:30:00.000Z');
-    const result = evaluateStatus({ phone: '+13015550123', vehicle_type: '', qualification_complete: false }, { city: null, state: null, zip_code: null, easterns_zone: null }, easternsDealer, 'easterns', now, 'due', '2026-09-11T14:00:00.000Z');
+    const result = evaluateStatus({ phone: '+13015550123', vehicle_type: 'SUV' }, { city: null, state: null, zip_code: null, easterns_zone: null }, easternsDealer, 'easterns', now, 'due', '2026-09-11T14:00:00.000Z');
 
     expect(result).toEqual({ status: 'partial', nextAttemptAt: null });
   });

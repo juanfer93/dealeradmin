@@ -4,7 +4,7 @@ import { GhlCustomerRepliedSchema } from '@dealeradmin/contracts';
 import { createHash, randomUUID } from 'node:crypto';
 import { DataSource, QueryRunner } from 'typeorm';
 import { buildWhatsAppMessage } from '../../leads/domain/message-builder';
-import { detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isAdvisorHandoffVehicle, isQualificationComplete, normalizeCollectorInput, normalizeRealName, type CollectorLanguage, type QualificationProgress } from '../../leads/domain/collector-normalizer';
+import { ADVISOR_HANDOFF_VEHICLE, detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isAdvisorHandoffVehicle, isQualificationComplete, normalizeCollectorInput, normalizeRealName, type CollectorLanguage, type QualificationProgress } from '../../leads/domain/collector-normalizer';
 import { evaluateDownPayment, normalizeDownPayment } from '../../leads/domain/down-payment';
 import { normalizePhone } from '../../leads/domain/phone-normalizer';
 import { GeoroutingService } from '../../routing/domain/services/georouting.service';
@@ -23,7 +23,7 @@ export const OUT_OF_WINDOW_QUALIFICATION_WINDOW_HOURS = 3;
 export const QUALIFICATION_RULE_TIMEZONE = 'America/Bogota';
 export const DUE_CONVERSATION_POLL_MS = 30_000;
 export const DUE_CONVERSATION_BATCH_SIZE = 5;
-export const ACTIVE_RECONCILIATION_BATCH_SIZE = 5;
+export const ACTIVE_RECONCILIATION_BATCH_SIZE = 25;
 export const STALE_PHONE_REENTRY_DAYS = 3;
 
 export const GHL_SOURCE_CONFIG: Record<SourceKey, { locationId: string; defaultChannel: 'whatsapp' | 'messenger'; splitByLanguage?: boolean; alternatingGroup?: string }> = {
@@ -233,14 +233,21 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       `SELECT id
        FROM conversations
        WHERE status IN ('partial', 'waiting_window')
-          OR (status = 'queued' AND ghl_location_id = ANY($2::text[]))
+          OR (
+            status = 'queued'
+            AND (
+              ghl_location_id = ANY($2::text[])
+              OR NULLIF(qualification_snapshot->>'phone', '') IS NULL
+              OR lower(COALESCE(qualification_snapshot->>'vehicle_type', '')) = lower($3)
+            )
+          )
        ORDER BY updated_at ASC
        LIMIT $1`,
       [ACTIVE_RECONCILIATION_BATCH_SIZE, [
         GHL_SOURCE_CONFIG.stafford.locationId,
         GHL_SOURCE_CONFIG.fredericksburg.locationId,
         GHL_SOURCE_CONFIG['fredericksburg-2'].locationId,
-      ]],
+      ], ADVISOR_HANDOFF_VEHICLE],
     ) as Array<{ id: string }>;
     for (const row of rows) await this.reconcileConversation(row.id, now);
   }
@@ -1263,7 +1270,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     });
     const hasLocation = Boolean(location.city || location.state || location.easterns_zone || location.zip_code);
     const routingReady = Boolean(
-      hasMinimumRoutingQualification({ phone: snapshot.phone }) &&
+      hasMinimumRoutingQualification({ phone: snapshot.phone, vehicle_type: snapshot.vehicle_type }) &&
       (!offlease || (snapshot.vehicle_type && downPaymentRule.meetsMinimum)),
     );
     if (!routingReady) return { status: 'partial', nextAttemptAt: null };

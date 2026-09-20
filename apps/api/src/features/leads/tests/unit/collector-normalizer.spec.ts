@@ -1318,9 +1318,11 @@ describe('normalizeCollectorInput', () => {
     })).toBe(true);
   });
 
-  it('requires only a phone before a lead enters dealerADMIN', () => {
-    expect(hasMinimumRoutingQualification({ phone: '+15551234567' })).toBe(true);
-    expect(hasMinimumRoutingQualification({ phone: '' })).toBe(false);
+  it('requires a phone and a real vehicle before a lead enters dealerADMIN', () => {
+    expect(hasMinimumRoutingQualification({ phone: '+15551234567', vehicle_type: 'SUV' })).toBe(true);
+    expect(hasMinimumRoutingQualification({ phone: '+15551234567', vehicle_type: '' })).toBe(false);
+    expect(hasMinimumRoutingQualification({ phone: '+15551234567', vehicle_type: ADVISOR_HANDOFF_VEHICLE })).toBe(false);
+    expect(hasMinimumRoutingQualification({ phone: '', vehicle_type: 'SUV' })).toBe(false);
   });
 
   it('does not treat campaign or intent text as a purchase timeline', () => {
