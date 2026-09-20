@@ -34,6 +34,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
     if (!dataSource?.isInitialized) return;
     for (const qaContactId of [contactId, afterHoursContactId, normalContactId, imageContactId, audioContactId, julioContactId, javierContactId]) {
       await dataSource.query('DELETE FROM conversation_bot_pause_events WHERE ghl_contact_id = $1', [qaContactId]);
+      await dataSource.query('DELETE FROM lead_dealers WHERE lead_id IN (SELECT id FROM leads WHERE ghl_contact_id = $1)', [qaContactId]);
       await dataSource.query('DELETE FROM conversations WHERE ghl_contact_id = $1', [qaContactId]);
       await dataSource.query('DELETE FROM leads WHERE ghl_contact_id = $1', [qaContactId]);
     }

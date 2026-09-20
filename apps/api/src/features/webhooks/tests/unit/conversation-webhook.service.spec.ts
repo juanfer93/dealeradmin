@@ -238,6 +238,44 @@ describe('ConversationWebhookService', () => {
     expect(leadDealerUpsert?.[1]?.[0]).toBe('lead-sarah-saints');
   });
 
+  it('reactiva automáticamente una relación rechazada cuando la conversación completa la calificación', async () => {
+    const queryRunner = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM lead_dealers')) return [{
+          status: 'rejected', routing_status: 'not_qualified', assigned_dealer_id: 'dealer-fredericksburg',
+          routing_override: false, routing_reason: 'Manual audit: incomplete qualification', vehicle_type: 'Honda Civic',
+          down_payment: '1500', identification: '', bank_account: '', purchase_timeline: '', documents: '',
+        }];
+        return [];
+      }),
+    };
+    const service = new ConversationWebhookService(
+      { createQueryRunner: () => queryRunner } as never,
+      { resolveDealer: vi.fn() } as never,
+    );
+
+    await (service as unknown as {
+      syncLeadDealer: (...args: unknown[]) => Promise<void>;
+    }).syncLeadDealer(
+      queryRunner,
+      { id: 'dealer-fredericksburg', code: 'FREDERICKSBURG', name: 'Offlease Fredericksburg', timezone: 'America/New_York', routing_config: {} },
+      'lead-recoverable',
+      {
+        real_name: 'Recoverable Lead', phone: '+15716946924', vehicle_type: 'Honda Civic', down_payment: '1500',
+        purchase_timeline: 'Esta semana', documents: 'proof of income: yes', identification: 'yes', bank_account: 'yes',
+        qualification_memory: '', qualification_complete: true, missing_qualification: [], message_count: 7,
+      },
+      { city: null, state: null, zip_code: null, easterns_zone: null },
+      'fredericksburg',
+    );
+
+    const upsert = queryRunner.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO lead_dealers')) as [string, unknown[]] | undefined;
+    expect(upsert?.[0]).toContain("routing_status = CASE WHEN lead_dealers.status = 'sent' OR lead_dealers.routing_override THEN lead_dealers.routing_status ELSE EXCLUDED.routing_status END");
+    expect(upsert?.[0]).toContain("routing_reason = CASE WHEN lead_dealers.status = 'sent' OR lead_dealers.routing_override THEN lead_dealers.routing_reason ELSE EXCLUDED.routing_reason END");
+    expect(upsert?.[1]?.[11]).toBe('GHL fredericksburg source dealer');
+    expect(upsert?.[1]?.[12]).toBe('pending');
+  });
+
   it('recalcula una asignación automática anterior para respetar la rotación Easterns', async () => {
     const queryRunner = {
       query: vi.fn(async (sql: string) => sql.includes('FROM lead_dealers') ? [{

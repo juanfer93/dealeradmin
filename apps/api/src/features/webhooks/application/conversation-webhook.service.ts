@@ -233,9 +233,14 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       `SELECT id
        FROM conversations
        WHERE status IN ('partial', 'waiting_window')
+          OR (status = 'queued' AND ghl_location_id = ANY($2::text[]))
        ORDER BY updated_at ASC
        LIMIT $1`,
-      [ACTIVE_RECONCILIATION_BATCH_SIZE],
+      [ACTIVE_RECONCILIATION_BATCH_SIZE, [
+        GHL_SOURCE_CONFIG.stafford.locationId,
+        GHL_SOURCE_CONFIG.fredericksburg.locationId,
+        GHL_SOURCE_CONFIG['fredericksburg-2'].locationId,
+      ]],
     ) as Array<{ id: string }>;
     for (const row of rows) await this.reconcileConversation(row.id, now);
   }
@@ -275,9 +280,14 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
                 l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name
          FROM conversations c
          JOIN leads l ON l.id = c.lead_id
-         WHERE c.id = $1 AND c.status IN ('partial', 'waiting_window')
+         WHERE c.id = $1 AND (c.status IN ('partial', 'waiting_window')
+           OR (c.status = 'queued' AND c.ghl_location_id = ANY($2::text[])))
          FOR UPDATE`,
-        [id],
+        [id, [
+          GHL_SOURCE_CONFIG.stafford.locationId,
+          GHL_SOURCE_CONFIG.fredericksburg.locationId,
+          GHL_SOURCE_CONFIG['fredericksburg-2'].locationId,
+        ]],
       ) as Array<{
         id: string;
         channel: string;
@@ -439,7 +449,12 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
           [row.lead_id, effectivePhone],
         );
       }
-      const status = this.statusForConversation(snapshot, location, dealer, source, now, 'due', row.ready_at);
+      // A partial row that becomes fully qualified during historical/media
+      // reconciliation must enter the stabilization window first. This keeps
+      // replay behavior consistent with a live inbound event and prevents a
+      // repaired lead from jumping directly into the operator queue.
+      const phase = row.status === 'partial' && snapshot.qualification_complete ? 'capture' : 'due';
+      const status = this.statusForConversation(snapshot, location, dealer, source, now, phase, row.ready_at);
       await runner.query(
         `UPDATE conversations
          SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
@@ -826,6 +841,29 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       );
       if (queuedDuplicate) {
         const isSameQueuedConversation = conversation.isExisting && queuedDuplicate.conversation_id === conversation.id;
+        const dueStatus = this.statusForConversation(snapshot, location, dealer, source, now, 'due', conversation.ready_at);
+        const invalidOffleaseQueue = isOffleaseSource(source) && dueStatus.status === 'partial';
+        if (isSameQueuedConversation && invalidOffleaseQueue) {
+          // A later inbound message can invalidate an old Offlease queue row
+          // (for example, a truck snapshot that now has only "3" dollars).
+          // Re-check the hard gate before preserving queued state and remove
+          // only the pending operator-queue relation; sent history survives.
+          await runner.query(
+            `DELETE FROM lead_dealers
+             WHERE lead_id = $1 AND dealer_id = $2 AND status = 'pending'`,
+            [lead.id, dealer.id],
+          );
+          await runner.query(
+            `UPDATE conversations
+             SET status = 'partial', qualification_snapshot = $2::jsonb, location_snapshot = $3::jsonb,
+                 last_message_at = $4, next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $1`,
+            [conversation.id, JSON.stringify(snapshot), JSON.stringify(location), receivedAt],
+          );
+          await runner.query(`UPDATE webhook_events SET status = 'processed', processed_at = CURRENT_TIMESTAMP, error_code = $2 WHERE event_id = $1`, [event.event_id, 'OFFLEASE_QUEUE_GATE_REVOKED']);
+          await runner.commitTransaction();
+          return { accepted: true, eventId: event.event_id, conversationId: conversation.id, source, status: 'processed' };
+        }
         // A later inbound message can add the make/model after the lead was
         // initially queued. Keep the existing queue row synchronized with the
         // authoritative conversation snapshot (without touching its status).
@@ -1198,7 +1236,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     phase: 'capture' | 'due',
     readyAt?: string | null,
   ): { status: 'partial' | 'ready' | 'waiting_window'; nextAttemptAt: string | null } {
-    const isEasterns = dealer.routing_config?.group === 'Easterns';
+    const isEasterns = source === 'easterns' && dealer.routing_config?.group === 'Easterns';
     const offlease = isOffleaseSource(source);
     const downPaymentRule = evaluateDownPayment(snapshot.vehicle_type, snapshot.down_payment, {
       allowPromotionalThousand: offlease && snapshot.previous_financing === 'yes',
@@ -1258,7 +1296,6 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
   }
 
   private async syncLeadDealer(runner: QueryRunner, sourceDealer: DealerRow, leadId: string, snapshot: ConversationSnapshot, location: LocationSnapshot, source: SourceKey): Promise<void> {
-    if (!this.georoutingService) throw new ServiceUnavailableException('Georouting service is not available');
     const existing = await runner.query(
       `SELECT status, routing_status, assigned_dealer_id, routing_override, routing_reason, vehicle_type, down_payment,
               identification, bank_account, purchase_timeline, documents
@@ -1266,9 +1303,11 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       [leadId, sourceDealer.id],
     ) as ExistingDealerLead[];
     const current = existing[0];
-    const isEasterns = sourceDealer.routing_config?.group === 'Easterns';
-    const routing = isEasterns
-      ? await this.georoutingService.resolveDealer(
+    const usesEasternsGeorouting = source === 'easterns' && sourceDealer.routing_config?.group === 'Easterns';
+    const georoutingService = this.georoutingService;
+    if (usesEasternsGeorouting && !georoutingService) throw new ServiceUnavailableException('Georouting service is not available');
+    const routing = usesEasternsGeorouting
+      ? await georoutingService!.resolveDealer(
         { ...location, qualification_memory: snapshot.qualification_memory },
         runner,
         sourceDealer.id,
@@ -1278,6 +1317,13 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     const alreadySent = current?.status === 'sent';
     const preservesAssignment = Boolean(current?.routing_override || alreadySent);
     const assignedDealerId = preservesAssignment ? current?.assigned_dealer_id || routing.dealerId : routing.dealerId;
+    // A rejected/not-qualified relation is eligible for automatic recovery when
+    // a later inbound message completes the qualification. Do not carry the
+    // stale audit rejection into the active queue; preserve only sent rows and
+    // explicit operator overrides.
+    const routingReason = preservesAssignment
+      ? current?.routing_reason || routing.reason
+      : routing.reason;
     const messageText = buildWhatsAppMessage(snapshot.real_name || 'Lead', snapshot.phone, snapshot);
     await runner.query(
       `INSERT INTO lead_dealers
@@ -1293,6 +1339,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
          documents = COALESCE(NULLIF(EXCLUDED.documents, ''), lead_dealers.documents),
          easterns_zone = COALESCE(NULLIF(EXCLUDED.easterns_zone, ''), lead_dealers.easterns_zone),
          assigned_dealer_id = CASE WHEN lead_dealers.status = 'sent' OR lead_dealers.routing_override THEN lead_dealers.assigned_dealer_id ELSE EXCLUDED.assigned_dealer_id END,
+         routing_status = CASE WHEN lead_dealers.status = 'sent' OR lead_dealers.routing_override THEN lead_dealers.routing_status ELSE EXCLUDED.routing_status END,
          routing_reason = CASE WHEN lead_dealers.status = 'sent' OR lead_dealers.routing_override THEN lead_dealers.routing_reason ELSE EXCLUDED.routing_reason END,
          status = CASE WHEN lead_dealers.status = 'sent' THEN 'sent' ELSE 'pending' END,
          message_text = EXCLUDED.message_text,
@@ -1300,7 +1347,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       [
         leadId, sourceDealer.id, snapshot.vehicle_type, normalizeDownPayment(snapshot.down_payment), snapshot.identification,
         snapshot.bank_account, snapshot.purchase_timeline, snapshot.documents, location.easterns_zone || '', assignedDealerId,
-        current?.routing_override ?? false, current?.routing_reason || routing.reason, current?.status === 'sent' ? 'sent' : 'pending', messageText,
+        current?.routing_override ?? false, routingReason, current?.status === 'sent' ? 'sent' : 'pending', messageText,
       ],
     );
   }
