@@ -22,6 +22,8 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
   const julioConversationId = `${suffix}-julio-conversation`;
   const javierContactId = `${suffix}-javier-contact`;
   const javierConversationId = `${suffix}-javier-conversation`;
+  const snapshotContactId = `${suffix}-snapshot-contact`;
+  const snapshotConversationId = `${suffix}-snapshot-conversation`;
   const now = '2026-09-17T17:19:00.000Z';
 
   beforeAll(async () => {
@@ -32,7 +34,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
 
   afterAll(async () => {
     if (!dataSource?.isInitialized) return;
-    for (const qaContactId of [contactId, afterHoursContactId, normalContactId, imageContactId, audioContactId, julioContactId, javierContactId]) {
+    for (const qaContactId of [contactId, afterHoursContactId, normalContactId, imageContactId, audioContactId, julioContactId, javierContactId, snapshotContactId]) {
       await dataSource.query('DELETE FROM conversation_bot_pause_events WHERE ghl_contact_id = $1', [qaContactId]);
       await dataSource.query('DELETE FROM lead_dealers WHERE lead_id IN (SELECT id FROM leads WHERE ghl_contact_id = $1)', [qaContactId]);
       await dataSource.query('DELETE FROM conversations WHERE ghl_contact_id = $1', [qaContactId]);
@@ -218,6 +220,83 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
     ) as Array<{ ready_at: string; next_attempt_at: string }>;
     expect(new Date(second[0].ready_at).toISOString()).toBe(afterHoursNow);
     expect(new Date(second[0].next_attempt_at).toISOString()).toBe('2026-09-17T23:01:00.000Z');
+  });
+
+  it('keeps persisted qualification facts when a GHL replay only contains the latest turn', async () => {
+    const service = new ConversationWebhookService(dataSource);
+    const common = {
+      event_type: 'CustomerReplied',
+      ghl_contact_id: snapshotContactId,
+      ghl_conversation_id: snapshotConversationId,
+      channel: 'messenger',
+      contact_name: 'Snapshot Fallback Buyer',
+      contact_phone: '',
+      occurred_at: now,
+    };
+
+    await service.acceptCustomerReplied({
+      ...common,
+      event_id: `${suffix}-snapshot-initial`,
+      ghl_message_id: `${suffix}-snapshot-initial-message`,
+      message_body: 'I am looking for a Toyota Tacoma',
+    }, 'arlington', { contactId: snapshotContactId, conversationId: snapshotConversationId });
+
+    const conversation = await dataSource.query(
+      `SELECT id, lead_id FROM conversations WHERE ghl_contact_id = $1`,
+      [snapshotContactId],
+    ) as Array<{ id: string; lead_id: string }>;
+    expect(conversation).toHaveLength(1);
+
+    // Simulate a prior qualified snapshot captured by DealerADMIN while the
+    // next GHL webhook exposes only the customer's latest answer.
+    await dataSource.query(
+      `UPDATE conversations
+       SET qualification_snapshot = $2::jsonb, status = 'partial'
+       WHERE id = $1`,
+      [conversation[0].id, JSON.stringify({
+        real_name: 'Snapshot Fallback Buyer',
+        phone: '+12408414199',
+        vehicle_type: 'Toyota Tacoma',
+        down_payment: '3000',
+        purchase_timeline: '',
+        documents: 'identification: yes; proof of income: yes',
+        identification: 'yes',
+        bank_account: 'yes',
+        qualification_memory: 'vehicle: Toyota Tacoma; down payment: 3000; documents: identification: yes, proof of income: yes',
+        qualification_complete: false,
+        missing_qualification: ['purchase_timeline'],
+        message_count: 1,
+      })],
+    );
+    await dataSource.query(
+      `DELETE FROM conversation_messages WHERE conversation_id = $1`,
+      [conversation[0].id],
+    );
+
+    await service.acceptCustomerReplied({
+      ...common,
+      event_id: `${suffix}-snapshot-latest`,
+      ghl_message_id: `${suffix}-snapshot-latest-message`,
+      // The only current GHL turn exposes the phone and timeline; the
+      // vehicle/down/documents facts must come from the persisted snapshot.
+      message_body: 'I am buying this month. You can reach me at 240-841-4199',
+    }, 'arlington', { contactId: snapshotContactId, conversationId: snapshotConversationId });
+
+    const persisted = await dataSource.query(
+      `SELECT c.status, c.qualification_snapshot
+       FROM conversations c
+       WHERE c.ghl_contact_id = $1`,
+      [snapshotContactId],
+    ) as Array<{ status: string; qualification_snapshot: Record<string, unknown> }>;
+    expect(persisted[0]).toMatchObject({ status: 'waiting_window' });
+    expect(persisted[0].qualification_snapshot).toMatchObject({
+      real_name: 'Snapshot Fallback Buyer',
+      vehicle_type: 'Toyota Tacoma',
+      down_payment: '3000',
+      purchase_timeline: 'this month',
+      identification: 'yes',
+      bank_account: 'yes',
+    });
   });
 
   it('keeps a normal text message on the existing path with a different contact id', async () => {

@@ -725,13 +725,33 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         await runner.commitTransaction();
         return { accepted: true, eventId: event.event_id, conversationId: conversation.id, source, status: 'processed' };
       }
+      const previousSnapshot = conversation.qualification_snapshot ?? {};
+      const previousRealName = clean(previousSnapshot.real_name);
       const normalized = normalizeCollectorInput({
         source,
         channel: event.channel,
-        real_name: /(?:^|[^a-z])messenger(?:$|[^a-z])/i.test(event.channel) ? displayName : undefined,
+        // GHL may send the current contact turn without the earlier identity
+        // answer. Keep the persisted name as a fallback, while allowing a
+        // fresh Messenger contact name or WhatsApp declaration to win.
+        real_name: /(?:^|[^a-z])messenger(?:$|[^a-z])/i.test(event.channel)
+          ? (displayName.toLowerCase() === 'lead' ? previousRealName : displayName)
+          : previousRealName || undefined,
         message: transcript,
         chat_history_log: transcript,
         phone: recentPhone || nativeWhatsappPhone || '',
+        // The transcript is the primary evidence. These persisted fields are
+        // a lossless fallback for a GHL replay that contains only the latest
+        // user turn or omits an earlier message from the webhook payload.
+        // Never seed phone here: Messenger phone qualification still requires
+        // recent inbound evidence from the customer.
+        vehicle_type: clean(previousSnapshot.vehicle_type),
+        down_payment: clean(previousSnapshot.down_payment),
+        purchase_timeline: clean(previousSnapshot.purchase_timeline),
+        documents: clean(previousSnapshot.documents),
+        identification: clean(previousSnapshot.identification),
+        bank_account: clean(previousSnapshot.bank_account),
+        qualification_memory: clean(previousSnapshot.qualification_memory),
+        customer_location: clean(previousSnapshot.customer_location),
         previous_predicted_bot_question: clean((conversation.qualification_snapshot?.qualification_progress as { predicted_bot_question?: unknown } | undefined)?.predicted_bot_question),
       });
       // A lead can correct the phone in a later inbound message. Keep the
