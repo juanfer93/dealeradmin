@@ -513,8 +513,9 @@ const bankAccount = first(yesNo(inputData.bank_account), yesNo(bankContext), yes
 const documents = first(memoryValue(['documents', 'docs', 'documentos']), inputData.documents, [identification === 'yes' ? 'identification: yes' : '', income === 'yes' ? 'proof of income: yes' : ''].filter(Boolean).join(', '));
 const customPresent = [inputData.vehicle_type, inputData.down_payment, inputData.purchase_timeline, inputData.documents, inputData.identification, inputData.bank_account].some((value) => clean(value) && !emptyMarker(value));
 const qualificationSource = rawMemory && customPresent ? 'both' : rawMemory ? 'qualification_memory' : customPresent ? 'custom_fields' : 'none';
-// The queue handoff requires a usable identity, phone, vehicle, down payment,
-// and purchase timing. Document evidence remains visible but is non-blocking.
+// The queue handoff requires a usable identity, phone, and vehicle for every
+// dealer. Only Offlease adds the down-payment gate; timing, documents, and
+// bank-account evidence remain visible but non-blocking.
 // Prefer a phone written in the inbound conversation, then a native GHL phone.
 const languageText = `${message}; ${history}`;
 const englishSignals = (languageText.match(/\b(?:i|i'm|im|my|want|wants|need|looking|have|yes|yeah|yep|what|when|where|how|this|next|today|week|month|do|does)\b/gi) || []).length;
@@ -526,21 +527,18 @@ const timeline = language === 'es'
 const hasRealVehicle = Boolean(vehicle) && !isAdvisorHandoffVehicle(vehicle);
 const needsOffleaseMinimum = offlease && hasRealVehicle && Boolean(down) && !downPaymentSufficient;
 const coreMissing = (sourceAware
-  ? [stafford && !realName ? 'real_name' : '', !phone && !phoneSatisfiedByNative ? 'phone' : '', !hasRealVehicle ? 'vehicle_type' : '', !down ? 'down_payment' : '', needsOffleaseMinimum ? 'down_payment_minimum' : '', !timeline ? 'purchase_timeline' : '']
-  : [!realName ? 'real_name' : '', !phone ? 'phone' : '', !hasRealVehicle ? 'vehicle_type' : '', !down ? 'down_payment' : '', !timeline ? 'purchase_timeline' : ''])
+  ? [!realName ? 'real_name' : '', !phone && !phoneSatisfiedByNative ? 'phone' : '', !hasRealVehicle ? 'vehicle_type' : '', offlease && !down ? 'down_payment' : '', offlease && needsOffleaseMinimum ? 'down_payment_minimum' : '']
+  : [!realName ? 'real_name' : '', !phone ? 'phone' : '', !hasRealVehicle ? 'vehicle_type' : '', offlease && !down ? 'down_payment' : '', offlease && needsOffleaseMinimum ? 'down_payment_minimum' : ''])
   .filter(Boolean);
 const qualificationMissing = [
   ...coreMissing,
   requiresLocation && !customerLocation ? 'customer_location' : '',
-  identification !== 'yes' ? 'identification' : '',
-  income !== 'yes' ? 'proof_of_income' : '',
-  bankAccount !== 'yes' ? 'bank_account' : '',
 ].filter(Boolean);
 const parts = memoryText(rawMemory).split(';').map((part) => clean(part).replace(/^\d+(?=(?:vehicle|vehicle[_ ]?type|down|down[_ ]?payment|documents?|timeline)\b)/i, '')).filter((part) => Boolean(part) && !/^\$?\d[\d,.]*$/.test(part));
 const canonical = [['real_name', realName], ['vehicle', vehicle], ['down payment', down], ['previous financing', effectivePreviousFinancing], ['documents', documents], ['timeline', timeline]].filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).replace(/\s*;\s*/g, ', ')}`);
 const qualificationMemory = [...new Set([...parts.filter((part) => !/^(?:real_name|real name|name|nombre|nombre real|nombre completo|vehicle|vehicle_type|down|down payment|down_payment|previous financing|previous_financing|financing history|historial de financiamiento|documents?|docs|timeline|purchase timeline|purchase_timeline)\s*(?::|=|-)/i.test(part)), ...canonical])].join('; ');
 const qualificationStep = sourceAware
-  ? (stafford && !realName
+  ? (!realName
     ? 'real_name'
     : !hasRealVehicle
       ? 'vehicle_type'
@@ -548,28 +546,18 @@ const qualificationStep = sourceAware
         ? 'customer_location'
         : !phone && !phoneSatisfiedByNative
           ? 'phone'
-          : !down || needsOffleaseMinimum
+          : offlease && (!down || needsOffleaseMinimum)
             ? 'down_payment'
-            : !timeline
-              ? 'purchase_timeline'
-              : identification !== 'yes' || income !== 'yes'
-                ? 'documents'
-                : !bankAccount || bankAccount !== 'yes'
-                  ? 'bank_account'
-                  : 'complete')
+            : 'complete')
   : (!realName
     ? 'real_name'
       : !hasRealVehicle
-      ? 'vehicle_type'
-      : !down
-        ? 'down_payment'
-        : !timeline
-          ? 'purchase_timeline'
-          : identification !== 'yes' || income !== 'yes'
-            ? 'documents'
-            : !bankAccount || bankAccount !== 'yes'
-              ? 'bank_account'
-              : 'complete');
+        ? 'vehicle_type'
+      : !phone
+        ? 'phone'
+        : offlease && (!down || needsOffleaseMinimum)
+          ? 'down_payment'
+          : 'complete');
 const questions = {
   en: {
     real_name: 'What is your full name?', vehicle_type: 'What vehicle are you looking for?', customer_location: 'What city are you located in?', phone: "What's the best phone number to reach you?",
@@ -606,7 +594,7 @@ const predictedBotQuestion = qualificationStep === 'down_payment' && offlease &&
       ? minimumQuestion
       : questions[language][qualificationStep];
 const lastAnsweredField = qualificationStep === 'complete'
-  ? 'bank_account'
+  ? (offlease ? 'down_payment' : 'phone')
   : (sourceAware
     ? [['real_name', stafford && Boolean(realName)], ['vehicle_type', hasRealVehicle], ['customer_location', Boolean(customerLocation)], ['phone', Boolean(phone) || phoneSatisfiedByNative], ['down_payment', Boolean(down) && !needsOffleaseMinimum], ['purchase_timeline', timeline], ['documents', identification === 'yes' && income === 'yes'], ['bank_account', bankAccount === 'yes']]
     : [['real_name', realName], ['phone', phone], ['vehicle_type', hasRealVehicle], ['down_payment', down], ['purchase_timeline', timeline], ['documents', identification === 'yes' && income === 'yes'], ['bank_account', bankAccount === 'yes']])

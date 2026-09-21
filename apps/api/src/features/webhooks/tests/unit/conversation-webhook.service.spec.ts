@@ -32,9 +32,10 @@ describe('ConversationWebhookService', () => {
     readyAt?: string,
   ) {
     const service = new ConversationWebhookService();
+    const testSnapshot = { real_name: 'QA Customer', ...snapshot };
     return (service as unknown as {
       statusForConversation: (...args: unknown[]) => { status: string; nextAttemptAt: string | null };
-    }).statusForConversation(snapshot, location, dealer, source, now, phase, readyAt);
+    }).statusForConversation(testSnapshot, location, dealer, source, now, phase, readyAt);
   }
 
   const completeSnapshot = { phone: '+13015550123', vehicle_type: 'SUV', qualification_complete: true };
@@ -110,8 +111,8 @@ describe('ConversationWebhookService', () => {
       phone: '+14438144460',
       vehicle_type: 'SUV',
       down_payment: '2000',
-      qualification_complete: false,
-      missing_qualification: expect.arrayContaining(['purchase_timeline']),
+      qualification_complete: true,
+      missing_qualification: [],
     });
     expect(conversationUpdate?.[1]?.[1]).toBe('waiting_window');
   });
@@ -120,6 +121,7 @@ describe('ConversationWebhookService', () => {
     const normalized = normalizeCollectorInput({
       source: 'fredericksburg',
       channel: 'messenger',
+      real_name: 'QA Customer',
       phone: '+15405550123',
       vehicle_type: 'Sedan',
       message: 'Tengo 1000\nSí sí podría',

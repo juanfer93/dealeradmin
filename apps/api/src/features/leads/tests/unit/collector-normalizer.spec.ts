@@ -81,7 +81,7 @@ describe('normalizeCollectorInput', () => {
       down_payment: '1000',
       down_payment_amount: 1000,
       down_payment_sufficient: true,
-      qualification_step: 'purchase_timeline',
+      qualification_step: 'complete',
     });
   });
 
@@ -170,7 +170,7 @@ describe('normalizeCollectorInput', () => {
       previous_financing: 'yes',
       down_payment: '1000',
       down_payment_sufficient: true,
-      qualification_step: 'purchase_timeline',
+      qualification_step: 'complete',
     });
   });
 
@@ -200,7 +200,7 @@ describe('normalizeCollectorInput', () => {
     });
 
     expect(result).toMatchObject({ previous_financing: '', down_payment: '3000', down_payment_sufficient: true });
-    expect(result.next_question).toContain('¿Cuándo');
+    expect(result.next_question).toBe('');
   });
 
   it('repeats the financing-history question when the answer is unrelated', () => {
@@ -404,6 +404,7 @@ describe('normalizeCollectorInput', () => {
     const result = normalizeCollectorInput({
       source: 'fredericksburg-2',
       channel: 'messenger',
+      real_name: 'QA Customer',
       phone: '+15718351684',
       vehicle_type: 'Toyota Tacoma',
       message: reply,
@@ -416,7 +417,7 @@ describe('normalizeCollectorInput', () => {
       down_payment_amount: 3000,
       required_down_payment: 3000,
       down_payment_sufficient: true,
-      qualification_step: 'purchase_timeline',
+      qualification_step: 'complete',
     });
   });
 
@@ -598,7 +599,7 @@ describe('normalizeCollectorInput', () => {
     expect(result.identification).toBe('yes');
     expect(result.has_income_proof).toBe('yes');
     expect(result.documents).toContain('proof of income: yes');
-    expect(result.missing_qualification).toEqual(['bank_account']);
+    expect(result.missing_qualification).toEqual([]);
   });
 
   it.each([
@@ -909,9 +910,9 @@ describe('normalizeCollectorInput', () => {
     const result = normalizeCollectorInput({ channel: 'whatsapp', message: 'My name is Taylor QA\nI am looking for a Mustang\n+1 (804) 309-2531' });
     expect(result).toMatchObject({ vehicle_type: 'Mustang', phone: '+18043092531' });
     expect(result.qualification_progress).toMatchObject({
-      step: 'down_payment',
-      last_answered_field: 'vehicle_type',
-      predicted_bot_question: 'How much do you have for the down payment?',
+      step: 'complete',
+      last_answered_field: 'phone',
+      predicted_bot_question: '',
     });
   });
 
@@ -923,9 +924,9 @@ describe('normalizeCollectorInput', () => {
       message: 'Estoy buscando un Mustang',
     });
     expect(result.qualification_progress).toMatchObject({
-      step: 'down_payment',
-      last_answered_field: 'vehicle_type',
-      predicted_bot_question: '¿Cuánto tienes para el enganche?',
+      step: 'complete',
+      last_answered_field: 'phone',
+      predicted_bot_question: '',
       language: 'es',
     });
   });
@@ -952,11 +953,11 @@ describe('normalizeCollectorInput', () => {
   });
 
   it('relates Easterns location to the location step and skips it when already mentioned', () => {
-    expect(normalizeCollectorInput({ source: 'easterns', channel: 'messenger', message: 'I want an SUV' }).qualification_progress).toMatchObject({
+    expect(normalizeCollectorInput({ source: 'easterns', channel: 'messenger', real_name: 'QA Customer', message: 'I want an SUV' }).qualification_progress).toMatchObject({
       step: 'customer_location',
       predicted_bot_question: 'What city are you located in?',
     });
-    expect(normalizeCollectorInput({ source: 'easterns', channel: 'messenger', message: 'I want an SUV in Laurel' }).qualification_progress.step).toBe('phone');
+    expect(normalizeCollectorInput({ source: 'easterns', channel: 'messenger', real_name: 'QA Customer', message: 'I want an SUV in Laurel' }).qualification_progress.step).toBe('phone');
   });
 
   it('uses the Stafford name-first flow while treating the WhatsApp phone as known', () => {
@@ -977,6 +978,7 @@ describe('normalizeCollectorInput', () => {
     const result = normalizeCollectorInput({
       source: 'fredericksburg',
       channel: 'messenger',
+      real_name: 'Cliente QA',
       phone: '+15405550123',
       message: 'Busco una Tacoma y voy a pagar de contado',
     });
@@ -985,8 +987,8 @@ describe('normalizeCollectorInput', () => {
       vehicle_category: 'truck',
       required_down_payment: 3000,
       down_payment_sufficient: true,
-      qualification_step: 'purchase_timeline',
-      qualification_complete: false,
+      qualification_step: 'complete',
+      qualification_complete: true,
     });
   });
 
@@ -1116,8 +1118,8 @@ describe('normalizeCollectorInput', () => {
     expect(result.real_name).toBe('Amin');
     expect(result.vehicle_type).toBe('Sedan');
     expect(result.down_payment).toBe('500');
-    expect(result.qualification_step).toBe('purchase_timeline');
-    expect(result.qualification_progress.predicted_bot_question).toBe('¿Cuándo planeas comprar?');
+    expect(result.qualification_step).toBe('complete');
+    expect(result.qualification_progress.predicted_bot_question).toBe('');
   });
 
   it('does not promote a location question and combines a colloquial truck with its Ford make', () => {
@@ -1345,7 +1347,7 @@ describe('normalizeCollectorInput', () => {
       qualification_memory: 'vehicle: SUV; down payment: 2K; documents: identification: yes',
     });
     expect(result.qualification_complete).toBe(false);
-    expect(result.missing_qualification).toEqual(['real_name', 'phone', 'purchase_timeline', 'proof_of_income', 'bank_account']);
+    expect(result.missing_qualification).toEqual(['real_name', 'phone']);
     expect(result.next_question).toBe('What is your full name?');
   });
 
@@ -1383,11 +1385,12 @@ describe('normalizeCollectorInput', () => {
     })).toBe(true);
   });
 
-  it('requires a phone and a real vehicle before a lead enters dealerADMIN', () => {
-    expect(hasMinimumRoutingQualification({ phone: '+15551234567', vehicle_type: 'SUV' })).toBe(true);
-    expect(hasMinimumRoutingQualification({ phone: '+15551234567', vehicle_type: '' })).toBe(false);
-    expect(hasMinimumRoutingQualification({ phone: '+15551234567', vehicle_type: ADVISOR_HANDOFF_VEHICLE })).toBe(false);
-    expect(hasMinimumRoutingQualification({ phone: '', vehicle_type: 'SUV' })).toBe(false);
+  it('requires a name, phone, and real vehicle before a lead enters dealerADMIN', () => {
+    expect(hasMinimumRoutingQualification({ real_name: 'QA Customer', phone: '+15551234567', vehicle_type: 'SUV' })).toBe(true);
+    expect(hasMinimumRoutingQualification({ real_name: '', phone: '+15551234567', vehicle_type: 'SUV' })).toBe(false);
+    expect(hasMinimumRoutingQualification({ real_name: 'QA Customer', phone: '+15551234567', vehicle_type: '' })).toBe(false);
+    expect(hasMinimumRoutingQualification({ real_name: 'QA Customer', phone: '+15551234567', vehicle_type: ADVISOR_HANDOFF_VEHICLE })).toBe(false);
+    expect(hasMinimumRoutingQualification({ real_name: 'QA Customer', phone: '', vehicle_type: 'SUV' })).toBe(false);
   });
 
   it('does not treat campaign or intent text as a purchase timeline', () => {

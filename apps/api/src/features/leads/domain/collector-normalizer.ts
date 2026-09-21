@@ -188,9 +188,9 @@ function collectorFlowPolicy(input: CollectorInput): CollectorFlowPolicy {
     stafford,
     requiresLocation,
     phoneSatisfiedByNative: stafford && isWhatsAppChannel(input.channel),
-    // Stafford's supplied prompt explicitly collects the customer's name;
-    // the other flows use the GHL/Messenger contact identity when available.
-    requiresRealName: stafford,
+    // Every dealer queue row must carry a usable customer name. Messenger
+    // supplies it from the GHL contact display name; WhatsApp must declare it.
+    requiresRealName: true,
   };
 }
 
@@ -950,22 +950,21 @@ export function isQualificationComplete(input: {
   real_name?: string | null;
   phone?: string | null;
   vehicle_type?: string | null;
+  // Retained in the input contract for callers that also build the complete
+  // qualification snapshot; these fields are not common routing blockers.
   down_payment?: string | null;
   purchase_timeline?: string | null;
   has_identification?: string | null;
   has_income_proof?: string | null;
   bank_account?: string | null;
 }): boolean {
-  // The blocking handoff facts are identity, phone, vehicle, down payment,
-  // and purchase timing. ID, proof of income/documents, and bank account are
-  // useful evidence for the dealer view, but are not blocking fields because
-  // GHL may only expose the customer's inbound replies to this normalizer.
+  // The common dealer handoff gate is intentionally small: name, phone, and a
+  // real vehicle. Down payment is a policy-specific gate for Offlease only;
+  // purchase timing, documents, and bank account remain additive evidence.
   return Boolean(
     clean(input.real_name) &&
     clean(input.phone) &&
-    clean(input.vehicle_type) && !isAdvisorHandoffVehicle(input.vehicle_type) &&
-    clean(input.down_payment) &&
-    clean(input.purchase_timeline),
+    clean(input.vehicle_type) && !isAdvisorHandoffVehicle(input.vehicle_type),
   );
 }
 
@@ -973,17 +972,18 @@ export function isQualificationComplete(input: {
  * Minimum data required before a lead may enter dealerADMIN.
  *
  * Qualification fields are optional at intake. They are preserved and
- * normalized when present, but a conversation needs the two routing facts
- * common to every dealer before it can enter dealerADMIN: a valid phone and a
- * real vehicle interest. Offlease adds its vehicle-specific down-payment gate
- * in the conversation status evaluator.
+ * normalized when present, but a conversation needs the three routing facts
+ * common to every dealer before it can enter dealerADMIN: a usable name, a
+ * valid phone, and a real vehicle interest. Offlease adds its vehicle-specific
+ * down-payment gate in the conversation status evaluator.
  */
 export function hasMinimumRoutingQualification(
-  input: Pick<CollectorInput, 'phone' | 'vehicle_type'>,
+  input: Pick<CollectorInput, 'real_name' | 'phone' | 'vehicle_type'>,
 ): boolean {
   return Boolean(
-    firstNonEmpty(input.phone)
-    && firstNonEmpty(input.vehicle_type)
+    firstNonEmpty(input.real_name) &&
+    firstNonEmpty(input.phone) &&
+    firstNonEmpty(input.vehicle_type)
     && !isAdvisorHandoffVehicle(input.vehicle_type),
   );
 }
@@ -1176,15 +1176,9 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
         ? 'customer_location'
         : policy.sourceAware && !policy.phoneSatisfiedByNative && !chatPhone
           ? 'phone'
-          : !down || needsOffleaseMinimum
+          : policy.offlease && (!down || needsOffleaseMinimum)
         ? 'down_payment'
-        : !timeline
-          ? 'purchase_timeline'
-          : docs.id !== 'yes' || docs.income !== 'yes'
-            ? 'documents'
-            : bankAccount !== 'yes'
-              ? 'bank_account'
-              : 'complete';
+        : 'complete';
   const questions: Record<CollectorLanguage, Record<QualificationStep, string>> = {
     en: {
       real_name: 'What is your full name?',
@@ -1240,24 +1234,18 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
       ['vehicle_type', hasRealVehicle],
       ['customer_location', Boolean(customerLocation)],
       ['phone', Boolean(chatPhone) || policy.phoneSatisfiedByNative],
-      ['down_payment', Boolean(down)],
-      ['purchase_timeline', Boolean(timeline)],
-      ['documents', docs.id === 'yes' && docs.income === 'yes'],
-      ['bank_account', bankAccount === 'yes'],
+      ...(policy.offlease ? [['down_payment', Boolean(down) && !needsOffleaseMinimum] as [string, boolean]] : []),
     ]
     : [
       ['real_name', Boolean(realName)],
       ['phone', Boolean(chatPhone)],
       ['vehicle_type', hasRealVehicle],
-      ['down_payment', Boolean(down)],
-      ['purchase_timeline', Boolean(timeline)],
-      ['documents', docs.id === 'yes' && docs.income === 'yes'],
-      ['bank_account', bankAccount === 'yes'],
+      ...(policy.offlease ? [['down_payment', Boolean(down) && !needsOffleaseMinimum] as [string, boolean]] : []),
     ];
   const lastAnsweredField = [...completedOrder].reverse().find(([, complete]) => complete)?.[0] ?? null;
   const qualificationProgress: QualificationProgress = {
     step,
-    last_answered_field: step === 'complete' ? 'bank_account' : lastAnsweredField,
+    last_answered_field: step === 'complete' ? (policy.offlease ? 'down_payment' : 'phone') : lastAnsweredField,
     predicted_bot_question: nextQuestion,
     language,
     confidence: step === 'complete' ? 1 : 0.95,
@@ -1281,11 +1269,9 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     !chatPhone && !policy.phoneSatisfiedByNative ? 'phone' : EMPTY,
     !hasRealVehicle ? 'vehicle_type' : EMPTY,
     policy.requiresLocation && !customerLocation ? 'customer_location' : EMPTY,
-    !down ? 'down_payment' : (policy.offlease && !downPaymentRule.meetsMinimum ? 'down_payment_minimum' : EMPTY),
-    !timeline ? 'purchase_timeline' : EMPTY,
-    docs.id !== 'yes' ? 'identification' : EMPTY,
-    docs.income !== 'yes' ? 'proof_of_income' : EMPTY,
-    bankAccount !== 'yes' ? 'bank_account' : EMPTY,
+    policy.offlease
+      ? (!down ? 'down_payment' : (!downPaymentRule.meetsMinimum ? 'down_payment_minimum' : EMPTY))
+      : EMPTY,
   ].filter(Boolean);
   return {
     real_name: realName,

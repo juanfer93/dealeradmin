@@ -405,11 +405,9 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         !realName ? 'real_name' : '',
         !effectivePhone ? 'phone' : '',
         !vehicle || isAdvisorHandoffVehicle(vehicle) || (offlease && !downPaymentRule.category) ? 'vehicle_type' : '',
-        !downPayment ? 'down_payment' : (offlease && !downPaymentRule.meetsMinimum ? 'down_payment_minimum' : ''),
-        !purchaseTimeline ? 'purchase_timeline' : '',
-        identification !== 'yes' ? 'identification' : '',
-        !/proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina/i.test(documents) ? 'proof_of_income' : '',
-        bankAccount !== 'yes' ? 'bank_account' : '',
+        offlease
+          ? (!downPayment ? 'down_payment' : (!downPaymentRule.meetsMinimum ? 'down_payment_minimum' : ''))
+          : '',
       ].filter(Boolean);
       const resolvedLocation = await this.resolveLocation(runner, transcript);
       const hasResolvedLocation = Boolean(resolvedLocation.city || resolvedLocation.state || resolvedLocation.zip_code || resolvedLocation.easterns_zone);
@@ -820,11 +818,9 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
           !normalized.real_name ? 'real_name' : '',
           !effectivePhone ? 'phone' : '',
           !normalized.vehicle_type || isAdvisorHandoffVehicle(normalized.vehicle_type) || (offlease && !downPaymentRule.category) ? 'vehicle_type' : '',
-          !downPayment ? 'down_payment' : (offlease && !downPaymentRule.meetsMinimum ? 'down_payment_minimum' : ''),
-          !normalized.purchase_timeline ? 'purchase_timeline' : '',
-          normalized.identification !== 'yes' ? 'identification' : '',
-          normalized.has_income_proof !== 'yes' ? 'proof_of_income' : '',
-          normalized.bank_account !== 'yes' ? 'bank_account' : '',
+          offlease
+            ? (!downPayment ? 'down_payment' : (!downPaymentRule.meetsMinimum ? 'down_payment_minimum' : ''))
+            : '',
         ].filter(Boolean),
         message_count: messages.length,
         language,
@@ -1271,7 +1267,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     });
     const hasLocation = Boolean(location.city || location.state || location.easterns_zone || location.zip_code);
     const routingReady = Boolean(
-      hasMinimumRoutingQualification({ phone: snapshot.phone, vehicle_type: snapshot.vehicle_type }) &&
+      hasMinimumRoutingQualification({ real_name: snapshot.real_name, phone: snapshot.phone, vehicle_type: snapshot.vehicle_type }) &&
       (!offlease || (snapshot.vehicle_type && downPaymentRule.meetsMinimum)),
     );
     if (!routingReady) return { status: 'partial', nextAttemptAt: null };

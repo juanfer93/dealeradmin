@@ -20,7 +20,8 @@ describe('dealerADMIN capture contract', () => {
     expect(contract.raw_evidence.transcript).toContain('Mi número es 804-309-2531');
     expect(contract.extraction.fields.phone.source).toBe('message');
     expect(contract.extraction.completeness.status).toBe('partial');
-    expect(contract.extraction.completeness.missing).toContain('down_payment');
+    expect(contract.extraction.completeness.missing).toContain('real_name');
+    expect(contract.extraction.completeness.missing).not.toContain('down_payment');
     expect(contract.extraction.progress).toMatchObject({
       step: 'real_name',
       predicted_bot_question: '¿Cuál es tu nombre completo?',

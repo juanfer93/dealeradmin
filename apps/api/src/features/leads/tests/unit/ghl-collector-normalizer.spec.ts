@@ -117,7 +117,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       down_payment_amount: 2000,
       required_down_payment: 2000,
       down_payment_sufficient: true,
-      qualification_step: 'purchase_timeline',
+      qualification_step: 'complete',
     });
   });
 
@@ -125,6 +125,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     const result = execute({
       source: 'fredericksburg',
       channel: 'messenger',
+      real_name: 'QA Customer',
       phone: '+15405550123',
       message: 'Toyota Corolla, tengo 1K',
     });
@@ -157,7 +158,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       down_payment: '1000',
       down_payment_amount: 1000,
       down_payment_sufficient: true,
-      qualification_step: 'purchase_timeline',
+      qualification_step: 'complete',
     });
   });
 
@@ -249,6 +250,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(execute({
       source: 'fredericksburg-2',
       channel: 'messenger',
+      real_name: 'QA Customer',
       phone: '+15718351684',
       vehicle_type: 'Toyota Tacoma',
       message: reply,
@@ -259,7 +261,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       down_payment_amount: 3000,
       required_down_payment: 3000,
       down_payment_sufficient: true,
-      qualification_step: 'purchase_timeline',
+      qualification_step: 'complete',
     });
   });
 
@@ -323,7 +325,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       down_payment: '2000 + trade-in',
       down_payment_sufficient: true,
       qualification_complete: true,
-      qualification_step: 'documents',
+      qualification_step: 'complete',
     });
   });
 
@@ -331,6 +333,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(execute({
       source: 'fredericksburg',
       channel: 'messenger',
+      real_name: 'QA Customer',
       phone: '+15405550123',
       message,
     })).toMatchObject({
@@ -338,12 +341,12 @@ describe('HighLevel collector custom-code normalizer', () => {
       required_down_payment: 3000,
       down_payment: 'trade-in',
       down_payment_sufficient: true,
-      qualification_step: 'purchase_timeline',
+      qualification_step: 'complete',
     });
   });
 
   it('recognizes no tengo pago inicial as a flexible-dealer down answer', () => {
-    expect(execute({ source: 'easterns', message: 'No tengo pago inicial' })).toMatchObject({
+    expect(execute({ source: 'easterns', real_name: 'QA Customer', message: 'No tengo pago inicial' })).toMatchObject({
       down_payment: 'No down payment',
       qualification_step: 'vehicle_type',
     });
@@ -353,6 +356,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(execute({
       source: 'fredericksburg',
       channel: 'messenger',
+      real_name: 'QA Customer',
       phone: '+15405550123',
       message: 'Busco una Tacoma y voy a pagar de contado',
     })).toMatchObject({
@@ -360,7 +364,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       vehicle_category: 'truck',
       required_down_payment: 3000,
       down_payment_sufficient: true,
-      qualification_step: 'purchase_timeline',
+      qualification_step: 'complete',
     });
   });
 
@@ -376,8 +380,8 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.real_name).toBe('Amin');
     expect(result.vehicle_type).toBe('Sedan');
     expect(result.down_payment).toBe('500');
-    expect(result.qualification_step).toBe('purchase_timeline');
-    expect(result.qualification_progress.predicted_bot_question).toBe('¿Cuándo planeas comprar?');
+    expect(result.qualification_step).toBe('complete');
+    expect(result.qualification_progress.predicted_bot_question).toBe('');
   });
 
   it('does not cross transcript lines and read a phone area code as down payment in Custom Code', () => {
@@ -587,7 +591,7 @@ describe('HighLevel collector custom-code normalizer', () => {
   it('keeps an incomplete memory on the collector branch and names what is missing', () => {
     const result = execute({ qualification_memory: 'vehicle: SUV; down payment: 2K; documents: identification: yes' });
     expect(result.qualification_complete).toBe(false);
-    expect(result.missing_qualification).toEqual(['real_name', 'phone', 'purchase_timeline', 'proof_of_income', 'bank_account']);
+    expect(result.missing_qualification).toEqual(['real_name', 'phone']);
   });
 
   it('keeps a trade-in vehicle year out of the down payment and recognizes bank statements', () => {
@@ -793,7 +797,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.real_name).toBe('Giovanni Amador');
     expect(result.qualification_memory).not.toContain('real_name: En este mes');
     expect(result.qualification_memory).not.toMatch(/(?:^|;)\s*20(?:;|$)/);
-    expect(result.missing_qualification).toContain('bank_account');
+    expect(result.missing_qualification).toContain('phone');
     expect(result.qualification_complete).toBe(false);
   });
 
