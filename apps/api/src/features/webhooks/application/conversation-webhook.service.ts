@@ -44,7 +44,7 @@ const RECONCILIATION_LOCATION_IDS = [...new Set(Object.values(GHL_SOURCE_CONFIG)
 
 type LeadRow = { id: string; canonical_phone: string | null; first_name: string | null; last_name: string | null };
 type DealerRow = { id: string; code: string; name: string; timezone: string; routing_config: { group?: string; language?: CollectorLanguage; allocation_key?: string; allocation_order?: number } | null };
-type ConversationRow = { id: string; status: string; qualification_snapshot: Record<string, unknown>; location_snapshot: Record<string, unknown>; ready_at?: string | null; isExisting?: boolean };
+type ConversationRow = { id: string; status: string; qualification_snapshot: Record<string, unknown>; location_snapshot: Record<string, unknown>; ready_at?: string | null; next_attempt_at?: string | null; isExisting?: boolean };
 type ConversationMessageRow = {
   body: string;
   direction: string;
@@ -285,7 +285,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     try {
       const rows = await runner.query(
         `SELECT c.id, c.channel, c.ghl_location_id, c.ghl_contact_id, c.ghl_conversation_id, c.status,
-                c.qualification_snapshot, c.location_snapshot, c.ready_at,
+                c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at,
                 l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name
          FROM conversations c
          JOIN leads l ON l.id = c.lead_id
@@ -305,6 +305,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         qualification_snapshot: ConversationSnapshot;
         location_snapshot: LocationSnapshot;
         ready_at: string | null;
+        next_attempt_at: string | null;
         lead_id: string;
         canonical_phone: string | null;
         first_name: string | null;
@@ -461,7 +462,12 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       // replay behavior consistent with a live inbound event and prevents a
       // repaired lead from jumping directly into the operator queue.
       const phase = row.status === 'partial' && snapshot.qualification_complete ? 'capture' : 'due';
-      const status = this.statusForConversation(snapshot, location, dealer, source, now, phase, row.ready_at);
+      const activeWindow = row.status === 'waiting_window'
+        && row.next_attempt_at
+        && new Date(row.next_attempt_at).getTime() > now.getTime();
+      const status = activeWindow
+        ? { status: 'waiting_window' as const, nextAttemptAt: row.next_attempt_at }
+        : this.statusForConversation(snapshot, location, dealer, source, now, phase, row.ready_at);
       await runner.query(
         `UPDATE conversations
          SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,

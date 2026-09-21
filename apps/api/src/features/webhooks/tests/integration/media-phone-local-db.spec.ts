@@ -61,13 +61,13 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       event_id: `${suffix}-vehicle`,
       ghl_message_id: `${suffix}-vehicle-message`,
       message_body: 'Estoy buscando una Tacoma',
-    }, 'fredericksburg', { contactId, conversationId, messageId: `${suffix}-vehicle-message` });
+    }, 'fredericksburg', { contactId, conversationId, messageId: `${suffix}-vehicle-message`, testNow: new Date(now) });
     await service.acceptCustomerReplied({
       ...common,
       event_id: `${suffix}-down`,
       ghl_message_id: `${suffix}-down-message`,
       message_body: 'Tengo 3000 para el enganche',
-    }, 'fredericksburg', { contactId, conversationId, messageId: `${suffix}-down-message` });
+    }, 'fredericksburg', { contactId, conversationId, messageId: `${suffix}-down-message`, testNow: new Date(now) });
     await service.acceptCustomerReplied({
       ...common,
       event_id: `${suffix}-image`,
@@ -78,7 +78,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
         content_type: 'image/jpeg',
         filename: 'phone.jpg',
       }],
-    }, 'fredericksburg', { contactId, conversationId, messageId: `${suffix}-image-message` });
+    }, 'fredericksburg', { contactId, conversationId, messageId: `${suffix}-image-message`, testNow: new Date(now) });
 
     const attachment = await dataSource.query(
       `SELECT id FROM conversation_attachments WHERE ghl_conversation_id = $1`,
@@ -127,7 +127,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
 
     // A later reconciliation must reuse the original window instead of
     // pushing another 30-minute window from the current time.
-    await service.reconcileMediaConversation(conversation[0].id, new Date('2026-09-17T17:29:00.000Z'));
+    await service.reconcileMediaConversation(conversation[0].id, new Date('2026-09-17T17:19:10.000Z'));
     const afterSecondReconcile = await dataSource.query(
       `SELECT ready_at, next_attempt_at FROM conversations WHERE ghl_contact_id = $1`,
       [contactId],
@@ -147,7 +147,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       contact_phone: '',
       message_body: 'Hoy mismo',
       occurred_at: '2026-09-17T17:30:00.000Z',
-    }, 'fredericksburg', { contactId, conversationId });
+    }, 'fredericksburg', { contactId, conversationId, testNow: new Date(now) });
     const afterNormalWebhook = await dataSource.query(
       `SELECT l.canonical_phone, c.qualification_snapshot,
               (SELECT COUNT(*) FROM conversation_messages m WHERE m.conversation_id = c.id) AS message_count
@@ -177,20 +177,20 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       event_id: `${suffix}-after-hours-vehicle`,
       ghl_message_id: `${suffix}-after-hours-vehicle-message`,
       message_body: 'Estoy buscando una Tacoma',
-    }, 'fredericksburg', { contactId: afterHoursContactId, conversationId: afterHoursConversationId });
+    }, 'fredericksburg', { contactId: afterHoursContactId, conversationId: afterHoursConversationId, testNow: new Date(afterHoursNow) });
     await service.acceptCustomerReplied({
       ...common,
       event_id: `${suffix}-after-hours-down`,
       ghl_message_id: `${suffix}-after-hours-down-message`,
       message_body: 'Tengo 3000 para el enganche',
-    }, 'fredericksburg', { contactId: afterHoursContactId, conversationId: afterHoursConversationId });
+    }, 'fredericksburg', { contactId: afterHoursContactId, conversationId: afterHoursConversationId, testNow: new Date(afterHoursNow) });
     await service.acceptCustomerReplied({
       ...common,
       event_id: `${suffix}-after-hours-image`,
       ghl_message_id: `${suffix}-after-hours-image-message`,
       message_body: '',
       message_attachments: [{ url: 'https://links.example.test/after-hours-phone.jpg', content_type: 'image/jpeg' }],
-    }, 'fredericksburg', { contactId: afterHoursContactId, conversationId: afterHoursConversationId });
+    }, 'fredericksburg', { contactId: afterHoursContactId, conversationId: afterHoursConversationId, testNow: new Date(afterHoursNow) });
     const attachment = await dataSource.query(
       `SELECT id FROM conversation_attachments WHERE ghl_conversation_id = $1`,
       [afterHoursConversationId],
@@ -211,15 +211,15 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       [afterHoursContactId],
     ) as Array<{ ready_at: string; next_attempt_at: string }>;
     expect(new Date(first[0].ready_at).toISOString()).toBe(afterHoursNow);
-    expect(new Date(first[0].next_attempt_at).toISOString()).toBe('2026-09-17T23:01:00.000Z');
+    expect(new Date(first[0].next_attempt_at).toISOString()).toBe('2026-09-17T20:01:15.000Z');
 
-    await service.reconcileMediaConversation(conversation[0].id, new Date('2026-09-17T20:31:00.000Z'));
+    await service.reconcileMediaConversation(conversation[0].id, new Date('2026-09-17T20:01:10.000Z'));
     const second = await dataSource.query(
       `SELECT ready_at, next_attempt_at FROM conversations WHERE ghl_contact_id = $1`,
       [afterHoursContactId],
     ) as Array<{ ready_at: string; next_attempt_at: string }>;
     expect(new Date(second[0].ready_at).toISOString()).toBe(afterHoursNow);
-    expect(new Date(second[0].next_attempt_at).toISOString()).toBe('2026-09-17T23:01:00.000Z');
+    expect(new Date(second[0].next_attempt_at).toISOString()).toBe('2026-09-17T20:01:15.000Z');
   });
 
   it('keeps persisted qualification facts when a GHL replay only contains the latest turn', async () => {
@@ -239,7 +239,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       event_id: `${suffix}-snapshot-initial`,
       ghl_message_id: `${suffix}-snapshot-initial-message`,
       message_body: 'I am looking for a Toyota Tacoma',
-    }, 'arlington', { contactId: snapshotContactId, conversationId: snapshotConversationId });
+    }, 'arlington', { contactId: snapshotContactId, conversationId: snapshotConversationId, testNow: new Date(now) });
 
     const conversation = await dataSource.query(
       `SELECT id, lead_id FROM conversations WHERE ghl_contact_id = $1`,
@@ -280,7 +280,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       // The only current GHL turn exposes the phone and timeline; the
       // vehicle/down/documents facts must come from the persisted snapshot.
       message_body: 'I am buying this month. You can reach me at 240-841-4199',
-    }, 'arlington', { contactId: snapshotContactId, conversationId: snapshotConversationId });
+    }, 'arlington', { contactId: snapshotContactId, conversationId: snapshotConversationId, testNow: new Date(now) });
 
     const persisted = await dataSource.query(
       `SELECT c.status, c.qualification_snapshot
@@ -312,7 +312,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       contact_phone: '',
       message_body: 'Mi número es 240-841-4211. Estoy buscando un Corolla.',
       occurred_at: now,
-    }, 'fredericksburg', { contactId: normalContactId, conversationId: normalConversationId });
+    }, 'fredericksburg', { contactId: normalContactId, conversationId: normalConversationId, testNow: new Date(now) });
 
     const rows = await dataSource.query(
       `SELECT l.canonical_phone, c.status, c.qualification_snapshot,
@@ -352,13 +352,13 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
         ghl_message_id: `${suffix}-julio-${kind}-message`,
         message_body: messageBody,
         occurred_at: now,
-      }, 'fredericksburg-2', { contactId: julioContactId, conversationId: julioConversationId });
+      }, 'fredericksburg-2', { contactId: julioContactId, conversationId: julioConversationId, testNow: new Date(now) });
     }
 
     // Reproduce a row captured before the normalizer fix: the transcript is
     // present but the row is still partial and has no due time.
     await dataSource.query(
-      `UPDATE conversations SET status = 'partial', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP - INTERVAL '1 year' WHERE ghl_contact_id = $1`,
+      `UPDATE conversations SET status = 'partial', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE ghl_contact_id = $1`,
       [julioContactId],
     );
     await service.processDueConversations(new Date('2026-09-17T17:30:00.000Z'));
@@ -391,7 +391,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       message_body: 'Como este modelo',
       occurred_at: now,
       message_attachments: [{ url: 'https://links.example.test/equinox.jpg', content_type: 'image/jpeg' }],
-    }, 'koons-culpeper', { contactId: imageContactId, conversationId: imageConversationId });
+    }, 'koons-culpeper', { contactId: imageContactId, conversationId: imageConversationId, testNow: new Date(now) });
 
     const attachment = await dataSource.query(
       `SELECT id FROM conversation_attachments WHERE ghl_conversation_id = $1`,
@@ -459,11 +459,11 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
         ghl_message_id: `${suffix}-javier-${kind}-message`,
         message_body: messageBody,
         occurred_at: now,
-      }, 'fredericksburg-2', { contactId: javierContactId, conversationId: javierConversationId });
+      }, 'fredericksburg-2', { contactId: javierContactId, conversationId: javierConversationId, testNow: new Date(now) });
     }
 
     await dataSource.query(
-      `UPDATE conversations SET status = 'partial', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP - INTERVAL '1 year' WHERE ghl_contact_id = $1`,
+      `UPDATE conversations SET status = 'partial', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE ghl_contact_id = $1`,
       [javierContactId],
     );
     await service.processDueConversations(new Date('2026-09-17T17:30:00.000Z'));
@@ -497,7 +497,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       message_body: 'Te mando una nota de voz',
       message_attachments: [{ url: 'https://links.example.test/voice.m4a', content_type: 'audio/mp4', filename: 'voice.m4a' }],
       occurred_at: now,
-    }, 'koons-culpeper', { contactId: audioContactId, conversationId: audioConversationId, messageId: `${suffix}-audio-message` });
+    }, 'koons-culpeper', { contactId: audioContactId, conversationId: audioConversationId, messageId: `${suffix}-audio-message`, testNow: new Date(now) });
 
     const attachment = await dataSource.query(
       `SELECT id, conversation_message_id, ghl_message_id FROM conversation_attachments WHERE ghl_conversation_id = $1`,

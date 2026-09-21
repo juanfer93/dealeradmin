@@ -32,7 +32,7 @@ describe('normalizeCollectorInput', () => {
       real_name: 'Benigno',
       vehicle_type: 'Silverado',
       down_payment: '2000 + trade-in',
-      qualification_step: 'down_payment',
+      qualification_step: 'complete',
     });
   });
 

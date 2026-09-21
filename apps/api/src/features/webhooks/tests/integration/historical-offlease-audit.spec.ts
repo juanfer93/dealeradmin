@@ -23,7 +23,7 @@ describeDatabase('historical Offlease transcript replay from production audit', 
         '8042216321',
         '2000',
       ],
-      expected: { vehicle: 'Civic sport', down: '2000', amount: 2000, minimum: 1500, sufficient: true, nextStep: 'purchase_timeline' },
+      expected: { vehicle: 'Civic sport', down: '2000', amount: 2000, minimum: 1500, sufficient: true, nextStep: 'complete' },
     },
     {
       label: 'Fredericksburg 2 / Angel Fuentes / negative misspelled truck',
@@ -44,7 +44,7 @@ describeDatabase('historical Offlease transcript replay from production audit', 
       source: 'stafford',
       channel: 'whatsapp',
       contactName: 'Rosa',
-      phone: '+13368979706',
+      phone: '+12405551234',
       messages: [
         '*Headline:* Off Lease Motors Of Stafford\n*Source URL:* https://fb.me/49eeKTmwE\n\nHello! Can I get more info on this? Hola',
         'Hola soy rosa en que estado te encuentras',
@@ -63,7 +63,7 @@ describeDatabase('historical Offlease transcript replay from production audit', 
         'Dise que solo este mes mes mire mejor boy aser una Sita con usted mejor para la otra semana esta no para la otra a tes de que pase el mes',
         'Si grasias aqui mismo',
       ],
-      expected: { vehicle: 'suv', down: '2000', amount: 2000, minimum: 2000, sufficient: true, nextStep: 'bank_account' },
+      expected: { vehicle: 'suv', down: '2000', amount: 2000, minimum: 2000, sufficient: true, nextStep: 'complete' },
     },
     {
       label: 'Stafford / Eduardo / negative unrelated affirmation',
@@ -106,6 +106,7 @@ describeDatabase('historical Offlease transcript replay from production audit', 
     if (!dataSource?.isInitialized) return;
     for (const { contactId } of ids) {
       await dataSource.query('DELETE FROM conversation_bot_pause_events WHERE ghl_contact_id = $1', [contactId]);
+      await dataSource.query('DELETE FROM lead_dealers WHERE lead_id IN (SELECT id FROM leads WHERE ghl_contact_id = $1)', [contactId]);
       await dataSource.query(
         `DELETE FROM conversations
          WHERE ghl_contact_id = $1
@@ -151,7 +152,7 @@ describeDatabase('historical Offlease transcript replay from production audit', 
       down_payment_sufficient: expected.sufficient,
     });
     expect((snapshot.qualification_progress as { step?: string }).step).toBe(expected.nextStep);
-    if (expected.sufficient) expect(rows[0].status).toBe('waiting_window');
+      if (expected.sufficient) expect(['waiting_window', 'queued']).toContain(rows[0].status);
     else expect(rows[0].status).not.toBe('waiting_window');
   }, 20_000);
 });

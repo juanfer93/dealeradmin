@@ -30,6 +30,7 @@ describeDatabase('contextual suggested down confirmation against local PostgreSQ
     if (!dataSource?.isInitialized) return;
     for (const contactId of [...contacts, ...staffordContacts]) {
       await dataSource.query('DELETE FROM conversation_bot_pause_events WHERE ghl_contact_id = $1', [contactId]);
+      await dataSource.query('DELETE FROM lead_dealers WHERE lead_id IN (SELECT id FROM leads WHERE ghl_contact_id = $1)', [contactId]);
       await dataSource.query('DELETE FROM conversations WHERE ghl_contact_id = $1', [contactId]);
       await dataSource.query('DELETE FROM leads WHERE ghl_contact_id = $1', [contactId]);
     }
@@ -149,10 +150,12 @@ describeDatabase('Offlease previous-financing promotion against local PostgreSQL
     if (!dataSource?.isInitialized) return;
     for (const contactId of contacts) {
       await dataSource.query('DELETE FROM conversation_bot_pause_events WHERE ghl_contact_id = $1', [contactId]);
+      await dataSource.query('DELETE FROM lead_dealers WHERE lead_id IN (SELECT id FROM leads WHERE ghl_contact_id = $1)', [contactId]);
       await dataSource.query('DELETE FROM conversations WHERE ghl_contact_id = $1', [contactId]);
       await dataSource.query('DELETE FROM leads WHERE ghl_contact_id = $1', [contactId]);
     }
     await dataSource.query('DELETE FROM conversation_bot_pause_events WHERE ghl_contact_id LIKE $1', [`${suffix}-negative-%`]);
+    await dataSource.query('DELETE FROM lead_dealers WHERE lead_id IN (SELECT id FROM leads WHERE ghl_contact_id LIKE $1)', [`${suffix}-negative-%`]);
     await dataSource.query('DELETE FROM conversations WHERE ghl_contact_id LIKE $1', [`${suffix}-negative-%`]);
     await dataSource.query('DELETE FROM leads WHERE ghl_contact_id LIKE $1', [`${suffix}-negative-%`]);
     await dataSource.query('DELETE FROM webhook_events WHERE event_id LIKE $1', [`${suffix}-%`]);
@@ -248,6 +251,7 @@ describeDatabase('Offlease previous-financing promotion against local PostgreSQL
     });
     expect(String((rows[0].qualification_snapshot.qualification_progress as { predicted_bot_question?: string }).predicted_bot_question)).toContain(`$${minimum}`);
     await dataSource.query('DELETE FROM conversation_bot_pause_events WHERE ghl_contact_id = $1', [contactId]);
+    await dataSource.query('DELETE FROM lead_dealers WHERE lead_id IN (SELECT id FROM leads WHERE ghl_contact_id = $1)', [contactId]);
     await dataSource.query('DELETE FROM conversations WHERE ghl_contact_id = $1', [contactId]);
     await dataSource.query('DELETE FROM leads WHERE ghl_contact_id = $1', [contactId]);
   });

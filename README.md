@@ -12,6 +12,12 @@ Monorepo for the dealerADMIN operator console. The workspace contains a NestJS A
 
 The API rejects invalid configuration at startup. The webhook endpoint accepts only a valid `X-GHL-Signature` HMAC over the raw request body.
 
+## Reglas de calificación por dealer
+
+- **Offlease (Stafford, Fredericksburg y Fredericksburg 2):** requiere nombre, vehículo y teléfono reciente enviado por el cliente. También requiere una evidencia válida de enganche: efectivo que alcance el mínimo de la categoría, la promoción de $1,000 únicamente si el cliente ya financió antes, o un `trade-in` declarado solo o combinado con efectivo.
+- **Los demás dealers:** califican con nombre, vehículo y teléfono reciente del cliente; el enganche no es requisito.
+- Una relación que ya está en `waiting_window`, `queued` o `sent` no se elimina por mensajes posteriores incompletos. La duplicación se evalúa por relación dentro del mismo dealer, no entre dealers distintos.
+
 ## Production migrations
 
 Vercel runs `pnpm --filter api migrate` before `pnpm build`, so every production deployment applies pending TypeORM migrations against the configured `DATABASE_URL` (Neon). Configure `DATABASE_URL` in Vercel for the Production environment before deploying. The command is idempotent: already-applied migrations are skipped.

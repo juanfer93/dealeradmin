@@ -83,10 +83,11 @@ export function evaluateDownPayment(
     category,
     minimum,
     amount: amount === Number.POSITIVE_INFINITY ? null : amount,
-    // A trade-in is additive evidence, not a substitute for the vehicle's
-    // required cash down. Keep it in the captured value, but require the
-    // cash amount to reach the vehicle minimum.
-    meetsMinimum: minimum !== null && (isCash || meetsPromotionalMinimum || (amount !== null && amount >= minimum)),
+    // A declared trade-in is an accepted form of down-payment evidence. It may
+    // stand alone or be combined with cash; the cash minimum still applies when
+    // there is no trade-in. The Offlease $1,000 promotion remains gated by
+    // previous financing in the caller.
+    meetsMinimum: minimum !== null && (isCash || isTradeInDownPayment(downPayment) || meetsPromotionalMinimum || (amount !== null && amount >= minimum)),
   };
 }
 
