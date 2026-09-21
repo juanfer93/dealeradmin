@@ -1419,6 +1419,37 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message: 'Quiero una camioneta' }).real_name).toBe('');
   });
 
+  it('rejects a qualification prompt fragment as the real name', () => {
+    expect(normalizeCollectorInput({
+      channel: 'messenger',
+      real_name: 'Cuál Sería El',
+      message: 'SUV',
+    }).real_name).toBe('');
+  });
+
+  it('recognizes prior financing after a below-standard down payment answer', () => {
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg-2',
+      channel: 'messenger',
+      real_name: 'Leandro Bolzan',
+      phone: '+17257103809',
+      message: 'Sí',
+      chat_history_log: 'SUV\n7257103809\n1000/2000',
+      previous_predicted_bot_question: 'Para validar los $1000, ¿anteriormente ya has financiado algún vehículo?',
+      down_payment: '1000',
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Leandro Bolzan',
+      vehicle_type: 'SUV',
+      down_payment: '1000',
+      previous_financing: 'yes',
+      down_payment_sufficient: true,
+      required_down_payment: 2000,
+      down_payment_amount: 1000,
+    });
+  });
+
   it('captures a one-word name explicitly sent in a WhatsApp conversation without promoting qualification replies', () => {
     const transcript = '*Headline:* Financiamiento inmediato\nYahir\nQuiero ver si puedo con 1000\nLo más pronto posible\nQue y qué papeles ocupo para aplicar\nSedan\nSi sin problema\nSi está bien no hay problema\nHoy si gusta\nA las 5 si se puede por favor';
     const result = normalizeCollectorInput({

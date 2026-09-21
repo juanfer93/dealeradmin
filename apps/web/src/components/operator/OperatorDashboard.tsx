@@ -14,7 +14,7 @@ import { selectInitialQueueLeads } from './queue-selection';
 
 type LeadStatus = 'pending' | 'sent';
 type Dealer = { id: string; code: string; name: string; pendingCount: number };
-type Lead = { id: string; dealerId: string; dealerName: string; name: string; phone: string; vehicleType: string | null; downPayment: string | null; vehicleCategory?: string | null; requiredDownPayment?: number | null; downPaymentAmount?: number | null; downPaymentSufficient?: boolean | null; qualificationStep?: string | null; identification: string | null; bankAccount: string | null; documents: string | null; purchaseTimeline: string | null; status: LeadStatus; messageText: string; createdAt: string };
+type Lead = { id: string; dealerId: string; dealerName: string; name: string; phone: string; vehicleType: string | null; downPayment: string | null; vehicleCategory?: string | null; requiredDownPayment?: number | null; downPaymentAmount?: number | null; previousFinancing?: 'yes' | 'no' | '' | null; downPaymentSufficient?: boolean | null; qualificationStep?: string | null; identification: string | null; bankAccount: string | null; documents: string | null; purchaseTimeline: string | null; status: LeadStatus; messageText: string; createdAt: string };
 type LeadResponse = { dealers: Dealer[]; leads: Lead[] };
 
 function clean(value: string | null | undefined) { return value?.trim() ?? ''; }
@@ -153,12 +153,18 @@ export function formatLeadMessage(lead: Lead, language?: 'es' | 'en') {
   const identity = [clean(lead.name), clean(lead.phone), clean(lead.vehicleType)].filter(Boolean).join(' ');
   const downValue = clean(lead.downPayment);
   const down = downValue && !isNoDownPayment(downValue) ? (resolvedLanguage === 'es' ? `${downValue} de down` : `${downValue} down`) : '';
+  const previousFinancing = lead.previousFinancing === 'yes'
+    && lead.downPaymentAmount != null
+    && lead.requiredDownPayment != null
+    && lead.downPaymentAmount < lead.requiredDownPayment
+    ? (resolvedLanguage === 'es' ? 'Ya ha financiado antes' : 'Has financed before')
+    : '';
   const qualificationLabels = formatQualificationLabels(lead, resolvedLanguage);
   const identification = qualificationLabels.identification;
   const bank = formatBankAccountLabel(lead.bankAccount, resolvedLanguage);
   const documents = qualificationLabels.documents;
   const timeline = formatPurchaseTimelineLabel(lead.purchaseTimeline, resolvedLanguage);
-  return [identity, down, identification, bank, documents, timeline].filter(Boolean).join(', ') + '.';
+  return [identity, down, previousFinancing, identification, bank, documents, timeline].filter(Boolean).join(', ') + '.';
 }
 
 function formatDate(value: string, language: 'es' | 'en') {
@@ -199,7 +205,13 @@ function Qualification({ lead, language, empty }: { lead: Lead; language: 'es' |
       ? (language === 'es' ? 'suficiente' : 'meets minimum')
       : (language === 'es' ? 'insuficiente' : 'below minimum');
   const step = formatQualificationStep(lead.qualificationStep, language);
-  return <div className="space-y-2"><div className="flex max-w-[300px] flex-wrap gap-1.5">{tag(lead.downPayment && !isNoDownPayment(lead.downPayment) ? lead.downPayment : '', empty.downPayment)}{tag(identification, empty.identification)}{tag(bankAccount, empty.bankAccount)}{tag(documents, empty.documents)}{tag(formatPurchaseTimelineLabel(lead.purchaseTimeline, language).replace(/^(?:quiere comprar|wants to buy)\s+/i, ''), empty.purchaseTimeline)}</div>{(category || minimum || downRule || step) && <div className="max-w-[340px] rounded border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-2 text-[11px] leading-5 text-[var(--text-muted)]"><span className="font-semibold text-[var(--text)]">{language === 'es' ? 'Normalizado' : 'Normalized'}</span>{category && <span className="ml-2">{language === 'es' ? 'categoría' : 'category'}: {category}</span>}{minimum && <span className="ml-2">{language === 'es' ? 'mínimo' : 'minimum'}: {minimum}</span>}{downRule && <span className={`ml-2 font-semibold ${lead.downPaymentSufficient ? 'text-[var(--brand-strong)]' : 'text-[var(--error)]'}`}>{downRule}</span>}{step && <span className="ml-2">{language === 'es' ? 'paso' : 'step'}: {step}</span>}</div>}</div>;
+  const previousFinancing = lead.previousFinancing === 'yes'
+    && lead.downPaymentAmount != null
+    && lead.requiredDownPayment != null
+    && lead.downPaymentAmount < lead.requiredDownPayment
+    ? (language === 'es' ? 'Ya ha financiado antes' : 'Has financed before')
+    : '';
+  return <div className="space-y-2"><div className="flex max-w-[300px] flex-wrap gap-1.5">{tag(lead.downPayment && !isNoDownPayment(lead.downPayment) ? lead.downPayment : '', empty.downPayment)}{previousFinancing && tag(previousFinancing, '')}{tag(identification, empty.identification)}{tag(bankAccount, empty.bankAccount)}{tag(documents, empty.documents)}{tag(formatPurchaseTimelineLabel(lead.purchaseTimeline, language).replace(/^(?:quiere comprar|wants to buy)\s+/i, ''), empty.purchaseTimeline)}</div>{(category || minimum || downRule || step) && <div className="max-w-[340px] rounded border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-2 text-[11px] leading-5 text-[var(--text-muted)]"><span className="font-semibold text-[var(--text)]">{language === 'es' ? 'Normalizado' : 'Normalized'}</span>{category && <span className="ml-2">{language === 'es' ? 'categoría' : 'category'}: {category}</span>}{minimum && <span className="ml-2">{language === 'es' ? 'mínimo' : 'minimum'}: {minimum}</span>}{downRule && <span className={`ml-2 font-semibold ${lead.downPaymentSufficient ? 'text-[var(--brand-strong)]' : 'text-[var(--error)]'}`}>{downRule}</span>}{step && <span className="ml-2">{language === 'es' ? 'paso' : 'step'}: {step}</span>}</div>}</div>;
 }
 
 export default function OperatorDashboard() {

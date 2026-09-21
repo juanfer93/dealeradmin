@@ -1,6 +1,9 @@
 export type MessageLeadData = {
   vehicle_type?: string | null;
   down_payment?: string | null;
+  previous_financing?: 'yes' | 'no' | '' | null;
+  required_down_payment?: number | null;
+  down_payment_amount?: number | null;
   identification?: string | null;
   bank_account?: string | null;
   purchase_timeline?: string | null;
@@ -137,6 +140,13 @@ export function buildWhatsAppMessage(name: string, phone: string, data: MessageL
   const vehicle = clean(data.vehicle_type) ?? '';
   const downValue = normalizeDownPayment(data.down_payment);
   const down = downValue && !isNoDownPayment(downValue) ? (isCashDownPayment(downValue) ? CASH_DOWN_PAYMENT : `${downValue}${language === 'es' ? ' de down' : ' down'}`) : '';
+  const hasPromotionalFinancingEvidence = data.previous_financing === 'yes'
+    && data.down_payment_amount != null
+    && data.required_down_payment != null
+    && data.down_payment_amount < data.required_down_payment;
+  const previousFinancing = hasPromotionalFinancingEvidence
+    ? (language === 'es' ? 'Ya ha financiado antes' : 'Has financed before')
+    : '';
   const identification = formatIdentification(data.identification);
   const bankAccount = formatBankAccount(data.bank_account, language);
   const documents = formatDocuments(data.documents, language, Boolean(identification));
@@ -148,7 +158,7 @@ export function buildWhatsAppMessage(name: string, phone: string, data: MessageL
     : '';
 
   const identity = [name.trim(), phone, vehicle].filter(Boolean).join(' ');
-  const parts = [identity, down, identification, bankAccount, documents, timeline].filter(Boolean);
+  const parts = [identity, down, previousFinancing, identification, bankAccount, documents, timeline].filter(Boolean);
   const uniqueParts = [...new Map(parts.map((part) => [part.toLowerCase(), part])).values()];
   return uniqueParts.join(', ') + '.';
 }

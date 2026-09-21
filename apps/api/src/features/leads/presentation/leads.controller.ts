@@ -57,7 +57,7 @@ export class LeadsController {
       const selectedDealerIds = dealerIdsQuery?.split(',').filter(Boolean) ?? (dealerId ? [dealerId] : undefined);
       const matchesDealer = (leadDealerId: string) => !selectedDealerIds || selectedDealerIds.includes(leadDealerId);
       const manualLeads = getTestManualLeads().filter((lead) =>
-        status === lead.status && matchesDealer(lead.dealerId),
+        !isTestLeadDeleted(lead.id) && status === lead.status && matchesDealer(lead.dealerId),
       );
       const fixedLeads = [testLead, smartMergeTestLead, easternsTestLead].filter((lead) =>
         !isTestLeadDeleted(lead.id) && status === lead.status && matchesDealer(lead.dealerId),
@@ -89,6 +89,7 @@ export class LeadsController {
          latest_conversation.qualification_snapshot->>'vehicle_category' AS "vehicleCategory",
          CASE WHEN d.name ILIKE 'Offlease%' THEN NULLIF(latest_conversation.qualification_snapshot->>'required_down_payment', '')::int ELSE NULL END AS "requiredDownPayment",
          CASE WHEN d.name ILIKE 'Offlease%' THEN NULLIF(latest_conversation.qualification_snapshot->>'down_payment_amount', '')::numeric ELSE NULL END AS "downPaymentAmount",
+         CASE WHEN d.name ILIKE 'Offlease%' THEN latest_conversation.qualification_snapshot->>'previous_financing' ELSE NULL END AS "previousFinancing",
          CASE WHEN d.name ILIKE 'Offlease%' THEN
            CASE latest_conversation.qualification_snapshot->>'down_payment_sufficient'
              WHEN 'true' THEN true

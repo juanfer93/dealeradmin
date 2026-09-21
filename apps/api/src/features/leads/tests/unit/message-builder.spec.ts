@@ -33,6 +33,30 @@ describe('qualification message normalization', () => {
     expect(message).not.toContain('bank account yes');
   });
 
+  it('adds the prior-financing evidence beside a below-standard Offlease down payment', () => {
+    const message = buildWhatsAppMessage('Leandro Bolzan', '+17257103809', {
+      vehicle_type: 'SUV',
+      down_payment: '1000',
+      previous_financing: 'yes',
+      required_down_payment: 2000,
+      down_payment_amount: 1000,
+    });
+
+    expect(message).toContain('1000 de down, Ya ha financiado antes');
+  });
+
+  it('does not add prior-financing evidence when the amount already meets the regular minimum', () => {
+    const message = buildWhatsAppMessage('Leandro Bolzan', '+17257103809', {
+      vehicle_type: 'SUV',
+      down_payment: '2000',
+      previous_financing: 'yes',
+      required_down_payment: 2000,
+      down_payment_amount: 2000,
+    });
+
+    expect(message).not.toContain('Ya ha financiado antes');
+  });
+
   it.each([
     ['exploring options', 'wants to see options'],
     ['wants to buy exploring options', 'wants to see options'],
