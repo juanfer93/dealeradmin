@@ -87,13 +87,15 @@ export class LeadsController {
          ld.documents,
          ld.purchase_timeline AS "purchaseTimeline",
          latest_conversation.qualification_snapshot->>'vehicle_category' AS "vehicleCategory",
-         NULLIF(latest_conversation.qualification_snapshot->>'required_down_payment', '')::int AS "requiredDownPayment",
-         NULLIF(latest_conversation.qualification_snapshot->>'down_payment_amount', '')::numeric AS "downPaymentAmount",
-         CASE latest_conversation.qualification_snapshot->>'down_payment_sufficient'
-           WHEN 'true' THEN true
-           WHEN 'false' THEN false
-           ELSE NULL
-         END AS "downPaymentSufficient",
+         CASE WHEN d.name ILIKE 'Offlease%' THEN NULLIF(latest_conversation.qualification_snapshot->>'required_down_payment', '')::int ELSE NULL END AS "requiredDownPayment",
+         CASE WHEN d.name ILIKE 'Offlease%' THEN NULLIF(latest_conversation.qualification_snapshot->>'down_payment_amount', '')::numeric ELSE NULL END AS "downPaymentAmount",
+         CASE WHEN d.name ILIKE 'Offlease%' THEN
+           CASE latest_conversation.qualification_snapshot->>'down_payment_sufficient'
+             WHEN 'true' THEN true
+             WHEN 'false' THEN false
+             ELSE NULL
+           END
+         ELSE NULL END AS "downPaymentSufficient",
          latest_conversation.qualification_snapshot->'qualification_progress'->>'step' AS "qualificationStep",
          ld.status,
          ld.message_text AS "messageText",
