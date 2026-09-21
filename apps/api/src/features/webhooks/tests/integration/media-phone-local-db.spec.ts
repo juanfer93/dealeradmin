@@ -26,6 +26,8 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
   const javierConversationId = `${suffix}-javier-conversation`;
   const snapshotContactId = `${suffix}-snapshot-contact`;
   const snapshotConversationId = `${suffix}-snapshot-conversation`;
+  const queuedEditContactId = `${suffix}-queued-edit-contact`;
+  const queuedEditConversationId = `${suffix}-queued-edit-conversation`;
   const now = '2026-09-17T17:19:00.000Z';
 
   beforeAll(async () => {
@@ -36,7 +38,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
 
   afterAll(async () => {
     if (!dataSource?.isInitialized) return;
-    for (const qaContactId of [contactId, afterHoursContactId, normalContactId, imageContactId, audioContactId, portugueseAudioContactId, julioContactId, javierContactId, snapshotContactId]) {
+    for (const qaContactId of [contactId, afterHoursContactId, normalContactId, imageContactId, audioContactId, portugueseAudioContactId, julioContactId, javierContactId, snapshotContactId, queuedEditContactId]) {
       await dataSource.query('DELETE FROM conversation_bot_pause_events WHERE ghl_contact_id = $1', [qaContactId]);
       await dataSource.query('DELETE FROM lead_dealers WHERE lead_id IN (SELECT id FROM leads WHERE ghl_contact_id = $1)', [qaContactId]);
       await dataSource.query('DELETE FROM conversations WHERE ghl_contact_id = $1', [qaContactId]);
@@ -328,6 +330,73 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
     expect(rows[0].qualification_snapshot.phone).toBe('+12408414211');
     expect(Number(rows[0].message_count)).toBe(1);
     expect(Number(rows[0].attachment_count)).toBe(0);
+  });
+
+  it('does not overwrite a manual lead edit after the conversation is queued', async () => {
+    const service = new ConversationWebhookService(dataSource);
+    const common = {
+      event_type: 'CustomerReplied',
+      ghl_contact_id: queuedEditContactId,
+      ghl_conversation_id: queuedEditConversationId,
+      channel: 'messenger',
+      contact_name: 'Queued Edit Buyer',
+      contact_phone: '',
+      occurred_at: now,
+    };
+    const messages = [
+      ['vehicle', 'I am looking for an SUV'],
+      ['phone', 'My phone number is 540-841-4255'],
+      ['down', 'I have 3000 for the down payment'],
+      ['timeline', 'I am buying this month'],
+      ['documents', 'I have my ID, proof of income, and a bank account'],
+    ] as const;
+    for (const [kind, messageBody] of messages) {
+      await service.acceptCustomerReplied({
+        ...common,
+        event_id: `${suffix}-queued-edit-${kind}`,
+        ghl_message_id: `${suffix}-queued-edit-${kind}-message`,
+        message_body: messageBody,
+      }, 'fredericksburg', { contactId: queuedEditContactId, conversationId: queuedEditConversationId, testNow: new Date(now) });
+    }
+
+    const waiting = await dataSource.query(
+      `SELECT id, lead_id, status FROM conversations WHERE ghl_conversation_id = $1`,
+      [queuedEditConversationId],
+    ) as Array<{ id: string; lead_id: string; status: string }>;
+    expect(waiting[0].status).toBe('waiting_window');
+
+    await service.processDueConversations(new Date('2026-09-17T18:00:00.000Z'), { reconcileActive: false });
+    const queued = await dataSource.query(
+      `SELECT status FROM conversations WHERE id = $1`,
+      [waiting[0].id],
+    ) as Array<{ status: string }>;
+    expect(queued[0].status).toBe('queued');
+
+    await dataSource.query(
+      `UPDATE lead_dealers
+       SET vehicle_type = 'Manual correction SUV', down_payment = '1234', message_text = 'Manual correction survives', updated_at = CURRENT_TIMESTAMP
+       WHERE lead_id = $1`,
+      [waiting[0].lead_id],
+    );
+
+    // Both the periodic reconciler and a late media callback must leave a
+    // queued lead under operator control once it has been edited manually.
+    await service.processDueConversations(new Date('2026-09-17T18:30:00.000Z'));
+    await service.reconcileMediaConversation(waiting[0].id, new Date('2026-09-17T18:30:00.000Z'));
+
+    const afterEdit = await dataSource.query(
+      `SELECT c.status, ld.vehicle_type, ld.down_payment, ld.message_text
+       FROM conversations c
+       JOIN lead_dealers ld ON ld.lead_id = c.lead_id
+       WHERE c.id = $1`,
+      [waiting[0].id],
+    ) as Array<{ status: string; vehicle_type: string; down_payment: string; message_text: string }>;
+    expect(afterEdit[0]).toEqual({
+      status: 'queued',
+      vehicle_type: 'Manual correction SUV',
+      down_payment: '1234',
+      message_text: 'Manual correction survives',
+    });
   });
 
   it('reconciles a historical Spanish thousands down into waiting_window', async () => {

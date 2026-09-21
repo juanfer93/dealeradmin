@@ -4,7 +4,7 @@ import { GhlCustomerRepliedSchema } from '@dealeradmin/contracts';
 import { createHash, randomUUID } from 'node:crypto';
 import { DataSource, QueryRunner } from 'typeorm';
 import { buildWhatsAppMessage } from '../../leads/domain/message-builder';
-import { ADVISOR_HANDOFF_VEHICLE, detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isAdvisorHandoffVehicle, isQualificationComplete, normalizeCollectorInput, normalizeRealName, type CollectorLanguage, type QualificationProgress } from '../../leads/domain/collector-normalizer';
+import { detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isAdvisorHandoffVehicle, isQualificationComplete, normalizeCollectorInput, normalizeRealName, type CollectorLanguage, type QualificationProgress } from '../../leads/domain/collector-normalizer';
 import { evaluateDownPayment, normalizeDownPayment } from '../../leads/domain/down-payment';
 import { normalizePhone } from '../../leads/domain/phone-normalizer';
 import { GeoroutingService } from '../../routing/domain/services/georouting.service';
@@ -231,25 +231,23 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
 
   private async reconcileActiveConversations(now: Date): Promise<void> {
     if (!this.dataSource) return;
+    // Once a conversation is queued, the operator owns its editable queue
+    // fields. Automatic reconciliation is intentionally limited to the
+    // pre-queued lifecycle so a periodic poll cannot undo a manual correction.
     const rows = await this.dataSource.query(
       `SELECT id
        FROM conversations
        WHERE status IN ('partial', 'waiting_window', 'stale_phone_ignored')
           OR (
-            status = 'queued'
+            status <> 'queued'
             AND (
               ghl_location_id = ANY($2::text[])
-              OR NULLIF(qualification_snapshot->>'phone', '') IS NULL
-              OR lower(COALESCE(qualification_snapshot->>'vehicle_type', '')) = lower($3)
+              AND NOT EXISTS (SELECT 1 FROM lead_dealers orphan_ld WHERE orphan_ld.lead_id = conversations.lead_id)
             )
-          )
-          OR (
-            ghl_location_id = ANY($2::text[])
-            AND NOT EXISTS (SELECT 1 FROM lead_dealers orphan_ld WHERE orphan_ld.lead_id = conversations.lead_id)
           )
        ORDER BY updated_at DESC
        LIMIT $1`,
-      [ACTIVE_RECONCILIATION_BATCH_SIZE, RECONCILIATION_LOCATION_IDS, ADVISOR_HANDOFF_VEHICLE],
+      [ACTIVE_RECONCILIATION_BATCH_SIZE, RECONCILIATION_LOCATION_IDS],
     ) as Array<{ id: string }>;
     for (const row of rows) await this.reconcileConversation(row.id, now);
   }
@@ -293,8 +291,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
          FROM conversations c
          JOIN leads l ON l.id = c.lead_id
          WHERE c.id = $1 AND (c.status IN ('partial', 'waiting_window', 'stale_phone_ignored')
-           OR (c.status = 'queued' AND c.ghl_location_id = ANY($2::text[]))
-           OR (c.ghl_location_id = ANY($2::text[])
+           OR (c.status <> 'queued' AND c.ghl_location_id = ANY($2::text[])
                AND NOT EXISTS (SELECT 1 FROM lead_dealers orphan_ld WHERE orphan_ld.lead_id = c.lead_id)))
          FOR UPDATE`,
         [id, RECONCILIATION_LOCATION_IDS],
