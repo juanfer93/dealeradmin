@@ -1434,7 +1434,7 @@ describe('normalizeCollectorInput', () => {
       real_name: 'Leandro Bolzan',
       phone: '+17257103809',
       message: 'Sí',
-      chat_history_log: 'SUV\n7257103809\n1000/2000',
+      chat_history_log: 'SUV\n7257103809\n1000',
       previous_predicted_bot_question: 'Para validar los $1000, ¿anteriormente ya has financiado algún vehículo?',
       down_payment: '1000',
     });
@@ -1447,6 +1447,27 @@ describe('normalizeCollectorInput', () => {
       down_payment_sufficient: true,
       required_down_payment: 2000,
       down_payment_amount: 1000,
+    });
+  });
+
+  it('recovers an Offlease financing answer when GHL stores only inbound turns', () => {
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg-2',
+      channel: 'messenger',
+      real_name: 'Leandro Bolzan',
+      phone: '+17257103809',
+      message: 'Sim',
+      chat_history_log: 'Ola\nSUV\n7257103809\n1000/2000\nSim',
+      previous_predicted_bot_question: 'Para este vehículo requerimos un enganche mínimo de $2000.',
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Leandro Bolzan',
+      vehicle_type: 'SUV',
+      down_payment: '2000',
+      previous_financing: 'yes',
+      down_payment_sufficient: true,
+      required_down_payment: 2000,
     });
   });
 

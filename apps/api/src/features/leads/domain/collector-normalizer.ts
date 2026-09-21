@@ -234,7 +234,8 @@ function memoryValue(memory: string, aliases: string[]): string {
 const PREVIOUS_FINANCING_QUESTION = /\b(?:has\s+financiado|han?\s+financiado|have\s+you\s+financed|did\s+you\s+finance|financ(?:ed|ing)\s+before|financiamiento\s+(?:de autos?|de un veh[ií]culo)|(?:ya|antes|anteriormente|previously|before)[^?\n]{0,80}(?:financ(?:e|ed|ing)|financiad[oa]))\b/i;
 const PREVIOUS_FINANCING_YES = /(?:ya\s+he\s+financiad[oa]|he\s+financiad[oa]\s+antes|financi[eé]\s+antes|(?:ya|anteriormente)\s+financi[eé](?=\s|$|[,.;!?])|i\s+have\s+financed\s+before|i\s+financed\s+(?:a|an|the)\s+(?:vehicle|car)|financed\s+before|previous(?:ly)?\s+financ(?:ed|ing))/i;
 const PREVIOUS_FINANCING_NO = /^(?:no(?=[\s,.;!?]|$)|nope|nah|nunca|jam[aá]s|never|not\s+before|no\s+(?:he\s+)?financiad[oa]|no\s+tengo\s+(?:historial|experiencia|financiamiento))/i;
-const PREVIOUS_FINANCING_AFFIRMATIVE = /^(?:yes|yeah|yep|si|sí|claro|correcto|tengo|have it|i do|i have|i can|i could|could|can|puedo|podr[ií]a|es posible|possible|con (?:este|ese) monto|(?:este|ese) monto|con (?:esta|esa) cantidad|(?:esta|esa) cantidad)(?=[\s,.;!?]|$)/i;
+const PREVIOUS_FINANCING_AFFIRMATIVE = /^(?:yes|yeah|yep|si|sí|sim|claro|correcto|tengo|have it|i do|i have|i can|i could|could|can|puedo|podr[ií]a|es posible|possible|con (?:este|ese) monto|(?:este|ese) monto|con (?:esta|esa) cantidad|(?:esta|esa) cantidad)(?=[\s,.;!?]|$)/i;
+const OFFLEASE_FINANCING_RANGE = /\$?1(?:[,.]?000)\s*(?:a|to|[-–/])\s*\$?2(?:[,.]?000)\b/i;
 
 function previousFinancingStatus(input: CollectorInput, rawHistory: string, rawMessage: string, memory: string): 'yes' | 'no' | '' {
   const predictorQuestion = clean(input.previous_predicted_bot_question ?? EMPTY);
@@ -287,10 +288,10 @@ function recoverStaffordPreviousFinancing(rawHistory: string, policy: CollectorF
   return beforeTimeline.some((line) => /^(?:yes|yeah|yep|si|sí|claro|correcto|tengo)$/i.test(line)) ? 'yes' : '';
 }
 
-const INVALID_REAL_NAMES = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'saludos', 'hello', 'hi', 'hey', 'hola', 'greetings', 'thu chikitha linda']);
+const INVALID_REAL_NAMES = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'saludos', 'hello', 'hi', 'hey', 'hola', 'ola', 'greetings', 'thu chikitha linda']);
 const BUSINESS_NAME_MARKERS = /\b(?:auto\s*sales|motors?|dealership|dealer|llc|inc(?:orporated)?|corp(?:oration)?|company|tatuajes?|tattoos?|operaciones?|operations?|transport(?:ation)?|logistics|construction|remodeling|roofing|realty|consulting|services?|servicios?|shop|tienda|salon|barbershop|restaurant)\b/i;
-const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|baltimore|maryland|where are you located|where are you|what|which|how|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|qué|que|ubicaci[oó]n|ubicados?|cu[aá]l(?:\s+ser[ií]a)?|ser[ií]a|gracias|thank you|thank|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
-const SINGLE_WORD_NAME_BLOCKLIST = /^(?:ok(?:ay)?|si|s[ií]|yes|no|yeah|yep|correct|cash|today|hoy|now|ahora|asap|inmediato|requirements?|requisitos?|information|informaci[oó]n|details?|detalles?|baltimore|maryland|virginia|laurel|rosedale|sterling|elkton|manda|nada|bale|vale|ubicaci[oó]n|ubicasion|tacoma|toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion|mustang|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|maverick|ranger|bronco|explorer|expedition|escape|edge|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|range rover|defender|rlx|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|financiar|finance|financing|down|payment|enganche|documents?|documentos?|identificaci[oó]n|income|ingresos|proof|prueba|phone|tel[eé]fono|number|n[uú]mero)$/i;
+const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|baltimore|maryland|where are you located|where are you|what|which|how|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|qué|que|ubicaci[oó]n|ubicados?|cu[aá]l(?:\s+ser[ií]a)?|ser[ií]a|gracias|thank you|thank|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|sim|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
+const SINGLE_WORD_NAME_BLOCKLIST = /^(?:ok(?:ay)?|si|s[ií]|sim|yes|no|yeah|yep|correct|cash|today|hoy|now|ahora|asap|inmediato|requirements?|requisitos?|information|informaci[oó]n|details?|detalles?|baltimore|maryland|virginia|laurel|rosedale|sterling|elkton|manda|nada|bale|vale|ubicaci[oó]n|ubicasion|tacoma|toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion|mustang|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|maverick|ranger|bronco|explorer|expedition|escape|edge|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|range rover|defender|rlx|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|financiar|finance|financing|down|payment|enganche|documents?|documentos?|identificaci[oó]n|income|ingresos|proof|prueba|phone|tel[eé]fono|number|n[uú]mero)$/i;
 const PHONE_LIKE_TEXT = /\b(?:mi|my)\s+(?:n[uú]mero|number|phone|tel[eé]fono|telephone|contact)\b/i;
 const NAME_PARTICLES = new Set(['da', 'de', 'del', 'der', 'di', 'la', 'las', 'los', 'van', 'von', 'y']);
 const NON_VEHICLE_INTENT_VALUES = /^(?:(?:(?:quiero|necesito|me gustar[ií]a|me interesa)\s+)?(?:m[aá]s\s+)?(?:informaci[oó]n|info|detalles?|details?|information)|more\s+(?:information|info|details?)|learn\s+more)$/i;
@@ -824,11 +825,12 @@ function extractLatestDownPayment(message: string): string {
     // Never infer a down payment from a question asked by the bot, or from a
     // stale bot question that appears before a later qualification step.
     const lineDigits = line.replace(/\D/g, '');
+    const paymentRange = /\$?\d+(?:[,.]\d+)?\s*(?:a|to|[-–/])\s*\$?\d+(?:[,.]\d+)?/i.test(line);
     if (/[?¿]/.test(line)
       || isPhoneOnlyLine(line)
       || PHONE_LIKE_TEXT.test(line)
       || /\b(?:phone|telephone|tel[eé]fono|n[uú]mero|number)\b/i.test(line)
-      || lineDigits.length >= 7) continue;
+      || (lineDigits.length >= 7 && !paymentRange)) continue;
     const contextual = extractDownPayment(line);
     if (contextual) return contextual;
     const standalone = extractStandaloneDownPayment(line);
@@ -844,7 +846,7 @@ function extractLatestDownPayment(message: string): string {
     // instead of the exact phrases handled above. In a range, the last value
     // is the buyer's maximum ("1500 a 2000").
     const amountToken = '(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?)';
-    const range = [...line.matchAll(new RegExp(`\\$?(${amountToken})\\s*(?:a|to|[-–])\\s*\\$?(${amountToken})`, 'gi'))]
+    const range = [...line.matchAll(new RegExp(`\\$?(${amountToken})\\s*(?:a|to|[-–/])\\s*\\$?(${amountToken})`, 'gi'))]
       .map((match) => normalizeAmount(match[2]))
       .find((amount) => amount && !/^20(?:1\\d|2\\d)$/.test(amount));
     if (range) return range;
@@ -1079,7 +1081,12 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   // generic "sí" elsewhere must not invent a down payment.
   const latestInboundMessage = lastMeaningfulLine(messageForExtraction);
   const previousFinancing = previousFinancingStatus(input, rawHistory, rawMessage, memory)
-    || recoverStaffordPreviousFinancing(rawHistory, policy, input.channel);
+    || recoverStaffordPreviousFinancing(rawHistory, policy, input.channel)
+    // GHL stores only inbound turns in this transcript. If the bot's financing
+    // question is absent, a short affirmative after the recorded $1000-$2000
+    // range still identifies the Offlease promotion without replacing the
+    // original media message.
+    || (policy.offlease && OFFLEASE_FINANCING_RANGE.test(rawHistory) && PREVIOUS_FINANCING_AFFIRMATIVE.test(latestInboundMessage) ? 'yes' : '');
   const confirmedQuestionDown = affirmativeDownConfirmation(latestInboundMessage)
     ? firstNonEmpty(
       extractQuestionedDownPayment(rawHistory),
