@@ -261,7 +261,10 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
    */
   async reconcileMediaConversation(id: string, now = currentLocalNow()): Promise<MediaReconciliationResponse> {
     if (!this.dataSource) throw new ServiceUnavailableException('Base de datos no disponible');
-    await this.reconcileConversation(id, now);
+    // A media worker callback must receive a non-2xx response when the
+    // transaction cannot be reconciled. The worker treats that response as
+    // retryable; the periodic active reconciliation remains best effort.
+    await this.reconcileConversation(id, now, true);
     const rows = await this.dataSource.query(
       `SELECT status, qualification_snapshot
        FROM conversations
@@ -277,7 +280,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     };
   }
 
-  private async reconcileConversation(id: string, now: Date): Promise<void> {
+  private async reconcileConversation(id: string, now: Date, propagateErrors = false): Promise<void> {
     const runner = this.dataSource!.createQueryRunner();
     let queuedPauseEvent: QueuedPauseDispatch | null = null;
     await runner.connect();
@@ -511,6 +514,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       if (runner.isTransactionActive) await runner.rollbackTransaction();
       // Reconciliation is best effort. A single malformed row must not stop
       // the 30-second poll from repairing the remaining conversations.
+      if (propagateErrors) throw error;
       void error;
     } finally {
       await runner.release();

@@ -581,6 +581,14 @@ def notify_reconciliation(conversation_id: Any) -> bool:
     if not 200 <= response.status_code < 300:
         LOG.warning("media_reconciliation_failed conversation_id=%s status_code=%s", conversation_id, response.status_code)
         return False
+    try:
+        payload = response.json()
+    except ValueError:
+        LOG.warning("media_reconciliation_failed conversation_id=%s reason=invalid_response", conversation_id)
+        return False
+    if not isinstance(payload, dict) or payload.get("accepted") is not True:
+        LOG.warning("media_reconciliation_failed conversation_id=%s reason=not_accepted", conversation_id)
+        return False
     LOG.info("media_reconciliation conversation_id=%s status=ok", conversation_id)
     return True
 

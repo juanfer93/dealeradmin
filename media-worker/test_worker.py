@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import Mock, patch
 
 import worker
 
@@ -50,6 +51,30 @@ class LocalVisionContractTests(unittest.TestCase):
         self.assertEqual(worker.derived_message_source("audio", {"engine": "faster-whisper"}), "audio_transcription")
         self.assertEqual(worker.derived_message_source("image", {"vision_status": "processed"}), "image_interpretation")
         self.assertEqual(worker.derived_message_source("image", {"vision_status": "unavailable"}), "image_ocr")
+
+
+class ReconciliationCallbackTests(unittest.TestCase):
+    def test_callback_requires_an_accepted_api_payload(self):
+        response = Mock(status_code=200)
+        response.json.return_value = {"accepted": True, "status": "waiting_window"}
+        with patch.object(worker, "DEALERADMIN_API_URL", "https://dealeradmin.test/api"), \
+             patch.object(worker, "GHL_WEBHOOK_SECRET", "secret"), \
+             patch.object(worker.requests, "post", return_value=response) as post:
+            self.assertTrue(worker.notify_reconciliation("conversation-1"))
+        post.assert_called_once_with(
+            "https://dealeradmin.test/api/webhooks/ghl/conversations/conversation-1/reconcile-media",
+            json={},
+            headers={"X-DealerADMIN-Webhook-Secret": "secret"},
+            timeout=worker.RECONCILIATION_TIMEOUT,
+        )
+
+    def test_callback_retries_when_a_success_status_has_no_acceptance(self):
+        response = Mock(status_code=200)
+        response.json.return_value = {"accepted": False, "status": "partial"}
+        with patch.object(worker, "DEALERADMIN_API_URL", "https://dealeradmin.test/api"), \
+             patch.object(worker, "GHL_WEBHOOK_SECRET", "secret"), \
+             patch.object(worker.requests, "post", return_value=response):
+            self.assertFalse(worker.notify_reconciliation("conversation-2"))
 
 
 if __name__ == "__main__":

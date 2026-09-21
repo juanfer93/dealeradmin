@@ -160,6 +160,22 @@ describe('ConversationWebhookService', () => {
     });
   });
 
+  it('propagates media reconciliation failures so the worker can retry them', async () => {
+    const queryRunner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query: vi.fn(async () => { throw new Error('media_reconciliation_db_failure'); }),
+    };
+    const service = new ConversationWebhookService({ createQueryRunner: () => queryRunner } as never);
+
+    await expect(service.reconcileMediaConversation('conversation-media-retry')).rejects.toThrow('media_reconciliation_db_failure');
+    expect(queryRunner.rollbackTransaction).toHaveBeenCalledOnce();
+    expect(queryRunner.release).toHaveBeenCalledOnce();
+  });
+
   it('treats an empty GHL attachment field as no attachment', async () => {
     const service = new ConversationWebhookService();
     const result = await service.acceptCustomerReplied(

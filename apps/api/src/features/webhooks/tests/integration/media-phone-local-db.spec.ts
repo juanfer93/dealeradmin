@@ -18,6 +18,8 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
   const imageConversationId = `${suffix}-image-conversation`;
   const audioContactId = `${suffix}-audio-contact`;
   const audioConversationId = `${suffix}-audio-conversation`;
+  const portugueseAudioContactId = `${suffix}-portuguese-audio-contact`;
+  const portugueseAudioConversationId = `${suffix}-portuguese-audio-conversation`;
   const julioContactId = `${suffix}-julio-contact`;
   const julioConversationId = `${suffix}-julio-conversation`;
   const javierContactId = `${suffix}-javier-contact`;
@@ -34,7 +36,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
 
   afterAll(async () => {
     if (!dataSource?.isInitialized) return;
-    for (const qaContactId of [contactId, afterHoursContactId, normalContactId, imageContactId, audioContactId, julioContactId, javierContactId, snapshotContactId]) {
+    for (const qaContactId of [contactId, afterHoursContactId, normalContactId, imageContactId, audioContactId, portugueseAudioContactId, julioContactId, javierContactId, snapshotContactId]) {
       await dataSource.query('DELETE FROM conversation_bot_pause_events WHERE ghl_contact_id = $1', [qaContactId]);
       await dataSource.query('DELETE FROM lead_dealers WHERE lead_id IN (SELECT id FROM leads WHERE ghl_contact_id = $1)', [qaContactId]);
       await dataSource.query('DELETE FROM conversations WHERE ghl_contact_id = $1', [qaContactId]);
@@ -537,5 +539,86 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       [conversation[0].id],
     ) as Array<{ body: string; source: string }>;
     expect(stored).toEqual([{ body: transcription, source: 'audio_transcription' }]);
+  });
+
+  it('reconciles Portuguese audio evidence before processing the later range and financing answer', async () => {
+    const service = new ConversationWebhookService(dataSource);
+    const common = {
+      ghl_contact_id: portugueseAudioContactId,
+      ghl_conversation_id: portugueseAudioConversationId,
+      channel: 'messenger',
+      contact_name: 'Leandro Bolzan',
+      contact_phone: '',
+      occurred_at: now,
+    };
+    await service.acceptCustomerReplied({
+      ...common,
+      event_id: `${suffix}-portuguese-audio`,
+      ghl_message_id: `${suffix}-portuguese-audio-message`,
+      message_body: '',
+      message_attachments: [{ url: 'https://links.example.test/leandro.ogg', content_type: 'audio/ogg', filename: 'leandro.ogg' }],
+    }, 'fredericksburg-2', { contactId: portugueseAudioContactId, conversationId: portugueseAudioConversationId, testNow: new Date(now) });
+
+    const attachment = await dataSource.query(
+      `SELECT id FROM conversation_attachments WHERE ghl_conversation_id = $1`,
+      [portugueseAudioConversationId],
+    ) as Array<{ id: string }>;
+    expect(attachment).toHaveLength(1);
+    const transcription = 'Olá, estou procurando um SUV. Quanto seria de down payment?';
+    await dataSource.query(
+      `UPDATE conversation_attachments
+       SET processing_status = 'done', extracted_text = $2, processing_metadata = $3::jsonb,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [attachment[0].id, transcription, JSON.stringify({ engine: 'faster-whisper', model: 'small', language: 'pt' })],
+    );
+    await dataSource.query(
+      `INSERT INTO conversation_messages
+         (conversation_id, dedupe_key, ghl_message_id, direction, body, occurred_at, raw_payload)
+       SELECT ca.conversation_id, 'media:' || ca.id::text, ca.ghl_message_id || ':media:' || ca.id::text,
+              'inbound', $2, cm.occurred_at, $3::jsonb
+       FROM conversation_attachments ca
+       JOIN conversation_messages cm ON cm.id = ca.conversation_message_id
+       WHERE ca.id = $1`,
+      [attachment[0].id, transcription, JSON.stringify({ source: 'audio_transcription', attachment_id: attachment[0].id, language: 'pt' })],
+    );
+
+    await service.acceptCustomerReplied({
+      ...common,
+      event_id: `${suffix}-portuguese-phone`,
+      ghl_message_id: `${suffix}-portuguese-phone-message`,
+      message_body: '7257103809',
+      occurred_at: '2026-09-17T17:19:50.000Z',
+    }, 'fredericksburg-2', { contactId: portugueseAudioContactId, conversationId: portugueseAudioConversationId, testNow: new Date('2026-09-17T17:19:50.000Z') });
+    await service.acceptCustomerReplied({
+      ...common,
+      event_id: `${suffix}-portuguese-range`,
+      ghl_message_id: `${suffix}-portuguese-range-message`,
+      message_body: '1000/2000',
+      occurred_at: '2026-09-17T17:20:00.000Z',
+    }, 'fredericksburg-2', { contactId: portugueseAudioContactId, conversationId: portugueseAudioConversationId, testNow: new Date('2026-09-17T17:20:00.000Z') });
+    await service.acceptCustomerReplied({
+      ...common,
+      event_id: `${suffix}-portuguese-financing`,
+      ghl_message_id: `${suffix}-portuguese-financing-message`,
+      message_body: 'Sim',
+      occurred_at: '2026-09-17T17:20:05.000Z',
+    }, 'fredericksburg-2', { contactId: portugueseAudioContactId, conversationId: portugueseAudioConversationId, testNow: new Date('2026-09-17T17:20:05.000Z') });
+
+    const conversation = await dataSource.query(
+      `SELECT status, qualification_snapshot
+       FROM conversations WHERE ghl_conversation_id = $1`,
+      [portugueseAudioConversationId],
+    ) as Array<{ status: string; qualification_snapshot: Record<string, unknown> }>;
+    expect(conversation[0]).toMatchObject({ status: 'waiting_window' });
+    expect(conversation[0].qualification_snapshot).toMatchObject({
+      real_name: 'Leandro Bolzan',
+      vehicle_type: 'SUV',
+      down_payment: '2000',
+      previous_financing: 'yes',
+      down_payment_sufficient: true,
+      qualification_complete: true,
+    });
+    expect(conversation[0].qualification_snapshot.qualification_progress).toBeDefined();
   });
 });

@@ -1471,6 +1471,19 @@ describe('normalizeCollectorInput', () => {
     });
   });
 
+  it('extracts the requested vehicle from Portuguese audio text after a greeting comma', () => {
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg-2',
+      channel: 'messenger',
+      real_name: 'Leandro Bolzan',
+      phone: '+17257103809',
+      message: 'Olá, Buenos dias! Eu estive em Pittsburgh. Eu estou procurando um caro SUV. Quanto seria de down payment?',
+      chat_history_log: 'Olá, Buenos dias! Eu estive em Pittsburgh. Eu estou procurando um caro SUV. Quanto seria de down payment?',
+    });
+
+    expect(result.vehicle_type).toBe('SUV');
+  });
+
   it('captures a one-word name explicitly sent in a WhatsApp conversation without promoting qualification replies', () => {
     const transcript = '*Headline:* Financiamiento inmediato\nYahir\nQuiero ver si puedo con 1000\nLo más pronto posible\nQue y qué papeles ocupo para aplicar\nSedan\nSi sin problema\nSi está bien no hay problema\nHoy si gusta\nA las 5 si se puede por favor';
     const result = normalizeCollectorInput({
