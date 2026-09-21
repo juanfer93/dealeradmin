@@ -868,32 +868,10 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       );
       if (queuedDuplicate) {
         const isSameQueuedConversation = conversation.isExisting && queuedDuplicate.conversation_id === conversation.id;
-        const dueStatus = this.statusForConversation(snapshot, location, dealer, source, now, 'due', conversation.ready_at);
-        const invalidOffleaseQueue = isOffleaseSource(source) && dueStatus.status === 'partial';
-        if (isSameQueuedConversation && invalidOffleaseQueue) {
-          // A later inbound message can invalidate an old Offlease queue row
-          // (for example, a truck snapshot that now has only "3" dollars).
-          // Re-check the hard gate before preserving queued state and remove
-          // only the pending operator-queue relation; sent history survives.
-          await runner.query(
-            `DELETE FROM lead_dealers
-             WHERE lead_id = $1 AND dealer_id = $2 AND status = 'pending'`,
-            [lead.id, dealer.id],
-          );
-          await runner.query(
-            `UPDATE conversations
-             SET status = 'partial', qualification_snapshot = $2::jsonb, location_snapshot = $3::jsonb,
-                 last_message_at = $4, next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP
-             WHERE id = $1`,
-            [conversation.id, JSON.stringify(snapshot), JSON.stringify(location), receivedAt],
-          );
-          await runner.query(`UPDATE webhook_events SET status = 'processed', processed_at = CURRENT_TIMESTAMP, error_code = $2 WHERE event_id = $1`, [event.event_id, 'OFFLEASE_QUEUE_GATE_REVOKED']);
-          await runner.commitTransaction();
-          return { accepted: true, eventId: event.event_id, conversationId: conversation.id, source, status: 'processed' };
-        }
-        // A later inbound message can add the make/model after the lead was
-        // initially queued. Keep the existing queue row synchronized with the
-        // authoritative conversation snapshot (without touching its status).
+        // Once a lead has entered the operator queue, later inbound messages
+        // must never remove its dealer relation. Keep the queue row and update
+        // its evidence, even if a later partial snapshot temporarily fails an
+        // Offlease gate; the next audit/reprocessing pass can enrich it.
         if (isSameQueuedConversation) {
           await this.syncLeadDealer(runner, dealer, lead.id, snapshot, location, source);
         }
