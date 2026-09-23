@@ -290,8 +290,10 @@ function recoverStaffordPreviousFinancing(rawHistory: string, policy: CollectorF
 
 const INVALID_REAL_NAMES = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'saludos', 'hello', 'hi', 'hey', 'hola', 'ola', 'greetings', 'thu chikitha linda']);
 const BUSINESS_NAME_MARKERS = /\b(?:auto\s*sales|motors?|dealership|dealer|llc|inc(?:orporated)?|corp(?:oration)?|company|tatuajes?|tattoos?|operaciones?|operations?|transport(?:ation)?|logistics|construction|remodeling|roofing|realty|consulting|services?|servicios?|shop|tienda|salon|barbershop|restaurant)\b/i;
-const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|baltimore|maryland|where are you located|where are you|what|which|how|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|qué|que|ubicaci[oó]n|ubicados?|cu[aá]l(?:\s+ser[ií]a)?|ser[ií]a|gracias|thank you|thank|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|sim|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
-const SINGLE_WORD_NAME_BLOCKLIST = /^(?:ok(?:ay)?|si|s[ií]|sim|yes|no|yeah|yep|correct|cash|today|hoy|now|ahora|asap|inmediato|requirements?|requisitos?|information|informaci[oó]n|details?|detalles?|baltimore|maryland|virginia|laurel|rosedale|sterling|elkton|manda|nada|bale|vale|ubicaci[oó]n|ubicasion|tacoma|toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion|mustang|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|maverick|ranger|bronco|explorer|expedition|escape|edge|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|range rover|defender|rlx|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|financiar|finance|financing|down|payment|enganche|documents?|documentos?|identificaci[oó]n|income|ingresos|proof|prueba|phone|tel[eé]fono|number|n[uú]mero)$/i;
+const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|baltimore|maryland|where are you located|where are you|what|which|how|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|qué|que|ubicaci[oó]n|ubicados?|cu[aá]l(?:\s+ser[ií]a)?|ser[ií]a|gracias|thank you|thank|vehicle|car|auto|carro|coche|veh[ií]culo|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|sim|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
+const GENERIC_VEHICLE_INTENT = /\b(?:need|needs|looking\s+for|want|wants|seeking|shopping\s+for|trying\s+to\s+find|necesito|busco|buscando|quiero|me\s+interesa)\b[\s\S]*\b(?:vehicle|car|auto|carro|coche|veh[ií]culo|truck|suv|sedan|van|camioneta|pickup|pick-up)\b/i;
+const SINGLE_WORD_NAME_BLOCKLIST = /^(?:ok(?:ay)?|si|s[ií]|sim|yes|no|yeah|yep|correct|cash|today|hoy|now|ahora|asap|inmediato|need|vehicle|car|auto|carro|coche|veh[ií]culo|requirements?|requisitos?|information|informaci[oó]n|details?|detalles?|baltimore|maryland|virginia|laurel|rosedale|sterling|elkton|manda|nada|bale|vale|ubicaci[oó]n|ubicasion|tacoma|toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion|mustang|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|maverick|ranger|bronco|explorer|expedition|escape|edge|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|range rover|defender|rlx|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|financiar|finance|financing|down|payment|enganche|documents?|documentos?|identificaci[oó]n|income|ingresos|proof|prueba|phone|tel[eé]fono|number|n[uú]mero)$/i;
+const NAME_DECLARATION = /(?:me llamo|mi nombre es|soy|yo soy|my name is|my name['’]s|i am|i['’]m|this is|call me(?!\s+at\b)|ll[aá]mame)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i;
 const PHONE_LIKE_TEXT = /\b(?:mi|my)\s+(?:n[uú]mero|number|phone|tel[eé]fono|telephone|contact)\b/i;
 const NAME_PARTICLES = new Set(['da', 'de', 'del', 'der', 'di', 'la', 'las', 'los', 'van', 'von', 'y']);
 const NON_VEHICLE_INTENT_VALUES = /^(?:(?:(?:quiero|necesito|me gustar[ií]a|me interesa)\s+)?(?:m[aá]s\s+)?(?:informaci[oó]n|info|detalles?|details?|information)|more\s+(?:information|info|details?)|learn\s+more)$/i;
@@ -422,7 +424,7 @@ export function normalizeRealName(value: string | null | undefined): string {
   // Qualification answers can look like names (for example "En este mes").
   // Never promote a timeline, location, vehicle category, or yes/no answer
   // into the contact's real name.
-  if (QUALIFICATION_RESPONSE_MARKERS.test(candidate) || isVehicleStatement(candidate)) return EMPTY;
+  if (QUALIFICATION_RESPONSE_MARKERS.test(candidate) || GENERIC_VEHICLE_INTENT.test(candidate) || isVehicleStatement(candidate)) return EMPTY;
   if (candidate.length > 100 || candidate.split(/\s+/).length > 8) return EMPTY;
   return formatPersonalName(candidate);
 }
@@ -443,7 +445,7 @@ function isLikelyProfileDisplayName(value: string | null | undefined): boolean {
 function extractRealNameFromText(value: string): string {
   const segments = String(value ?? '').replace(/\r\n?/g, '\n').split(/[\n.!?;]+/).map(clean).filter(Boolean);
   for (const segment of segments) {
-    const explicit = segment.match(/(?:me llamo|mi nombre es|soy|my name is|this is)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i);
+    const explicit = segment.match(NAME_DECLARATION);
     const named = normalizeRealName(explicit?.[1]);
     if (named) return named;
 
@@ -464,7 +466,7 @@ function extractRealNameFromText(value: string): string {
     const nextSegment = segments[segments.indexOf(segment) + 1] ?? EMPTY;
     if (isOneWordName && (/(?:^|\s)(?:no|not|manda|send|give)\s*$/i.test(previousSegment)
       || /^(?:una?|nada|vale|bale|ubicaci[oó]n)$/i.test(nextSegment))) continue;
-    if (/\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) continue;
+    if (GENERIC_VEHICLE_INTENT.test(candidate) || /\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) continue;
     const name = normalizeRealName(candidate);
     if (name) return name;
   }
@@ -631,11 +633,15 @@ function extractVehicle(message: string): string {
   const source = String(message ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source) return EMPTY;
   const lines = source.split(/\n+/).map(clean).filter(Boolean);
-  const candidates: Array<{ label: string; score: number; lineIndex: number; hasModel: boolean; brand: string }> = [];
+  const candidates: Array<{ label: string; score: number; lineIndex: number; hasModel: boolean; brand: string; isColloquialTruck: boolean }> = [];
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
     const line = lines[lineIndex];
     const candidate = stripCampaignButtonPhrases(line);
     if (!candidate || isCampaignButton(candidate) || isNonVehicleIntent(candidate)) continue;
+    // Internal structured fields can appear beside the buyer's evidence. They
+    // describe a field, not a new vehicle answer, and must not override the
+    // actual vehicle with a later `vehicle_type: SUV` marker.
+    if (/^\s*(?:vehicle_type|vehicle_category)\s*[:=]/i.test(candidate)) continue;
     // A trade-in vehicle is evidence for the down-payment/trade-in field, not
     // the vehicle the lead wants to buy. Keep the requested category/model
     // separate from the vehicle they are offering.
@@ -663,6 +669,7 @@ function extractVehicle(message: string): string {
           lineIndex,
           hasModel: VEHICLE_MODELS.test(requested),
           brand: requested.match(VEHICLE_BRANDS)?.[0] ?? EMPTY,
+          isColloquialTruck: false,
         });
       }
     }
@@ -685,15 +692,31 @@ function extractVehicle(message: string): string {
         + (followsVehicleQuestion ? 10 : 0)
         - (lowQualityNarrative && !hasModel ? 30 : 0)
         + lineIndex / 1000;
-      candidates.push({ label, score, lineIndex, hasModel, brand });
+      candidates.push({
+        label,
+        score,
+        lineIndex,
+        hasModel,
+        brand,
+        isColloquialTruck: /\b(?:troca|trokita|troquita|troque|trokas)\b/i.test(candidate),
+      });
     }
   }
-  const best = candidates.sort((left, right) => right.score - left.score || right.lineIndex - left.lineIndex)[0];
+  // A buyer can change the vehicle during the same conversation. The last
+  // explicit vehicle answer is the active choice, so the down payment must be
+  // evaluated against that answer rather than an earlier, more specific model.
+  const latest = candidates.sort((left, right) => right.lineIndex - left.lineIndex || right.score - left.score)[0];
+  // Whisper often produces a standalone colloquial truck token after the
+  // requested model. Preserve that more specific model when it is clearly
+  // the same answer sequence; an explicit later Sedan/SUV/etc. still wins.
+  const best = latest?.isColloquialTruck && !latest.hasModel
+    ? candidates.find((candidate) => candidate.hasModel && candidate.lineIndex < latest.lineIndex) ?? latest
+    : latest;
   if (!best) return EMPTY;
   // Combine a make from one answer with a more specific model from a later
   // answer, without promoting narrative text such as "chevrolet según su".
   const brands = [...new Set(candidates.map((candidate) => candidate.brand).filter(Boolean).map((brand) => brand.toLocaleLowerCase()))];
-  if (!VEHICLE_BRANDS.test(best.label) && brands.length === 1 && (best.hasModel || VEHICLE_CATEGORIES.test(best.label))) {
+  if (!VEHICLE_BRANDS.test(best.label) && brands.length === 1 && (best.hasModel || latest?.isColloquialTruck)) {
     const brand = candidates.find((candidate) => candidate.brand && candidate.brand.toLocaleLowerCase() === brands[0])?.brand ?? brands[0];
     const combined = clean(`${brand} ${best.label}`);
     const trim = extractExplicitVehicleTrim(source, combined);

@@ -59,6 +59,87 @@ test('acepta la conversación completa de Messenger con teléfono capturado en e
   }
 });
 
+test('reproduce Easterns y conserva el nombre real cuando el primer mensaje expresa intención de vehículo', async ({ request }) => {
+  const suffix = `ghl-e2e-easterns-real-name-${Date.now()}`;
+  const messages = ['Need a vehicle fast', 'SUV', 'Baltimore', '4433782388', 'Not much in hand 🤚 nothing to 500', 'Now', 'Yes'];
+
+  for (const [index, message] of messages.entries()) {
+    const eventId = `${suffix}-${index + 1}`;
+    const response = await request.post('http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/easterns', {
+      data: JSON.stringify({
+        message_body: message,
+        contact_phone: '',
+        contact_name: 'Juiccy Zayy',
+        channel: 'messenger',
+        event_id: eventId,
+      }),
+      headers: {
+        'content-type': 'application/json',
+        'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
+        'X-DealerADMIN-Contact-ID': `${suffix}-contact`,
+        'X-DealerADMIN-Conversation-ID': `${suffix}-conversation`,
+        'X-DealerADMIN-Message-ID': `${eventId}-message`,
+      },
+    });
+
+    expect(response.status(), `Easterns message ${index + 1}`).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({
+      accepted: true,
+      source: 'easterns',
+      status: 'processed',
+    });
+  }
+});
+
+test('usa el último vehículo y el teléfono correcto en Stafford WhatsApp y Fredericksburg Messenger', async ({ request }) => {
+  const suffix = `ghl-e2e-latest-vehicle-${Date.now()}`;
+  const scenarios = [
+    {
+      source: 'stafford',
+      channel: 'whatsapp',
+      contactPhone: '+19107093650',
+      messages: ['Juan Jose Castillo', 'Estoy interesado en una Honda CRV 2014', 'O un Honda Civic 2012', 'Un sedan', '1500'],
+    },
+    {
+      source: 'fredericksburg',
+      channel: 'messenger',
+      contactPhone: '',
+      messages: ['Juan Jose Castillo', 'Estoy interesado en una Honda CRV 2014', 'O un Honda Civic 2012', 'Un sedan', '804-970-1204', 'Tengo 1500 para el down'],
+    },
+  ] as const;
+
+  for (const scenario of scenarios) {
+    const contactId = `${suffix}-${scenario.source}-contact`;
+    const conversationId = `${suffix}-${scenario.source}-conversation`;
+    for (const [index, message] of scenario.messages.entries()) {
+      const eventId = `${suffix}-${scenario.source}-${index}`;
+      const response = await request.post(`http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/${scenario.source}`, {
+        data: JSON.stringify({
+          message_body: message,
+          contact_phone: scenario.contactPhone,
+          contact_name: 'Juan Jose Castillo',
+          channel: scenario.channel,
+          event_id: eventId,
+        }),
+        headers: {
+          'content-type': 'application/json',
+          'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
+          'X-DealerADMIN-Contact-ID': contactId,
+          'X-DealerADMIN-Conversation-ID': conversationId,
+          'X-DealerADMIN-Message-ID': `${eventId}-message`,
+        },
+      });
+
+      expect(response.status(), `${scenario.source} message ${index + 1}`).toBe(201);
+      await expect(response.json()).resolves.toMatchObject({
+        accepted: true,
+        source: scenario.source,
+        status: 'processed',
+      });
+    }
+  }
+});
+
 test('acepta la conversación completa de WhatsApp con teléfono ya registrado', async ({ request }) => {
   const messages = [
     'I am looking for a Honda Civic',

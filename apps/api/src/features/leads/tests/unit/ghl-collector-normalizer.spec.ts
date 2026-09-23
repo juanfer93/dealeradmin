@@ -469,6 +469,25 @@ describe('HighLevel collector custom-code normalizer', () => {
     }).real_name).toBe('Hay Les Aviso');
   });
 
+  it('does not promote the Easterns vehicle-intent reply to real_name in Custom Code', () => {
+    expect(execute({
+      channel: 'messenger',
+      contact_name: 'Juiccy Zayy',
+      message: 'Need a vehicle fast',
+      chat_history_log: 'Need a vehicle fast\nSUV\nBaltimore',
+    }).real_name).toBe('Juiccy Zayy');
+    expect(execute({ message: 'Need a vehicle fast' }).real_name).toBe('');
+  });
+
+  it.each([
+    ['I am Ana Torres', 'Ana Torres'],
+    ["I'm Juan Pérez", 'Juan Pérez'],
+    ['My name\'s María López', 'María López'],
+    ['Llámame Carlos', 'Carlos'],
+  ])('recognizes declared names in Spanish and English in Custom Code: %s', (message, expected) => {
+    expect(execute({ channel: 'whatsapp', message }).real_name).toBe(expected);
+  });
+
   it('keeps the requested vehicle after a name intro separated by a comma', () => {
     expect(execute({
       channel: 'messenger',
@@ -481,6 +500,39 @@ describe('HighLevel collector custom-code normalizer', () => {
       required_down_payment: 1500,
       down_payment_sufficient: true,
     });
+  });
+
+  it('uses the latest vehicle for Stafford WhatsApp and Fredericksburg Messenger', () => {
+    const stafford = execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Juan Jose Castillo',
+      contact_phone: '+19107093650',
+      chat_history_log: [
+        'Juan Jose Castillo',
+        'Estoy interesado en una Honda CRV 2014',
+        'O un Honda Civic 2012',
+        'Un sedan',
+        '1500',
+      ].join('\n'),
+      message: '1500',
+    });
+    const fredericksburg = execute({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      contact_name: 'Juan Jose Castillo',
+      message: 'Tengo 1500 para el down',
+      chat_history_log: [
+        'Estoy interesado en una Honda CRV 2014',
+        'O un Honda Civic 2012',
+        'Un sedan',
+        '804-970-1204',
+        'Tengo 1500 para el down',
+      ].join('\n'),
+    });
+
+    expect(stafford).toMatchObject({ vehicle_type: 'sedan', down_payment: '1500', required_down_payment: 1500, down_payment_sufficient: true });
+    expect(fredericksburg).toMatchObject({ phone: '+18049701204', vehicle_type: 'sedan', down_payment: '1500', required_down_payment: 1500, down_payment_sufficient: true });
   });
 
   it('uses only a declared chat name for WhatsApp in Custom Code', () => {

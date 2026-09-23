@@ -61,7 +61,8 @@ const memoryValue = (aliases) => {
   return clean(match?.[1]).replace(/(trade[- ]?in)\d+$/i, '$1');
 };
 const invalidRealNames = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'saludos', 'hello', 'hi', 'hey', 'hola', 'greetings', 'thu chikitha linda']);
-const qualificationResponseMarkers = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|baltimore|maryland|where are you located|where are you|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|ubicaci[oó]n|ubicados?|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
+const qualificationResponseMarkers = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|baltimore|maryland|where are you located|where are you|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|ubicaci[oó]n|ubicados?|vehicle|car|auto|carro|coche|veh[ií]culo|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
+const genericVehicleIntent = /\b(?:need|needs|looking\s+for|want|wants|seeking|shopping\s+for|trying\s+to\s+find|necesito|busco|buscando|quiero|me\s+interesa)\b[\s\S]*\b(?:vehicle|car|auto|carro|coche|veh[ií]culo|truck|suv|sedan|van|camioneta|pickup|pick-up)\b/i;
 const singleWordNameBlocklist = /^(?:ok(?:ay)?|si|s[ií]|yes|no|yeah|yep|correct|cash|today|hoy|now|ahora|asap|inmediato|requirements?|requisitos?|information|informaci[oó]n|details?|detalles?|baltimore|maryland|virginia|laurel|rosedale|sterling|elkton|manda|nada|bale|vale|ubicaci[oó]n|ubicasion|tacoma|toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion|mustang|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|maverick|ranger|bronco|explorer|expedition|escape|edge|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|range rover|defender|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|financiar|finance|financing|down|payment|enganche|documents?|documentos?|identificaci[oó]n|income|ingresos|proof|prueba|phone|tel[eé]fono|number|n[uú]mero)$/i;
 const vehicleBrands = /\b(?:toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i;
 const vehicleModels = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacoma|tacma|rav\s*4|civic|civc|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|rlx|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
@@ -157,9 +158,10 @@ const phoneLikeText = (value) => {
   return /\b(?:mi|my)\s+(?:n[uú]mero|number|phone|tel[eé]fono|telephone|contact)\b/i.test(candidate)
     || digits.length >= 7;
 };
+const nameDeclaration = /(?:me llamo|mi nombre es|soy|yo soy|my name is|my name['’]s|i am|i['’]m|this is|call me(?!\s+at\b)|ll[aá]mame)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i;
 const normalizeRealName = (value) => {
   const candidate = clean(value);
-  if (!candidate || invalidRealNames.has(candidate.toLowerCase()) || phoneLikeText(candidate) || !/[a-záéíóúüñ]/i.test(candidate) || /^[\W_\d]+$/u.test(candidate) || qualificationResponseMarkers.test(candidate) || isVehicleStatement(candidate)) return '';
+  if (!candidate || invalidRealNames.has(candidate.toLowerCase()) || phoneLikeText(candidate) || !/[a-záéíóúüñ]/i.test(candidate) || /^[\W_\d]+$/u.test(candidate) || qualificationResponseMarkers.test(candidate) || genericVehicleIntent.test(candidate) || isVehicleStatement(candidate)) return '';
   if (candidate.length > 100 || candidate.split(/\s+/).length > 8) return '';
   return formatPersonalName(candidate);
 };
@@ -179,7 +181,7 @@ const formatPersonalName = (value) => {
 const nameFromText = (value) => {
   const segments = String(value ?? '').replace(/\r\n?/g, '\n').split(/[\n.!?;]+/).map(clean).filter(Boolean);
   for (const segment of segments) {
-    const named = normalizeRealName(segment.match(/(?:me llamo|mi nombre es|soy|my name is|this is)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i)?.[1]);
+    const named = normalizeRealName(segment.match(nameDeclaration)?.[1]);
     if (named) return named;
     const candidate = segment.replace(/[.!?,;:]+$/g, '');
     const isTitleCasedToken = candidate[0] === candidate[0].toLocaleUpperCase() || candidate === candidate.toLocaleUpperCase();
@@ -188,7 +190,7 @@ const nameFromText = (value) => {
       && !singleWordNameBlocklist.test(candidate);
     const isFullName = /^[a-záéíóúüñ][a-záéíóúüñ'-]*(?:\s+[a-záéíóúüñ][a-záéíóúüñ'-]*){1,3}$/i.test(candidate);
     if (!isOneWordName && !isFullName) continue;
-    if (/\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) continue;
+    if (genericVehicleIntent.test(candidate) || /\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) continue;
     const name = normalizeRealName(candidate);
     if (name) return name;
   }
@@ -312,6 +314,10 @@ const vehicleFrom = (text) => {
   for (const [lineIndex, line] of lines.entries()) {
     const candidate = stripCampaignButtonPhrases(line);
     if (!candidate || isCampaignButton(candidate) || isNonVehicleIntent(candidate)) continue;
+    // Internal structured fields can appear beside the buyer's evidence. They
+    // describe a field, not a new vehicle answer, and must not override the
+    // actual vehicle with a later `vehicle_type: SUV` marker.
+    if (/^\s*(?:vehicle_type|vehicle_category)\s*[:=]/i.test(candidate)) continue;
     if (tradeInLanguage.test(candidate)
       && /\b(?:tengo|tiene|have|has|my|mi)\b/i.test(candidate)
       && !/\b(?:looking for|busco|quiero|want|interested in|interesado en)\b/i.test(candidate)) continue;
@@ -329,7 +335,7 @@ const vehicleFrom = (text) => {
     const requested = cleaned.match(/(?:looking for|busco|quiero|want|interested in|interesado en)\s+(?:a|an|un|una)?\s*([^.!?]+)/i)?.[1];
     if (requested && !isNonVehicleIntent(requested)) {
       const requestedLabel = vehicleLabel(requested);
-      if (requestedLabel) candidates.push({ label: requestedLabel, score: 100 + (vehicleModels.test(requested) ? 25 : 0) + lineIndex / 1000, lineIndex, hasModel: vehicleModels.test(requested), brand: requested.match(vehicleBrands)?.[0] || '' });
+      if (requestedLabel) candidates.push({ label: requestedLabel, score: 100 + (vehicleModels.test(requested) ? 25 : 0) + lineIndex / 1000, lineIndex, hasModel: vehicleModels.test(requested), brand: requested.match(vehicleBrands)?.[0] || '', isColloquialTruck: false });
     }
     const category = cleaned.match(/\b(?:suv|sedan|truck|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camion|camión)\b/i);
     const hasModel = vehicleModels.test(cleaned);
@@ -343,14 +349,23 @@ const vehicleFrom = (text) => {
         + (followsVehicleQuestion ? 10 : 0)
         - (lowQualityNarrative && !hasModel ? 30 : 0)
         + lineIndex / 1000;
-      candidates.push({ label, score, lineIndex, hasModel, brand });
+      candidates.push({ label, score, lineIndex, hasModel, brand, isColloquialTruck: /\b(?:troca|trokita|troquita|troque|trokas)\b/i.test(candidate) });
     }
   }
-  candidates.sort((left, right) => right.score - left.score || right.lineIndex - left.lineIndex);
-  const best = candidates[0];
+  // A buyer can change the vehicle during the same conversation. The last
+  // explicit vehicle answer is the active choice, so the down payment must be
+  // evaluated against that answer rather than an earlier, more specific model.
+  candidates.sort((left, right) => right.lineIndex - left.lineIndex || right.score - left.score);
+  const latest = candidates[0];
+  // Whisper can leave a standalone colloquial truck token after the requested
+  // model. Preserve that specific model, while an explicit later category
+  // such as Sedan/SUV remains the active buyer choice.
+  const best = latest?.isColloquialTruck && !latest.hasModel
+    ? candidates.find((candidate) => candidate.hasModel && candidate.lineIndex < latest.lineIndex) || latest
+    : latest;
   if (!best) return '';
   const brands = [...new Set(candidates.map((candidate) => candidate.brand).filter(Boolean).map((brand) => brand.toLocaleLowerCase()))];
-  if (!vehicleBrands.test(best.label) && brands.length === 1 && (best.hasModel || vehicleCategories.test(best.label))) {
+  if (!vehicleBrands.test(best.label) && brands.length === 1 && (best.hasModel || latest?.isColloquialTruck)) {
     const brand = candidates.find((candidate) => candidate.brand && candidate.brand.toLocaleLowerCase() === brands[0])?.brand || brands[0];
     return clean(`${brand} ${best.label}`).replace(/\b([a-z]+)\b/gi, (token) => token[0].toLocaleUpperCase() + token.slice(1).toLocaleLowerCase()).replace(/\b(\d)\s*lt\b/gi, '$1LT');
   }

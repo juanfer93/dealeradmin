@@ -1250,6 +1250,57 @@ describe('normalizeCollectorInput', () => {
     });
   });
 
+  it('uses the latest vehicle and Stafford WhatsApp phone when the buyer changes vehicle', () => {
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      real_name: 'Juan Jose Castillo',
+      phone: '+19107093650',
+      chat_history_log: [
+        'Juan Jose Castillo',
+        'Estoy interesado en un Honda CRV 2014',
+        'O un Honda Civic 2012',
+        'Un sedan',
+        '1500',
+      ].join('\n'),
+      message: '1500',
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Juan Jose Castillo',
+      phone: '+19107093650',
+      vehicle_type: 'sedan',
+      down_payment: '1500',
+      required_down_payment: 1500,
+      down_payment_sufficient: true,
+    });
+  });
+
+  it('uses the latest vehicle and Messenger phone for Fredericksburg', () => {
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      real_name: 'Juan Jose Castillo',
+      chat_history_log: [
+        'Estoy interesado en una Honda CRV 2014',
+        'O un Honda Civic 2012',
+        'Un sedan',
+        '804-970-1204',
+        'Tengo 1500 para el down',
+      ].join('\n'),
+      message: 'Tengo 1500 para el down',
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Juan Jose Castillo',
+      phone: '+18049701204',
+      vehicle_type: 'sedan',
+      down_payment: '1500',
+      required_down_payment: 1500,
+      down_payment_sufficient: true,
+    });
+  });
+
   it('associates each answer with its field and ignores agent questions', () => {
     const transcript = [
       'What vehicle are you looking for?',
@@ -1417,6 +1468,25 @@ describe('normalizeCollectorInput', () => {
   it('captures a standalone full-name answer without confusing vehicle intent for a name', () => {
     expect(normalizeCollectorInput({ message: 'María José López' }).real_name).toBe('María José López');
     expect(normalizeCollectorInput({ message: 'Quiero una camioneta' }).real_name).toBe('');
+  });
+
+  it('keeps the Messenger profile name when the first reply is generic vehicle intent', () => {
+    expect(normalizeCollectorInput({
+      channel: 'messenger',
+      real_name: 'Juiccy Zayy',
+      message: 'Need a vehicle fast',
+      chat_history_log: 'Need a vehicle fast\nSUV\nBaltimore',
+    }).real_name).toBe('Juiccy Zayy');
+    expect(normalizeCollectorInput({ message: 'Need a vehicle fast' }).real_name).toBe('');
+  });
+
+  it.each([
+    ['I am Ana Torres', 'Ana Torres'],
+    ["I'm Juan Pérez", 'Juan Pérez'],
+    ['My name\'s María López', 'María López'],
+    ['Llámame Carlos', 'Carlos'],
+  ])('recognizes declared names in Spanish and English: %s', (message, expected) => {
+    expect(normalizeCollectorInput({ channel: 'whatsapp', message }).real_name).toBe(expected);
   });
 
   it('rejects a qualification prompt fragment as the real name', () => {

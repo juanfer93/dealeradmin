@@ -76,9 +76,11 @@ const databaseModule = TypeOrmModule.forRootAsync({
       },
     });
 
+const useDatabase = process.env.NODE_ENV !== 'test' || process.env.E2E_USE_DATABASE === 'true';
+
 @Module({
   imports: [
-    ...(process.env.NODE_ENV === 'test' ? [] : [databaseModule]),
+    ...(useDatabase ? [databaseModule] : []),
     AuthModule,
     WebhooksModule,
     LeadsModule,
