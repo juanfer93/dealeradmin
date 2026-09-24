@@ -179,6 +179,7 @@ export default function ReportsPage() {
         </div>
         <nav className="flex items-center gap-3 text-xs sm:gap-5" aria-label="Navegación principal">
           <Link href="/app" className="min-h-11 inline-flex items-center text-[var(--text-muted)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">{t.app.queue}</Link>
+          <Link href="/app/problems" className="min-h-11 inline-flex items-center text-[var(--text-muted)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">{t.app.problems}</Link>
           <span className="hidden items-center gap-2 font-medium text-[var(--brand)] sm:flex"><span className="h-2 w-2 rounded-full bg-[var(--brand)]" aria-hidden="true" />{t.app.webhook}</span>
           <LanguageSwitch />
         </nav>

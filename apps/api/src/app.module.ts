@@ -6,6 +6,7 @@ import { WebhooksModule } from './features/webhooks/presentation/webhooks.module
 import { LeadsModule } from './features/leads/presentation/leads.module';
 import { RoutingModule } from './features/routing/presentation/routing.module';
 import { ReportsModule } from './features/reports/presentation/reports.module';
+import { ProblemsModule } from './features/problems/presentation/problems.module';
 import { TestFixturesModule } from './features/test-fixtures/presentation/test-fixtures.module';
 import { InitialSchema1710000000000 } from './database/migrations/1710000000000-InitialSchema';
 import { AddLeadFinancialDetails1710000001000 } from './database/migrations/1710000001000-AddLeadFinancialDetails';
@@ -33,6 +34,7 @@ import { ConversationAttachments1710000022000 } from './database/migrations/1710
 import { RepairConversationAttachmentUrlIndex1710000023000 } from './database/migrations/1710000023000-RepairConversationAttachmentUrlIndex';
 import { MonthlyReportDeliveries1710000024000 } from './database/migrations/1710000024000-MonthlyReportDeliveries';
 import { ConversationBotPauseEvents1710000025000 } from './database/migrations/1710000025000-ConversationBotPauseEvents';
+import { ProblemTickets1710000027000 } from './database/migrations/1710000027000-ProblemTickets';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -69,6 +71,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             RepairConversationAttachmentUrlIndex1710000023000,
             MonthlyReportDeliveries1710000024000,
             ConversationBotPauseEvents1710000025000,
+            ProblemTickets1710000027000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,
@@ -86,6 +89,7 @@ const useDatabase = process.env.NODE_ENV !== 'test' || process.env.E2E_USE_DATAB
     LeadsModule,
     RoutingModule,
     ReportsModule,
+    ProblemsModule,
     ...(process.env.NODE_ENV === 'test' ? [TestFixturesModule] : []),
   ],
 })
