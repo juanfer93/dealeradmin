@@ -827,6 +827,7 @@ describe('normalizeCollectorInput', () => {
     ['Toyota Tacoma', 'Toyota Tacoma'],
     ['a family van', 'van'],
     ['a 7 passenger van', 'van'],
+    ['Ando buscando algo familiar para 7 pasajeros', 'van'],
     ['camión', 'truck'],
     ['camioneta', 'truck'],
   ])('normalizes common dealer vehicle request: %s', (message, expected) => {
@@ -1300,6 +1301,54 @@ describe('normalizeCollectorInput', () => {
       down_payment: '2000',
       purchase_timeline: 'this month',
       has_income_proof: 'yes',
+    });
+  });
+
+  it('does not use WhatsApp ad metadata as a name and maps a family passenger request to a van', () => {
+    const transcript = [
+      '*Headline:* Financiamiento interno! *Source URL:* https://fb.me/cUWAq5MPm Me interrwa lo del.post',
+      'Ando buscando algo familiar para 7 pasajeros',
+      'Francisco medina',
+      'Puedo conseguir 2000',
+      'Tengo 2000',
+      'Cuando se pueda.',
+      'Esta semana si es posible',
+      'Estoy en baltimore',
+      'Si',
+      'Mañana',
+      'A las 1130',
+      'Tienes algunos modelos para ver',
+    ].join('\n');
+
+    expect(normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      real_name: 'Me Interrwa Lo del',
+      phone: '+14434202361',
+      vehicle_type: ADVISOR_HANDOFF_VEHICLE,
+      qualification_memory: 'real_name: Me Interrwa Lo del; vehicle: Quiere hablar con un asesor; down payment: 2000; timeline: esta semana',
+      message: 'Tienes algunos modelos para ver',
+      chat_history_log: transcript,
+    })).toMatchObject({
+      real_name: 'Francisco Medina',
+      phone: '+14434202361',
+      vehicle_type: 'van',
+      down_payment: '2000',
+      purchase_timeline: 'esta semana',
+    });
+  });
+
+  it('does not use a vehicle statement as an Arlington buyer name', () => {
+    expect(normalizeCollectorInput({
+      source: 'arlington',
+      channel: 'messenger',
+      real_name: 'Tienen Ford King Ranch',
+      phone: '+14348062679',
+      vehicle_type: 'Ford King ranch',
+      message: 'Tienen Ford King ranch, +14348062679 Ford King ranch, comprobante de ingresos, quiere comprar este mes.',
+    })).toMatchObject({
+      real_name: '',
+      vehicle_type: 'Ford King ranch',
     });
   });
 

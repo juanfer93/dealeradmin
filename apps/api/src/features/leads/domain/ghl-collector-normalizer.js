@@ -67,12 +67,13 @@ const singleWordNameBlocklist = /^(?:ok(?:ay)?|si|s[ií]|yes|no|yeah|yep|correct
 const vehicleBrands = /\b(?:toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i;
 const vehicleModels = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacoma|tacma|rav\s*4|civic|civc|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|rlx|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
 const vehicleCategories = /suv|sedan|truck|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camion|camión/i;
-const vehicleContext = /\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
+const vehicleContext = /\b(?:tengo|tiene|tienen|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
 const economicCarIntent = /\b(?:carro|auto|coche|veh[ií]culo)\s+econ[oó]mic[oa]s?\b/i;
 // Stafford's WhatsApp flow commonly answers the vehicle-type prompt with
 // "Algo económico" followed by "Normal". Keep it as a sedan category during
 // late GHL reconciliation instead of falling back to advisor handoff.
 const economicSedanIntent = /\b(?:carro|auto|coche|veh[ií]culo|algo)\s+econ[oó]mic[oa]s?\b/i;
+const familyPassengerVanIntent = /\b(?:algo\s+)?familiar\b[\s\S]{0,80}\bpasajeros?\b/i;
 const noDownPaymentResponse = /\b(?:no(?:\s+\w+){0,3}\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)?)\b/i;
 const canonicalVehicleLabel = (value) => clean(value)
   .replace(/\bcorola\b/gi, 'Corolla')
@@ -102,7 +103,7 @@ const tradeInLanguage = /\btrade[- ]?in\b|\bmy (?:car|vehicle|van|truck)\b|\bmi 
 const vehicleLabel = (value) => {
   let source = clean(value)
     .replace(/\b(?:19|20)\d{2}\b/g, ' ')
-    .replace(/\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/gi, ' ')
+    .replace(/\b(?:tengo|tiene|tienen|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/gi, ' ')
     .replace(/\b(?:a|an|un|una|my|mi|the|carro|auto|car|vehicle|veh[ií]culo)\b/gi, ' ')
     .replace(/[!?.,:;]+/g, ' ')
     .replace(/\s+/g, ' ')
@@ -145,7 +146,7 @@ const isVehicleStatement = (value) => {
   const label = vehicleLabel(candidate);
   if (!candidate || !label) return false;
   const withoutContext = candidate
-    .replace(/\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/gi, ' ')
+    .replace(/\b(?:tengo|tiene|tienen|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/gi, ' ')
     .replace(/\b(?:a|an|un|una|my|mi|the|carro|auto|car|vehicle|veh[ií]culo)\b/gi, ' ')
     .replace(/[!?.,:;]+/g, ' ')
     .replace(/\s+/g, ' ')
@@ -179,8 +180,10 @@ const formatPersonalName = (value) => {
     return lower.split(/([-'])/).map((piece) => /[-']/.test(piece) ? piece : piece ? `${piece[0].toLocaleUpperCase()}${piece.slice(1)}` : piece).join('');
   }).join(' ');
 };
+const nonConversationalMetadataLine = /(?:\b(?:headline|source\s+url|attribution|ad\s*(?:id|name))\b|https?:\/\/|fb\.me\/|\.post\b)/i;
 const nameFromText = (value) => {
-  const segments = String(value ?? '').replace(/\r\n?/g, '\n').split(/[\n.!?;]+/).map(clean).filter(Boolean);
+  const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter((line) => line && !nonConversationalMetadataLine.test(line));
+  const segments = lines.flatMap((line) => line.split(/[.!?;]+/).map(clean).filter(Boolean));
   for (const segment of segments) {
     const named = normalizeRealName(segment.match(nameDeclaration)?.[1]);
     if (named) return named;
@@ -204,10 +207,15 @@ const extractedNames = [
   nameFromText(rawMessage),
   nameFromText(rawHistory),
 ];
+const whatsappNames = [
+  nameFromText(rawMessage),
+  nameFromText(rawHistory),
+  memoryValue(['real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name', 'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre']),
+];
 const realName = isMessengerChannel(inputData.channel)
   ? (contactName || suppliedName)
   : isWhatsAppChannel(inputData.channel)
-    ? extractedNames.map(normalizeRealName).find(Boolean) || ''
+    ? whatsappNames.map(normalizeRealName).find(Boolean) || ''
     : ((isBusinessName(suppliedName) || isProfileDisplayName(suppliedName)) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) || '';
 const isCampaignButton = (value) => /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today|quiero financiar un auto(?: con ustedes)?|me gustaria financiar un auto(?: con ustedes)?|financiar un auto(?: con ustedes)?|(?:quiero )?financiar con easterns?)$/.test(normalizeMatch(String(value ?? '').replace(/([!?])\s*\d{1,3}$/, '$1').replace(/[!?.,]/g, '')));
 const isNonVehicleIntent = (value) => nonVehicleIntentValues.test(clean(value).replace(/[!?.,]/g, '').trim());
@@ -429,9 +437,11 @@ const vehicleSource = [rawHistory, rawMessage].filter(Boolean).join('\n');
 const phoneFromConversation = phoneFrom(message, history);
 // Keep the WhatsApp/Messenger shorthand "carro económico" as the stable
 // Sedan category.
-const extractedVehicle = economicSedanIntent.test(vehicleSource)
-  ? 'Sedan'
-  : first(
+const extractedVehicle = familyPassengerVanIntent.test(vehicleSource)
+  ? 'van'
+  : economicSedanIntent.test(vehicleSource)
+    ? 'Sedan'
+    : first(
     campaign ? '' : cleanVehicleValue(vehicleFrom(vehicleSource)),
     cleanVehicleValue(memoryValue(['vehicle', 'vehicle_type'])),
     cleanVehicleValue(inputData.vehicle_type),

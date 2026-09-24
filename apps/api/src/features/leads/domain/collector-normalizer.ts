@@ -301,12 +301,13 @@ const VEHICLE_BRANDS = /\b(?:toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyu
 const VEHICLE_MODELS = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacoma|tacma|rav\s*4|civic|civc|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|odisea|paila|sierra|silverado|tahoe|tajo|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|rlx|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
 const VEHICLE_CATEGORIES = /\b(?:suv|sedan|truck|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camion|camión)\b/i;
 const VEHICLE_TRIMS = /\b(?:\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i;
-const VEHICLE_CONTEXT = /\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i;
+const VEHICLE_CONTEXT = /\b(?:tengo|tiene|tienen|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i;
 // Stafford's WhatsApp flow commonly answers the vehicle-type prompt with
 // "Algo económico" followed by "Normal". Treat that exact economic intent as
 // a sedan category so a late reconciliation cannot leave the lead as advisor
 // handoff after GHL has already completed the flow.
 const ECONOMIC_SEDAN_INTENT = /\b(?:carro|auto|coche|veh[ií]culo|algo)\s+econ[oó]mic[oa]s?\b/i;
+const FAMILY_PASSENGER_VAN_INTENT = /\b(?:algo\s+)?familiar\b[\s\S]{0,80}\bpasajeros?\b/i;
 const NO_DOWN_PAYMENT_RESPONSE = /\b(?:no(?:\s+\w+){0,3}\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)|no\s+(?:cuento|cuenta)\s+con\s+(?:dinero|down|enganche|pago\s+inicial))\b/i;
 const TRADE_IN_INTENT = /\btrade[- ]?in\b|\bmy (?:car|vehicle|van|truck)\b|\bmi (?:carro|auto|veh[ií]culo|van|troca|camioneta|camioneta|camion)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\bchange\s+(?:my\s+)?(?:vehicle|car|van|truck)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b/i;
 
@@ -347,7 +348,7 @@ function canonicalVehicleCategory(value: string): string {
 function extractVehicleLabel(value: string | null | undefined): string {
   const source = clean(value)
     .replace(/\b(?:19|20)\d{2}\b/g, ' ')
-    .replace(/\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/gi, ' ')
+    .replace(/\b(?:tengo|tiene|tienen|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/gi, ' ')
     .replace(/\b(?:a|an|un|una|my|mi|the|carro|auto|car|vehicle|veh[ií]culo)\b/gi, ' ')
     .replace(/[!?.,:;]+/g, ' ')
     .replace(/\s+/g, ' ')
@@ -400,7 +401,7 @@ function isVehicleStatement(value: string | null | undefined): boolean {
   const label = extractVehicleLabel(candidate);
   if (!label) return false;
   const withoutContext = candidate
-    .replace(/\b(?:tengo|tiene|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/gi, ' ')
+    .replace(/\b(?:tengo|tiene|tienen|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/gi, ' ')
     .replace(/\b(?:a|an|un|una|my|mi|the|carro|auto|car|vehicle|veh[ií]culo)\b/gi, ' ')
     .replace(/[!?.,:;]+/g, ' ')
     .replace(/\s+/g, ' ')
@@ -443,8 +444,15 @@ function isLikelyProfileDisplayName(value: string | null | undefined): boolean {
   return /[^\p{L}\p{M}\s.'-]/u.test(clean(value));
 }
 
+const NON_CONVERSATIONAL_METADATA_LINE = /(?:\b(?:headline|source\s+url|attribution|ad\s*(?:id|name))\b|https?:\/\/|fb\.me\/|\.post\b)/i;
+
 function extractRealNameFromText(value: string): string {
-  const segments = String(value ?? '').replace(/\r\n?/g, '\n').split(/[\n.!?;]+/).map(clean).filter(Boolean);
+  const lines = String(value ?? '')
+    .replace(/\r\n?/g, '\n')
+    .split(/\n+/)
+    .map(clean)
+    .filter((line) => line && !NON_CONVERSATIONAL_METADATA_LINE.test(line));
+  const segments = lines.flatMap((line) => line.split(/[.!?;]+/).map(clean).filter(Boolean));
   for (const segment of segments) {
     const explicit = segment.match(NAME_DECLARATION);
     const named = normalizeRealName(explicit?.[1]);
@@ -1041,6 +1049,11 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     extractRealNameFromText(rawMessage),
     extractRealNameFromText(rawHistory),
   ];
+  const whatsappNames = [
+    extractRealNameFromText(rawMessage),
+    extractRealNameFromText(rawHistory),
+    realNameFromQualificationMemory(memory),
+  ];
   const realName = isMessengerChannel(input.channel)
     // Prefer an explicit name from the conversation. Messenger's profile label
     // remains the fallback, because it can be a business label or a stale
@@ -1048,7 +1061,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     ? extractedNames.map(normalizeRealName).find(Boolean) ?? suppliedName
     : isWhatsAppChannel(input.channel)
       // WhatsApp gets a real name only from a declared/repeated name in chat.
-      ? extractedNames.map(normalizeRealName).find(Boolean) ?? EMPTY
+      ? whatsappNames.map(normalizeRealName).find(Boolean) ?? EMPTY
       : (isLikelyBusinessName(suppliedName) || isLikelyProfileDisplayName(suppliedName)
         ? [...extractedNames, suppliedName]
         : [suppliedName, ...extractedNames]
@@ -1060,9 +1073,11 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const vehicleSource = [rawHistory, messageForExtraction].filter(Boolean).join('\n');
   // Buyers on WhatsApp and Messenger use "carro económico" as a category
   // request. Keep this deterministic so it cannot be mistaken for a make/model.
-  const extractedVehicle = ECONOMIC_SEDAN_INTENT.test(vehicleSource)
-    ? 'Sedan'
-    : normalizeVehicle(firstNonEmpty(
+  const extractedVehicle = FAMILY_PASSENGER_VAN_INTENT.test(vehicleSource)
+    ? 'van'
+    : ECONOMIC_SEDAN_INTENT.test(vehicleSource)
+      ? 'Sedan'
+      : normalizeVehicle(firstNonEmpty(
       extractVehicle(vehicleSource),
       [
         memoryValue(memory, ['vehicle_type', 'vehicle', 'type']),
