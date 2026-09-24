@@ -9,7 +9,26 @@ describeDatabase('historical Offlease transcript replay from production audit', 
   let dataSource: DataSource;
   const suffix = `historical-offlease-audit-${Date.now()}`;
 
-  const cases = [
+  type HistoricalCase = {
+    label: string;
+    source: string;
+    channel: string;
+    contactName: string;
+    phone: string;
+    messages: string[];
+    reconcileAt?: string;
+    expected: {
+      vehicle: string;
+      down: string;
+      amount: number | null;
+      minimum: number | null;
+      sufficient: boolean;
+      nextStep: string;
+      status?: string;
+    };
+  };
+
+  const cases: HistoricalCase[] = [
     {
       label: 'Fredericksburg 2 / Alexander Escobar / positive regular minimum',
       source: 'fredericksburg-2',
@@ -38,6 +57,29 @@ describeDatabase('historical Offlease transcript replay from production audit', 
         'Esta bien. Gracias',
       ],
       expected: { vehicle: 'truck', down: '2000', amount: 2000, minimum: 3000, sufficient: false, nextStep: 'phone' },
+    },
+    {
+      label: 'Fredericksburg 2 / Danilo Rivera / historical Ford F--150 repair',
+      source: 'fredericksburg-2',
+      channel: 'messenger',
+      contactName: 'Danilo Rivera',
+      phone: '+15713796440',
+      messages: [
+        'informacion',
+        'Ford f150 fx4',
+        '571 379 6440',
+        '3k',
+        'Pero no kiero algo caro',
+        'Estoy mirando aver si me interasa algo',
+        'Si tienes algo que me interese si',
+        'Si pero primero kiero ver los carros aver cual me interesa',
+        'Muestrame las fotos',
+        'Si porfavor',
+        'Ok',
+        'Manda las fotos',
+      ],
+      reconcileAt: '2026-09-24T01:12:32.000Z',
+      expected: { vehicle: 'Ford F-150', down: '3000', amount: 3000, minimum: 3000, sufficient: true, nextStep: 'complete', status: 'queued' },
     },
     {
       label: 'Stafford / Rosa / positive suggested SUV minimum with misspellings',
@@ -89,7 +131,7 @@ describeDatabase('historical Offlease transcript replay from production audit', 
       ],
       expected: { vehicle: 'Quiere hablar con un asesor', down: '1500', amount: 1500, minimum: null, sufficient: false, nextStep: 'vehicle_type' },
     },
-  ] as const;
+  ];
 
   const ids = cases.map((_, index) => ({
     contactId: `${suffix}-${index}-contact`,
@@ -119,11 +161,15 @@ describeDatabase('historical Offlease transcript replay from production audit', 
     await dataSource.destroy();
   });
 
-  it.each(cases.map((testCase, index) => ({ ...testCase, index })))('$label replays with current normalization rules', async ({ source, channel, contactName, phone, messages, expected, index }) => {
+  it.each(cases.map((testCase, index) => ({ ...testCase, index })))('$label replays with current normalization rules', async ({ source, channel, contactName, phone, messages, expected, reconcileAt, index }) => {
     const { contactId, conversationId } = ids[index];
+    const replayNow = new Date(reconcileAt ?? '2026-09-19T14:30:00.000Z');
     const service = new ConversationWebhookService(dataSource);
     for (const [messageIndex, message] of messages.entries()) {
       const eventId = `${suffix}-${index}-${messageIndex}`;
+      const occurredAt = reconcileAt
+        ? new Date(replayNow.getTime() - 60_000 - (messages.length - messageIndex) * 1_000).toISOString()
+        : `2026-09-19T${String(10 + index).padStart(2, '0')}:${String(messageIndex).padStart(2, '0')}:00.000Z`;
       await service.acceptCustomerReplied({
         event_id: eventId,
         ghl_message_id: `${eventId}-message`,
@@ -133,9 +179,10 @@ describeDatabase('historical Offlease transcript replay from production audit', 
         contact_name: contactName,
         contact_phone: messageIndex === 0 ? phone : '',
         message_body: message,
-        occurred_at: `2026-09-19T${String(10 + index).padStart(2, '0')}:${String(messageIndex).padStart(2, '0')}:00.000Z`,
-      }, source, { contactId, conversationId, messageId: `${eventId}-message` });
+        occurred_at: occurredAt,
+      }, source, { contactId, conversationId, messageId: `${eventId}-message`, testNow: reconcileAt ? new Date(occurredAt) : replayNow });
     }
+    if (reconcileAt) await service.processDueConversations(new Date(reconcileAt));
 
     const rows = await dataSource.query(
       'SELECT status, qualification_snapshot FROM conversations WHERE ghl_contact_id = $1 AND ghl_conversation_id = $2',
@@ -152,7 +199,10 @@ describeDatabase('historical Offlease transcript replay from production audit', 
       down_payment_sufficient: expected.sufficient,
     });
     expect((snapshot.qualification_progress as { step?: string }).step).toBe(expected.nextStep);
-      if (expected.sufficient) expect(['waiting_window', 'queued']).toContain(rows[0].status);
+    if (expected.status) {
+      expect(rows[0].status).toBe(expected.status);
+    }
+    else if (expected.sufficient) expect(['waiting_window', 'queued']).toContain(rows[0].status);
     else expect(rows[0].status).not.toBe('waiting_window');
   }, 20_000);
 });

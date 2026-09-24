@@ -959,4 +959,82 @@ describe('ConversationWebhookService', () => {
     expect(String(reconciliationQuery?.[0])).toContain("status <> 'queued'");
     expect(String(reconciliationQuery?.[0])).not.toContain("status = 'queued'");
   });
+
+  it('queues Danilo\'s historical Fredericksburg-2 row after repairing Ford F--150', async () => {
+    const now = new Date('2026-09-24T01:12:32.000Z');
+    const transcript = [
+      'informacion',
+      'Ford f150 fx4',
+      '571 379 6440',
+      '3k',
+      'Pero no kiero algo caro',
+      'Estoy mirando aver si me interasa algo',
+      'Si tienes algo que me interese si',
+      'Si pero primero kiero ver los carros aver cual me interesa',
+      'Muestrame las fotos',
+      'Si porfavor',
+      'Ok',
+      'Manda las fotos',
+    ].map((body) => ({ body, direction: 'inbound', occurred_at: '2026-09-23T23:05:53.446Z' }));
+    const runner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('SELECT c.id, c.channel')) return [{
+          id: 'conversation-danilo',
+          channel: 'messenger',
+          ghl_location_id: GHL_SOURCE_CONFIG['fredericksburg-2'].locationId,
+          ghl_contact_id: 'enQpn8BKK97PJLtjLH8w',
+          ghl_conversation_id: 'contact:enQpn8BKK97PJLtjLH8w:messenger',
+          status: 'partial',
+          qualification_snapshot: {
+            phone: '+15713796440',
+            real_name: 'Danilo Rivera',
+            down_payment: '3000',
+            vehicle_type: 'Ford F--150',
+            qualification_complete: false,
+            missing_qualification: ['vehicle_type', 'down_payment_minimum'],
+          },
+          location_snapshot: { city: null, state: null, zip_code: null, easterns_zone: null },
+          ready_at: null,
+          next_attempt_at: null,
+          last_message_at: '2026-09-23T23:05:53.446Z',
+          lead_id: 'lead-danilo',
+          canonical_phone: '+15713796440',
+          first_name: 'Danilo',
+          last_name: 'Rivera',
+        }];
+        if (sql.includes('FROM conversation_messages cm')) return transcript;
+        if (sql.includes('FROM dealers')) return [{ id: 'c1e7db6d-d38d-43f7-a546-fbff7000b0c6', code: 'FRED-2', name: 'Off Lease Motors Fredericksburg 2', timezone: 'America/New_York', routing_config: {} }];
+        if (sql.includes('FROM lead_dealers')) return [];
+        if (sql.includes('MAX(transition_number)')) return [{ transition_number: 1 }];
+        return [];
+      }),
+    };
+    const dataSource = {
+      query: vi.fn(async (sql: string) => sql.includes('FROM conversations') && sql.includes("status IN ('partial', 'waiting_window', 'stale_phone_ignored')")
+        ? [{ id: 'conversation-danilo' }]
+        : []),
+      createQueryRunner: vi.fn(() => runner),
+    };
+    const service = new ConversationWebhookService(dataSource as never);
+
+    await service.processDueConversations(now);
+
+    const snapshotUpdate = runner.query.mock.calls.find(([sql]) => sql.includes('qualification_snapshot = $3::jsonb')) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(snapshotUpdate?.[1]?.[2]))).toMatchObject({
+      vehicle_type: 'Ford F-150',
+      vehicle_category: 'truck',
+      required_down_payment: 3000,
+      down_payment_sufficient: true,
+      qualification_complete: true,
+      missing_qualification: [],
+    });
+    expect(runner.query.mock.calls.some(([sql]) => sql.includes("SET status = 'queued'"))).toBe(true);
+    expect(runner.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO lead_dealers'))).toBe(true);
+  });
 });

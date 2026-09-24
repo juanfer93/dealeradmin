@@ -286,7 +286,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     try {
       const rows = await runner.query(
         `SELECT c.id, c.channel, c.ghl_location_id, c.ghl_contact_id, c.ghl_conversation_id, c.status,
-                c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at,
+                c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at, c.last_message_at,
                 l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name
          FROM conversations c
          JOIN leads l ON l.id = c.lead_id
@@ -306,6 +306,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         location_snapshot: LocationSnapshot;
         ready_at: string | null;
         next_attempt_at: string | null;
+        last_message_at: string | null;
         lead_id: string;
         canonical_phone: string | null;
         first_name: string | null;
@@ -457,17 +458,21 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
           [row.lead_id, effectivePhone],
         );
       }
-      // A partial row that becomes fully qualified during historical/media
-      // reconciliation must enter the stabilization window first. This keeps
-      // replay behavior consistent with a live inbound event and prevents a
-      // repaired lead from jumping directly into the operator queue.
-      const phase = row.status === 'partial' && snapshot.qualification_complete ? 'capture' : 'due';
+      // A partial row that becomes qualified during reconciliation still gets
+      // the normal short stabilization window when the latest inbound message
+      // is recent. Historical rows must not restart that window from the poll
+      // time, otherwise an old conversation can remain out of the queue for
+      // another 15 seconds on every repair and look permanently partial.
+      const lastMessageAt = row.last_message_at ? new Date(row.last_message_at).getTime() : Number.NaN;
+      const recentlyCaptured = Number.isFinite(lastMessageAt)
+        && now.getTime() - lastMessageAt < CONVERSATION_STABILIZATION_MS;
+      const phase = row.status === 'partial' && snapshot.qualification_complete && recentlyCaptured ? 'capture' : 'due';
       const activeWindow = row.status === 'waiting_window'
         && row.next_attempt_at
         && new Date(row.next_attempt_at).getTime() > now.getTime();
       const status = activeWindow
         ? { status: 'waiting_window' as const, nextAttemptAt: row.next_attempt_at }
-        : this.statusForConversation(snapshot, location, dealer, source, now, phase, row.ready_at);
+        : this.statusForConversation(snapshot, location, dealer, source, now, phase, row.ready_at || row.last_message_at);
       await runner.query(
         `UPDATE conversations
          SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,

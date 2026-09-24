@@ -288,11 +288,14 @@ function recoverStaffordPreviousFinancing(rawHistory: string, policy: CollectorF
   return beforeTimeline.some((line) => /^(?:yes|yeah|yep|si|sí|claro|correcto|tengo)$/i.test(line)) ? 'yes' : '';
 }
 
-const INVALID_REAL_NAMES = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'saludos', 'hello', 'hi', 'hey', 'hola', 'ola', 'greetings', 'thu chikitha linda']);
+// HighLevel sometimes exposes a technical profile label as the Messenger
+// contact name. It is not buyer identity evidence and must never be persisted
+// as the lead's real name.
+const INVALID_REAL_NAMES = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'location', 'whatsapp', 'facebook', 'saludos', 'hello', 'hi', 'hey', 'hola', 'ola', 'greetings', 'thu chikitha linda']);
 const BUSINESS_NAME_MARKERS = /\b(?:auto\s*sales|motors?|dealership|dealer|llc|inc(?:orporated)?|corp(?:oration)?|company|tatuajes?|tattoos?|operaciones?|operations?|transport(?:ation)?|logistics|construction|remodeling|roofing|realty|consulting|services?|servicios?|shop|tienda|salon|barbershop|restaurant)\b/i;
 const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|baltimore|maryland|where are you located|where are you|what|which|how|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|qué|que|ubicaci[oó]n|ubicados?|cu[aá]l(?:\s+ser[ií]a)?|ser[ií]a|gracias|thank you|thank|vehicle|car|auto|carro|coche|veh[ií]culo|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|sim|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
 const GENERIC_VEHICLE_INTENT = /\b(?:need|needs|looking\s+for|want|wants|seeking|shopping\s+for|trying\s+to\s+find|necesito|busco|buscando|quiero|me\s+interesa)\b[\s\S]*\b(?:vehicle|car|auto|carro|coche|veh[ií]culo|truck|suv|sedan|van|camioneta|pickup|pick-up)\b/i;
-const SINGLE_WORD_NAME_BLOCKLIST = /^(?:ok(?:ay)?|si|s[ií]|sim|yes|no|yeah|yep|correct|cash|today|hoy|now|ahora|asap|inmediato|need|vehicle|car|auto|carro|coche|veh[ií]culo|requirements?|requisitos?|information|informaci[oó]n|details?|detalles?|baltimore|maryland|virginia|laurel|rosedale|sterling|elkton|manda|nada|bale|vale|ubicaci[oó]n|ubicasion|tacoma|toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion|mustang|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|maverick|ranger|bronco|explorer|expedition|escape|edge|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|range rover|defender|rlx|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|financiar|finance|financing|down|payment|enganche|documents?|documentos?|identificaci[oó]n|income|ingresos|proof|prueba|phone|tel[eé]fono|number|n[uú]mero)$/i;
+const SINGLE_WORD_NAME_BLOCKLIST = /^(?:ok(?:ay)?|si|s[ií]|sim|yes|no|yeah|yep|correct|cash|today|hoy|now|ahora|asap|inmediato|need|vehicle|car|auto|carro|coche|veh[ií]culo|requirements?|requisitos?|information|informaci[oó]n|details?|detalles?|location|baltimore|maryland|virginia|laurel|rosedale|sterling|elkton|manda|nada|bale|vale|ubicaci[oó]n|ubicasion|tacoma|toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion|mustang|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|maverick|ranger|bronco|explorer|expedition|escape|edge|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|range rover|defender|rlx|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|financiar|finance|financing|down|payment|enganche|documents?|documentos?|identificaci[oó]n|income|ingresos|proof|prueba|phone|tel[eé]fono|number|n[uú]mero)$/i;
 const NAME_DECLARATION = /(?:me llamo|mi nombre es|soy|yo soy|my name is|my name['’]s|i am|i['’]m|this is|call me(?!\s+at\b)|ll[aá]mame)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i;
 const PHONE_LIKE_TEXT = /\b(?:mi|my)\s+(?:n[uú]mero|number|phone|tel[eé]fono|telephone|contact)\b/i;
 const NAME_PARTICLES = new Set(['da', 'de', 'del', 'der', 'di', 'la', 'las', 'los', 'van', 'von', 'y']);
@@ -312,6 +315,7 @@ const TRADE_IN_INTENT = /\btrade[- ]?in\b|\bmy (?:car|vehicle|van|truck)\b|\bmi 
 
 function canonicalVehicleLabel(value: string): string {
   const normalized = clean(value)
+    .replace(/-{2,}/g, '-')
     .replace(/\bcorola\b/gi, 'Corolla')
     .replace(/\bcivc\b/gi, 'Civic')
     .replace(/\bacoitd\b/gi, 'Accord')
@@ -331,7 +335,7 @@ function canonicalVehicleLabel(value: string): string {
     if (lower === '4runner') return '4Runner';
     if (lower === 'rlx') return 'RLX';
     if (lower === 'cr-v' || lower === 'hr-v') return lower.toLocaleUpperCase();
-    if (/^f-?\d+$/.test(lower)) return lower.replace(/^f/, 'F-');
+    if (/^f-?\d+$/.test(lower)) return lower.replace(/^f-?/, 'F-');
     return `${lower[0].toLocaleUpperCase()}${lower.slice(1)}`;
   };
   return normalized
@@ -600,7 +604,7 @@ function firstValidAmount(...values: Array<string | null | undefined>): string {
 }
 
 function normalizeVehicle(value: string): string {
-  let source = clean(value).replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
+  let source = clean(value).replace(/-{2,}/g, '-').replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
   if (isAdvisorHandoffVehicle(source)) return ADVISOR_HANDOFF_VEHICLE;
   if (isCampaignButton(source) || isNonVehicleIntent(source)) return EMPTY;
   // HighLevel can concatenate the Custom Code output and the AI output

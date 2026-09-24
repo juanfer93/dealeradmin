@@ -47,7 +47,10 @@ function numericDownPayment(value: string | null | undefined): number | null {
 }
 
 export function classifyVehicle(value: string | null | undefined): VehicleCategory | null {
-  const source = String(value ?? '').trim();
+  // GHL/custom-code payloads have historically produced model labels such as
+  // `Ford F--150`. Treat repeated separators as formatting noise so a stale
+  // snapshot cannot make an otherwise valid truck unqualifiable.
+  const source = String(value ?? '').trim().replace(/-{2,}/g, '-');
   if (!source) return null;
   if (TRUCK_PATTERN.test(source)) return 'truck';
   if (SUV_OR_VAN_PATTERN.test(source)) return 'suv_or_van';

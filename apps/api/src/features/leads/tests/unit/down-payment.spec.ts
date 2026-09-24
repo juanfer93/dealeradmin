@@ -76,6 +76,7 @@ describe('normalización de pago inicial', () => {
     ['Toyota Highlander', 'suv_or_van', 2000],
     ['Honda Odyssey van', 'suv_or_van', 2000],
     ['Toyota Tacoma', 'truck', 3000],
+    ['Ford F--150', 'truck', 3000],
   ] as const)('clasifica %s y exige $%s', (vehicle, category, minimum) => {
     expect(classifyVehicle(vehicle)).toBe(category);
     expect(evaluateDownPayment(vehicle, String(minimum)).minimum).toBe(minimum);

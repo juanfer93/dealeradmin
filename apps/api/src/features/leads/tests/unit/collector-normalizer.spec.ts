@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADVISOR_HANDOFF_VEHICLE, detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isAdvisorHandoffVehicle, isQualificationComplete, normalizeCollectorInput } from '../../domain/collector-normalizer';
+import { ADVISOR_HANDOFF_VEHICLE, detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isAdvisorHandoffVehicle, isQualificationComplete, normalizeCollectorInput, normalizeRealName } from '../../domain/collector-normalizer';
 
 describe('normalizeCollectorInput', () => {
   it.each([
@@ -16,6 +16,60 @@ describe('normalizeCollectorInput', () => {
 
   it('preserves a valid native GHL contact phone when the latest message is separate', () => {
     expect(normalizeCollectorInput({ phone: '(240) 681-5028', message: 'Ok' }).phone).toBe('+12406815028');
+  });
+
+  it('repairs Danilo Rivera\'s stale Ford F--150 snapshot and recognizes the $3,000 truck minimum', () => {
+    const transcript = [
+      'informacion',
+      'Ford f150 fx4',
+      '571 379 6440',
+      '3k',
+      'Pero no kiero algo caro',
+      'Estoy mirando aver si me interasa algo',
+      'Si tienes algo que me interese si',
+      'Si pero primero kiero ver los carros aver cual me interesa',
+      'Muestrame las fotos',
+      'Si porfavor',
+      'Ok',
+      'Manda las fotos',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg-2',
+      channel: 'messenger',
+      real_name: 'Danilo Rivera',
+      phone: '+15713796440',
+      vehicle_type: 'Ford F--150',
+      down_payment: '3000',
+      qualification_memory: 'real_name: Danilo Rivera; vehicle: Ford F--150; down payment: 3000',
+      message: transcript,
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Danilo Rivera',
+      phone: '+15713796440',
+      vehicle_type: 'Ford F-150',
+      vehicle_category: 'truck',
+      required_down_payment: 3000,
+      down_payment_amount: 3000,
+      down_payment_sufficient: true,
+      missing_qualification: [],
+      qualification_complete: true,
+    });
+  });
+
+  it('does not persist HighLevel\'s technical Location label as a buyer name', () => {
+    const result = normalizeCollectorInput({
+      source: 'action-cars',
+      channel: 'messenger',
+      real_name: 'Location',
+      phone: '+14438593407',
+      message: 'Primeor\nTahoe\n1000 down',
+      chat_history_log: 'Primeor\nTahoe\n1000 down',
+    });
+
+    expect(result.real_name).toBe('Primeor');
+    expect(normalizeRealName('Location')).toBe('');
   });
 
   it('keeps the declared WhatsApp name and normalizes a noisy Silverado plus dollar down answer', () => {
