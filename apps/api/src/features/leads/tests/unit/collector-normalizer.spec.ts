@@ -72,6 +72,12 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeRealName('Location')).toBe('');
   });
 
+  it.each(['Más Información', 'Mas informacion', 'More information', 'Más info', 'Details'])
+    ('rejects a campaign information label as a buyer name: %s', (label) => {
+      expect(normalizeRealName(label)).toBe('');
+      expect(normalizeCollectorInput({ channel: 'messenger', real_name: label, message: 'SUV' }).real_name).toBe('');
+    });
+
   it('keeps the declared WhatsApp name and normalizes a noisy Silverado plus dollar down answer', () => {
     const result = normalizeCollectorInput({
       source: 'stafford',

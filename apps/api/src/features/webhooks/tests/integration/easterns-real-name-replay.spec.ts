@@ -23,6 +23,7 @@ describeDatabase('Easterns real-name production replay', () => {
     `${latestVehicleSuffix}-stafford-contact`,
     `${latestVehicleSuffix}-fredericksburg-contact`,
   ];
+  const informationLabelContact = `${suffix}-information-label-contact`;
 
   beforeAll(async () => {
     if (!databaseUrl) throw new Error('EASTERN_REAL_NAME_DATABASE_URL is required');
@@ -32,7 +33,7 @@ describeDatabase('Easterns real-name production replay', () => {
 
   afterAll(async () => {
     if (!dataSource?.isInitialized) return;
-    for (const testContactId of [contactId, ...latestVehicleContacts]) {
+    for (const testContactId of [contactId, informationLabelContact, ...latestVehicleContacts]) {
       await dataSource.query('DELETE FROM conversation_bot_pause_events WHERE ghl_contact_id = $1', [testContactId]);
       await dataSource.query('DELETE FROM lead_dealers WHERE lead_id IN (SELECT id FROM leads WHERE ghl_contact_id = $1)', [testContactId]);
       await dataSource.query(
@@ -142,5 +143,39 @@ describeDatabase('Easterns real-name production replay', () => {
     expect(rows.find((row) => row.ghl_contact_id.endsWith('fredericksburg-contact'))?.qualification_snapshot).toMatchObject({
       phone: '+18049701204',
     });
+  }, 20_000);
+
+  it('does not persist Messenger campaign text as the lead name in local PostgreSQL', async () => {
+    const service = new ConversationWebhookService(dataSource);
+    const conversationId = `${suffix}-information-label-conversation`;
+    const messages = ['Busco una SUV', 'Baltimore', '4433782399', '1000'];
+
+    for (const [index, message] of messages.entries()) {
+      const eventId = `${suffix}-information-label-${index}`;
+      await service.acceptCustomerReplied({
+        event_id: eventId,
+        ghl_message_id: `${eventId}-message`,
+        ghl_contact_id: informationLabelContact,
+        ghl_conversation_id: conversationId,
+        channel: 'messenger',
+        contact_name: 'Más Información',
+        contact_phone: '',
+        message_body: message,
+        occurred_at: `2026-09-24T10:${String(index).padStart(2, '0')}:00.000Z`,
+      }, 'easterns', { contactId: informationLabelContact, conversationId, messageId: `${eventId}-message` });
+    }
+
+    const rows = await dataSource.query(
+      `SELECT l.first_name, l.last_name, c.qualification_snapshot
+       FROM conversations c
+       JOIN leads l ON l.id = c.lead_id
+       WHERE c.ghl_contact_id = $1 AND c.ghl_conversation_id = $2`,
+      [informationLabelContact, conversationId],
+    ) as Array<{ first_name: string; last_name: string; qualification_snapshot: Record<string, unknown> }>;
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ first_name: 'Lead', last_name: '' });
+    expect(rows[0].qualification_snapshot).toMatchObject({ real_name: '' });
+    expect(JSON.stringify(rows[0].qualification_snapshot)).not.toContain('Más Información');
   }, 20_000);
 });

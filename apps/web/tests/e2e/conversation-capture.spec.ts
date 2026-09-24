@@ -93,6 +93,34 @@ test('reproduce Easterns y conserva el nombre real cuando el primer mensaje expr
   }
 });
 
+test('no persiste el texto Más Información como nombre de Messenger', async ({ request }) => {
+  const suffix = `ghl-e2e-information-label-${Date.now()}`;
+  const messages = ['Busco una SUV', 'Baltimore', '4433782399', '1000'];
+
+  for (const [index, message] of messages.entries()) {
+    const eventId = `${suffix}-${index + 1}`;
+    const response = await request.post('http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/easterns', {
+      data: JSON.stringify({
+        message_body: message,
+        contact_phone: '',
+        contact_name: 'Más Información',
+        channel: 'messenger',
+        event_id: eventId,
+      }),
+      headers: {
+        'content-type': 'application/json',
+        'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
+        'X-DealerADMIN-Contact-ID': `${suffix}-contact`,
+        'X-DealerADMIN-Conversation-ID': `${suffix}-conversation`,
+        'X-DealerADMIN-Message-ID': `${eventId}-message`,
+      },
+    });
+
+    expect(response.status(), `Easterns information-label message ${index + 1}`).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({ accepted: true, source: 'easterns' });
+  }
+});
+
 test('usa el último vehículo y el teléfono correcto en Stafford WhatsApp y Fredericksburg Messenger', async ({ request }) => {
   const suffix = `ghl-e2e-latest-vehicle-${Date.now()}`;
   const scenarios = [

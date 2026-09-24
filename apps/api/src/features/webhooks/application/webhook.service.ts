@@ -14,7 +14,7 @@ import { normalizeLeadName } from '../../leads/domain/lead-duplicate';
 import { normalizeDownPayment } from '../../leads/domain/down-payment';
 import { applyTestWebhookLead } from '../../leads/application/test-lead-store';
 import { GeoroutingService } from '../../routing/domain/services/georouting.service';
-import { hasMinimumRoutingQualification, normalizeCollectorInput } from '../../leads/domain/collector-normalizer';
+import { hasMinimumRoutingQualification, normalizeCollectorInput, normalizeRealName } from '../../leads/domain/collector-normalizer';
 import { buildDealeradminCaptureContract } from '../../leads/domain/dealeradmin-capture';
 
 type PersistedWebhookResponse = {
@@ -219,7 +219,9 @@ export class WebhookService {
         documents: payload.lead.documents,
         qualification_memory: payload.lead.qualification_memory,
       });
-      const leadName = normalized.real_name || payload.lead.name || 'Lead';
+      // A Messenger profile can contain a campaign/button label such as
+      // "Más Información". Never persist that technical label as identity.
+      const leadName = normalized.real_name || normalizeRealName(payload.lead.name) || 'Lead';
       if (!hasMinimumRoutingQualification({
         real_name: normalized.real_name || payload.lead.name,
         phone: canonicalPhone,

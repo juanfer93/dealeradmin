@@ -478,6 +478,11 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(execute({ message: 'Need a vehicle fast' }).real_name).toBe('');
   });
 
+  it.each(['Más Información', 'Mas informacion', 'More information', 'Más info', 'Details'])
+    ('rejects a campaign information label as a buyer name in Custom Code: %s', (label) => {
+      expect(execute({ channel: 'messenger', contact_name: label, message: 'SUV' }).real_name).toBe('');
+    });
+
   it.each([
     ['I am Ana Torres', 'Ana Torres'],
     ["I'm Juan Pérez", 'Juan Pérez'],

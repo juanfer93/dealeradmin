@@ -662,7 +662,9 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         ? undefined
         : await this.findSourceDealer(runner, GHL_SOURCE_CONFIG[source].locationId, source);
       const displayName = clean(event.contact_name) || 'Lead';
-      const normalizedName = normalizeRealName(displayName) || displayName;
+      // Do not seed a lead with a Messenger campaign/button label when no
+      // buyer identity has been supplied yet.
+      const normalizedName = normalizeRealName(displayName) || 'Lead';
       const { firstName, lastName } = splitName(normalizedName);
       let lead = await this.upsertLead(runner, {
         locationId: GHL_SOURCE_CONFIG[source].locationId,
