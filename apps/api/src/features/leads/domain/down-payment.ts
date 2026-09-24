@@ -25,10 +25,6 @@ export type DownPaymentRequirement = {
   meetsMinimum: boolean;
 };
 
-export type DownPaymentEvaluationOptions = {
-  allowPromotionalThousand?: boolean;
-};
-
 const TRUCK_PATTERN = /\b(?:truck|troca|trokita|troquita|troque|trokas|pickup|pick[- ]?up|camioneta|camion|camión|tacoma|tundra|f[- ]?150|f[- ]?250|f[- ]?350|maverick|ranger|silverado|sierra|colorado|frontier|titan|ridgeline|gladiator|ram)\b/i;
 const SUV_OR_VAN_PATTERN = /\b(?:suv|van|minivan|crossover|highlander|rav\s*4|4\s*runner|sienna|grand caravan|caravan|pacifica|odyssey|transit|promaster|pilot|passport|cr[- ]?v|hr[- ]?v|tahoe|suburban|traverse|equinox|blazer|yukon|acadia|terrain|wrangler|cherokee|compass|renegade|durango|explorer|expedition|escape|edge|armada|rogue|pathfinder|sportage|telluride|sorento|palisade|santa fe|tucson|forester|outback|ascent|atlas|tiguan|cayenne|range rover|defender)\b/i;
 const LUXURY_SEDAN_PATTERN = /\b(?:camaro|challenger|charger|mercedes(?:[- ]?benz)?|bmw|audi|lexus|acura|infiniti|genesis|cadillac|lincoln|volvo|tesla|porsche|jaguar)\b/i;
@@ -72,25 +68,19 @@ export function requiredDownPayment(value: string | null | undefined): number | 
 export function evaluateDownPayment(
   vehicle: string | null | undefined,
   downPayment: string | null | undefined,
-  options: DownPaymentEvaluationOptions = {},
 ): DownPaymentRequirement {
   const category = classifyVehicle(vehicle);
   const minimum = requiredDownPayment(vehicle);
   const amount = numericDownPayment(downPayment);
   const isCash = isCashDownPayment(downPayment);
-  // The Offlease promotion lowers the minimum to $1,000; it does not require
-  // the customer to have exactly $1,000. Larger amounts still qualify under
-  // the same prior-financing promotion (for example Oscar's $1,500).
-  const meetsPromotionalMinimum = options.allowPromotionalThousand === true && amount !== null && amount >= 1000;
   return {
     category,
     minimum,
     amount: amount === Number.POSITIVE_INFINITY ? null : amount,
     // A declared trade-in is an accepted form of down-payment evidence. It may
     // stand alone or be combined with cash; the cash minimum still applies when
-    // there is no trade-in. The Offlease $1,000 promotion remains gated by
-    // previous financing in the caller.
-    meetsMinimum: minimum !== null && (isCash || isTradeInDownPayment(downPayment) || meetsPromotionalMinimum || (amount !== null && amount >= minimum)),
+    // there is no trade-in.
+    meetsMinimum: minimum !== null && (isCash || isTradeInDownPayment(downPayment) || (amount !== null && amount >= minimum)),
   };
 }
 

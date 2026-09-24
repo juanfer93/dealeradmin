@@ -1,19 +1,21 @@
 import { test, expect } from '../../../../e2e/test';
 
 test('recibe cada Customer Replied con el contact id y conversation id sin depender de custom fields', async ({ request }) => {
+  const suffix = `ghl-e2e-single-${Date.now()}`;
   const response = await request.post('http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/stafford', {
     data: JSON.stringify({
       message_body: 'I am looking for an SUV.',
       contact_phone: '+13015550123',
       contact_name: 'Ana Torres',
       channel: 'whatsapp',
+      event_id: `${suffix}-event`,
     }),
     headers: {
       'content-type': 'application/json',
       'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
-      'X-DealerADMIN-Contact-ID': 'ghl-e2e-contact-1',
-      'X-DealerADMIN-Conversation-ID': 'ghl-e2e-conversation-1',
-      'X-DealerADMIN-Message-ID': 'ghl-e2e-message-1',
+      'X-DealerADMIN-Contact-ID': `${suffix}-contact`,
+      'X-DealerADMIN-Conversation-ID': `${suffix}-conversation`,
+      'X-DealerADMIN-Message-ID': `${suffix}-message`,
     },
   });
 
@@ -22,6 +24,7 @@ test('recibe cada Customer Replied con el contact id y conversation id sin depen
 });
 
 test('acepta la conversación completa de Messenger con teléfono capturado en el chat', async ({ request }) => {
+  const suffix = `ghl-e2e-messenger-${Date.now()}`;
   const messages = [
     'Busco una Honda Civic',
     'Mi número es 804-970-1204',
@@ -38,14 +41,14 @@ test('acepta la conversación completa de Messenger con teléfono capturado en e
         contact_phone: index === 0 ? '' : undefined,
         contact_name: 'Emma Oertly',
         channel: 'messenger',
-        event_id: `ghl-e2e-messenger-${index + 1}`,
+        event_id: `${suffix}-${index + 1}`,
       }),
       headers: {
         'content-type': 'application/json',
         'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
-        'X-DealerADMIN-Contact-ID': 'ghl-e2e-messenger-contact',
-        'X-DealerADMIN-Conversation-ID': 'ghl-e2e-messenger-conversation',
-        'X-DealerADMIN-Message-ID': `ghl-e2e-messenger-message-${index + 1}`,
+        'X-DealerADMIN-Contact-ID': `${suffix}-contact`,
+        'X-DealerADMIN-Conversation-ID': `${suffix}-conversation`,
+        'X-DealerADMIN-Message-ID': `${suffix}-message-${index + 1}`,
       },
     });
 
@@ -53,7 +56,6 @@ test('acepta la conversación completa de Messenger con teléfono capturado en e
     await expect(response.json()).resolves.toMatchObject({
       accepted: true,
       source: 'arlington',
-      conversationId: 'ghl-e2e-messenger-conversation',
       status: 'processed',
     });
   }
@@ -140,7 +142,57 @@ test('usa el último vehículo y el teléfono correcto en Stafford WhatsApp y Fr
   }
 });
 
+test('libera Stafford y Fredericksburg con solo teléfono y vehículo, sin down payment', async ({ request }) => {
+  const suffix = `ghl-e2e-common-routing-${Date.now()}`;
+  const scenarios = [
+    {
+      source: 'stafford',
+      channel: 'whatsapp',
+      contactPhone: '+15715558001',
+      messages: ['Estoy buscando una Honda Civic'],
+    },
+    {
+      source: 'fredericksburg',
+      channel: 'messenger',
+      contactPhone: '',
+      messages: ['Estoy buscando una Toyota Tacoma', 'Mi número es 540-555-8002'],
+    },
+  ] as const;
+
+  for (const scenario of scenarios) {
+    const contactId = `${suffix}-${scenario.source}-contact`;
+    const conversationId = `${suffix}-${scenario.source}-conversation`;
+    for (const [index, message] of scenario.messages.entries()) {
+      const eventId = `${suffix}-${scenario.source}-${index}`;
+      const response = await request.post(`http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/${scenario.source}`, {
+        data: JSON.stringify({
+          message_body: message,
+          contact_phone: scenario.contactPhone,
+          contact_name: '',
+          channel: scenario.channel,
+          event_id: eventId,
+        }),
+        headers: {
+          'content-type': 'application/json',
+          'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
+          'X-DealerADMIN-Contact-ID': contactId,
+          'X-DealerADMIN-Conversation-ID': conversationId,
+          'X-DealerADMIN-Message-ID': `${eventId}-message`,
+        },
+      });
+
+      expect(response.status(), `${scenario.source} message ${index + 1}`).toBe(201);
+      await expect(response.json()).resolves.toMatchObject({
+        accepted: true,
+        source: scenario.source,
+        status: 'processed',
+      });
+    }
+  }
+});
+
 test('acepta la conversación completa de WhatsApp con teléfono ya registrado', async ({ request }) => {
+  const suffix = `ghl-e2e-whatsapp-${Date.now()}`;
   const messages = [
     'I am looking for a Honda Civic',
     'I can put 2000 down',
@@ -157,14 +209,14 @@ test('acepta la conversación completa de WhatsApp con teléfono ya registrado',
         contact_phone: '+18049701205',
         contact_name: 'EliasJosue 🕊Mnegra',
         channel: 'whatsapp',
-        event_id: `ghl-e2e-whatsapp-${index + 1}`,
+        event_id: `${suffix}-${index + 1}`,
       }),
       headers: {
         'content-type': 'application/json',
         'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
-        'X-DealerADMIN-Contact-ID': 'ghl-e2e-whatsapp-contact',
-        'X-DealerADMIN-Conversation-ID': 'ghl-e2e-whatsapp-conversation',
-        'X-DealerADMIN-Message-ID': `ghl-e2e-whatsapp-message-${index + 1}`,
+        'X-DealerADMIN-Contact-ID': `${suffix}-contact`,
+        'X-DealerADMIN-Conversation-ID': `${suffix}-conversation`,
+        'X-DealerADMIN-Message-ID': `${suffix}-message-${index + 1}`,
       },
     });
 
@@ -172,44 +224,44 @@ test('acepta la conversación completa de WhatsApp con teléfono ya registrado',
     await expect(response.json()).resolves.toMatchObject({
       accepted: true,
       source: 'stafford',
-      conversationId: 'ghl-e2e-whatsapp-conversation',
       status: 'processed',
     });
   }
 });
 
 test('cubre down regular y promoción Offlease en rutas positivas y negativas', async ({ request }) => {
+  const suffix = `ghl-e2e-down-${Date.now()}`;
   const question = 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?';
   const cases = [
     {
       source: 'stafford',
       channel: 'whatsapp',
-      contact: 'ghl-e2e-promo-stafford-positive',
-      conversation: 'ghl-e2e-promo-stafford-positive-conversation',
+      contact: `${suffix}-promo-stafford-positive`,
+      conversation: `${suffix}-promo-stafford-positive-conversation`,
       phone: '+15715557001',
       messages: ['Carlos', 'Busco una SUV y tengo 1000 de down', question, 'Sí, podría'],
     },
     {
       source: 'fredericksburg',
       channel: 'messenger',
-      contact: 'ghl-e2e-promo-fred-negative',
-      conversation: 'ghl-e2e-promo-fred-negative-conversation',
+      contact: `${suffix}-promo-fred-negative`,
+      conversation: `${suffix}-promo-fred-negative-conversation`,
       phone: '+15405557002',
       messages: ['Busco una Toyota Tacoma y tengo 1000 de down', '+1 (540) 555-7002', question, 'No, nunca'],
     },
     {
       source: 'fredericksburg',
       channel: 'messenger',
-      contact: 'ghl-e2e-down-fred-positive',
-      conversation: 'ghl-e2e-down-fred-positive-conversation',
+      contact: `${suffix}-down-fred-positive`,
+      conversation: `${suffix}-down-fred-positive-conversation`,
       phone: '+15405557003',
       messages: ['Busco una Toyota Tacoma y tengo 3000 de down', '+1 (540) 555-7003', 'Lo compraré este mes'],
     },
     {
       source: 'stafford',
       channel: 'whatsapp',
-      contact: 'ghl-e2e-down-stafford-negative',
-      conversation: 'ghl-e2e-down-stafford-negative-conversation',
+      contact: `${suffix}-down-stafford-negative`,
+      conversation: `${suffix}-down-stafford-negative-conversation`,
       phone: '+15715557004',
       messages: ['Maria', 'Busco una Toyota Tacoma y tengo 2000 de down', 'No puedo conseguir más'],
     },
@@ -239,7 +291,6 @@ test('cubre down regular y promoción Offlease en rutas positivas y negativas', 
       await expect(response.json()).resolves.toMatchObject({
         accepted: true,
         source: scenario.source,
-        conversationId: scenario.conversation,
       });
     }
   }

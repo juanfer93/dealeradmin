@@ -169,28 +169,21 @@ function isWhatsAppChannel(value: string | null | undefined): boolean {
 
 type CollectorFlowPolicy = {
   sourceAware: boolean;
-  offlease: boolean;
   stafford: boolean;
   requiresLocation: boolean;
   phoneSatisfiedByNative: boolean;
-  requiresRealName: boolean;
 };
 
 function collectorFlowPolicy(input: CollectorInput): CollectorFlowPolicy {
   const source = clean(input.source).toLocaleLowerCase();
   const sourceAware = Boolean(source);
   const stafford = source === 'stafford';
-  const offlease = source === 'stafford' || source === 'fredericksburg' || source === 'fredericksburg-2';
   const requiresLocation = source === 'easterns' || source === 'easterns-millersville';
   return {
     sourceAware,
-    offlease,
     stafford,
     requiresLocation,
     phoneSatisfiedByNative: stafford && isWhatsAppChannel(input.channel),
-    // Every dealer queue row must carry a usable customer name. Messenger
-    // supplies it from the GHL contact display name; WhatsApp must declare it.
-    requiresRealName: true,
   };
 }
 
@@ -235,7 +228,6 @@ const PREVIOUS_FINANCING_QUESTION = /\b(?:has\s+financiado|han?\s+financiado|hav
 const PREVIOUS_FINANCING_YES = /(?:ya\s+he\s+financiad[oa]|he\s+financiad[oa]\s+antes|financi[eé]\s+antes|(?:ya|anteriormente)\s+financi[eé](?=\s|$|[,.;!?])|i\s+have\s+financed\s+before|i\s+financed\s+(?:a|an|the)\s+(?:vehicle|car)|financed\s+before|previous(?:ly)?\s+financ(?:ed|ing))/i;
 const PREVIOUS_FINANCING_NO = /^(?:no(?=[\s,.;!?]|$)|nope|nah|nunca|jam[aá]s|never|not\s+before|no\s+(?:he\s+)?financiad[oa]|no\s+tengo\s+(?:historial|experiencia|financiamiento))/i;
 const PREVIOUS_FINANCING_AFFIRMATIVE = /^(?:yes|yeah|yep|si|sí|sim|claro|correcto|tengo|have it|i do|i have|i can|i could|could|can|puedo|podr[ií]a|es posible|possible|con (?:este|ese) monto|(?:este|ese) monto|con (?:esta|esa) cantidad|(?:esta|esa) cantidad)(?=[\s,.;!?]|$)/i;
-const OFFLEASE_FINANCING_RANGE = /\$?1(?:[,.]?000)\s*(?:a|to|[-–/])\s*\$?2(?:[,.]?000)\b/i;
 
 function previousFinancingStatus(input: CollectorInput, rawHistory: string, rawMessage: string, memory: string): 'yes' | 'no' | '' {
   const predictorQuestion = clean(input.previous_predicted_bot_question ?? EMPTY);
@@ -788,14 +780,6 @@ function lastMeaningfulLine(value: string): string {
     .at(-1) ?? EMPTY;
 }
 
-function predictorAskedMinimumQuestion(value: string): boolean {
-  const source = clean(value);
-  return Boolean(source)
-    && /\$?\s*\d[\d,.]*/.test(source)
-    && /\b(?:m[ií]nimo|minimum|required)\b/i.test(source)
-    && /\b(?:podr[ií]as?|could|can|conseguir|bring|subir(?:le|lo)?|raise|increase|m[aá]s|more|cuent(?:as|a|o|en)|contar(?:[íi]as)?|how\s+much|amount)\b/i.test(source);
-}
-
 function extractQuestionedDownPayment(history: string): string {
   const questions = history.match(/[^?\n]*\?/g) ?? [];
   const lastQuestion = questions.at(-1) ?? EMPTY;
@@ -987,11 +971,9 @@ export function isQualificationComplete(input: {
   has_income_proof?: string | null;
   bank_account?: string | null;
 }): boolean {
-  // The common dealer handoff gate is intentionally small: name, phone, and a
-  // real vehicle. Down payment is a policy-specific gate for Offlease only;
-  // purchase timing, documents, and bank account remain additive evidence.
+  // The common dealer handoff gate is intentionally small: phone and a real
+  // vehicle. Name and the other qualification fields remain additive evidence.
   return Boolean(
-    clean(input.real_name) &&
     clean(input.phone) &&
     clean(input.vehicle_type) && !isAdvisorHandoffVehicle(input.vehicle_type),
   );
@@ -1001,16 +983,15 @@ export function isQualificationComplete(input: {
  * Minimum data required before a lead may enter dealerADMIN.
  *
  * Qualification fields are optional at intake. They are preserved and
- * normalized when present, but a conversation needs the three routing facts
- * common to every dealer before it can enter dealerADMIN: a usable name, a
- * valid phone, and a real vehicle interest. Offlease adds its vehicle-specific
- * down-payment gate in the conversation status evaluator.
+ * normalized when present, but a conversation needs the two routing facts
+ * common to every dealer before it can enter dealerADMIN: a valid phone and a
+ * real vehicle interest. Name, down payment, and the other
+ * qualification fields are additive evidence and do not block the handoff.
  */
 export function hasMinimumRoutingQualification(
   input: Pick<CollectorInput, 'real_name' | 'phone' | 'vehicle_type'>,
 ): boolean {
   return Boolean(
-    firstNonEmpty(input.real_name) &&
     firstNonEmpty(input.phone) &&
     firstNonEmpty(input.vehicle_type)
     && !isAdvisorHandoffVehicle(input.vehicle_type),
@@ -1108,22 +1089,13 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   // generic "sí" elsewhere must not invent a down payment.
   const latestInboundMessage = lastMeaningfulLine(messageForExtraction);
   const previousFinancing = previousFinancingStatus(input, rawHistory, rawMessage, memory)
-    || recoverStaffordPreviousFinancing(rawHistory, policy, input.channel)
-    // GHL stores only inbound turns in this transcript. If the bot's financing
-    // question is absent, a short affirmative after the recorded $1000-$2000
-    // range still identifies the Offlease promotion without replacing the
-    // original media message.
-    || (policy.offlease && OFFLEASE_FINANCING_RANGE.test(rawHistory) && PREVIOUS_FINANCING_AFFIRMATIVE.test(latestInboundMessage) ? 'yes' : '');
+    || recoverStaffordPreviousFinancing(rawHistory, policy, input.channel);
   const confirmedQuestionDown = affirmativeDownConfirmation(latestInboundMessage)
     ? firstNonEmpty(
       extractQuestionedDownPayment(rawHistory),
       extractQuestionedDownPayment(input.previous_predicted_bot_question ?? EMPTY),
     )
     : EMPTY;
-  const predictorAskedMinimum = predictorAskedMinimumQuestion(firstNonEmpty(
-    input.previous_predicted_bot_question,
-    confirmedQuestionDown ? rawHistory : EMPTY,
-  ));
   const cashDownCandidate = firstValidAmount(
     explicitCashDown,
     confirmedQuestionDown,
@@ -1145,29 +1117,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   let down = baseDown && TRADE_IN_INTENT.test(conversationalSource) && !/trade[- ]?in/i.test(baseDown)
     ? `${baseDown} + trade-in`
     : baseDown;
-  let downPaymentRule = evaluateDownPayment(vehicle, down, {
-    allowPromotionalThousand: policy.offlease && previousFinancing === 'yes',
-  });
-  // GHL inbound history does not include the bot's outbound prompt. When the
-  // latest inbound turn is an affirmative answer and the buyer already gave
-  // an amount below the vehicle minimum, that shortfall is the only reliable
-  // field context available. Promote the amount to the minimum so "Sí" and
-  // "Sí sí podría" are treated as acceptance of the suggested down payment.
-  const confirmsMinimumShortfall = policy.offlease
-    && hasRealVehicle
-    && Boolean(cashDown)
-    && downPaymentRule.amount !== null
-    && !downPaymentRule.meetsMinimum
-    && predictorAskedMinimum
-    && affirmativeDownConfirmation(latestInboundMessage);
-  if (confirmsMinimumShortfall && downPaymentRule.minimum !== null) {
-    down = /trade[- ]?in/i.test(down)
-      ? `${downPaymentRule.minimum} + trade-in`
-      : String(downPaymentRule.minimum);
-    downPaymentRule = evaluateDownPayment(vehicle, down, {
-      allowPromotionalThousand: policy.offlease && previousFinancing === 'yes',
-    });
-  }
+  const downPaymentRule = evaluateDownPayment(vehicle, down);
   const normalizedTimeline = normalizeTimeline(firstNonEmpty(
     extractTimeline(messageForExtraction),
     extractTimeline(history),
@@ -1202,19 +1152,13 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     timeline,
   });
 
-  const needsOffleaseMinimum = policy.offlease && hasRealVehicle && Boolean(down) && !downPaymentRule.meetsMinimum;
-
-  const step: QualificationStep = (!policy.sourceAware || policy.requiresRealName) && !realName
-    ? 'real_name'
-    : !hasRealVehicle
+  const step: QualificationStep = !hasRealVehicle
       ? 'vehicle_type'
       : policy.requiresLocation && !customerLocation
         ? 'customer_location'
-        : policy.sourceAware && !policy.phoneSatisfiedByNative && !chatPhone
+        : !policy.phoneSatisfiedByNative && !chatPhone
           ? 'phone'
-          : policy.offlease && (!down || needsOffleaseMinimum)
-        ? 'down_payment'
-        : 'complete';
+          : 'complete';
   const questions: Record<CollectorLanguage, Record<QualificationStep, string>> = {
     en: {
       real_name: 'What is your full name?',
@@ -1239,49 +1183,23 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
       complete: EMPTY,
     },
   };
-  const minimumQuestion = downPaymentRule.minimum
-    ? language === 'es'
-      ? `Para este vehículo requerimos un enganche mínimo de $${downPaymentRule.minimum}. ¿Con cuánto cuentas para el enganche?`
-      : `This vehicle requires a minimum down payment of $${downPaymentRule.minimum}. How much do you have available?`
-    : questions[language][step];
-  const shortfallQuestion = language === 'es'
-    ? `Te comento que el mínimo para este vehículo es de $${downPaymentRule.minimum}. ¿Crees que podrías conseguir un poco más?`
-    : `The minimum for this vehicle is $${downPaymentRule.minimum}. Do you think you could bring a little more?`;
-  const financingHistoryQuestion = language === 'es'
-    ? 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?'
-    : 'To apply for the $1000 down payment promotion, have you financed a vehicle before?';
-  const repeatPreviousMinimumQuestion = step === 'down_payment'
-    && policy.offlease
-    && predictorAskedMinimum
-    && !downPaymentRule.meetsMinimum
-    && Boolean(clean(input.previous_predicted_bot_question));
-  const nextQuestion = step === 'down_payment' && policy.offlease && downPaymentRule.amount === 1000 && previousFinancing === '' && !predictorAskedMinimum
-    ? financingHistoryQuestion
-    : repeatPreviousMinimumQuestion
-      ? clean(input.previous_predicted_bot_question)
-    : step === 'down_payment' && needsOffleaseMinimum
-      ? shortfallQuestion
-      : step === 'down_payment' && policy.offlease
-        ? minimumQuestion
-        : questions[language][step];
+  const nextQuestion = questions[language][step];
   const completedOrder: Array<[string, boolean]> = policy.sourceAware
     ? [
       ['real_name', Boolean(realName)],
       ['vehicle_type', hasRealVehicle],
       ['customer_location', Boolean(customerLocation)],
       ['phone', Boolean(chatPhone) || policy.phoneSatisfiedByNative],
-      ...(policy.offlease ? [['down_payment', Boolean(down) && !needsOffleaseMinimum] as [string, boolean]] : []),
     ]
     : [
       ['real_name', Boolean(realName)],
       ['phone', Boolean(chatPhone)],
       ['vehicle_type', hasRealVehicle],
-      ...(policy.offlease ? [['down_payment', Boolean(down) && !needsOffleaseMinimum] as [string, boolean]] : []),
     ];
   const lastAnsweredField = [...completedOrder].reverse().find(([, complete]) => complete)?.[0] ?? null;
   const qualificationProgress: QualificationProgress = {
     step,
-    last_answered_field: step === 'complete' ? (policy.offlease ? 'down_payment' : 'phone') : lastAnsweredField,
+    last_answered_field: step === 'complete' ? 'phone' : lastAnsweredField,
     predicted_bot_question: nextQuestion,
     language,
     confidence: step === 'complete' ? 1 : 0.95,
@@ -1289,7 +1207,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   };
   const qualificationComplete = isQualificationComplete({
     real_name: realName,
-    phone: chatPhone,
+    phone: chatPhone || (policy.phoneSatisfiedByNative ? 'native-whatsapp' : EMPTY),
     vehicle_type: vehicle,
     down_payment: down,
     purchase_timeline: timeline,
@@ -1297,17 +1215,11 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     has_income_proof: docs.income,
     bank_account: bankAccount,
   })
-    && (!policy.offlease || downPaymentRule.meetsMinimum)
-    && (!policy.requiresLocation || Boolean(customerLocation))
-    && (!policy.sourceAware || policy.phoneSatisfiedByNative || Boolean(chatPhone));
+    && (!policy.requiresLocation || Boolean(customerLocation));
   const missingQualification = [
-    !realName ? 'real_name' : EMPTY,
     !chatPhone && !policy.phoneSatisfiedByNative ? 'phone' : EMPTY,
     !hasRealVehicle ? 'vehicle_type' : EMPTY,
     policy.requiresLocation && !customerLocation ? 'customer_location' : EMPTY,
-    policy.offlease
-      ? (!down ? 'down_payment' : (!downPaymentRule.meetsMinimum ? 'down_payment_minimum' : EMPTY))
-      : EMPTY,
   ].filter(Boolean);
   return {
     real_name: realName,

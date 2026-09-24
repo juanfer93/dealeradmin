@@ -4,7 +4,7 @@ import { buildDealeradminCaptureContract } from '../../domain/dealeradmin-captur
 import { normalizeCollectorInput } from '../../domain/collector-normalizer';
 
 describe('dealerADMIN capture contract', () => {
-  it('keeps raw chat evidence append-only and marks phone-only intake as partial', () => {
+  it('keeps raw chat evidence append-only and completes phone-plus-vehicle intake', () => {
     const input = {
       message: 'Mi número es 804-309-2531',
       chat_history_log: 'Quiero una SUV',
@@ -19,12 +19,12 @@ describe('dealerADMIN capture contract', () => {
     expect(contract.raw_evidence.transcript).toContain('Quiero una SUV');
     expect(contract.raw_evidence.transcript).toContain('Mi número es 804-309-2531');
     expect(contract.extraction.fields.phone.source).toBe('message');
-    expect(contract.extraction.completeness.status).toBe('partial');
-    expect(contract.extraction.completeness.missing).toContain('real_name');
+    expect(contract.extraction.completeness.status).toBe('complete');
+    expect(contract.extraction.completeness.missing).not.toContain('real_name');
     expect(contract.extraction.completeness.missing).not.toContain('down_payment');
     expect(contract.extraction.progress).toMatchObject({
-      step: 'real_name',
-      predicted_bot_question: '¿Cuál es tu nombre completo?',
+      step: 'complete',
+      predicted_bot_question: '',
       language: 'es',
     });
   });

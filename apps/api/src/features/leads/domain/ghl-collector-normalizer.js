@@ -299,13 +299,6 @@ const questionedDownPayment = (value) => {
     || lastQuestion.match(new RegExp(`\\$?[ \\t]*(${amountToken})`, 'i'))?.[1];
   return validAmount(amount);
 };
-const predictorAskedMinimumQuestion = (value) => {
-  const source = clean(value);
-  return Boolean(source)
-    && /\$?\s*\d[\d,.]*/.test(source)
-    && /\b(?:m[ií]nimo|minimum|required)\b/i.test(source)
-    && /\b(?:podr[ií]as?|could|can|conseguir|bring|subir(?:le|lo)?|raise|increase|m[aá]s|more|cuent(?:as|a|o|en)|contar(?:[íi]as)?|how\s+much|amount)\b/i.test(source);
-};
 const vehicleFrom = (text) => {
   const source = String(text ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source || campaign) return '';
@@ -483,7 +476,6 @@ const effectivePreviousFinancing = previousFinancing || recoveredStaffordPreviou
 const confirmedQuestionDown = affirmativeDownConfirmation(latestInboundMessage)
   ? (questionedDownPayment(rawHistory) || questionedDownPayment(inputData.previous_predicted_bot_question || ''))
   : '';
-const predictorAskedMinimum = predictorAskedMinimumQuestion(first(inputData.previous_predicted_bot_question, confirmedQuestionDown ? rawHistory : ''));
 const cashDown = campaign ? '' : first(
   downFrom(rawMessage),
   downFrom(rawHistory),
@@ -499,7 +491,6 @@ let down = validAmount(cashDown && /trade[- ]?in|my car|my vehicle|mi carro|mi a
   : downCandidate);
 const source = clean(inputData.source).toLocaleLowerCase();
 const sourceAware = Boolean(source);
-const offlease = ['stafford', 'fredericksburg', 'fredericksburg-2'].includes(source);
 const stafford = source === 'stafford';
 const requiresLocation = ['easterns', 'easterns-millersville'].includes(source);
 const phoneSatisfiedByNative = stafford && isWhatsAppChannel(inputData.channel);
@@ -514,12 +505,9 @@ const vehicleCategory = /\b(?:truck|troca|trokita|troquita|troque|trokas|pickup|
         ? 'sedan'
         : '';
 const requiredDownPayment = ({ sedan: 1500, luxury_sedan: 2000, suv_or_van: 2000, truck: 3000 }[vehicleCategory] || null);
-const downPaymentAmountBeforeAcceptance = /^\d+(?:\.\d+)?$/.test(String(down).replace(/[$,\s]/g, '')) ? Number(String(down).replace(/[$,\s]/g, '')) : null;
 const tradeInDownPayment = /\btrade[\s-]?in\b|\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion)\b|\bcarro\s+como\s+enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\bchange\s+(?:my\s+)?(?:vehicle|car|van|truck)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b/i.test(down);
-const confirmsMinimumShortfall = offlease && requiredDownPayment !== null && Boolean(cashDown) && downPaymentAmountBeforeAcceptance !== null && downPaymentAmountBeforeAcceptance < requiredDownPayment && predictorAskedMinimum && affirmativeDownConfirmation(latestInboundMessage);
-if (confirmsMinimumShortfall) down = tradeInDownPayment ? `${requiredDownPayment} + trade-in` : String(requiredDownPayment);
 const downPaymentAmount = /^\d+(?:\.\d+)?$/.test(String(down).replace(/[$,\s]/g, '')) ? Number(String(down).replace(/[$,\s]/g, '')) : null;
-const downPaymentSufficient = requiredDownPayment !== null && (tradeInDownPayment || down === cashDownPayment || down.toLocaleLowerCase().includes(cashDownPayment.toLocaleLowerCase()) || (offlease && effectivePreviousFinancing === 'yes' && downPaymentAmount === 1000) || (downPaymentAmount !== null && downPaymentAmount >= requiredDownPayment));
+const downPaymentSufficient = requiredDownPayment !== null && (tradeInDownPayment || down === cashDownPayment || down.toLocaleLowerCase().includes(cashDownPayment.toLocaleLowerCase()) || (downPaymentAmount !== null && downPaymentAmount >= requiredDownPayment));
 const rawTimeline = first(timelineFrom(message), timelineFrom(history), memoryValue(['timeline', 'purchase timeline', 'purchase_timeline']), inputData.purchase_timeline);
 const identification = documentStatus('id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b', ['identification', 'id', 'itin', 'passport', 'pasaporte'], inputData.identification || inputData.documents);
 const income = documentStatus('proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina|bank account|cuenta bancaria|cuenta de banco', ['income', 'proof of income', 'estados de cuenta', 'account statements', 'bank statements', 'check stubs', 'bank account', 'cuenta bancaria'], inputData.documents);
@@ -528,9 +516,9 @@ const bankAccount = first(yesNo(inputData.bank_account), yesNo(bankContext), yes
 const documents = first(memoryValue(['documents', 'docs', 'documentos']), inputData.documents, [identification === 'yes' ? 'identification: yes' : '', income === 'yes' ? 'proof of income: yes' : ''].filter(Boolean).join(', '));
 const customPresent = [inputData.vehicle_type, inputData.down_payment, inputData.purchase_timeline, inputData.documents, inputData.identification, inputData.bank_account].some((value) => clean(value) && !emptyMarker(value));
 const qualificationSource = rawMemory && customPresent ? 'both' : rawMemory ? 'qualification_memory' : customPresent ? 'custom_fields' : 'none';
-// The queue handoff requires a usable identity, phone, and vehicle for every
-// dealer. Only Offlease adds the down-payment gate; timing, documents, and
-// bank-account evidence remain visible but non-blocking.
+// The queue handoff requires a phone and vehicle for every
+// dealer. Down payment, timing, documents, and bank-account evidence remain
+// visible but non-blocking for every dealer.
 // Prefer a phone written in the inbound conversation, then a native GHL phone.
 const languageText = `${message}; ${history}`;
 const englishSignals = (languageText.match(/\b(?:i|i'm|im|my|want|wants|need|looking|have|yes|yeah|yep|what|when|where|how|this|next|today|week|month|do|does)\b/gi) || []).length;
@@ -540,10 +528,9 @@ const timeline = language === 'es'
   ? ({ today: 'hoy', 'this week': 'esta semana', 'this month': 'este mes', 'next week': 'próxima semana', 'next month': 'próximo mes', 'within 30 days': 'en 30 días', 'exploring options': 'explorando opciones' }[rawTimeline] || rawTimeline)
   : rawTimeline;
 const hasRealVehicle = Boolean(vehicle) && !isAdvisorHandoffVehicle(vehicle);
-const needsOffleaseMinimum = offlease && hasRealVehicle && Boolean(down) && !downPaymentSufficient;
 const coreMissing = (sourceAware
-  ? [!realName ? 'real_name' : '', !phone && !phoneSatisfiedByNative ? 'phone' : '', !hasRealVehicle ? 'vehicle_type' : '', offlease && !down ? 'down_payment' : '', offlease && needsOffleaseMinimum ? 'down_payment_minimum' : '']
-  : [!realName ? 'real_name' : '', !phone ? 'phone' : '', !hasRealVehicle ? 'vehicle_type' : '', offlease && !down ? 'down_payment' : '', offlease && needsOffleaseMinimum ? 'down_payment_minimum' : ''])
+  ? [!phone && !phoneSatisfiedByNative ? 'phone' : '', !hasRealVehicle ? 'vehicle_type' : '']
+  : [!phone ? 'phone' : '', !hasRealVehicle ? 'vehicle_type' : ''])
   .filter(Boolean);
 const qualificationMissing = [
   ...coreMissing,
@@ -553,26 +540,18 @@ const parts = memoryText(rawMemory).split(';').map((part) => clean(part).replace
 const canonical = [['real_name', realName], ['vehicle', vehicle], ['down payment', down], ['previous financing', effectivePreviousFinancing], ['documents', documents], ['timeline', timeline]].filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).replace(/\s*;\s*/g, ', ')}`);
 const qualificationMemory = [...new Set([...parts.filter((part) => !/^(?:real_name|real name|name|nombre|nombre real|nombre completo|vehicle|vehicle_type|down|down payment|down_payment|previous financing|previous_financing|financing history|historial de financiamiento|documents?|docs|timeline|purchase timeline|purchase_timeline)\s*(?::|=|-)/i.test(part)), ...canonical])].join('; ');
 const qualificationStep = sourceAware
-  ? (!realName
-    ? 'real_name'
-    : !hasRealVehicle
+  ? (!hasRealVehicle
       ? 'vehicle_type'
       : requiresLocation && !customerLocation
         ? 'customer_location'
         : !phone && !phoneSatisfiedByNative
           ? 'phone'
-          : offlease && (!down || needsOffleaseMinimum)
-            ? 'down_payment'
-            : 'complete')
-  : (!realName
-    ? 'real_name'
-      : !hasRealVehicle
+          : 'complete')
+  : (!hasRealVehicle
         ? 'vehicle_type'
       : !phone
         ? 'phone'
-        : offlease && (!down || needsOffleaseMinimum)
-          ? 'down_payment'
-          : 'complete');
+        : 'complete');
 const questions = {
   en: {
     real_name: 'What is your full name?', vehicle_type: 'What vehicle are you looking for?', customer_location: 'What city are you located in?', phone: "What's the best phone number to reach you?",
@@ -585,33 +564,11 @@ const questions = {
     documents: '¿Tienes identificación y comprobante de ingresos?', bank_account: '¿Tienes una cuenta bancaria?', complete: '',
   },
 };
-const minimumQuestion = requiredDownPayment
-  ? (language === 'es' ? `Para este vehículo requerimos un enganche mínimo de $${requiredDownPayment}. ¿Con cuánto cuentas para el enganche?` : `This vehicle requires a minimum down payment of $${requiredDownPayment}. How much do you have available?`)
-  : questions[language][qualificationStep];
-const shortfallQuestion = language === 'es'
-  ? `Te comento que el mínimo para este vehículo es de $${requiredDownPayment}. ¿Crees que podrías conseguir un poco más?`
-  : `The minimum for this vehicle is $${requiredDownPayment}. Do you think you could bring a little more?`;
-const financingHistoryQuestion = language === 'es'
-  ? 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?'
-  : 'To apply for the $1000 down payment promotion, have you financed a vehicle before?';
-const repeatPreviousMinimumQuestion = qualificationStep === 'down_payment'
-  && offlease
-  && predictorAskedMinimum
-  && !downPaymentSufficient
-  && Boolean(clean(inputData.previous_predicted_bot_question));
-const predictedBotQuestion = qualificationStep === 'down_payment' && offlease && downPaymentAmount === 1000 && effectivePreviousFinancing === '' && !predictorAskedMinimum
-  ? financingHistoryQuestion
-  : repeatPreviousMinimumQuestion
-    ? clean(inputData.previous_predicted_bot_question)
-  : qualificationStep === 'down_payment' && needsOffleaseMinimum
-    ? shortfallQuestion
-    : qualificationStep === 'down_payment' && offlease
-      ? minimumQuestion
-      : questions[language][qualificationStep];
+const predictedBotQuestion = questions[language][qualificationStep];
 const lastAnsweredField = qualificationStep === 'complete'
-  ? (offlease ? 'down_payment' : 'phone')
+  ? 'phone'
   : (sourceAware
-    ? [['real_name', stafford && Boolean(realName)], ['vehicle_type', hasRealVehicle], ['customer_location', Boolean(customerLocation)], ['phone', Boolean(phone) || phoneSatisfiedByNative], ['down_payment', Boolean(down) && !needsOffleaseMinimum], ['purchase_timeline', timeline], ['documents', identification === 'yes' && income === 'yes'], ['bank_account', bankAccount === 'yes']]
+    ? [['real_name', stafford && Boolean(realName)], ['vehicle_type', hasRealVehicle], ['customer_location', Boolean(customerLocation)], ['phone', Boolean(phone) || phoneSatisfiedByNative], ['purchase_timeline', timeline], ['documents', identification === 'yes' && income === 'yes'], ['bank_account', bankAccount === 'yes']]
     : [['real_name', realName], ['phone', phone], ['vehicle_type', hasRealVehicle], ['down_payment', down], ['purchase_timeline', timeline], ['documents', identification === 'yes' && income === 'yes'], ['bank_account', bankAccount === 'yes']])
     .reverse().find(([, complete]) => Boolean(complete))?.[0] || null;
 // Prefer a phone written in the conversation, but preserve a validated native

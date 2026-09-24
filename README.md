@@ -14,8 +14,8 @@ The API rejects invalid configuration at startup. The webhook endpoint accepts o
 
 ## Reglas de calificación por dealer
 
-- **Offlease (Stafford, Fredericksburg y Fredericksburg 2):** requiere nombre, vehículo y teléfono reciente enviado por el cliente. También requiere una evidencia válida de enganche: efectivo que alcance el mínimo de la categoría, la promoción de $1,000 únicamente si el cliente ya financió antes, o un `trade-in` declarado solo o combinado con efectivo.
-- **Los demás dealers:** califican con nombre, vehículo y teléfono reciente del cliente; el enganche no es requisito.
+- **Offlease (Stafford, Fredericksburg y Fredericksburg 2):** usa la misma calificación común que los demás dealers: vehículo y teléfono. Stafford puede usar el teléfono nativo de WhatsApp; Fredericksburg y Fredericksburg 2 requieren que el cliente entregue su número. El nombre, el enganche y las demás respuestas financieras se conservan como evidencia adicional, pero no bloquean el handoff.
+- **Los demás dealers:** califican con vehículo y teléfono reciente del cliente; el nombre y el enganche no son requisitos de routing.
 - Una relación que ya está en `waiting_window`, `queued` o `sent` no se elimina por mensajes posteriores incompletos. La duplicación se evalúa por relación dentro del mismo dealer, no entre dealers distintos.
 
 ## Production migrations

@@ -117,7 +117,7 @@ describe('ConversationWebhookService', () => {
     expect(conversationUpdate?.[1]?.[1]).toBe('waiting_window');
   });
 
-  it('sets the accepted suggested minimum and keeps the conversation in waiting_window', () => {
+  it('keeps a below-minimum down payment additive and keeps the conversation in waiting_window', () => {
     const normalized = normalizeCollectorInput({
       source: 'fredericksburg',
       channel: 'messenger',
@@ -137,7 +137,7 @@ describe('ConversationWebhookService', () => {
       'capture',
     );
 
-    expect(normalized).toMatchObject({ down_payment: '1500', down_payment_sufficient: true });
+    expect(normalized).toMatchObject({ down_payment: '1000', down_payment_sufficient: false });
     expect(status.status).toBe('waiting_window');
   });
 
@@ -700,10 +700,10 @@ describe('ConversationWebhookService', () => {
     expect(result.nextAttemptAt).toBe(new Date(now.getTime() + CONVERSATION_STABILIZATION_MS).toISOString());
   });
 
-  it('keeps Stafford partial with only phone and vehicle because down is mandatory', () => {
+  it('opens Stafford with only phone and vehicle because down is additive', () => {
     const now = new Date('2026-09-11T14:00:00.000Z');
     expect(evaluateStatus(staffordVehicleOnlySnapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'capture'))
-      .toEqual({ status: 'partial', nextAttemptAt: null });
+      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:00:15.000Z' });
   });
 
   it('opens a normal Action conversation with phone and vehicle without an Offlease down gate', () => {
@@ -718,32 +718,25 @@ describe('ConversationWebhookService', () => {
       .toEqual({ status: 'partial', nextAttemptAt: null });
   });
 
-  it('applies the down-payment gate only to the three Offlease sources', () => {
+  it('does not block any configured dealer when phone and vehicle are present', () => {
     const now = new Date('2026-09-11T14:00:00.000Z');
     const allSources = Object.keys(GHL_SOURCE_CONFIG) as Array<keyof typeof GHL_SOURCE_CONFIG>;
-    const offleaseSources = ['stafford', 'fredericksburg', 'fredericksburg-2'] as const;
-    const normalSources = allSources.filter((source) => !offleaseSources.includes(source as typeof offleaseSources[number]));
-
-    for (const source of offleaseSources) {
-      expect(evaluateStatus({ phone: '+13015550123', vehicle_type: 'Sedan', down_payment: '' }, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, source, now, 'capture'))
-        .toEqual({ status: 'partial', nextAttemptAt: null });
-    }
-    for (const source of normalSources) {
+    for (const source of allSources) {
       expect(evaluateStatus({ phone: '+13015550123', vehicle_type: 'Sedan', down_payment: '' }, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, source, now, 'capture'))
         .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:00:15.000Z' });
     }
   });
 
-  it('keeps Stafford partial after stabilization when down is missing', () => {
+  it('keeps Stafford in the common incomplete window after stabilization when down is missing', () => {
     const now = new Date('2026-09-11T14:00:15.000Z');
     expect(evaluateStatus(staffordVehicleOnlySnapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'due', '2026-09-11T14:00:00.000Z'))
-      .toEqual({ status: 'partial', nextAttemptAt: null });
+      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:30:00.000Z' });
   });
 
-  it('keeps Stafford partial overnight when down is missing', () => {
+  it('keeps Stafford in the common overnight window when down is missing', () => {
     const now = new Date('2026-09-11T20:00:15.000Z');
     expect(evaluateStatus(staffordVehicleOnlySnapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'due', '2026-09-11T20:00:00.000Z'))
-      .toEqual({ status: 'partial', nextAttemptAt: null });
+      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T23:00:00.000Z' });
   });
 
   it('keeps Stafford WhatsApp partial when the vehicle is missing', () => {
@@ -762,10 +755,10 @@ describe('ConversationWebhookService', () => {
     ['stafford', 'Honda Civic', '1499'],
     ['fredericksburg', 'Toyota Corolla', '1499'],
     ['fredericksburg-2', 'Toyota Tacoma', '2999'],
-  ] as const)('blocks %s below the vehicle minimum (%s)', (source, vehicle, down) => {
+  ] as const)('does not block %s below the vehicle minimum (%s)', (source, vehicle, down) => {
     const now = new Date('2026-09-11T14:00:00.000Z');
     expect(evaluateStatus({ phone: '+13015550123', vehicle_type: vehicle, down_payment: down, qualification_complete: false }, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, source, now, 'capture'))
-      .toEqual({ status: 'partial', nextAttemptAt: null });
+      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:00:15.000Z' });
   });
 
   it('accepts an Offlease trade-in even when the cash amount is below the vehicle minimum', () => {

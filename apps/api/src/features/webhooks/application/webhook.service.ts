@@ -204,8 +204,8 @@ export class WebhookService {
       }
 
       const normalized = normalizeCollectorInput({
-        // Messenger uses the contact name as its canonical identity source.
-        // WhatsApp requires a name declared/repeated in the conversation.
+        // Messenger and WhatsApp may provide a name, but it is additive
+        // evidence; phone plus vehicle are the routing facts required here.
         channel: payload.lead.channel,
         real_name: collectorRealName,
         message: payload.lead.message ?? payload.lead.chat_history_log,
@@ -219,7 +219,7 @@ export class WebhookService {
         documents: payload.lead.documents,
         qualification_memory: payload.lead.qualification_memory,
       });
-      const leadName = normalized.real_name || payload.lead.name;
+      const leadName = normalized.real_name || payload.lead.name || 'Lead';
       if (!hasMinimumRoutingQualification({
         real_name: normalized.real_name || payload.lead.name,
         phone: canonicalPhone,
@@ -227,9 +227,8 @@ export class WebhookService {
       })) {
         throw new UnprocessableEntityException({
           code: 'MISSING_LEAD_ROUTING_FACTS',
-          message: 'El lead requiere nombre, teléfono válido y un vehículo real para entrar a dealerADMIN',
+          message: 'El lead requiere teléfono válido y un vehículo real para entrar a dealerADMIN',
           issues: [
-            ...(!normalized.real_name && !payload.lead.name ? [{ path: ['lead', 'name'], message: 'El nombre no puede estar vacío' }] : []),
             ...(!canonicalPhone ? [{ path: ['lead', 'phone'], message: 'El teléfono no puede estar vacío' }] : []),
             ...(!normalized.vehicle_type ? [{ path: ['lead', 'vehicle_type'], message: 'El vehículo no puede estar vacío' }] : []),
           ],

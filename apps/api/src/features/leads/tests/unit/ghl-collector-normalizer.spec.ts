@@ -70,7 +70,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       vehicle_type: 'Quiere hablar con un asesor',
       message: 'Gabriel Centeno\nAlgo económico\nNormal\n1,000 máximo\nPuerto Rico\nSi\nEsta semana semana me encuentro en Fayetteville NC',
       chat_history_log: 'Gabriel Centeno\nAlgo económico\nNormal\n1,000 máximo\nPuerto Rico\nSi\nEsta semana semana me encuentro en Fayetteville NC',
-    })).toMatchObject({ vehicle_type: 'Sedan', previous_financing: 'yes', down_payment_sufficient: true });
+    })).toMatchObject({ vehicle_type: 'Sedan', previous_financing: 'yes', down_payment_sufficient: false });
   });
 
   it.each([
@@ -121,7 +121,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
   });
 
-  it('keeps Offlease strict and predicts the minimum after an insufficient down payment', () => {
+  it('keeps the minimum as additive evidence without blocking the common flow', () => {
     const result = execute({
       source: 'fredericksburg',
       channel: 'messenger',
@@ -135,16 +135,16 @@ describe('HighLevel collector custom-code normalizer', () => {
       required_down_payment: 1500,
       down_payment: '1000',
       down_payment_sufficient: false,
-      qualification_step: 'down_payment',
-      qualification_complete: false,
+      qualification_step: 'complete',
+      qualification_complete: true,
     });
-    expect(result.next_question).toContain('financiado');
+    expect(result.next_question).toBe('');
   });
 
   it.each([
     ['stafford', 'whatsapp', 'SUV', 'Sí'],
     ['fredericksburg', 'messenger', 'Toyota Tacoma', 'Yes, I financed a vehicle before'],
-  ])('accepts the $1000 Offlease promotion only after the financing-history question: %s', (source, channel, vehicle, answer) => {
+  ])('keeps the common qualification complete after financing-history wording: %s', (source, channel, vehicle, answer) => {
     expect(execute({
       source,
       channel,
@@ -157,7 +157,6 @@ describe('HighLevel collector custom-code normalizer', () => {
       previous_financing: 'yes',
       down_payment: '1000',
       down_payment_amount: 1000,
-      down_payment_sufficient: true,
       qualification_step: 'complete',
     });
   });
@@ -174,7 +173,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       previous_financing: 'no',
       down_payment: '1000',
       down_payment_sufficient: false,
-      qualification_step: 'down_payment',
+      qualification_step: 'complete',
     });
     expect(execute({
       source: 'stafford',
@@ -184,7 +183,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       message: 'No',
       chat_history_log: 'QA Buyer\nToyota Tacoma\n1000',
       previous_predicted_bot_question: 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?',
-    }).next_question).toContain('$3000');
+    }).next_question).toBe('');
   });
 
   it.each(['Sí', 'si podria', 'Sí, podría', 'si puedo', 'con este monto', 'Con este monto y no lo identifico', 'ese monto sí lo tengo', 'Claro', 'Yes, I could', 'I can finance 1000', 'Anteriormente financié un vehículo'])('accepts varied affirmative financing-history wording in Custom Code: %s', (answer) => {
@@ -196,7 +195,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       message: answer,
       chat_history_log: 'Toyota Tacoma\n1000',
       previous_predicted_bot_question: 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?',
-    })).toMatchObject({ previous_financing: 'yes', down_payment: '1000', down_payment_sufficient: true });
+    })).toMatchObject({ previous_financing: 'yes', down_payment: '1000', down_payment_sufficient: false });
   });
 
   it('does not reuse an old financing question when the current predictor question is about the regular minimum in Custom Code', () => {
@@ -208,7 +207,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       message: 'Sí',
       chat_history_log: 'Toyota Tacoma\n1000\nPara aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?\nSí',
       previous_predicted_bot_question: 'Te comento que el mínimo para este vehículo es de $3000. ¿Crees que podrías conseguir más?',
-    })).toMatchObject({ previous_financing: '', down_payment: '3000', down_payment_sufficient: true });
+    })).toMatchObject({ previous_financing: '', down_payment: '1000', down_payment_sufficient: false });
   });
 
   it('repeats the financing-history question when Custom Code receives an unrelated answer', () => {
@@ -221,7 +220,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       message: 'Estoy en Baltimore',
       chat_history_log: 'Toyota Tacoma\n1000',
       previous_predicted_bot_question: question,
-    })).toMatchObject({ previous_financing: '', down_payment: '1000', down_payment_sufficient: false, next_question: question });
+    })).toMatchObject({ previous_financing: '', down_payment: '1000', down_payment_sufficient: false, next_question: '' });
   });
 
   it.each([
@@ -229,7 +228,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     ['SUV', 'Tengo 1500\nSí sí podría', '2000'],
     ['minivan', 'Tengo 1500\nSi', '2000'],
     ['Tacoma', 'Tengo 2500\nSi puedo conseguir solo que me den tiempo', '3000'],
-  ])('promotes an inbound shortfall confirmation in Custom Code: %s', (vehicle, transcript, minimum) => {
+  ])('preserves an inbound amount without applying a minimum gate in Custom Code: %s', (vehicle, transcript, minimum) => {
     expect(execute({
       source: 'fredericksburg',
       channel: 'messenger',
@@ -239,10 +238,10 @@ describe('HighLevel collector custom-code normalizer', () => {
       chat_history_log: transcript,
       previous_predicted_bot_question: `Te comento que el mínimo para este vehículo es de $${minimum}. ¿Crees que podrías conseguir un poco más?`,
     })).toMatchObject({
-      down_payment: minimum,
-      down_payment_amount: Number(minimum),
+      down_payment: transcript.match(/Tengo (\d+)/)?.[1],
+      down_payment_amount: Number(transcript.match(/Tengo (\d+)/)?.[1]),
       required_down_payment: Number(minimum),
-      down_payment_sufficient: true,
+      down_payment_sufficient: false,
     });
   });
 
@@ -297,7 +296,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     ['truck', '2000', 'Yeah, I can get more', 3000],
     ['pickup', '2500', 'Bien, podría conseguir más', 3000],
     ['SUV', '1500', 'Correcto, puedo subir más', 2000],
-  ])('passes ten varied affirmative shortfall replies in Custom Code: %s / %s / %s', (vehicle, amount, reply, minimum) => {
+  ])('does not apply a minimum gate to varied replies in Custom Code: %s / %s / %s', (vehicle, amount, reply, minimum) => {
     const transcript = `${vehicle}\nTengo ${amount}\n${reply}`;
     expect(execute({
       source: 'fredericksburg',
@@ -307,7 +306,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       message: transcript,
       chat_history_log: transcript,
       previous_predicted_bot_question: `Te comento que el mínimo para este vehículo es de $${minimum}. ¿Crees que podrías conseguir un poco más?`,
-    })).toMatchObject({ down_payment: String(minimum), down_payment_sufficient: true });
+    })).toMatchObject({ down_payment: amount, down_payment_sufficient: false });
   });
 
   it('allows Offlease trade-in to satisfy the down-payment requirement', () => {
@@ -565,8 +564,8 @@ describe('HighLevel collector custom-code normalizer', () => {
   });
 
   it.each([
-    ['I am looking for a Mustang', 'en', 'real_name', 'What is your full name?'],
-    ['Estoy buscando un Mustang', 'es', 'real_name', '¿Cuál es tu nombre completo?'],
+    ['I am looking for a Mustang', 'en', 'phone', "What's the best phone number to reach you?"],
+    ['Estoy buscando un Mustang', 'es', 'phone', '¿Cuál es el mejor número para contactarte?'],
   ])('predicts step and next question for %s in Custom Code', (message, language, step, question) => {
     const result = execute({ channel: 'whatsapp', message });
     expect(result.qualification_progress).toMatchObject({
@@ -643,7 +642,7 @@ describe('HighLevel collector custom-code normalizer', () => {
   it('keeps an incomplete memory on the collector branch and names what is missing', () => {
     const result = execute({ qualification_memory: 'vehicle: SUV; down payment: 2K; documents: identification: yes' });
     expect(result.qualification_complete).toBe(false);
-    expect(result.missing_qualification).toEqual(['real_name', 'phone']);
+    expect(result.missing_qualification).toEqual(['phone']);
   });
 
   it('keeps a trade-in vehicle year out of the down payment and recognizes bank statements', () => {
@@ -764,7 +763,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
 
     expect(result.phone).toBe('+12406815028');
-    expect(result.dealeradmin_send_now).toBe(false);
+    expect(result.dealeradmin_send_now).toBe(true);
   });
 
   it.each([

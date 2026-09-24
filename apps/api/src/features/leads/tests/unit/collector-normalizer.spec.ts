@@ -119,7 +119,7 @@ describe('normalizeCollectorInput', () => {
   it.each([
     ['stafford', 'whatsapp', 'Sí', 'Carlos\nSUV\n1000'],
     ['fredericksburg', 'messenger', 'Yes, I financed a vehicle before', 'Toyota Tacoma\n1000'],
-  ])('accepts the $1000 Offlease promotion only after the financing-history question: %s', (source, channel, answer, history) => {
+  ])('does not require a down payment after the vehicle is identified: %s', (source, channel, answer, history) => {
     const result = normalizeCollectorInput({
       source,
       channel,
@@ -131,15 +131,13 @@ describe('normalizeCollectorInput', () => {
     });
 
     expect(result).toMatchObject({
-      previous_financing: 'yes',
       down_payment: '1000',
       down_payment_amount: 1000,
-      down_payment_sufficient: true,
       qualification_step: 'complete',
     });
   });
 
-  it('keeps the regular Offlease minimum when the buyer denies previous financing', () => {
+  it('does not add an Offlease minimum when the buyer denies previous financing', () => {
     const result = normalizeCollectorInput({
       source: 'stafford',
       channel: 'whatsapp',
@@ -149,13 +147,12 @@ describe('normalizeCollectorInput', () => {
     });
 
     expect(result).toMatchObject({
-      previous_financing: 'no',
       down_payment: '1000',
       down_payment_sufficient: false,
-      qualification_step: 'down_payment',
+      qualification_step: 'complete',
     });
-    expect(result.missing_qualification).toContain('down_payment_minimum');
-    expect(result.next_question).toContain('$3000');
+    expect(result.missing_qualification).not.toContain('down_payment_minimum');
+    expect(result.next_question).toBe('');
   });
 
   it('recovers an earlier standalone financing answer during GHL reconciliation and ignores a time range as down payment', () => {
@@ -188,10 +185,8 @@ describe('normalizeCollectorInput', () => {
     });
 
     expect(result).toMatchObject({
-      previous_financing: 'yes',
       down_payment: '1000',
       down_payment_amount: 1000,
-      down_payment_sufficient: true,
     });
     expect(result.down_payment).not.toBe('5');
   });
@@ -209,7 +204,7 @@ describe('normalizeCollectorInput', () => {
     'Yes, I could',
     'I can finance 1000',
     'Anteriormente financié un vehículo',
-  ])('accepts every affirmative financing-history wording for the $1000 Offlease promotion: %s', (answer) => {
+  ])('keeps the common qualification complete for financing-history wording: %s', (answer) => {
     const result = normalizeCollectorInput({
       source: 'fredericksburg',
       channel: 'messenger',
@@ -221,9 +216,7 @@ describe('normalizeCollectorInput', () => {
     });
 
     expect(result).toMatchObject({
-      previous_financing: 'yes',
       down_payment: '1000',
-      down_payment_sufficient: true,
       qualification_step: 'complete',
     });
   });
@@ -253,7 +246,7 @@ describe('normalizeCollectorInput', () => {
       previous_predicted_bot_question: 'Te comento que el mínimo para este vehículo es de $3000. ¿Crees que podrías conseguir más?',
     });
 
-    expect(result).toMatchObject({ previous_financing: '', down_payment: '3000', down_payment_sufficient: true });
+    expect(result).toMatchObject({ previous_financing: '', down_payment: '1000', down_payment_sufficient: false });
     expect(result.next_question).toBe('');
   });
 
@@ -269,7 +262,7 @@ describe('normalizeCollectorInput', () => {
       previous_predicted_bot_question: question,
     });
 
-    expect(result).toMatchObject({ previous_financing: '', down_payment: '1000', down_payment_sufficient: false, next_question: question });
+    expect(result).toMatchObject({ previous_financing: '', down_payment: '1000', down_payment_sufficient: false, next_question: '' });
   });
 
   it('repeats the exact minimum question when the down-payment answer is unrelated', () => {
@@ -284,7 +277,7 @@ describe('normalizeCollectorInput', () => {
       previous_predicted_bot_question: question,
     });
 
-    expect(result).toMatchObject({ down_payment: '1000', down_payment_sufficient: false, next_question: question });
+    expect(result).toMatchObject({ down_payment: '1000', down_payment_sufficient: false, next_question: '' });
   });
 
   it('normalizes structured image interpretation as ordinary inbound evidence', () => {
@@ -490,7 +483,7 @@ describe('normalizeCollectorInput', () => {
     ['SUV', 'Tengo 1500\nSí sí podría', 2000],
     ['minivan', 'Tengo 1500\nSi', 2000],
     ['Tacoma', 'Tengo 2500\nSi puedo conseguir solo que me den tiempo', 3000],
-  ])('promotes a shortfall to the suggested minimum after an affirmative buyer turn: %s', (vehicle, transcript, minimum) => {
+  ])('preserves the buyer amount without applying a minimum gate: %s', (vehicle, transcript, minimum) => {
     const result = normalizeCollectorInput({
       source: 'fredericksburg',
       channel: 'messenger',
@@ -502,10 +495,10 @@ describe('normalizeCollectorInput', () => {
     });
 
     expect(result).toMatchObject({
-      down_payment: String(minimum),
-      down_payment_amount: minimum,
+      down_payment: transcript.match(/Tengo (\d+)/)?.[1],
+      down_payment_amount: Number(transcript.match(/Tengo (\d+)/)?.[1]),
       required_down_payment: minimum,
-      down_payment_sufficient: true,
+      down_payment_sufficient: false,
     });
   });
 
@@ -538,7 +531,7 @@ describe('normalizeCollectorInput', () => {
     ['truck', '2000', 'Yeah, I can get more', 3000],
     ['pickup', '2500', 'Bien, podría conseguir más', 3000],
     ['SUV', '1500', 'Correcto, puedo subir más', 2000],
-  ])('passes ten varied affirmative shortfall replies: %s / %s / %s', (vehicle, amount, reply, minimum) => {
+  ])('does not apply a minimum gate to varied down-payment replies: %s / %s / %s', (vehicle, amount, reply, minimum) => {
     const transcript = `${vehicle}\nTengo ${amount}\n${reply}`;
     const result = normalizeCollectorInput({
       source: 'fredericksburg',
@@ -550,7 +543,7 @@ describe('normalizeCollectorInput', () => {
       previous_predicted_bot_question: `Te comento que el mínimo para este vehículo es de $${minimum}. ¿Crees que podrías conseguir un poco más?`,
     });
 
-    expect(result).toMatchObject({ down_payment: String(minimum), down_payment_sufficient: true });
+    expect(result).toMatchObject({ down_payment: amount, down_payment_sufficient: false });
   });
 
   it('does not promote an affirmative turn when the predictor did not ask about increasing the down payment', () => {
@@ -633,7 +626,7 @@ describe('normalizeCollectorInput', () => {
     expect(result.phone).toBe('+19392249226');
     expect(result.down_payment).toBe('1000');
     expect(result.previous_financing).toBe('yes');
-    expect(result.down_payment_sufficient).toBe(true);
+    expect(result.down_payment_sufficient).toBe(false);
   });
 
   it('does not interpret a trade-in vehicle year as the down payment and recognizes bank statements as income proof', () => {
@@ -938,21 +931,21 @@ describe('normalizeCollectorInput', () => {
   it('does not invent documents from an empty or placeholder value', () => {
     const result = normalizeCollectorInput({ message: 'I want a Tacoma', documents: '--' });
     expect(result.documents).toBe('');
-    expect(result.next_question).toBe('What is your full name?');
+    expect(result.next_question).toBe("What's the best phone number to reach you?");
     expect(result.qualification_progress).toMatchObject({
-      step: 'real_name',
-      predicted_bot_question: 'What is your full name?',
+      step: 'phone',
+      predicted_bot_question: "What's the best phone number to reach you?",
       language: 'en',
     });
   });
 
   it.each([
-    ['en', 'I am looking for a Mustang', 'What is your full name?'],
-    ['es', 'Estoy buscando un Mustang', '¿Cuál es tu nombre completo?'],
+    ['en', 'I am looking for a Mustang', "What's the best phone number to reach you?"],
+    ['es', 'Estoy buscando un Mustang', '¿Cuál es el mejor número para contactarte?'],
   ])('predicts the next qualification step and bot question in %s', (language, message, question) => {
     const result = normalizeCollectorInput({ channel: language === 'en' ? 'whatsapp' : 'whatsapp', message });
     expect(result.qualification_progress).toMatchObject({
-      step: 'real_name',
+      step: 'phone',
       predicted_bot_question: question,
       language,
       confidence: 0.95,
@@ -985,7 +978,7 @@ describe('normalizeCollectorInput', () => {
     });
   });
 
-  it('uses the injected Offlease order and vehicle-specific minimum without an AI call', () => {
+  it('uses the common vehicle-and-phone order without an AI call', () => {
     const first = normalizeCollectorInput({
       source: 'fredericksburg',
       channel: 'messenger',
@@ -1002,8 +995,8 @@ describe('normalizeCollectorInput', () => {
       message: 'Busco una Toyota Corolla y tengo 1000 para el enganche',
     });
     expect(second).toMatchObject({ vehicle_type: 'Toyota Corolla', down_payment: '1000', down_payment_sufficient: false });
-    expect(second.qualification_progress).toMatchObject({ step: 'down_payment' });
-    expect(second.next_question).toContain('financiado');
+    expect(second.qualification_progress).toMatchObject({ step: 'complete' });
+    expect(second.next_question).toBe('');
   });
 
   it('relates Easterns location to the location step and skips it when already mentioned', () => {
@@ -1075,7 +1068,7 @@ describe('normalizeCollectorInput', () => {
     const result = normalizeCollectorInput({ message: 'Yes, I have my ID' });
     expect(result.documents).toContain('identification: yes');
     expect(result.has_identification).toBe('yes');
-    expect(result.next_question).toBe('What is your full name?');
+    expect(result.next_question).toBe('What vehicle are you looking for?');
   });
 
   it('captures affirmative document answers before the document name', () => {
@@ -1086,7 +1079,7 @@ describe('normalizeCollectorInput', () => {
     expect(result.documents).toContain('identification: yes');
     expect(result.documents).toContain('proof of income: yes');
     expect(result.down_payment).toBe('');
-    expect(result.next_question).toBe('What is your full name?');
+    expect(result.next_question).toBe('What vehicle are you looking for?');
   });
 
   it('preserves an explicit negative proof-of-income answer', () => {
@@ -1452,8 +1445,8 @@ describe('normalizeCollectorInput', () => {
       qualification_memory: 'vehicle: SUV; down payment: 2K; documents: identification: yes',
     });
     expect(result.qualification_complete).toBe(false);
-    expect(result.missing_qualification).toEqual(['real_name', 'phone']);
-    expect(result.next_question).toBe('What is your full name?');
+    expect(result.missing_qualification).toEqual(['phone']);
+    expect(result.next_question).toBe("What's the best phone number to reach you?");
   });
 
   it('uses qualification memory as the canonical document value when a custom field is stale', () => {
@@ -1490,12 +1483,32 @@ describe('normalizeCollectorInput', () => {
     })).toBe(true);
   });
 
-  it('requires a name, phone, and real vehicle before a lead enters dealerADMIN', () => {
+  it('requires only a phone and real vehicle before a lead enters dealerADMIN', () => {
     expect(hasMinimumRoutingQualification({ real_name: 'QA Customer', phone: '+15551234567', vehicle_type: 'SUV' })).toBe(true);
-    expect(hasMinimumRoutingQualification({ real_name: '', phone: '+15551234567', vehicle_type: 'SUV' })).toBe(false);
+    expect(hasMinimumRoutingQualification({ real_name: '', phone: '+15551234567', vehicle_type: 'SUV' })).toBe(true);
     expect(hasMinimumRoutingQualification({ real_name: 'QA Customer', phone: '+15551234567', vehicle_type: '' })).toBe(false);
     expect(hasMinimumRoutingQualification({ real_name: 'QA Customer', phone: '+15551234567', vehicle_type: ADVISOR_HANDOFF_VEHICLE })).toBe(false);
     expect(hasMinimumRoutingQualification({ real_name: 'QA Customer', phone: '', vehicle_type: 'SUV' })).toBe(false);
+  });
+
+  it.each([
+    ['stafford', 'whatsapp', '+15715558001'],
+    ['fredericksburg', 'messenger', '+15405558002'],
+  ])('completes the common routing rule for %s with phone and vehicle only', (source, channel, phone) => {
+    const result = normalizeCollectorInput({
+      source,
+      channel,
+      phone,
+      message: source === 'stafford' ? 'Honda Civic' : 'Toyota Tacoma',
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: source === 'stafford' ? 'Honda Civic' : 'Toyota Tacoma',
+      phone,
+      qualification_step: 'complete',
+      qualification_complete: true,
+      missing_qualification: [],
+    });
   });
 
   it('does not treat campaign or intent text as a purchase timeline', () => {
@@ -1568,13 +1581,13 @@ describe('normalizeCollectorInput', () => {
       vehicle_type: 'SUV',
       down_payment: '1000',
       previous_financing: 'yes',
-      down_payment_sufficient: true,
+      down_payment_sufficient: false,
       required_down_payment: 2000,
       down_payment_amount: 1000,
     });
   });
 
-  it('recovers an Offlease financing answer when GHL stores only inbound turns', () => {
+  it('does not recover an Offlease promotion from inbound-only history', () => {
     const result = normalizeCollectorInput({
       source: 'fredericksburg-2',
       channel: 'messenger',
@@ -1589,7 +1602,7 @@ describe('normalizeCollectorInput', () => {
       real_name: 'Leandro Bolzan',
       vehicle_type: 'SUV',
       down_payment: '2000',
-      previous_financing: 'yes',
+      previous_financing: '',
       down_payment_sufficient: true,
       required_down_payment: 2000,
     });

@@ -147,10 +147,6 @@ function isStaffordWhatsApp(source: SourceKey, channel: string): boolean {
   return source === 'stafford' && channel.trim().toLowerCase() === 'whatsapp';
 }
 
-function isOffleaseSource(source: SourceKey): boolean {
-  return source === 'fredericksburg' || source === 'fredericksburg-2' || source === 'stafford';
-}
-
 function parseOccurredAt(value: string | undefined): string {
   if (!value) return new Date().toISOString();
   const date = new Date(value);
@@ -391,10 +387,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       const bankAccount = normalized.bank_account || clean(current.bank_account);
       const previousFinancing = normalized.previous_financing
         || (current.previous_financing === 'yes' || current.previous_financing === 'no' ? current.previous_financing : '');
-      const offlease = isOffleaseSource(source);
-      const downPaymentRule = evaluateDownPayment(vehicle, downPayment, {
-        allowPromotionalThousand: offlease && previousFinancing === 'yes',
-      });
+      const downPaymentRule = evaluateDownPayment(vehicle, downPayment);
       const qualificationComplete = isQualificationComplete({
         real_name: realName,
         phone: effectivePhone,
@@ -404,14 +397,11 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         has_identification: identification,
         has_income_proof: documents,
         bank_account: bankAccount,
-      }) && (!offlease || downPaymentRule.meetsMinimum);
+      });
       const missingQualification = [
         !realName ? 'real_name' : '',
         !effectivePhone ? 'phone' : '',
-        !vehicle || isAdvisorHandoffVehicle(vehicle) || (offlease && !downPaymentRule.category) ? 'vehicle_type' : '',
-        offlease
-          ? (!downPayment ? 'down_payment' : (!downPaymentRule.meetsMinimum ? 'down_payment_minimum' : ''))
-          : '',
+        !vehicle || isAdvisorHandoffVehicle(vehicle) ? 'vehicle_type' : '',
       ].filter(Boolean);
       const resolvedLocation = await this.resolveLocation(runner, transcript);
       const hasResolvedLocation = Boolean(resolvedLocation.city || resolvedLocation.state || resolvedLocation.zip_code || resolvedLocation.easterns_zone);
@@ -794,12 +784,9 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       const location = await this.resolveLocation(runner, transcript);
       const language = GHL_SOURCE_CONFIG[source].splitByLanguage ? detectLeadLanguage(transcript) : undefined;
       const downPayment = normalizeDownPayment(normalized.down_payment);
-      const offlease = isOffleaseSource(source);
       const previousFinancing = normalized.previous_financing
         || (previousSnapshot.previous_financing === 'yes' || previousSnapshot.previous_financing === 'no' ? previousSnapshot.previous_financing : '');
-      const downPaymentRule = evaluateDownPayment(normalized.vehicle_type, downPayment, {
-        allowPromotionalThousand: offlease && previousFinancing === 'yes',
-      });
+      const downPaymentRule = evaluateDownPayment(normalized.vehicle_type, downPayment);
       const snapshot: ConversationSnapshot = {
         // Messenger uses the contact display name as real_name. WhatsApp
         // only receives a real_name when it was declared/repeated in chat.
@@ -829,14 +816,11 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
           has_identification: normalized.identification,
           has_income_proof: normalized.documents,
           bank_account: normalized.bank_account,
-        }) && (!offlease || downPaymentRule.meetsMinimum),
+        }),
         missing_qualification: [
           !normalized.real_name ? 'real_name' : '',
           !effectivePhone ? 'phone' : '',
-          !normalized.vehicle_type || isAdvisorHandoffVehicle(normalized.vehicle_type) || (offlease && !downPaymentRule.category) ? 'vehicle_type' : '',
-          offlease
-            ? (!downPayment ? 'down_payment' : (!downPaymentRule.meetsMinimum ? 'down_payment_minimum' : ''))
-            : '',
+          !normalized.vehicle_type || isAdvisorHandoffVehicle(normalized.vehicle_type) ? 'vehicle_type' : '',
         ].filter(Boolean),
         message_count: messages.length,
         language,
@@ -883,7 +867,8 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         // Once a lead has entered the operator queue, later inbound messages
         // must never remove its dealer relation. Keep the queue row and update
         // its evidence, even if a later partial snapshot temporarily fails an
-        // Offlease gate; the next audit/reprocessing pass can enrich it.
+        // Preserve the normalized snapshot; the next audit/reprocessing pass
+        // can enrich any additive qualification fields.
         if (isSameQueuedConversation) {
           await this.syncLeadDealer(runner, dealer, lead.id, snapshot, location, source);
         }
@@ -1255,14 +1240,9 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     readyAt?: string | null,
   ): { status: 'partial' | 'ready' | 'waiting_window'; nextAttemptAt: string | null } {
     const isEasterns = source === 'easterns' && dealer.routing_config?.group === 'Easterns';
-    const offlease = isOffleaseSource(source);
-    const downPaymentRule = evaluateDownPayment(snapshot.vehicle_type, snapshot.down_payment, {
-      allowPromotionalThousand: offlease && snapshot.previous_financing === 'yes',
-    });
     const hasLocation = Boolean(location.city || location.state || location.easterns_zone || location.zip_code);
     const routingReady = Boolean(
-      hasMinimumRoutingQualification({ real_name: snapshot.real_name, phone: snapshot.phone, vehicle_type: snapshot.vehicle_type }) &&
-      (!offlease || (snapshot.vehicle_type && downPaymentRule.meetsMinimum)),
+      hasMinimumRoutingQualification({ real_name: snapshot.real_name, phone: snapshot.phone, vehicle_type: snapshot.vehicle_type })
     );
     if (!routingReady) return { status: 'partial', nextAttemptAt: null };
     if (phase === 'capture') {
