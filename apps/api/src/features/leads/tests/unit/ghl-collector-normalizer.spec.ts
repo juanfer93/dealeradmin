@@ -442,10 +442,65 @@ describe('HighLevel collector custom-code normalizer', () => {
     ['Corola', 'Corolla'],
     ['civc', 'Civic'],
     ['Tacma', 'Tacoma'],
+    ['Tecoma', 'Tacoma'],
     ['Rav 4', 'RAV4'],
     ['4 runner', '4Runner'],
+    ['for runner', '4Runner'],
+    ['for runer', '4Runner'],
   ])('canonicalizes a controlled model spelling variant in Custom Code: %s', (message, expected) => {
     expect(execute({ message }).vehicle_type).toBe(expected);
+  });
+
+  it('replays the exact Jaimen Cruz GHL inbound transcript in Custom Code', () => {
+    const transcript = [
+      'Holaa ando buscando una for runer 4x4 2010 ho 2015',
+      '8046532943',
+      'No se como trabajan ustedes',
+    ].join('\n');
+
+    expect(execute({
+      source: 'koons-culpeper',
+      channel: 'messenger',
+      contact_name: 'Jaimen Cruz',
+      chat_history_log: transcript,
+      message: 'No se como trabajan ustedes',
+    })).toMatchObject({
+      phone: '+18046532943',
+      vehicle_type: '4Runner',
+    });
+  });
+
+  it('replays the exact Luis A Sandoval GHL inbound transcript in Custom Code', () => {
+    const transcript = [
+      'Dónde queda moon?',
+      'Dónde queda koon',
+      'Fluke',
+      'Truk',
+      'Tecoma',
+      'Economico',
+      'No entra la llamada',
+      'Llamarme por Messenger',
+      'Este es mi numero 919 8797239',
+      'Mil',
+      'Puedes enseñarlos',
+      'Vivo en carolina',
+      'Estoy buscando pociones',
+      'Si',
+      'Tengo todos mis papeles?',
+      'Ya le llamé y no entra la llamada',
+    ].join('\n');
+
+    expect(execute({
+      source: 'koons-fred',
+      channel: 'messenger',
+      contact_name: 'Dónde Queda Moon',
+      chat_history_log: transcript,
+      message: 'Ya le llamé y no entra la llamada',
+    })).toMatchObject({
+      phone: '+19198797239',
+      vehicle_type: 'Tacoma',
+      down_payment: '1000',
+    });
   });
 
   it.each(['Este carro menos de 8K', 'Más información', '2014'])('does not promote arbitrary Custom Code text to vehicle_type: %s', (value) => {

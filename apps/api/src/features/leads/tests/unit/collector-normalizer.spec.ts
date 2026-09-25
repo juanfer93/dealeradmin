@@ -811,8 +811,11 @@ describe('normalizeCollectorInput', () => {
     ['Corola', 'Corolla'],
     ['civc', 'Civic'],
     ['Tacma', 'Tacoma'],
+    ['Tecoma', 'Tacoma'],
     ['Rav 4', 'RAV4'],
     ['4 runner', '4Runner'],
+    ['for runner', '4Runner'],
+    ['for runer', '4Runner'],
   ])('canonicalizes a controlled model spelling variant: %s', (message, expected) => {
     expect(normalizeCollectorInput({ message }).vehicle_type).toBe(expected);
   });
@@ -830,8 +833,62 @@ describe('normalizeCollectorInput', () => {
     ['Ando buscando algo familiar para 7 pasajeros', 'van'],
     ['camión', 'truck'],
     ['camioneta', 'truck'],
+    ['Truk', 'truck'],
   ])('normalizes common dealer vehicle request: %s', (message, expected) => {
     expect(normalizeCollectorInput({ message }).vehicle_type).toBe(expected);
+  });
+
+  it('replays the exact Jaimen Cruz GHL inbound transcript as a routable 4Runner lead', () => {
+    const transcript = [
+      'Holaa ando buscando una for runer 4x4 2010 ho 2015',
+      '8046532943',
+      'No se como trabajan ustedes',
+    ].join('\n');
+
+    expect(normalizeCollectorInput({
+      source: 'koons-culpeper',
+      channel: 'messenger',
+      real_name: 'Jaimen Cruz',
+      chat_history_log: transcript,
+      message: 'No se como trabajan ustedes',
+    })).toMatchObject({
+      real_name: 'Jaimen Cruz',
+      phone: '+18046532943',
+      vehicle_type: '4Runner',
+    });
+  });
+
+  it('replays the exact Luis A Sandoval GHL inbound transcript as a routable Tacoma lead', () => {
+    const transcript = [
+      'Dónde queda moon?',
+      'Dónde queda koon',
+      'Fluke',
+      'Truk',
+      'Tecoma',
+      'Economico',
+      'No entra la llamada',
+      'Llamarme por Messenger',
+      'Este es mi numero 919 8797239',
+      'Mil',
+      'Puedes enseñarlos',
+      'Vivo en carolina',
+      'Estoy buscando pociones',
+      'Si',
+      'Tengo todos mis papeles?',
+      'Ya le llamé y no entra la llamada',
+    ].join('\n');
+
+    expect(normalizeCollectorInput({
+      source: 'koons-fred',
+      channel: 'messenger',
+      real_name: 'Dónde Queda Moon',
+      chat_history_log: transcript,
+      message: 'Ya le llamé y no entra la llamada',
+    })).toMatchObject({
+      phone: '+19198797239',
+      vehicle_type: 'Tacoma',
+      down_payment: '1000',
+    });
   });
 
   it.each([
