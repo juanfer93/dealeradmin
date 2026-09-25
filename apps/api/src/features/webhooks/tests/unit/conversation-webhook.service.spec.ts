@@ -543,7 +543,7 @@ describe('ConversationWebhookService', () => {
     expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ real_name: '', phone: '+13015550123' });
   });
 
-  it('keeps Messenger blocked when contact.phone is not present in recent inbound text', async () => {
+  it('keeps Messenger blocked when the recent inbound text omits the phone', async () => {
     const queryRunner = {
       connect: vi.fn(),
       startTransaction: vi.fn(),
@@ -576,6 +576,41 @@ describe('ConversationWebhookService', () => {
     const conversationUpdate = queryRunner.query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
     expect(conversationUpdate?.[1]?.[1]).toBe('partial');
     expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ phone: '', vehicle_type: 'SUV' });
+  });
+
+  it('requires the GHL-normalized Messenger phone to match recent inbound text', async () => {
+    const queryRunner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [{ event_id: 'evt-messenger-phone-match' }];
+        if (sql.includes('FROM dealers')) return [{ id: 'dealer-fredericksburg', code: 'FREDERICKSBURG', name: 'Off Lease Fredericksburg', timezone: 'America/New_York', routing_config: {} }];
+        if (sql.includes('FROM leads WHERE ghl_location_id')) return [];
+        if (sql.includes('INSERT INTO leads')) return [{ id: 'lead-messenger-phone-match', canonical_phone: null, first_name: 'Lead', last_name: '' }];
+        if (sql.includes('FROM conversations c')) return [];
+        if (sql.includes('FROM conversations')) return [];
+        if (sql.includes('INSERT INTO conversations')) return [{ id: 'conversation-messenger-phone-match', status: 'partial', qualification_snapshot: {}, location_snapshot: {} }];
+        if (sql.includes('FROM conversation_messages')) return [{ body: 'Mi número es 443-814-4460 y busco un SUV', direction: 'inbound', occurred_at: '2026-09-13T13:30:00.000Z' }];
+        return [];
+      }),
+    };
+    const service = new ConversationWebhookService({ createQueryRunner: () => queryRunner } as never);
+
+    await service.acceptCustomerReplied(
+      { message_body: 'Mi número es 443-814-4460 y busco un SUV', contact_phone: '+1 (443) 814-4460', contact_name: 'Miguel Aparicio', channel: 'messenger' },
+      'fredericksburg',
+      { contactId: 'ghl-messenger-phone-match', conversationId: 'ghl-messenger-phone-match-conversation', testNow: new Date('2026-09-13T13:30:15.000Z') },
+    );
+
+    const webhookInsert = queryRunner.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO webhook_events')) as [string, unknown[]] | undefined;
+    expect(webhookInsert?.[0]).toContain('CURRENT_TIMESTAMP');
+    const conversationUpdate = queryRunner.query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(conversationUpdate?.[1]?.[1]).toBe('waiting_window');
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ phone: '+14438144460', vehicle_type: 'SUV', qualification_complete: true });
   });
 
   it('scopes stale-phone reentry protection to the target dealer', async () => {

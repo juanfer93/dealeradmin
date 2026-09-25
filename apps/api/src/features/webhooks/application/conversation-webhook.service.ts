@@ -643,12 +643,12 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     await runner.connect();
     await runner.startTransaction();
     try {
-      const receivedAt = parseOccurredAt(event.occurred_at);
+      const occurredAt = parseOccurredAt(event.occurred_at);
       const insertedEvents = await runner.query(
         `INSERT INTO webhook_events (event_id, event_type, ghl_location_id, status, payload_hash, raw_transcript, capture_contract, capture_schema_version, received_at)
-         VALUES ($1, $2, $3, 'pending', $4, $5, '{}'::jsonb, 'dealeradmin.conversation.v1', $6)
+         VALUES ($1, $2, $3, 'pending', $4, $5, '{}'::jsonb, 'dealeradmin.conversation.v1', CURRENT_TIMESTAMP)
          ON CONFLICT (event_id) DO NOTHING RETURNING event_id`,
-        [event.event_id, event.event_type, GHL_SOURCE_CONFIG[source].locationId, hash(rawBody), event.message_body ?? '', receivedAt],
+        [event.event_id, event.event_type, GHL_SOURCE_CONFIG[source].locationId, hash(rawBody), event.message_body ?? ''],
       ) as Array<{ event_id: string }>;
       if (insertedEvents.length === 0) {
         await runner.rollbackTransaction();
@@ -669,8 +669,10 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       let lead = await this.upsertLead(runner, {
         locationId: GHL_SOURCE_CONFIG[source].locationId,
         contactId: event.ghl_contact_id,
-        // Stafford WhatsApp's native contact phone is the sender identity;
-        // Messenger continues to require recent inbound phone evidence.
+        // Stafford is WhatsApp-only and can use the native sender phone. For
+        // the other GHL locations, the workflow already normalizes the phone
+        // supplied by the customer into contact_phone; keep it out of the
+        // initial lead identity until the conversation is qualified.
         phone: isStaffordWhatsApp(source, event.channel)
           ? this.safePhone(event.contact_phone)
           : null,
@@ -683,7 +685,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         contactId: event.ghl_contact_id,
         conversationId: event.ghl_conversation_id,
         channel: event.channel,
-        occurredAt: receivedAt,
+        occurredAt,
       });
       const messageId = event.ghl_message_id || event.event_id;
       const dedupeKey = event.ghl_message_id || event.event_id;
@@ -692,7 +694,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
          VALUES ($1, $2, $3, $4, $5, $6::jsonb)
          ON CONFLICT (conversation_id, dedupe_key) DO NOTHING
          RETURNING id`,
-        [conversation.id, dedupeKey, messageId, String(event.message_body ?? '').replace(/\r\n?/g, '\n').trim(), receivedAt, JSON.stringify(event.raw_payload ?? event)],
+        [conversation.id, dedupeKey, messageId, String(event.message_body ?? '').replace(/\r\n?/g, '\n').trim(), occurredAt, JSON.stringify(event.raw_payload ?? event)],
       ) as Array<{ id: string }>;
       const conversationMessageId = insertedMessages[0]?.id ?? (await runner.query(
         `SELECT id FROM conversation_messages WHERE conversation_id = $1 AND dedupe_key = $2 LIMIT 1`,
@@ -719,18 +721,29 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         .join('\n');
       const now = controlledNow ?? currentLocalNow();
       const recentPhone = this.safePhone(extractRecentMessagePhone(evidenceMessages, now));
-      // On Stafford WhatsApp, the native contact phone is authoritative
-      // sender identity. On Messenger, only recent inbound text evidence is
-      // eligible, so a stale registered phone cannot enter the queue.
+      // Messenger requires both independent signals: the phone written in a
+      // recent inbound message and the same phone normalized by GHL. This
+      // prevents a stale contact phone from re-qualifying a returning lead.
+      // Stafford's native WhatsApp phone remains the only channel-specific
+      // fallback.
       const nativeWhatsappPhone = isStaffordWhatsApp(source, event.channel)
         ? this.safePhone(event.contact_phone) || this.extractNativeWhatsappPhone(messages)
         : null;
+      const normalizedGhlPhone = isStaffordWhatsApp(source, event.channel)
+        ? null
+        : this.safePhone(event.contact_phone);
+      const verifiedMessengerPhone = normalizedGhlPhone && recentPhone === normalizedGhlPhone
+        ? recentPhone
+        : null;
+      const eligiblePhone = isStaffordWhatsApp(source, event.channel)
+        ? recentPhone || nativeWhatsappPhone || ''
+        : verifiedMessengerPhone || '';
       if (conversation.isExisting && conversation.status === 'sent') {
         await runner.query(
           `UPDATE conversations
            SET last_message_at = $2, updated_at = CURRENT_TIMESTAMP
            WHERE id = $1`,
-          [conversation.id, receivedAt],
+          [conversation.id, occurredAt],
         );
         await runner.query(`UPDATE webhook_events SET status = 'processed', processed_at = CURRENT_TIMESTAMP, error_code = NULL WHERE event_id = $1`, [event.event_id]);
         await runner.commitTransaction();
@@ -749,12 +762,13 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
           : previousRealName || undefined,
         message: transcript,
         chat_history_log: transcript,
-        phone: recentPhone || nativeWhatsappPhone || '',
+        phone: eligiblePhone,
         // The transcript is the primary evidence. These persisted fields are
         // a lossless fallback for a GHL replay that contains only the latest
         // user turn or omits an earlier message from the webhook payload.
-        // Never seed phone here: Messenger phone qualification still requires
-        // recent inbound evidence from the customer.
+        // Messenger's normalized field is only accepted when it agrees with
+        // recent inbound message evidence; never fall back to a stale lead
+        // phone or to contact metadata by itself.
         vehicle_type: clean(previousSnapshot.vehicle_type),
         down_payment: clean(previousSnapshot.down_payment),
         purchase_timeline: clean(previousSnapshot.purchase_timeline),
@@ -768,7 +782,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       // A lead can correct the phone in a later inbound message. Keep the
       // same GHL contact/lead identity and promote that conversational phone
       // to canonical_phone, unless another lead already owns it.
-      const effectivePhone = recentPhone || nativeWhatsappPhone || '';
+      const effectivePhone = eligiblePhone;
       if (effectivePhone && effectivePhone !== lead.canonical_phone) {
         const updatedLead = await runner.query(
           `UPDATE leads
@@ -841,7 +855,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
                location_snapshot = $3::jsonb, last_message_at = $4,
                next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP
            WHERE id = $1`,
-          [conversation.id, JSON.stringify(snapshot), JSON.stringify(location), receivedAt],
+          [conversation.id, JSON.stringify(snapshot), JSON.stringify(location), occurredAt],
         );
         await runner.query(`UPDATE webhook_events SET status = 'processed', processed_at = CURRENT_TIMESTAMP, error_code = $2 WHERE event_id = $1`, [event.event_id, `STALE_PHONE_REENTRY:${stalePhone.sent_at}`]);
         await runner.commitTransaction();
@@ -879,7 +893,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
            SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
                last_message_at = $5, next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP
            WHERE id = $1`,
-          [conversation.id, isSameQueuedConversation ? 'queued' : 'duplicate_ignored', JSON.stringify(snapshot), JSON.stringify(location), receivedAt],
+          [conversation.id, isSameQueuedConversation ? 'queued' : 'duplicate_ignored', JSON.stringify(snapshot), JSON.stringify(location), occurredAt],
         );
         await runner.query(`UPDATE webhook_events SET status = 'processed', processed_at = CURRENT_TIMESTAMP, error_code = NULL WHERE event_id = $1`, [event.event_id]);
         await runner.commitTransaction();
@@ -894,7 +908,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
              last_message_at = $5, ready_at = CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued') THEN COALESCE(ready_at, $7::timestamptz) ELSE ready_at END,
              next_attempt_at = $6, updated_at = CURRENT_TIMESTAMP
            WHERE id = $1`,
-        [conversation.id, status.status, JSON.stringify(snapshot), JSON.stringify(location), receivedAt, status.nextAttemptAt, now.toISOString()],
+        [conversation.id, status.status, JSON.stringify(snapshot), JSON.stringify(location), occurredAt, status.nextAttemptAt, now.toISOString()],
       );
       if (status.status === 'ready') {
         await this.syncLeadDealer(runner, dealer, lead.id, snapshot, location, source);
