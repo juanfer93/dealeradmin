@@ -181,15 +181,15 @@ export default function ProblemsPage() {
             </div>
           </form>
 
-          <aside className="rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[0_10px_24px_rgba(19,32,29,0.035)] sm:p-5" aria-labelledby="recent-problems-title">
+          <aside className="rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[0_10px_24px_rgba(19,32,29,0.035)] sm:p-5 lg:sticky lg:top-5 lg:self-start" aria-labelledby="recent-problems-title">
             <div className="flex items-start justify-between gap-3">
               <div><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Tickets</p><h2 id="recent-problems-title" className="mt-1 text-base font-semibold">{t.problems.recent}</h2></div>
-              <span className="tabular-nums rounded-full bg-[var(--surface-raised)] px-2 py-1 text-xs text-[var(--text-muted)]">{tickets.length}</span>
+              <span className="tabular-nums rounded-full border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-1 text-xs font-semibold text-[var(--text-muted)]">{tickets.length}</span>
             </div>
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 space-y-2.5">
               {loadingTickets && <p className="text-sm text-[var(--text-muted)]" role="status">Cargando…</p>}
               {!loadingTickets && tickets.length === 0 && <p className="text-sm leading-6 text-[var(--text-muted)]">{t.problems.empty}</p>}
-              {tickets.map((ticket) => <article key={ticket.id} className="rounded-[8px] border border-[var(--border)] bg-[var(--surface-raised)] p-3"><div className="flex items-start justify-between gap-3"><div><p className="font-mono text-xs font-semibold text-[var(--brand-strong)]">{fileName(ticket.ticketNumber)}</p><h3 className="mt-1 line-clamp-3 text-sm font-medium leading-5">{ticket.problem}</h3></div><a href={`/api/problems/${ticket.ticketNumber}/markdown`} className="shrink-0 text-xs font-semibold text-[var(--brand-strong)] underline-offset-2 hover:underline">{t.problems.download}</a></div><p className="mt-2 text-[11px] text-[var(--text-muted)]">{dateFormatter.format(new Date(ticket.createdAt))}</p></article>)}
+              {tickets.map((ticket) => <article key={ticket.id} className="rounded-[8px] border border-[var(--border)] bg-[var(--surface-raised)] p-3.5 transition-colors hover:border-[var(--brand)]/40 hover:bg-[var(--brand-soft)]/35"><div className="flex items-center justify-between gap-3"><p className="min-w-0 truncate font-mono text-[11px] font-semibold text-[var(--brand-strong)]">{fileName(ticket.ticketNumber)}</p><a href={`/api/problems/${ticket.ticketNumber}/markdown`} className="shrink-0 rounded-[5px] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--brand-strong)] transition-colors hover:border-[var(--brand)] hover:bg-[var(--brand-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">{t.problems.download}</a></div><h3 className="mt-3 line-clamp-2 text-sm font-medium leading-5 text-[var(--text)]">{ticket.problem}</h3><p className="mt-3 border-t border-[var(--border)] pt-2.5 text-[11px] text-[var(--text-muted)]">{dateFormatter.format(new Date(ticket.createdAt))}</p></article>)}
             </div>
           </aside>
         </div>

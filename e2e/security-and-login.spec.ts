@@ -30,6 +30,22 @@ test('accepts a webhook signed over the exact raw body', async ({ request }) => 
   expect(await response.json()).toEqual({ accepted: true, eventId: 'evt-e2e-1' });
 });
 
+test('redirects unauthenticated dashboard visits without rendering the lead queue', async ({ page }) => {
+  await page.addInitScript(() => {
+    const state = window as Window & { __sawLeadQueueLoading?: boolean };
+    state.__sawLeadQueueLoading = false;
+    const inspect = () => {
+      if (document.body?.textContent?.includes('Cargando cola')) state.__sawLeadQueueLoading = true;
+    };
+    new MutationObserver(inspect).observe(document, { childList: true, subtree: true });
+    inspect();
+  });
+
+  await page.goto('/app');
+  await expect(page).toHaveURL(/\/login$/);
+  expect(await page.evaluate(() => (window as Window & { __sawLeadQueueLoading?: boolean }).__sawLeadQueueLoading)).toBe(false);
+});
+
 test('logs in and reaches the protected dashboard', async ({ page }) => {
   await page.goto('/login');
   await page.getByRole('button', { name: 'EN', exact: true }).click();

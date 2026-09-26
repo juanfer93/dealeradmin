@@ -235,6 +235,7 @@ export default function OperatorDashboard() {
   const [leadPendingBulkDelete, setLeadPendingBulkDelete] = useState<number | null>(null);
   const [copyingLeadId, setCopyingLeadId] = useState<string | null>(null);
   const [leadPendingCopy, setLeadPendingCopy] = useState<{ lead: Lead; targetDealer: Dealer } | null>(null);
+  const [sessionStatus, setSessionStatus] = useState<'checking' | 'authenticated'>(isPortfolioMode ? 'authenticated' : 'checking');
 
   const loadLeads = useCallback(async (nextStatus: LeadStatus, dealerId?: string, dealerIds?: string[]) => {
     setLoading(true); setError('');
@@ -260,18 +261,18 @@ export default function OperatorDashboard() {
   useEffect(() => {
     if (isPortfolioMode) { void loadLeads('pending'); return undefined; }
     let active = true;
-    fetch('/api/auth/session', { credentials: 'include' }).then((response) => response.json() as Promise<{ authenticated: boolean }>).then(({ authenticated }) => { if (!active) return; if (!authenticated) { router.replace('/login'); return; } void loadLeads('pending'); }).catch(() => router.replace('/login'));
+    fetch('/api/auth/session', { credentials: 'include' }).then((response) => response.json() as Promise<{ authenticated: boolean }>).then(({ authenticated }) => { if (!active) return; if (!authenticated) { router.replace('/login'); return; } setSessionStatus('authenticated'); void loadLeads('pending'); }).catch(() => router.replace('/login'));
     return () => { active = false; };
   }, [loadLeads, router]);
 
   useEffect(() => {
-    if (isPortfolioMode) return undefined;
+    if (isPortfolioMode || sessionStatus !== 'authenticated') return undefined;
     const interval = window.setInterval(() => {
       const multipleDealers = selectedDealerIds.length > 1;
       void loadLeads(status, multipleDealers ? undefined : selectedDealerId || undefined, multipleDealers ? selectedDealerIds : undefined);
     }, 30_000);
     return () => window.clearInterval(interval);
-  }, [loadLeads, selectedDealerId, selectedDealerIds, status]);
+  }, [loadLeads, selectedDealerId, selectedDealerIds, sessionStatus, status]);
 
   const activeDealer = useMemo(() => dealers.find((dealer) => dealer.id === selectedDealerId) ?? dealers[0], [dealers, selectedDealerId]);
   const selectedVisibleLeadIds = useMemo(() => selectedLeadIds.filter((id) => leads.some((lead) => lead.id === id)), [leads, selectedLeadIds]);
@@ -402,6 +403,10 @@ export default function OperatorDashboard() {
     finally { setCopyingLeadId(null); }
   }
   async function logout() { if (!isPortfolioMode) await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => undefined); router.replace(isPortfolioMode ? '/' : '/login'); }
+
+  if (!isPortfolioMode && sessionStatus !== 'authenticated') {
+    return <main className="min-h-screen bg-[var(--page)]" aria-busy="true"><p className="sr-only" role="status">{language === 'es' ? 'Verificando sesión…' : 'Checking session…'}</p></main>;
+  }
 
   const statusLabel = status === 'pending' ? t.app.pending.toLowerCase() : t.app.sent.toLowerCase();
   return <main className="operator-shell min-h-screen bg-[var(--page)]">
