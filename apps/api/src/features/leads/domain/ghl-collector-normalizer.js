@@ -60,9 +60,11 @@ const memoryValue = (aliases) => {
   const match = normalizedMemory.match(new RegExp(`(?:^|[^a-z])(?:${pattern})\\s*(?::|=|-|\\bis\\b|\\bare\\b)\\s*([^;]+)`, 'i'));
   return clean(match?.[1]).replace(/(trade[- ]?in)\d+$/i, '$1');
 };
-const invalidRealNames = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'saludos', 'hello', 'hi', 'hey', 'hola', 'greetings', 'thu chikitha linda']);
+const invalidRealNames = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'saludos', 'hello', 'hi', 'hey', 'hola', 'greetings', 'buenos dias', 'buenas tardes', 'buenas noches', 'bendiciones', 'buenos dias bendiciones', 'buenas tardes bendiciones', 'buenas noches bendiciones', 'thu chikitha linda']);
 const qualificationResponseMarkers = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|baltimore|maryland|where are you located|where are you|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|ubicaci[oó]n|ubicados?|vehicle|car|auto|carro|coche|veh[ií]culo|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
 const genericVehicleIntent = /\b(?:need|needs|looking\s+for|want|wants|seeking|shopping\s+for|trying\s+to\s+find|necesito|busco|buscando|quiero|me\s+interesa)\b[\s\S]*\b(?:vehicle|car|auto|carro|coche|veh[ií]culo|truck|suv|sedan|van|camioneta|pickup|pick-up)\b/i;
+const inventoryIntent = /\b(?:inventory|inventario|see\s+(?:the\s+)?inventory|can\s+i\s+see|show\s+me|mu[eé]strame|ver\s+(?:el\s+)?inventario)\b/i;
+const greetingOnly = /^(?:buenos\s+d[ií]as|buenas\s+tardes|buenas\s+noches|saludos|hello|hi|hey|hola|ola|greetings)(?:[,.!?\s]+bendiciones)?[,.!?\s]*$/i;
 const singleWordNameBlocklist = /^(?:ok(?:ay)?|si|s[ií]|yes|no|yeah|yep|correct|cash|today|hoy|now|ahora|asap|inmediato|requirements?|requisitos?|information|informaci[oó]n|details?|detalles?|baltimore|maryland|virginia|laurel|rosedale|sterling|elkton|manda|nada|bale|vale|ubicaci[oó]n|ubicasion|tacoma|toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion|mustang|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|maverick|ranger|bronco|explorer|expedition|escape|edge|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|range rover|defender|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|financiar|finance|financing|down|payment|enganche|documents?|documentos?|identificaci[oó]n|income|ingresos|proof|prueba|phone|tel[eé]fono|number|n[uú]mero)$/i;
 const vehicleBrands = /\b(?:toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i;
 const vehicleModels = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacoma|tacma|tecoma|rav\s*4|civic|civc|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|for\s+runner|for\s+runer|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|rlx|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
@@ -165,8 +167,8 @@ const nameDeclaration = /(?:me llamo|mi nombre es|soy|yo soy|my name is|my name[
 for (const technicalName of ['location', 'información', 'informacion', 'más información', 'mas informacion', 'más info', 'mas info', 'more information', 'more info', 'details', 'detalles']) invalidRealNames.add(technicalName);
 const normalizeRealName = (value) => {
   const candidate = clean(value);
-  if (!candidate || invalidRealNames.has(candidate.toLowerCase()) || phoneLikeText(candidate) || !/[a-záéíóúüñ]/i.test(candidate) || /^[\W_\d]+$/u.test(candidate) || qualificationResponseMarkers.test(candidate) || genericVehicleIntent.test(candidate) || isVehicleStatement(candidate)) return '';
-  if (candidate.length > 100 || candidate.split(/\s+/).length > 8) return '';
+  if (!candidate || invalidRealNames.has(candidate.toLowerCase()) || phoneLikeText(candidate) || !/[a-záéíóúüñ]/i.test(candidate) || /^[\W_\d]+$/u.test(candidate) || qualificationResponseMarkers.test(candidate) || genericVehicleIntent.test(candidate) || inventoryIntent.test(candidate) || greetingOnly.test(candidate) || isVehicleStatement(candidate)) return '';
+  if (candidate.length > 100 || candidate.split(/\s+/).length > 5) return '';
   return formatPersonalName(candidate);
 };
 const isMessengerChannel = (value) => /(?:^|[^a-z])(?:messenger|facebook)(?:$|[^a-z])/i.test(clean(value));
@@ -202,8 +204,23 @@ const nameFromText = (value) => {
   }
   return '';
 };
+const declaredNameFromText = (value) => {
+  const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter((line) => line && !nonConversationalMetadataLine.test(line));
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const explicit = normalizeRealName(line.match(nameDeclaration)?.[1]);
+    if (explicit) return explicit;
+    if (!/(?:what(?:'s| is)?\s+(?:your|the)\s+name|full\s+name|what\s+should\s+i\s+call|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i.test(line)) continue;
+    const answer = normalizeRealName(lines[index + 1]);
+    if (answer) return answer;
+  }
+  return '';
+};
 const suppliedName = normalizeRealName(inputData.real_name);
-const contactName = normalizeRealName(first(inputData.contact_name, inputData.contactName, inputData.name));
+const profile = inputData.profile && typeof inputData.profile === 'object' ? inputData.profile : {};
+const whatsappProfile = inputData.whatsapp && typeof inputData.whatsapp === 'object' && inputData.whatsapp.profile && typeof inputData.whatsapp.profile === 'object' ? inputData.whatsapp.profile : {};
+const rawContactName = first(inputData.contact_name, inputData.contactName, profile.name, whatsappProfile.name, inputData.name);
+const contactName = isProfileDisplayName(rawContactName) ? '' : normalizeRealName(rawContactName);
 const extractedNames = [
   memoryValue(['real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name', 'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre']),
   nameFromText(rawMessage),
@@ -212,10 +229,11 @@ const extractedNames = [
 const whatsappNames = [
   nameFromText(rawMessage),
   nameFromText(rawHistory),
+  contactName,
   memoryValue(['real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name', 'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre']),
 ];
 const realName = isMessengerChannel(inputData.channel)
-  ? (contactName || suppliedName)
+  ? (contactName || suppliedName || declaredNameFromText(rawMessage) || declaredNameFromText(rawHistory) || extractedNames.map(normalizeRealName).find(Boolean) || '')
   : isWhatsAppChannel(inputData.channel)
     ? whatsappNames.map(normalizeRealName).find(Boolean) || ''
     : ((isBusinessName(suppliedName) || isProfileDisplayName(suppliedName)) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) || '';
