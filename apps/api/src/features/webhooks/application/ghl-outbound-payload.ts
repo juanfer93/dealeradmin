@@ -133,6 +133,7 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
     const isMessengerChannel = /(?:^|[^a-z])(?:messenger|facebook)(?:$|[^a-z])/i.test(channel);
     const normalizedLead = normalizeCollectorInput({
       channel,
+      contact_name: text(lead.name),
       real_name: isMessengerChannel ? text(lead.name) : text(lead.real_name),
       qualification_memory: text(lead.qualification_memory),
       message: text(lead.message),
@@ -200,8 +201,10 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
 
   const normalized = normalizeCollectorInput({
     ...lead,
-    // A generic native GHL payload has no channel-specific identity rule.
-    // Use its contact name; WhatsApp still requires a declared chat name.
+    contact_name: displayName,
+    // Keep profile metadata separate from the message body for both channels;
+    // retain the display name as a custom-field signal for non-WhatsApp GHL
+    // payloads that do not carry a dedicated real_name field.
     real_name: /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(channel) ? lead.real_name : displayName,
   });
   const realName = normalized.real_name || normalizeRealName(lead.name) || 'Lead';

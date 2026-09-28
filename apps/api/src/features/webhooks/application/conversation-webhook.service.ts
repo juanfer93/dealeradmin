@@ -363,7 +363,8 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         // Reconciliation is incremental: feed the previous snapshot back into
         // the normalizer so a partial transcript cannot erase facts already
         // captured by GHL or an earlier poll.
-        real_name: /(?:^|[^a-z])messenger(?:$|[^a-z])/i.test(row.channel) ? contactName : clean(current.real_name),
+        real_name: clean(current.real_name),
+        contact_name: contactName,
         vehicle_type: clean(current.vehicle_type),
         down_payment: clean(current.down_payment),
         purchase_timeline: clean(current.purchase_timeline),
@@ -590,6 +591,9 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
   private normalizeInput(input: unknown, defaultChannel: string, headers: { contactId?: string; conversationId?: string; messageId?: string }): Record<string, unknown> {
     const value = input && typeof input === 'object' && !Array.isArray(input) ? input as Record<string, unknown> : {};
     const nestedContact = value.contact && typeof value.contact === 'object' ? value.contact as Record<string, unknown> : {};
+    const nestedProfile = value.profile && typeof value.profile === 'object' ? value.profile as Record<string, unknown> : {};
+    const nestedWhatsapp = value.whatsapp && typeof value.whatsapp === 'object' ? value.whatsapp as Record<string, unknown> : {};
+    const nestedWhatsappProfile = nestedWhatsapp.profile && typeof nestedWhatsapp.profile === 'object' ? nestedWhatsapp.profile as Record<string, unknown> : {};
     const nestedLocation = value.location && typeof value.location === 'object' ? value.location as Record<string, unknown> : {};
     const customData = value.customData && typeof value.customData === 'object' ? value.customData as Record<string, unknown> : {};
     const nestedMessage = value.message && typeof value.message === 'object' ? value.message as Record<string, unknown> : {};
@@ -628,7 +632,13 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         ?? nativeMessage.text
         ?? value.body,
       contact_phone: value.contact_phone ?? customData.contact_phone ?? nestedContact.phone ?? value.phone,
-      contact_name: value.contact_name ?? customData.contact_name ?? nestedContact.name ?? value.name ?? value.full_name,
+      contact_name: value.contact_name
+        ?? customData.contact_name
+        ?? nestedContact.name
+        ?? nestedProfile.name
+        ?? nestedWhatsappProfile.name
+        ?? value.name
+        ?? value.full_name,
       channel: value.channel ?? customData.channel ?? defaultChannel,
       occurred_at: value.occurred_at ?? value.occurredAt ?? value.date_updated ?? value.dateUpdated,
       message_attachments: attachmentValue,
@@ -721,9 +731,9 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         .join('\n');
       const now = controlledNow ?? currentLocalNow();
       const recentPhone = this.safePhone(extractRecentMessagePhone(evidenceMessages, now));
-      // Messenger requires both independent signals: the phone written in a
-      // recent inbound message and the same phone normalized by GHL. This
-      // prevents a stale contact phone from re-qualifying a returning lead.
+      // Messenger uses the phone written in a recent inbound message. A GHL
+      // contact phone may corroborate it, but must never be the only evidence
+      // because it can be stale when a buyer returns.
       // Stafford's native WhatsApp phone remains the only channel-specific
       // fallback.
       const nativeWhatsappPhone = isStaffordWhatsApp(source, event.channel)
@@ -732,7 +742,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       const normalizedGhlPhone = isStaffordWhatsApp(source, event.channel)
         ? null
         : this.safePhone(event.contact_phone);
-      const verifiedMessengerPhone = normalizedGhlPhone && recentPhone === normalizedGhlPhone
+      const verifiedMessengerPhone = recentPhone && (!normalizedGhlPhone || recentPhone === normalizedGhlPhone)
         ? recentPhone
         : null;
       const eligiblePhone = isStaffordWhatsApp(source, event.channel)
@@ -757,9 +767,8 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         // GHL may send the current contact turn without the earlier identity
         // answer. Keep the persisted name as a fallback, while allowing a
         // fresh Messenger contact name or WhatsApp declaration to win.
-        real_name: /(?:^|[^a-z])messenger(?:$|[^a-z])/i.test(event.channel)
-          ? (displayName.toLowerCase() === 'lead' ? previousRealName : displayName)
-          : previousRealName || undefined,
+        real_name: previousRealName || undefined,
+        contact_name: displayName,
         message: transcript,
         chat_history_log: transcript,
         phone: eligiblePhone,

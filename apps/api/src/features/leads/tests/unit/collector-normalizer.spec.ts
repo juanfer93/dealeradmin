@@ -1785,6 +1785,34 @@ describe('normalizeCollectorInput', () => {
     expect(result.qualification_memory).toBe('vehicle: Quiere hablar con un asesor');
   });
 
+  it('keeps Messenger identity in profile metadata instead of the intent message', () => {
+    const result = normalizeCollectorInput({
+      channel: 'messenger',
+      contact_name: 'Juan Perez',
+      message: 'Can I See Inventory',
+      chat_history_log: 'Can I See Inventory',
+    });
+
+    expect(result.real_name).toBe('Juan Perez');
+    expect(result.real_name).not.toContain('Inventory');
+  });
+
+  it('uses the WhatsApp profile name when the inbound body is only a greeting', () => {
+    expect(normalizeCollectorInput({
+      channel: 'whatsapp',
+      profile: { name: 'Juan Perez' },
+      message: 'Buenos Días Bendiciones',
+    }).real_name).toBe('Juan Perez');
+  });
+
+  it.each([
+    'Can I See Inventory',
+    'Buenos Días Bendiciones',
+    'Ana María López García Hernández Rivera',
+  ])('rejects non-name text from becoming real_name: %s', (message) => {
+    expect(normalizeCollectorInput({ channel: 'whatsapp', message }).real_name).toBe('');
+  });
+
   it('does not treat a document confirmation as bank-account confirmation', () => {
     const result = normalizeCollectorInput({
       message: 'Sí, sí tengo',

@@ -4,6 +4,11 @@ export type CollectorInput = {
   source?: string | null;
   channel?: string | null;
   real_name?: string | null;
+  /** Contact/profile metadata, kept separate from the message body. */
+  contact_name?: string | null;
+  contactName?: string | null;
+  name?: string | null;
+  profile?: { name?: string | null } | null;
   message?: string | null;
   phone?: string | null;
   vehicle_type?: string | null;
@@ -285,13 +290,17 @@ function recoverStaffordPreviousFinancing(rawHistory: string, policy: CollectorF
 // as the lead's real name.
 const INVALID_REAL_NAMES = new Set([
   '.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'location', 'whatsapp', 'facebook',
-  'saludos', 'hello', 'hi', 'hey', 'hola', 'ola', 'greetings', 'thu chikitha linda',
+  'saludos', 'hello', 'hi', 'hey', 'hola', 'ola', 'greetings', 'buenos dias', 'buenas tardes',
+  'buenas noches', 'bendiciones', 'buenos dias bendiciones', 'buenas tardes bendiciones', 'buenas noches bendiciones',
+  'thu chikitha linda',
   'información', 'informacion', 'más información', 'mas informacion', 'más info', 'mas info',
   'more information', 'more info', 'details', 'detalles',
 ]);
 const BUSINESS_NAME_MARKERS = /\b(?:auto\s*sales|motors?|dealership|dealer|llc|inc(?:orporated)?|corp(?:oration)?|company|tatuajes?|tattoos?|operaciones?|operations?|transport(?:ation)?|logistics|construction|remodeling|roofing|realty|consulting|services?|servicios?|shop|tienda|salon|barbershop|restaurant)\b/i;
 const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|baltimore|maryland|where are you located|where are you|what|which|how|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|qué|que|ubicaci[oó]n|ubicados?|cu[aá]l(?:\s+ser[ií]a)?|ser[ií]a|gracias|thank you|thank|vehicle|car|auto|carro|coche|veh[ií]culo|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|sim|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
 const GENERIC_VEHICLE_INTENT = /\b(?:need|needs|looking\s+for|want|wants|seeking|shopping\s+for|trying\s+to\s+find|necesito|busco|buscando|quiero|me\s+interesa)\b[\s\S]*\b(?:vehicle|car|auto|carro|coche|veh[ií]culo|truck|suv|sedan|van|camioneta|pickup|pick-up)\b/i;
+const INVENTORY_INTENT = /\b(?:inventory|inventario|see\s+(?:the\s+)?inventory|can\s+i\s+see|show\s+me|mu[eé]strame|ver\s+(?:el\s+)?inventario)\b/i;
+const GREETING_ONLY = /^(?:buenos\s+d[ií]as|buenas\s+tardes|buenas\s+noches|saludos|hello|hi|hey|hola|ola|greetings)(?:[,.!?\s]+bendiciones)?[,.!?\s]*$/i;
 const SINGLE_WORD_NAME_BLOCKLIST = /^(?:ok(?:ay)?|si|s[ií]|sim|yes|no|yeah|yep|correct|cash|today|hoy|now|ahora|asap|inmediato|need|vehicle|car|auto|carro|coche|veh[ií]culo|requirements?|requisitos?|information|informaci[oó]n|details?|detalles?|location|baltimore|maryland|virginia|laurel|rosedale|sterling|elkton|manda|nada|bale|vale|ubicaci[oó]n|ubicasion|tacoma|toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion|mustang|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|maverick|ranger|bronco|explorer|expedition|escape|edge|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|range rover|defender|rlx|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|financiar|finance|financing|down|payment|enganche|documents?|documentos?|identificaci[oó]n|income|ingresos|proof|prueba|phone|tel[eé]fono|number|n[uú]mero)$/i;
 const NAME_DECLARATION = /(?:me llamo|mi nombre es|soy|yo soy|my name is|my name['’]s|i am|i['’]m|this is|call me(?!\s+at\b)|ll[aá]mame)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i;
 const PHONE_LIKE_TEXT = /\b(?:mi|my)\s+(?:n[uú]mero|number|phone|tel[eé]fono|telephone|contact)\b/i;
@@ -428,8 +437,8 @@ export function normalizeRealName(value: string | null | undefined): string {
   // Qualification answers can look like names (for example "En este mes").
   // Never promote a timeline, location, vehicle category, or yes/no answer
   // into the contact's real name.
-  if (QUALIFICATION_RESPONSE_MARKERS.test(candidate) || GENERIC_VEHICLE_INTENT.test(candidate) || isVehicleStatement(candidate)) return EMPTY;
-  if (candidate.length > 100 || candidate.split(/\s+/).length > 8) return EMPTY;
+  if (QUALIFICATION_RESPONSE_MARKERS.test(candidate) || GENERIC_VEHICLE_INTENT.test(candidate) || INVENTORY_INTENT.test(candidate) || GREETING_ONLY.test(candidate) || isVehicleStatement(candidate)) return EMPTY;
+  if (candidate.length > 100 || candidate.split(/\s+/).length > 5) return EMPTY;
   return formatPersonalName(candidate);
 }
 
@@ -482,6 +491,34 @@ function extractRealNameFromText(value: string): string {
     if (name) return name;
   }
   return EMPTY;
+}
+
+/** Text is an identity source for Messenger only when it is an explicit name declaration or answer. */
+function extractDeclaredRealNameFromText(value: string): string {
+  const lines = String(value ?? '')
+    .replace(/\r\n?/g, '\n')
+    .split(/\n+/)
+    .map(clean)
+    .filter((line) => line && !NON_CONVERSATIONAL_METADATA_LINE.test(line));
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const explicit = normalizeRealName(line.match(NAME_DECLARATION)?.[1]);
+    if (explicit) return explicit;
+    if (!/(?:what(?:'s| is)?\s+(?:your|the)\s+name|full\s+name|what\s+should\s+i\s+call|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i.test(line)) continue;
+    const answer = normalizeRealName(lines[index + 1]);
+    if (answer) return answer;
+  }
+  return EMPTY;
+}
+
+function profileNameFromInput(input: CollectorInput): string {
+  const candidate = firstNonEmpty(
+    input.contact_name,
+    input.contactName,
+    input.profile?.name,
+    input.name,
+  );
+  return isLikelyProfileDisplayName(candidate) ? EMPTY : normalizeRealName(candidate);
 }
 
 export function realNameFromQualificationMemory(memory: string | null | undefined): string {
@@ -1046,6 +1083,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const campaignReply = isCampaignButton(message);
   const messageForExtraction = stripCampaignButtonPhrases(rawMessage);
   const suppliedName = normalizeRealName(input.real_name);
+  const profileName = profileNameFromInput(input);
   const extractedNames = [
     realNameFromQualificationMemory(memory),
     extractRealNameFromText(rawMessage),
@@ -1054,15 +1092,24 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const whatsappNames = [
     extractRealNameFromText(rawMessage),
     extractRealNameFromText(rawHistory),
+    profileName,
     realNameFromQualificationMemory(memory),
   ];
+  const messengerTextName = [
+    extractDeclaredRealNameFromText(rawMessage),
+    extractDeclaredRealNameFromText(rawHistory),
+    ...extractedNames,
+  ].map(normalizeRealName).find(Boolean) ?? EMPTY;
+  const messengerProfileName = profileName || suppliedName;
   const realName = isMessengerChannel(input.channel)
-    // Prefer an explicit name from the conversation. Messenger's profile label
-    // remains the fallback, because it can be a business label or a stale
-    // workflow response rather than the buyer's actual name.
-    ? extractedNames.map(normalizeRealName).find(Boolean) ?? suppliedName
+    // A valid contact/profile name is authoritative. Message text may replace
+    // only a business/technical label, or answer an explicit name prompt.
+    ? (messengerProfileName && !isLikelyBusinessName(messengerProfileName)
+      ? messengerProfileName
+      : messengerTextName || messengerProfileName)
     : isWhatsAppChannel(input.channel)
-      // WhatsApp gets a real name only from a declared/repeated name in chat.
+      // WhatsApp gets a declared chat name first, then the profile name. The
+      // message body and profile are separate fields in the webhook contract.
       ? whatsappNames.map(normalizeRealName).find(Boolean) ?? EMPTY
       : (isLikelyBusinessName(suppliedName) || isLikelyProfileDisplayName(suppliedName)
         ? [...extractedNames, suppliedName]
