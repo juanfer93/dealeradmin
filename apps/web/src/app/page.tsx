@@ -40,14 +40,14 @@ function Reveal({ children, className = '', delay = 0 }: { children: ReactNode; 
   return <div ref={ref} className={`landing-reveal ${visible ? 'landing-reveal-visible' : ''} ${className}`} style={{ '--landing-delay': `${delay}ms` } as CSSProperties}>{children}</div>;
 }
 
-function ProductFrame({ src, alt, compact = false }: { src: string; alt: string; compact?: boolean }) {
+function ProductFrame({ src, alt, compact = false, chromeLabel = 'cola de leads' }: { src: string; alt: string; compact?: boolean; chromeLabel?: string }) {
   return (
     <div className={`overflow-hidden rounded-[18px] border border-[#17261f]/15 bg-[#17261f] p-2 shadow-[0_24px_70px_rgba(20,48,37,0.16)] transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_30px_80px_rgba(20,48,37,0.2)] ${compact ? 'max-w-[420px]' : ''}`}>
       <div className="flex items-center gap-1.5 px-3 py-2">
         <span className="h-2 w-2 rounded-full bg-[#e77b65]" />
         <span className="h-2 w-2 rounded-full bg-[#e3b85c]" />
         <span className="h-2 w-2 rounded-full bg-[#68c58d]" />
-        <span className="ml-2 truncate text-[10px] text-[#a9bbb2]">dealerADMIN / cola de leads</span>
+        <span className="ml-2 truncate text-[10px] text-[#a9bbb2]">dealerADMIN / {chromeLabel}</span>
       </div>
       <div className="overflow-hidden rounded-[11px] bg-[#f7f9f7]">
         <Image src={src} alt={alt} width={1280} height={900} className="block h-auto w-full" priority={!compact} />
@@ -139,7 +139,7 @@ export default function HomePage() {
         </Reveal>
       </section>
 
-      <section id="how-it-works" className="mx-auto max-w-7xl px-5 py-24 sm:px-8 lg:px-10 lg:py-32">
+      <section className="mx-auto max-w-7xl px-5 py-24 sm:px-8 lg:px-10 lg:py-32">
         <Reveal>
         <div className="grid gap-12 lg:grid-cols-[0.6fr_1.4fr] lg:gap-20">
           <div className="max-w-md">
@@ -154,7 +154,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="grid items-center gap-8 rounded-[18px] border border-[#d6ded8] bg-white p-4 shadow-[0_18px_50px_rgba(20,48,37,0.07)] sm:p-6 lg:grid-cols-[1.05fr_0.95fr] lg:p-7">
-            <div key={activeFeature} className="landing-feature-image"><ProductFrame src={featureImage.src} alt={featureImage.alt} compact /></div>
+            <div key={activeFeature} className="landing-feature-image"><ProductFrame src={featureImage.src} alt={featureImage.alt} chromeLabel={feature[0].toLowerCase()} compact /></div>
             <div className="max-w-sm">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#147d69]">{feature[3]}</p>
               <h3 className="mt-4 text-2xl font-semibold leading-tight tracking-[-0.04em]">{feature[1]}</h3>
@@ -166,7 +166,7 @@ export default function HomePage() {
         </Reveal>
       </section>
 
-      <section className="bg-[#17261f] text-[#f4f7f4]">
+      <section id="how-it-works" className="bg-[#17261f] text-[#f4f7f4]">
         <Reveal>
         <div className="mx-auto max-w-7xl px-5 py-24 sm:px-8 lg:px-10 lg:py-28">
           <div className="flex flex-col justify-between gap-8 lg:flex-row lg:items-end">
