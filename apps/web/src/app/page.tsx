@@ -3,141 +3,221 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { CSSProperties, ReactNode, useEffect, useRef, useState } from 'react';
+import { LanguageSwitch, useLanguage } from '../lib/i18n';
 import { Logo } from '../components/ui/logo';
-import { LanguageSwitch, VERIFIED_STACK, useLanguage } from '../lib/i18n';
 
-type FlowStage = 'collector' | 'ghl' | 'api' | 'queue';
-type CapabilityIconName = 'capture' | 'media' | 'route' | 'deliver';
-type Capture = readonly [string, string, string, string];
+type FeatureKey = 'capture' | 'understand' | 'decide' | 'deliver';
 
-function Reveal({ children, delay = 0, className = '' }: { children: ReactNode; delay?: number; className?: string }) {
+const featureImages: Record<FeatureKey, { src: string; alt: string }> = {
+  capture: { src: '/captures/manual-lead.png', alt: 'Entrada manual de lead en dealerADMIN' },
+  understand: { src: '/captures/reports.png', alt: 'Reportes de leads en dealerADMIN' },
+  decide: { src: '/captures/lead-queue.png', alt: 'Cola operativa de leads en dealerADMIN' },
+  deliver: { src: '/captures/lead-queue.png', alt: 'Lead listo para entrega en dealerADMIN' },
+};
+
+const featureKeys: FeatureKey[] = ['capture', 'understand', 'decide', 'deliver'];
+
+function Reveal({ children, className = '', delay = 0 }: { children: ReactNode; className?: string; delay?: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
+
   useEffect(() => {
     const element = ref.current;
-    if (!element || typeof IntersectionObserver === 'undefined') { setVisible(true); return undefined; }
-    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) { setVisible(true); observer.disconnect(); } }, { threshold: 0.12, rootMargin: '0px 0px -48px 0px' });
+    if (!element || typeof IntersectionObserver === 'undefined') {
+      setVisible(true);
+      return undefined;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setVisible(true);
+        observer.disconnect();
+      }
+    }, { threshold: 0.14, rootMargin: '0px 0px -42px 0px' });
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
-  return <div ref={ref} className={`landing-reveal ${visible ? 'landing-reveal-visible' : ''} ${className}`} style={{ '--reveal-delay': `${delay}ms` } as CSSProperties}>{children}</div>;
+
+  return <div ref={ref} className={`landing-reveal ${visible ? 'landing-reveal-visible' : ''} ${className}`} style={{ '--landing-delay': `${delay}ms` } as CSSProperties}>{children}</div>;
 }
 
-function CapabilityIcon({ name }: { name: CapabilityIconName }) {
-  const common = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
-  if (name === 'capture') return <svg viewBox="0 0 24 24" aria-hidden="true" {...common}><path d="M4 7.5h16v12H4z" /><path d="M8 7.5 9.5 4h5L16 7.5M8 13h8M8 16h5" /></svg>;
-  if (name === 'media') return <svg viewBox="0 0 24 24" aria-hidden="true" {...common}><rect x="3.5" y="5" width="17" height="14" rx="2" /><circle cx="8.5" cy="10" r="1.3" /><path d="m5.5 16 4-4 3 3 2-2 4 3M17.5 4v3M19 5.5h-3" /></svg>;
-  if (name === 'route') return <svg viewBox="0 0 24 24" aria-hidden="true" {...common}><circle cx="6" cy="6" r="2.5" /><circle cx="18" cy="18" r="2.5" /><path d="M8.5 6h3a3 3 0 0 1 3 3v3a3 3 0 0 0 3 3h.5M16 12l2 3 2-3" /></svg>;
-  return <svg viewBox="0 0 24 24" aria-hidden="true" {...common}><path d="M5 7.5h14v11H5z" /><path d="M8 7.5V5h8v2.5M8 12h8M8 15h5" /><path d="m17 16 2 2 3-4" /></svg>;
-}
-
-function MediaProcessingPanel() {
-  const { t } = useLanguage();
-  const bars = [28, 48, 34, 68, 42, 76, 54, 35, 62, 44, 70, 32, 50, 38, 64, 46];
-  return <div className="rounded-[14px] border border-[#5ED5AA]/25 bg-[#16382E] p-5 shadow-[0_18px_45px_rgba(0,0,0,0.18)] sm:p-6">
-    <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#5ED5AA]">{t.landing.mediaPanel.eyebrow}</p><h3 className="mt-3 max-w-sm text-xl font-semibold leading-tight tracking-[-0.03em] text-[#F1F7F4]">{t.landing.mediaPanel.title}</h3></div><span className="rounded-full border border-[#5ED5AA]/30 px-2.5 py-1 text-[10px] font-semibold text-[#BFEADB]">ASR · OCR</span></div>
-    <div className="mt-7 space-y-3">
-      <div className="rounded-[10px] border border-white/10 bg-[#10251D] p-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#5ED5AA]/15 text-[#5ED5AA]"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path strokeLinecap="round" d="M5 13v-2M8 16V8M11 18V6M14 15V9M17 13v-2M20 12h-1" /></svg></span><div><p className="text-sm font-semibold text-[#F1F7F4]">{t.landing.mediaPanel.audio[0]}</p><p className="mt-0.5 text-xs text-[#AFC1B9]">{t.landing.mediaPanel.audio[1]}</p></div><div className="ml-auto flex h-7 items-center gap-0.5" aria-hidden="true">{bars.map((height, index) => <span key={index} className="w-0.5 rounded-full bg-[#5ED5AA]/75" style={{ height: `${height}%` }} />)}</div></div></div>
-      <div className="rounded-[10px] border border-white/10 bg-[#10251D] p-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#5ED5AA]/15 text-[#5ED5AA]"><CapabilityIcon name="media" /></span><div><p className="text-sm font-semibold text-[#F1F7F4]">{t.landing.mediaPanel.image[0]}</p><p className="mt-0.5 text-xs text-[#AFC1B9]">{t.landing.mediaPanel.image[1]}</p></div><span className="ml-auto rounded-[4px] border border-white/10 px-2 py-1 text-[10px] font-semibold text-[#D8EEE5]">evidence</span></div></div>
+function ProductFrame({ src, alt, compact = false }: { src: string; alt: string; compact?: boolean }) {
+  return (
+    <div className={`overflow-hidden rounded-[18px] border border-[#17261f]/15 bg-[#17261f] p-2 shadow-[0_24px_70px_rgba(20,48,37,0.16)] transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_30px_80px_rgba(20,48,37,0.2)] ${compact ? 'max-w-[420px]' : ''}`}>
+      <div className="flex items-center gap-1.5 px-3 py-2">
+        <span className="h-2 w-2 rounded-full bg-[#e77b65]" />
+        <span className="h-2 w-2 rounded-full bg-[#e3b85c]" />
+        <span className="h-2 w-2 rounded-full bg-[#68c58d]" />
+        <span className="ml-2 truncate text-[10px] text-[#a9bbb2]">dealerADMIN / cola de leads</span>
+      </div>
+      <div className="overflow-hidden rounded-[11px] bg-[#f7f9f7]">
+        <Image src={src} alt={alt} width={1280} height={900} className="block h-auto w-full" priority={!compact} />
+      </div>
     </div>
-    <p className="mt-5 text-xs leading-5 text-[#C1D8CD]">{t.landing.mediaPanel.note}</p>
-  </div>;
+  );
 }
 
-function MonthlyReportsPanel() {
-  const { language } = useLanguage();
-  const copy = language === 'es'
-    ? { eyebrow: 'Automatización mensual', title: 'Reportes en Excel, listos el día 1.', detail: 'El envío mensual ya está configurado: dealerADMIN genera el reporte y lo envía automáticamente con los leads del periodo.', badge: 'Configurado' }
-    : { eyebrow: 'Monthly automation', title: 'Excel reports, ready on day 1.', detail: 'Monthly delivery is already configured: dealerADMIN generates the report and sends it automatically with the period leads.', badge: 'Configured' };
-  return <div className="mt-4 rounded-[14px] border border-[#5ED5AA]/25 bg-[#16382E] p-5 shadow-[0_18px_45px_rgba(0,0,0,0.14)] sm:p-6">
-    <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#5ED5AA]">{copy.eyebrow}</p><h3 className="mt-3 max-w-sm text-xl font-semibold leading-tight tracking-[-0.03em] text-[#F1F7F4]">{copy.title}</h3></div><span className="rounded-full border border-[#5ED5AA]/35 bg-[#5ED5AA]/10 px-2.5 py-1 text-[10px] font-semibold text-[#BFEADB]">{copy.badge}</span></div>
-    <div className="mt-5 flex items-center gap-3 rounded-[10px] border border-white/10 bg-[#10251D] px-4 py-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] bg-[#5ED5AA]/15 text-[#5ED5AA]" aria-hidden="true"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="4" y="5" width="16" height="15" rx="2" /><path strokeLinecap="round" d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h5" /></svg></span><p className="text-xs leading-5 text-[#C1D8CD]">{copy.detail}</p></div>
-  </div>;
-}
-
-function FlowDiagram() {
-  const { language, t } = useLanguage();
-  const [activeStage, setActiveStage] = useState<FlowStage>('collector');
-  const flow = language === 'es'
-    ? { collector: ['01 · Mensaje', 'Customer Replied', 'Activa la captura, normaliza el teléfono cuando hace falta y envía el evento firmado.', 'Mensaje listo'], ghl: ['02 · Webhook', 'Webhook GHL', 'Entrega Contact ID, conversación, contenido, nombre, teléfono y canal.', 'Evento recibido'], api: ['03 · Backend', 'Backend dealerADMIN', 'Guarda, deduplica, reconstruye, normaliza y enruta la conversación.', 'Procesado + auditable'], queue: ['04 · DealerADMIN', 'Cola de leads', 'La hora de Colombia, la ventana y el routing deciden cuándo aparece el lead.', 'Acción del operador pendiente'] }
-    : { collector: ['01 · Message', 'Customer Replied', 'Activates capture, normalizes the phone when needed, and sends the signed event.', 'Message ready'], ghl: ['02 · Webhook', 'GHL webhook', 'Delivers Contact ID, conversation, content, name, phone, and channel.', 'Event received'], api: ['03 · Backend', 'dealerADMIN backend', 'Stores, deduplicates, rebuilds, normalizes, and routes the conversation.', 'Processed + auditable'], queue: ['04 · dealerADMIN', 'Lead queue', 'Colombia time, the timing window, and routing decide when the lead appears.', 'Operator action pending'] };
-  const active = flow[activeStage];
-  return <div className="landing-flow rounded-[14px] border border-white/10 bg-[#17231D]/95 p-4 shadow-[0_22px_60px_rgba(0,0,0,0.28)] sm:p-6">
-    <div className="mb-6 flex items-center justify-between gap-4 text-xs"><span className="font-semibold text-[#F1F7F4]">{t.landing.liveModel}</span><span className="inline-flex items-center gap-2 text-[#AFC1B9]"><span className="h-2 w-2 rounded-full bg-[#5ED5AA]" />{t.landing.signedPath}</span></div>
-    <div className="relative grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-2"><div className="pointer-events-none absolute left-[12%] right-[12%] top-[74px] hidden h-px bg-[#5ED5AA]/30 lg:block" aria-hidden="true" />{(['collector', 'ghl', 'api', 'queue'] as FlowStage[]).map((stage) => { const item = flow[stage]; const isActive = activeStage === stage; return <button key={stage} type="button" onClick={() => setActiveStage(stage)} aria-pressed={isActive} className={`relative z-10 min-h-[150px] rounded-[12px] border p-4 text-left transition-[background-color,border-color,transform,box-shadow] duration-200 ${isActive ? 'border-[#5ED5AA]/70 bg-[#193A30] -translate-y-0.5 shadow-[0_12px_30px_rgba(0,0,0,0.16)]' : 'border-white/10 bg-[#111815] hover:-translate-y-px hover:border-white/25'}`}><span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5ED5AA]">{item[0]}</span><span className="mt-3 block text-[13px] font-semibold leading-5 text-[#F1F7F4]">{item[1]}</span><span className="mt-2 block text-xs leading-5 text-[#AFC1B9]">{item[3]}</span></button>; })}</div>
-    <div className="mt-4 rounded-[10px] border border-white/10 bg-[#111815] px-4 py-3" aria-live="polite"><p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5ED5AA]">{active[0]}</p><p className="mt-1 text-[13px] leading-5 text-[#F1F7F4]">{active[2]}</p></div>
-  </div>;
-}
-
-function QueuedPausePanel() {
-  const { language } = useLanguage();
-  const copy = language === 'es'
-    ? { eyebrow: 'Pausa individual', title: 'Cuando entra en queued, el control cambia de manos.', detail: 'dealerADMIN emite un solo webhook después del commit de BD. GHL comprueba queued = true y status = queued, y desactiva el bot únicamente para el contactId y conversationId recibidos durante 24 horas.', proof: 'No se repite por cada mensaje ni si la conversación ya estaba queued.' }
-    : { eyebrow: 'Individual pause', title: 'When it enters queued, control changes hands.', detail: 'dealerADMIN emits one webhook after the database commit. GHL checks queued = true and status = queued, then disables the bot only for the received contactId and conversationId for 24 hours.', proof: 'It does not repeat for every message or when the conversation is already queued.' };
-  return <div className="mt-4 rounded-[12px] border border-[#5ED5AA]/25 bg-[#16382E] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.18)] sm:p-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#5ED5AA]">{copy.eyebrow}</p><h3 className="mt-2 max-w-xl text-[14px] font-semibold leading-5 text-[#F1F7F4]">{copy.title}</h3><p className="mt-2 max-w-2xl text-[13px] leading-5 text-[#C1D8CD]">{copy.detail}</p></div><span className="shrink-0 rounded-[5px] border border-[#5ED5AA]/30 px-2.5 py-1.5 text-[10px] font-semibold text-[#BFEADB]">24 h</span></div><p className="mt-4 border-t border-white/10 pt-3 text-xs leading-5 text-[#AFC1B9]">{copy.proof}</p></div>;
-}
-
-function BackendWorkflowDiagram() {
-  const { language, t } = useLanguage();
-  const source = language === 'es' ? { title: 'Customer Replied', detail: 'Un workflow por fuente activa la captura y entrega el evento firmado.' } : { title: 'Customer Replied', detail: 'One workflow per source activates capture and delivers the signed event.' };
-  return <div className="rounded-[14px] border border-white/10 bg-[#17231D] p-4 shadow-[0_22px_60px_rgba(0,0,0,0.22)] sm:p-6"><div className="flex flex-col gap-4 rounded-[10px] border border-[#5ED5AA]/30 bg-[#193A30] p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5ED5AA]">{language === 'es' ? 'Entrada GHL' : 'GHL intake'}</p><h3 className="mt-2 text-sm font-semibold text-[#F1F7F4]">{source.title}</h3></div><p className="max-w-md text-xs leading-5 text-[#C1D8CD]">{source.detail}</p></div><div className="my-5 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5ED5AA]"><span className="h-px flex-1 bg-[#5ED5AA]/30" />{language === 'es' ? 'Después de GHL' : 'After GHL'}<span className="h-px flex-1 bg-[#5ED5AA]/30" /></div><div className="grid gap-px overflow-hidden rounded-[10px] border border-white/10 bg-white/10 sm:grid-cols-2 lg:grid-cols-3">{t.landing.workflowSteps.map(([number, title, detail]) => <article key={number} className="min-h-[142px] bg-[#111815] p-4"><span className="text-xs font-semibold tracking-[0.12em] text-[#5ED5AA]">{number}</span><h3 className="mt-3 text-sm font-semibold text-[#F1F7F4]">{title}</h3><p className="mt-2 text-xs leading-5 text-[#AFC1B9]">{detail}</p></article>)}</div></div>;
-}
-
-function CaptureCard({ capture, featured = false }: { capture: Capture; featured?: boolean }) {
-  const [title, detail, src, alt] = capture;
-  const isManualCapture = src.includes('manual-lead');
-  return <article className={`h-full overflow-hidden rounded-[12px] border border-white/10 bg-[#17231D] transition-[transform,border-color] duration-200 hover:-translate-y-1 hover:border-white/25 ${featured ? 'shadow-[0_22px_60px_rgba(0,0,0,0.24)]' : ''}`}><div className={`overflow-hidden border-b border-white/10 bg-[#0D1310] p-2 ${isManualCapture ? 'flex h-[260px] items-center justify-center bg-[#6f7372] sm:h-[310px]' : ''}`}><Image src={src} alt={alt} width={1280} height={900} className={isManualCapture ? 'h-full w-auto max-w-full object-contain' : 'h-auto w-full rounded-[6px]'} loading="lazy" /></div><div className="p-5"><h3 className="text-base font-semibold text-[#F1F7F4]">{title}</h3><p className="mt-2 text-sm leading-6 text-[#AFC1B9]">{detail}</p></div></article>;
+function Arrow() {
+  return <span aria-hidden="true" className="text-[#1a8b75]">→</span>;
 }
 
 export default function HomePage() {
   const { language, t } = useLanguage();
-  const plainLanguage = language === 'es'
-    ? {
-        eyebrow: 'Para cualquier persona',
-        title: '¿Qué hace dealerADMIN por tu operación?',
-        description: 'Convierte conversaciones desordenadas en trabajo listo para actuar, sin que el equipo tenga que copiar datos entre herramientas.',
-        steps: [
-          ['1', 'Recibe todo', 'Lee mensajes, audios, fotos y documentos que envían los clientes.'],
-          ['2', 'Entiende el contexto', 'Transcribe audios y revisa imágenes para reconocer vehículos, teléfonos y documentos.'],
-          ['3', 'Organiza el lead', 'Ordena la información, identifica el tipo de vehículo y lo asigna al dealer correcto.'],
-          ['4', 'Te deja la siguiente acción', 'Muestra una cola clara, prepara el handoff y genera reportes para la operación.'],
-        ],
-      }
-    : {
-        eyebrow: 'For everyone',
-        title: 'What does dealerADMIN do for your operation?',
-        description: 'It turns messy conversations into work that is ready for action, without making the team copy data between tools.',
-        steps: [
-          ['1', 'Receives everything', 'Reads customer messages, audio, photos, and documents.'],
-          ['2', 'Understands the context', 'Transcribes audio and reviews images to recognize vehicles, phone numbers, and documents.'],
-          ['3', 'Organizes the lead', 'Structures the information, identifies the vehicle type, and routes it to the right dealer.'],
-          ['4', 'Shows the next action', 'Keeps a clear queue, prepares the handoff, and generates operational reports.'],
-        ],
-      };
-  const stackGroups: ReadonlyArray<readonly [string, readonly string[]]> = language === 'es'
-    ? [['Aplicación', VERIFIED_STACK.slice(0, 5)], ['Datos y entrega', VERIFIED_STACK.slice(5, 10)], ['Media local', VERIFIED_STACK.slice(10, 15)], ['Seguridad', VERIFIED_STACK.slice(15)]]
-    : [['Application', VERIFIED_STACK.slice(0, 5)], ['Data and delivery', VERIFIED_STACK.slice(5, 10)], ['Local media', VERIFIED_STACK.slice(10, 15)], ['Security', VERIFIED_STACK.slice(15)]];
-  return <main className="min-h-screen overflow-hidden bg-[#111815] text-[#F1F7F4]">
-    <header className="mx-auto flex max-w-7xl items-center justify-between border-b border-white/10 px-5 py-4 sm:px-8 lg:px-10"><Link href="/" className="flex items-center gap-3" aria-label="dealerADMIN home"><Logo size={34} /><span className="text-[15px] font-semibold tracking-[-0.02em]">dealerADMIN</span></Link><nav className="flex items-center gap-3 text-xs text-[#AFC1B9] sm:gap-7" aria-label={t.landing.howItWorks}><a href="#capabilities" className="hidden transition-colors hover:text-[#F1F7F4] sm:inline">{t.landing.howItWorks}</a><a href="#flow" className="hidden transition-colors hover:text-[#F1F7F4] sm:inline">{t.landing.caseStudy}</a><LanguageSwitch dark /><Link href="/login" className="transition-colors hover:text-[#F1F7F4]">{t.landing.signIn}</Link><Link href="/app" className="rounded-[6px] bg-[#5ED5AA] px-3.5 py-2.5 font-semibold text-[#0B0F0D] transition-colors hover:bg-[#7AE1BF]">{t.landing.openConsole}</Link></nav></header>
+  const [activeFeature, setActiveFeature] = useState<FeatureKey>('decide');
+  const [activeFlow, setActiveFlow] = useState(2);
+  const isSpanish = language === 'es';
+  const feature = t.landing.capabilities[featureKeys.indexOf(activeFeature)];
+  const featureImage = featureImages[activeFeature];
+  const flow = isSpanish
+    ? [
+        ['01', 'Captura', 'Customer Replied inicia la entrada.'],
+        ['02', 'Entiende', 'Texto, audio e imagen se convierten en contexto.'],
+        ['03', 'Decide', 'El backend normaliza y resuelve el dealer.'],
+        ['04', 'Entrega', 'La cola deja la siguiente acción lista.'],
+      ]
+    : [
+        ['01', 'Capture', 'Customer Replied starts the intake.'],
+        ['02', 'Understand', 'Text, audio, and images become context.'],
+        ['03', 'Decide', 'The backend normalizes and resolves the dealer.'],
+        ['04', 'Deliver', 'The queue leaves the next action ready.'],
+      ];
 
-    <section className="landing-grid relative mx-auto max-w-7xl px-5 pb-20 pt-24 sm:px-8 sm:pb-24 sm:pt-32 lg:px-10 lg:pb-28"><div className="flex flex-col items-start gap-12 lg:gap-16"><div className="relative z-10"><p className="landing-rise landing-rise-1 mb-6 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#5ED5AA]">{t.landing.heroEyebrow}</p><h1 className="landing-rise landing-rise-2 max-w-[680px] text-[clamp(2.75rem,4.5vw,4.75rem)] font-semibold leading-[0.98] tracking-[-0.065em]">{t.landing.heroTitle}</h1><div className="landing-rise landing-rise-3"><p className="mt-7 max-w-xl text-base leading-7 text-[#AFC1B9]">{t.landing.heroDescription}</p><div className="mt-9 flex flex-wrap items-center gap-3"><Link href="/app" className="rounded-[7px] bg-[#5ED5AA] px-5 py-3.5 text-sm font-semibold text-[#0B0F0D] transition-[background-color,transform] duration-150 hover:bg-[#7AE1BF] active:scale-[0.98]">{t.landing.openOperator}</Link><a href="#capabilities" className="rounded-[7px] border border-white/15 px-5 py-3.5 text-sm font-semibold text-[#F1F7F4] transition-colors hover:border-white/35">{t.landing.seeFlow}</a></div><p className="mt-6 text-xs text-[#7F948A]">{t.landing.trustLine}</p></div></div><div id="flow" className="landing-rise landing-rise-2 relative z-10 w-full scroll-mt-8"><FlowDiagram /><QueuedPausePanel /></div></div></section>
+  return (
+    <main className="landing-page min-h-screen overflow-hidden bg-[#f6f5f0] text-[#17261f]">
+      <header className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8 lg:px-10">
+        <Link href="/" className="flex items-center gap-3" aria-label="dealerADMIN home">
+          <Logo size={34} />
+          <span className="text-[15px] font-semibold tracking-[-0.03em]">dealerADMIN</span>
+        </Link>
+        <nav className="flex items-center gap-3 text-xs text-[#64746d] sm:gap-6" aria-label="Main navigation">
+          <a href="#how-it-works" className="hidden transition-colors hover:text-[#17261f] sm:inline">{isSpanish ? 'Cómo funciona' : 'How it works'}</a>
+          <a href="#proof" className="hidden transition-colors hover:text-[#17261f] sm:inline">{isSpanish ? 'Qué resuelve' : 'What it solves'}</a>
+          <LanguageSwitch />
+          <Link href="/login" className="hidden transition-colors hover:text-[#17261f] sm:inline">{t.landing.signIn}</Link>
+          <Link href="/app" className="rounded-[8px] bg-[#147d69] px-3.5 py-2.5 font-semibold text-white shadow-[0_7px_18px_rgba(20,125,105,0.18)] transition-[background-color,transform] duration-150 hover:-translate-y-px hover:bg-[#106b5a]">{t.landing.openConsole}</Link>
+        </nav>
+      </header>
 
-    <section className="landing-rise landing-rise-section-1 border-y border-white/10 bg-[#0D1310]" aria-label={t.landing.principlesLabel}><div className="mx-auto grid max-w-7xl gap-px bg-white/10 sm:grid-cols-3">{t.landing.principles.map(([title, detail], index) => <Reveal key={title} delay={index * 70}><div className="h-full bg-[#0D1310] px-5 py-8 sm:px-8 lg:px-10"><h2 className="text-sm font-semibold text-[#F1F7F4]">{title}</h2><p className="mt-2 max-w-xs text-sm leading-6 text-[#7F948A]">{detail}</p></div></Reveal>)}</div></section>
+      <section className="landing-hero mx-auto grid max-w-7xl items-center gap-14 px-5 pb-20 pt-16 sm:px-8 sm:pt-24 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16 lg:px-10 lg:pb-28">
+        <div className="landing-hero-copy min-w-0 max-w-xl">
+          <p className="mb-6 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#147d69]">{t.landing.heroEyebrow}</p>
+          <h1 className="max-w-[560px] text-[clamp(3rem,4.8vw,5.2rem)] font-semibold leading-[0.96] tracking-[-0.07em] text-balance">{t.landing.heroTitle}</h1>
+          <p className="mt-7 max-w-lg text-base leading-7 text-[#64746d]">{t.landing.heroDescription}</p>
+          <div className="mt-9 flex flex-wrap items-center gap-3">
+            <Link href="/app" className="rounded-[8px] bg-[#147d69] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_8px_22px_rgba(20,125,105,0.2)] transition-[background-color,transform] duration-150 hover:-translate-y-px hover:bg-[#106b5a]">{t.landing.openOperator}</Link>
+            <a href="#how-it-works" className="rounded-[8px] border border-[#b9c9c1] bg-transparent px-5 py-3.5 text-sm font-semibold text-[#17261f] transition-colors duration-150 hover:border-[#147d69] hover:text-[#147d69]">{t.landing.seeFlow}</a>
+          </div>
+          <p className="mt-6 text-xs text-[#829089]">{t.landing.trustLine}</p>
+        </div>
+        <div className="landing-hero-shot relative min-w-0 lg:pt-5">
+          <div className="landing-status-badge absolute -right-8 -top-10 hidden rounded-[12px] border border-[#b9c9c1] bg-white px-4 py-3 text-xs shadow-[0_12px_30px_rgba(20,48,37,0.08)] sm:block">
+            <span className="mr-2 inline-block h-2 w-2 rounded-full bg-[#36aa77]" />
+            {isSpanish ? 'Cola lista para actuar' : 'Queue ready for action'}
+          </div>
+          <ProductFrame src="/captures/lead-queue.png" alt="Cola operativa de leads de dealerADMIN" />
+          <div className="mt-3 flex items-center justify-between px-1 text-xs text-[#829089]"><span>{isSpanish ? 'Vista real del producto' : 'Real product view'}</span><span className="font-semibold text-[#147d69]">{isSpanish ? 'Handoff humano' : 'Human handoff'} <Arrow /></span></div>
+        </div>
+      </section>
 
-    <section className="landing-rise landing-rise-section-2 mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:px-10 lg:py-24" aria-labelledby="plain-language-title"><Reveal><div className="max-w-3xl"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#5ED5AA]">{plainLanguage.eyebrow}</p><h2 id="plain-language-title" className="mt-4 max-w-2xl text-3xl font-semibold leading-tight tracking-[-0.045em] sm:text-4xl">{plainLanguage.title}</h2><p className="mt-4 max-w-2xl text-sm leading-6 text-[#AFC1B9]">{plainLanguage.description}</p></div></Reveal><div className="mt-10 grid gap-px overflow-hidden rounded-[12px] border border-white/10 bg-white/10 sm:grid-cols-2 lg:grid-cols-4">{plainLanguage.steps.map(([number, title, detail], index) => <Reveal key={title} delay={index * 60}><article className="h-full bg-[#17231D] p-5 sm:p-6"><span className="text-2xl font-semibold tracking-[-0.04em] text-[#5ED5AA]">{number}</span><h3 className="mt-5 text-base font-semibold text-[#F1F7F4]">{title}</h3><p className="mt-2 text-sm leading-6 text-[#AFC1B9]">{detail}</p></article></Reveal>)}</div></section>
+      <section id="proof" className="border-y border-[#d9dfda] bg-white/65">
+        <Reveal className="mx-auto max-w-7xl">
+        <div className="grid gap-px bg-[#d9dfda] sm:grid-cols-3">
+          {(isSpanish ? [
+            ['Una entrada', 'Customer Replied activa el workflow y firma el evento.'],
+            ['Un registro', 'Cada mensaje queda vinculado a su conversación.'],
+            ['Una acción', 'El operador recibe contexto listo para entregar.'],
+          ] : [
+            ['One intake', 'Customer Replied activates the workflow and signs the event.'],
+            ['One record', 'Every message stays linked to its conversation.'],
+            ['One action', 'The operator receives context ready for handoff.'],
+          ]).map(([title, detail]) => (
+            <div key={title} className="bg-[#f6f5f0] px-5 py-7 sm:px-8 lg:px-10">
+              <p className="text-sm font-semibold text-[#17261f]">{title}</p>
+              <p className="mt-2 max-w-xs text-sm leading-6 text-[#718078]">{detail}</p>
+            </div>
+          ))}
+        </div>
+        </Reveal>
+      </section>
 
-    <section id="capabilities" className="landing-rise landing-rise-section-2 mx-auto grid max-w-7xl gap-12 px-5 py-24 sm:px-8 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20 lg:px-10 lg:py-32" aria-labelledby="capabilities-title"><Reveal><div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#5ED5AA]">{t.landing.capabilitiesEyebrow}</p><h2 id="capabilities-title" className="mt-5 max-w-md text-3xl font-semibold leading-tight tracking-[-0.045em] sm:text-4xl">{t.landing.capabilitiesTitle}</h2><p className="mt-4 max-w-md text-sm leading-6 text-[#AFC1B9]">{t.landing.capabilitiesDescription}</p><div className="mt-10"><MediaProcessingPanel /><MonthlyReportsPanel /></div></div></Reveal><div className="divide-y divide-white/10 border-y border-white/10">{t.landing.capabilities.map(([eyebrow, title, detail, meta], index) => <Reveal key={title} delay={index * 70}><article className="group flex gap-4 py-6 first:pt-5 last:pb-5 sm:gap-6"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[9px] bg-[#193A30] text-[#5ED5AA] transition-colors duration-150 group-hover:bg-[#5ED5AA] group-hover:text-[#0B0F0D]"><CapabilityIcon name={(['capture', 'media', 'route', 'deliver'] as CapabilityIconName[])[index]} /></span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"><h3 className="text-base font-semibold text-[#F1F7F4]">{title}</h3><span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7F948A]">{meta}</span></div><p className="mt-1 text-xs font-semibold text-[#D8EEE5]">{eyebrow}</p><p className="mt-3 max-w-2xl text-sm leading-6 text-[#AFC1B9]">{detail}</p></div></article></Reveal>)}</div></section>
+      <section id="how-it-works" className="mx-auto max-w-7xl px-5 py-24 sm:px-8 lg:px-10 lg:py-32">
+        <Reveal>
+        <div className="grid gap-12 lg:grid-cols-[0.6fr_1.4fr] lg:gap-20">
+          <div className="max-w-md">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#147d69]">{isSpanish ? 'Una operación, cuatro momentos' : 'One operation, four moments'}</p>
+            <h2 className="mt-5 text-4xl font-semibold leading-[1.02] tracking-[-0.06em] text-balance sm:text-5xl">{isSpanish ? 'La conversación termina en una siguiente acción.' : 'The conversation ends with a next action.'}</h2>
+            <p className="mt-5 text-sm leading-6 text-[#64746d]">{t.landing.capabilitiesDescription}</p>
+            <div className="mt-9 flex flex-wrap gap-2">
+              {featureKeys.map((key, index) => {
+                const item = t.landing.capabilities[index];
+                return <button key={key} type="button" aria-pressed={activeFeature === key} onClick={() => setActiveFeature(key)} className={`rounded-full border px-3 py-2 text-xs font-semibold transition-[background-color,border-color,color] duration-150 ${activeFeature === key ? 'border-[#147d69] bg-[#147d69] text-white' : 'border-[#cbd6d0] bg-transparent text-[#64746d] hover:border-[#147d69] hover:text-[#147d69]'}`}>{item[0]}</button>;
+              })}
+            </div>
+          </div>
+          <div className="grid items-center gap-8 rounded-[18px] border border-[#d6ded8] bg-white p-4 shadow-[0_18px_50px_rgba(20,48,37,0.07)] sm:p-6 lg:grid-cols-[1.05fr_0.95fr] lg:p-7">
+            <div key={activeFeature} className="landing-feature-image"><ProductFrame src={featureImage.src} alt={featureImage.alt} compact /></div>
+            <div className="max-w-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#147d69]">{feature[3]}</p>
+              <h3 className="mt-4 text-2xl font-semibold leading-tight tracking-[-0.04em]">{feature[1]}</h3>
+              <p className="mt-4 text-sm leading-6 text-[#64746d]">{feature[2]}</p>
+              <p className="mt-7 text-sm font-semibold text-[#147d69]">{isSpanish ? 'Ver evidencia en la consola' : 'See the evidence in the console'} <Arrow /></p>
+            </div>
+          </div>
+        </div>
+        </Reveal>
+      </section>
 
-    <section id="captures" className="landing-rise landing-rise-section-2 border-y border-white/10 bg-[#0D1310]" aria-labelledby="captures-title"><div className="mx-auto max-w-7xl px-5 py-24 sm:px-8 lg:px-10 lg:py-32"><Reveal><div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div className="max-w-2xl"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#5ED5AA]">{t.landing.capturesEyebrow}</p><h2 id="captures-title" className="mt-5 text-3xl font-semibold leading-tight tracking-[-0.045em] sm:text-4xl">{t.landing.capturesTitle}</h2><p className="mt-4 text-sm leading-6 text-[#AFC1B9]">{t.landing.capturesDescription}</p></div><span className="w-fit rounded-[5px] border border-white/10 px-3 py-2 text-xs text-[#7F948A]">{t.landing.privateEyebrow}</span></div></Reveal><div className="mt-12 grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">{t.landing.captures.slice(0, 1).map((capture) => <Reveal key={capture[0]} className="lg:row-span-2"><CaptureCard capture={capture as Capture} featured /></Reveal>)}<div className="grid gap-5">{t.landing.captures.slice(1).map((capture, index) => <Reveal key={capture[0]} delay={(index + 1) * 80}><CaptureCard capture={capture as Capture} /></Reveal>)}</div></div></div></section>
+      <section className="bg-[#17261f] text-[#f4f7f4]">
+        <Reveal>
+        <div className="mx-auto max-w-7xl px-5 py-24 sm:px-8 lg:px-10 lg:py-28">
+          <div className="flex flex-col justify-between gap-8 lg:flex-row lg:items-end">
+            <div className="max-w-2xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6bd1ae]">{isSpanish ? 'Del webhook al handoff' : 'From webhook to handoff'}</p>
+              <h2 className="mt-5 text-4xl font-semibold leading-[1.02] tracking-[-0.06em] text-balance sm:text-5xl">{isSpanish ? 'Cada paso tiene un lugar y una evidencia.' : 'Every step has a place and evidence.'}</h2>
+            </div>
+            <p className="max-w-sm text-sm leading-6 text-[#b6c5bd]">{t.landing.workflowDescription}</p>
+          </div>
+          <div className="landing-flow mt-14 grid gap-3 md:grid-cols-4">
+            {flow.map(([number, title, detail], index) => <button key={number} type="button" onClick={() => setActiveFlow(index)} aria-pressed={activeFlow === index} className={`group rounded-[14px] border p-5 text-left transition-[background-color,border-color,transform] duration-200 ${activeFlow === index ? 'translate-y-[-3px] border-[#6bd1ae] bg-[#21493b]' : 'border-white/10 bg-[#1c332a] hover:-translate-y-px hover:border-white/25'}`}><span className="text-xs font-semibold tracking-[0.16em] text-[#6bd1ae]">{number}</span><span className="mt-8 block text-lg font-semibold tracking-[-0.03em]">{title}</span><span className="mt-3 block text-sm leading-6 text-[#b6c5bd]">{detail}</span></button>)}
+          </div>
+          <div className="mt-5 flex items-center gap-3 border-t border-white/10 pt-5 text-sm text-[#b6c5bd]" aria-live="polite"><span className="h-2 w-2 rounded-full bg-[#6bd1ae]" />{flow[activeFlow][1]} <Arrow /></div>
+        </div>
+        </Reveal>
+      </section>
 
-    <section className="landing-rise landing-rise-section-2 mx-auto max-w-7xl px-5 py-24 sm:px-8 lg:px-10 lg:py-32" aria-labelledby="workflow-title"><div className="grid gap-12 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20"><Reveal><div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#5ED5AA]">{t.landing.workflowEyebrow}</p><h2 id="workflow-title" className="mt-5 max-w-md text-3xl font-semibold leading-tight tracking-[-0.045em] sm:text-4xl">{t.landing.workflowTitle}</h2><p className="mt-4 max-w-md text-sm leading-6 text-[#AFC1B9]">{t.landing.workflowDescription}</p></div></Reveal><Reveal delay={80}><BackendWorkflowDiagram /></Reveal></div></section>
+      <section className="mx-auto max-w-7xl px-5 py-24 sm:px-8 lg:px-10 lg:py-32">
+        <Reveal>
+        <div className="grid items-center gap-10 rounded-[18px] border border-[#cbd6d0] bg-[#e9f0eb] p-7 sm:p-10 lg:grid-cols-[1fr_auto] lg:p-12">
+          <div className="max-w-2xl"><p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#147d69]">{t.landing.privateEyebrow}</p><h2 className="mt-4 text-3xl font-semibold leading-tight tracking-[-0.05em] sm:text-4xl">{t.landing.privateTitle}</h2><p className="mt-4 text-sm leading-6 text-[#64746d]">{t.landing.privateDescription}</p></div>
+          <Link href="/app" className="inline-flex w-fit rounded-[8px] bg-[#17261f] px-5 py-3.5 text-sm font-semibold text-white transition-[background-color,transform] duration-150 hover:-translate-y-px hover:bg-[#263f34]">{t.landing.openOperator}</Link>
+        </div>
+        </Reveal>
+      </section>
 
-    <section id="case-study" className="landing-rise landing-rise-section-2 border-y border-white/10 bg-[#0D1310]" aria-labelledby="case-study-title"><div className="mx-auto grid max-w-7xl gap-12 px-5 py-24 sm:px-8 lg:grid-cols-[0.7fr_1.3fr] lg:gap-20 lg:px-10 lg:py-32"><Reveal><div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#5ED5AA]">{t.landing.caseEyebrow}</p><h2 id="case-study-title" className="mt-5 max-w-sm text-3xl font-semibold leading-tight tracking-[-0.045em] sm:text-4xl">{t.landing.caseTitle}</h2></div></Reveal><div className="grid gap-10 border-l border-white/10 pl-6 sm:grid-cols-2 sm:gap-x-12 sm:pl-10">{t.landing.caseArticles.map(([title, detail], index) => <Reveal key={title} delay={index * 75}><article><span className="text-3xl font-semibold tracking-[-0.04em] text-[#5ED5AA]">{String(index + 1).padStart(2, '0')}</span><h3 className="mt-4 text-base font-semibold">{title}</h3><p className="mt-3 text-sm leading-6 text-[#AFC1B9]">{detail}</p></article></Reveal>)}</div></div></section>
-
-    <section id="stack" className="landing-rise landing-rise-section-2 border-y border-white/10 bg-[#0D1310]" aria-labelledby="stack-title"><div className="mx-auto grid max-w-7xl gap-10 px-5 py-24 sm:px-8 lg:grid-cols-[0.7fr_1.3fr] lg:gap-20 lg:px-10 lg:py-28"><Reveal><div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#5ED5AA]">{t.landing.stacksEyebrow}</p><h2 id="stack-title" className="mt-4 max-w-md text-3xl font-semibold leading-tight tracking-[-0.045em] sm:text-4xl">{t.landing.stacksTitle}</h2><p className="mt-4 max-w-md text-sm leading-6 text-[#AFC1B9]">{language === 'es' ? 'Conecta GHL, una API transaccional, PostgreSQL y un media-worker Python que procesa audio e imágenes localmente con Docker y GitHub Actions.' : 'Connects GHL, a transactional API, PostgreSQL, and a Python media worker that processes audio and images locally with Docker and GitHub Actions.'}</p></div></Reveal><div className="grid gap-px overflow-hidden rounded-[12px] border border-white/10 bg-white/10 sm:grid-cols-2">{stackGroups.map(([group, items], index) => <Reveal key={group} delay={index * 60}><article className="h-full bg-[#111815] p-5"><h3 className="text-sm font-semibold text-[#F1F7F4]">{group}</h3><div className="mt-4 flex flex-wrap gap-2">{items.map((stack) => <span key={stack} className="rounded-[4px] border border-[#5ED5AA]/25 bg-[#16382E] px-2.5 py-1.5 text-xs font-semibold text-[#D8EEE5]">{stack}</span>)}</div></article></Reveal>)}</div></div></section>
-
-    <section className="landing-rise landing-rise-section-3 mx-auto max-w-7xl px-5 py-24 sm:px-8 lg:px-10 lg:py-32"><div className="flex flex-col justify-between gap-8 rounded-[10px] border border-[#5ED5AA]/25 bg-[#16382E] px-6 py-10 sm:px-10 lg:flex-row lg:items-end"><div className="max-w-xl"><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#5ED5AA]">{t.landing.privateEyebrow}</p><h2 className="mt-4 text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">{t.landing.privateTitle}</h2><p className="mt-4 text-sm leading-6 text-[#C1D8CD]">{t.landing.privateDescription}</p></div><Link href="/app" className="inline-flex w-fit shrink-0 rounded-[7px] bg-[#F1F7F4] px-5 py-3.5 text-sm font-semibold text-[#111815] transition-colors hover:bg-white">{t.landing.openOperator}</Link></div></section>
-
-    <footer className="border-t border-white/10 px-5 py-7 sm:px-8 lg:px-10"><div className="mx-auto flex max-w-7xl flex-col gap-3 text-xs text-[#7F948A] sm:flex-row sm:items-center sm:justify-between"><span>{t.landing.footerLeft}</span><span>{t.landing.footerRight}</span></div></footer>
-  </main>;
+      <footer className="border-t border-[#d9dfda] px-5 py-7 sm:px-8 lg:px-10"><div className="mx-auto flex max-w-7xl flex-col gap-3 text-xs text-[#829089] sm:flex-row sm:items-center sm:justify-between"><span>{t.landing.footerLeft}</span><span>{t.landing.footerRight}</span></div></footer>
+      <style jsx>{`
+        @keyframes landing-fade-up {
+          from { opacity: 0; transform: translate3d(0, 24px, 0); }
+          to { opacity: 1; transform: translate3d(0, 0, 0); }
+        }
+        @keyframes landing-feature-in {
+          from { opacity: 0; transform: translate3d(0, 24px, 0); }
+          to { opacity: 1; transform: translate3d(0, 0, 0); }
+        }
+        .landing-hero-copy { animation: landing-fade-up 560ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .landing-hero-shot { animation: landing-fade-up 700ms 90ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .landing-flow > button { animation: landing-fade-up 480ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .landing-flow > button:nth-child(2) { animation-delay: 60ms; }
+        .landing-flow > button:nth-child(3) { animation-delay: 120ms; }
+        .landing-flow > button:nth-child(4) { animation-delay: 180ms; }
+        .landing-feature-image { animation: landing-feature-in 280ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .landing-reveal { opacity: 0; transform: translate3d(0, 24px, 0); transition: none; }
+        .landing-reveal-visible { animation: landing-fade-up 560ms cubic-bezier(0.22, 1, 0.36, 1) var(--landing-delay, 0ms) both; }
+        .landing-status-badge { animation: landing-fade-up 520ms 340ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+        @media (prefers-reduced-motion: reduce) {
+          .landing-hero-copy, .landing-hero-shot, .landing-flow > button, .landing-feature-image, .landing-status-badge, .landing-reveal-visible { animation: none; }
+          .landing-reveal, .landing-reveal-visible { opacity: 1; transform: none; transition: none; }
+        }
+      `}</style>
+    </main>
+  );
 }
