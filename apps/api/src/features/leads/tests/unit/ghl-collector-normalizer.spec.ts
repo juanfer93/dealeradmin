@@ -588,6 +588,28 @@ describe('HighLevel collector custom-code normalizer', () => {
     }).real_name).toBe('Hay Les Aviso');
   });
 
+  it('keeps the decorated Messenger profile name ahead of a contaminated payment answer in Custom Code', () => {
+    const transcript = [
+      'Quiero financiar un auto',
+      'Ando en busca de honda oh un Toyota',
+      'Un Sedan 🚘',
+      '5715162438',
+      '$2000',
+      'Lo necesito lo más pronto Sería esta semana',
+      'Me pagan cheque',
+      'Licencia y pasaporte',
+    ].join('\n');
+
+    expect(execute({
+      source: 'arlington',
+      channel: 'messenger',
+      real_name: 'Me Pagan Cheque',
+      contact_name: 'Andrea⚘️',
+      message: 'Licencia y pasaporte',
+      chat_history_log: transcript,
+    }).real_name).toBe('Andrea');
+  });
+
   it('does not promote the Easterns vehicle-intent reply to real_name in Custom Code', () => {
     expect(execute({
       channel: 'messenger',

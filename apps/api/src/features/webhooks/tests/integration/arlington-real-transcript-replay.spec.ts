@@ -11,6 +11,7 @@ describeDatabase('Arlington real GHL transcript replay', () => {
   const cases = [
     {
       label: 'Paolitha Garcia / persisted GHL turns',
+      expectedRealName: undefined,
       contactName: 'Paolitha Garcia',
       phone: '+15716161220',
       messages: [
@@ -26,6 +27,7 @@ describeDatabase('Arlington real GHL transcript replay', () => {
     },
     {
       label: 'Steve de la Cruz / persisted GHL turns stay blocked without vehicle',
+      expectedRealName: undefined,
       contactName: 'Steve de la Cruz',
       phone: '+15406766165',
       messages: [
@@ -43,6 +45,7 @@ describeDatabase('Arlington real GHL transcript replay', () => {
     },
     {
       label: 'Steve de la Cruz / complete GHL transcript',
+      expectedRealName: undefined,
       contactName: 'Steve de la Cruz',
       phone: '+15406766165',
       messages: [
@@ -63,6 +66,7 @@ describeDatabase('Arlington real GHL transcript replay', () => {
     },
     {
       label: 'Paolitha Garcia / complete GHL transcript',
+      expectedRealName: undefined,
       contactName: 'Paolitha Garcia',
       phone: '+15716161220',
       messages: [
@@ -75,6 +79,27 @@ describeDatabase('Arlington real GHL transcript replay', () => {
       phoneMetadataIndex: 2,
       expectedVehicle: 'truck',
       expectedPhone: '+15716161220',
+      shouldQueue: true,
+    },
+    {
+      label: 'Andrea / Messenger transcript with decorated profile name and payment answer',
+      contactName: 'Andrea⚘️',
+      phone: '+15715162438',
+      messages: [
+        'Quiero financiar un auto',
+        'Ando en busca de honda oh un Toyota',
+        'Un Sedan 🚘',
+        '5715162438',
+        '$2000',
+        'Lo necesito lo más pronto Sería esta semana',
+        'Me pagan cheque',
+        'Licencia y pasaporte',
+      ],
+      phoneMessageIndex: 3,
+      phoneMetadataIndex: 0,
+      expectedRealName: 'Andrea',
+      expectedVehicle: 'Sedan',
+      expectedPhone: '+15715162438',
       shouldQueue: true,
     },
   ] as const;
@@ -107,7 +132,7 @@ describeDatabase('Arlington real GHL transcript replay', () => {
     await dataSource.destroy();
   });
 
-  it.each(cases.map((testCase, index) => ({ ...testCase, index })))('$label', async ({ contactName, phone, messages, phoneMessageIndex, phoneMetadataIndex, expectedVehicle, expectedPhone, shouldQueue, index }) => {
+  it.each(cases.map((testCase, index) => ({ ...testCase, index })))('$label', async ({ contactName, phone, messages, phoneMessageIndex, phoneMetadataIndex, expectedRealName, expectedVehicle, expectedPhone, shouldQueue, index }) => {
     const { contactId, conversationId } = ids[index];
     const replayNow = new Date('2026-09-25T14:50:00.000Z');
     const service = new ConversationWebhookService(dataSource);
@@ -145,6 +170,7 @@ describeDatabase('Arlington real GHL transcript replay', () => {
     ) as Array<{ status: string; qualification_snapshot: Record<string, unknown>; canonical_phone: string | null; dealer_relations: string }>;
 
     expect(rowsBeforeRelease[0].qualification_snapshot).toMatchObject({
+      ...(expectedRealName ? { real_name: expectedRealName } : {}),
       phone: expectedPhone,
       vehicle_type: expectedVehicle,
       qualification_complete: shouldQueue,

@@ -1379,6 +1379,28 @@ describe('normalizeCollectorInput', () => {
     }).real_name).toBe('Hay Les Aviso');
   });
 
+  it('keeps the decorated Messenger profile name ahead of a contaminated payment answer', () => {
+    const transcript = [
+      'Quiero financiar un auto',
+      'Ando en busca de honda oh un Toyota',
+      'Un Sedan 🚘',
+      '5715162438',
+      '$2000',
+      'Lo necesito lo más pronto Sería esta semana',
+      'Me pagan cheque',
+      'Licencia y pasaporte',
+    ].join('\n');
+
+    expect(normalizeCollectorInput({
+      source: 'arlington',
+      channel: 'messenger',
+      real_name: 'Me Pagan Cheque',
+      contact_name: 'Andrea⚘️',
+      message: 'Licencia y pasaporte',
+      chat_history_log: transcript,
+    }).real_name).toBe('Andrea');
+  });
+
   it('uses only a declared chat name for WhatsApp', () => {
     expect(normalizeCollectorInput({
       channel: 'whatsapp',

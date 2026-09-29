@@ -310,7 +310,7 @@ const INVALID_REAL_NAMES = new Set([
   'more information', 'more info', 'details', 'detalles',
 ]);
 const BUSINESS_NAME_MARKERS = /\b(?:auto\s*sales|motors?|dealership|dealer|llc|inc(?:orporated)?|corp(?:oration)?|company|tatuajes?|tattoos?|operaciones?|operations?|transport(?:ation)?|logistics|construction|remodeling|roofing|realty|consulting|services?|servicios?|shop|tienda|salon|barbershop|restaurant)\b/i;
-const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|baltimore|maryland|where are you located|where are you|what|which|how|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|qué|que|ubicaci[oó]n|ubicados?|cu[aá]l(?:\s+ser[ií]a)?|ser[ií]a|gracias|thank you|thank|vehicle|car|auto|carro|coche|veh[ií]culo|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|sim|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
+const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|baltimore|maryland|where are you located|where are you|what|which|how|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|qué|que|ubicaci[oó]n|ubicados?|cu[aá]l(?:\s+ser[ií]a)?|ser[ií]a|gracias|thank you|thank|vehicle|car|auto|carro|coche|veh[ií]culo|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|sim|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|cheques?|checks?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
 const GENERIC_VEHICLE_INTENT = /\b(?:need|needs|looking\s+for|want|wants|seeking|shopping\s+for|trying\s+to\s+find|necesito|busco|buscando|quiero|me\s+interesa)\b[\s\S]*\b(?:vehicle|car|auto|carro|coche|veh[ií]culo|truck|suv|sedan|van|camioneta|pickup|pick-up)\b/i;
 const INVENTORY_INTENT = /\b(?:inventory|inventario|see\s+(?:the\s+)?inventory|can\s+i\s+see|show\s+me|mu[eé]strame|ver\s+(?:el\s+)?inventario)\b/i;
 const GREETING_ONLY = /^(?:buenos\s+d[ií]as|buenas\s+tardes|buenas\s+noches|saludos|hello|hi|hey|hola|ola|greetings)(?:[,.!?\s]+bendiciones)?[,.!?\s]*$/i;
@@ -548,14 +548,24 @@ function extractDeclaredRealNameFromText(value: string): string {
   return EMPTY;
 }
 
-function profileNameFromInput(input: CollectorInput): string {
+function profileNameFromInput(input: CollectorInput, allowDecoratedProfileName = false): string {
   const candidate = firstNonEmpty(
     input.contact_name,
     input.contactName,
     input.profile?.name,
     input.name,
   );
-  return isLikelyProfileDisplayName(candidate) ? EMPTY : normalizeRealName(candidate);
+  if (!allowDecoratedProfileName) return isLikelyProfileDisplayName(candidate) ? EMPTY : normalizeRealName(candidate);
+  if (!candidate || /[\p{N}]/u.test(candidate)) return EMPTY;
+  // Messenger display names may carry decorative symbols/emojis (for example
+  // "Andrea⚘️"). Remove only Unicode decoration, then run the strict name
+  // validator on the resulting value. Digits and punctuation remain invalid.
+  const withoutDecoration = candidate
+    .normalize('NFC')
+    .replace(/[\p{So}\p{Sk}\p{Cf}\uFE0F]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return isLikelyProfileDisplayName(withoutDecoration) ? EMPTY : normalizeRealName(withoutDecoration);
 }
 
 export function realNameFromQualificationMemory(memory: string | null | undefined): string {
@@ -1150,7 +1160,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const messageForExtraction = stripCampaignButtonPhrases(rawMessage);
   const channel = effectiveChannel(input);
   const suppliedName = normalizeRealName(input.real_name);
-  const profileName = profileNameFromInput(input);
+  const profileName = profileNameFromInput(input, isMessengerChannel(channel));
   const extractedNames = [
     realNameFromQualificationMemory(memory),
     extractRealNameFromText(rawMessage),
@@ -1167,7 +1177,9 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     extractDeclaredRealNameFromText(rawHistory),
     ...extractedNames,
   ].map(normalizeRealName).find(Boolean) ?? EMPTY;
-  const messengerProfileName = suppliedName || profileName;
+  // A fresh Messenger profile name must be allowed to repair a contaminated
+  // snapshot (for example "Me Pagan Cheque" from a prior answer).
+  const messengerProfileName = profileName || suppliedName;
   const realName = isMessengerChannel(channel)
     // A valid contact/profile name is authoritative. Message text may replace
     // only a business/technical label, or answer an explicit name prompt.
