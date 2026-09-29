@@ -286,6 +286,11 @@ const amount = (value) => {
   return '';
 };
 const validAmount = (value) => amount(value);
+const isVehicleYear = (value) => {
+  const normalized = String(value ?? '').replace(/[$,\s]/g, '');
+  const parsed = Number(normalized);
+  return /^\d{4}$/.test(normalized) && Number.isInteger(parsed) && parsed >= 1990 && parsed <= 2026;
+};
 const amountToken = '(?:\\d{1,3}(?:,\\d{3})+|\\d{1,2}\\s*(?:mil|thousand)|mil(?:\\s+quinientos)?|(?:un|one|a|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+(?:mil|thousand)(?:\\s+(?:quinientos|five hundred))?|\\d+(?:[,.]\\d+)?\\s*k?)(?:\\s*d[oó]lar(?:es|e)?)?';
 const tradeIn = (text) => {
   const source = clean(text);
@@ -305,12 +310,14 @@ const downFrom = (text) => {
   const explicit = source.match(new RegExp(`(?:down|enganche|inicial|deposit|dep[oó]sito)[ \\t]*(?:payment|pago)?[ \\t]*(?:is|es|de|:)?[ \\t]*\\$?[ \\t]*${token}`, 'i'));
   const withAmount = source.match(new RegExp(`\\b(?:puedo|puede|can|could|i can|i could)[ \\t]+(?:con|with)[ \\t]*\\$?[ \\t]*${token}\\b`, 'i'));
   const declared = source.match(new RegExp(`\\b(?:i have|tengo|i can put|puedo poner)[ \\t]+\\$?[ \\t]*${token}[ \\t]*(?:down|payment|enganche|inicial)?\\b`, 'i'));
+  const spanishDeclared = source.match(new RegExp(`\\b(?:doy|dar[eé]?|pongo|poner|i(?:'|’)ll put|i put)[ \\t]+(?:de[ \\t]+|para[ \\t]+)?\\$?[ \\t]*${token}\\b`, 'i'));
   const noisyDeclared = source.match(new RegExp(`\\b(?:cuento|cuenta)\\b[^\\n]{0,80}?(?:y|and|plus)[ \\t.,;:]*\\$?[ \\t]*${token}\\b`, 'i'));
   const safeSource = source.split('\\n').filter((line) => !isPhoneOnlyLine(line)).join('\\n');
   const standalone = safeSource.match(new RegExp(`(?:^|\\n)\\$?[ \\t]*${token}[ \\t]*\\$?[ \\t]*(?:tengo|have|available|disponible|i have|i can put|m[aá]ximo|maximum)?[ \\t]*\\d{0,2}[ \\t]*\\.?[ \\t]*(?=\\n|$)`, 'im'));
   const candidate = standalone?.[1]?.replace(/[$,\s]/g, '') || '';
-  if (!explicit && /^20(?:1\d|2\d)$/.test(candidate)) return '';
-  return validAmount(explicit?.[1] || withAmount?.[1] || declared?.[1] || noisyDeclared?.[1] || standalone?.[1]);
+  if (!explicit && !spanishDeclared && isVehicleYear(candidate)
+    && (vehicleYearFrom(source) !== null || /^20(?:1\d|2[0-6])$/.test(candidate))) return '';
+  return validAmount(explicit?.[1] || withAmount?.[1] || declared?.[1] || spanishDeclared?.[1] || noisyDeclared?.[1] || standalone?.[1]);
 };
 const affirmativeDownConfirmation = (value) => {
   const source = normalizeMatch(value).replace(/[.,!?¡¿-]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -403,6 +410,27 @@ const cleanVehicleValue = (value) => {
   const categoryOnly = /^(?:suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión|carro|auto|coche)$/i.test(candidate);
   return label || categoryOnly ? (label || candidate.replace(/^troca$/i, 'truck').replace(/^camion(?:eta|etq)?$/i, 'truck').replace(/^camión(?:eta)?$/i, 'truck')) : '';
 };
+const vehicleYearFrom = (value) => {
+  const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter(Boolean);
+  const years = /\b(19\d{2}|20(?:0\d|1\d|2[0-6]))\b/g;
+  const financialPrefix = /(?:\$|doy|dar(?:é|as|emos)?|pongo|poner|tengo|have|i have|i can put|puedo poner|down|payment|enganche|inicial|pago\s+inicial|cuota\s+inicial|deposit|dep[oó]sito)\s*(?:de|para|as|is|es|:)?\s*$/i;
+  const financialSuffix = /^\s*(?:down|payment|enganche|inicial|pago\s+inicial|cuota\s+inicial|deposit|dep[oó]sito)\b/i;
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex];
+    for (const match of line.matchAll(years)) {
+      const index = match.index || 0;
+      const before = line.slice(Math.max(0, index - 60), index);
+      const after = line.slice(index + match[0].length, index + match[0].length + 60);
+      if (financialPrefix.test(before) || financialSuffix.test(after)) continue;
+      const neighborhood = [lines[lineIndex - 1] || '', line, lines[lineIndex + 1] || ''].join(' ');
+      if (vehicleBrands.test(neighborhood) || vehicleModels.test(neighborhood) || vehicleCategories.test(neighborhood)
+        || vehicleContext.test(neighborhood) || /\b(?:vehicle|car|auto|carro|coche|veh[ií]culo|model|modelo|year|año|ano)\b/i.test(neighborhood)) {
+        return Number(match[1]);
+      }
+    }
+  }
+  return null;
+};
 const timelineFrom = (text) => {
   const hit = clean(text).match(/\b(?:today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes posible|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|within \d+ days?|en \d+ d[ií]as?)\b/i)?.[0] || '';
   if (/today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes/i.test(hit)) return 'today';
@@ -471,6 +499,7 @@ const phone = phoneFrom(message, history, inputData.phone);
 const vehicle = extractedVehicle || (existingAdvisorMarker || phoneFromConversation || (isWhatsAppChannel(inputData.channel) && phone)
   ? advisorHandoffVehicle
   : '');
+const vehicleYear = vehicleYearFrom(vehicleSource);
 // Prefer a phone found in the conversation before accepting custom/memory down values.
 // This prevents a stale area-code-only value (e.g. 443) from becoming a down payment.
 const memoryDown = memoryValue(['down payment', 'down_payment', 'downpayment']);
@@ -511,8 +540,8 @@ const cashDown = campaign ? '' : first(
   downFrom(rawMessage),
   downFrom(rawHistory),
   confirmedQuestionDown,
-  isPhoneAreaCodeAmount(memoryDown, phone) ? '' : memoryDown,
-  isPhoneAreaCodeAmount(inputDown, phone) ? '' : validAmount(inputDown),
+  isPhoneAreaCodeAmount(memoryDown, phone) || (vehicleYear !== null && validAmount(memoryDown) === String(vehicleYear)) ? '' : memoryDown,
+  isPhoneAreaCodeAmount(inputDown, phone) || (vehicleYear !== null && validAmount(inputDown) === String(vehicleYear)) ? '' : validAmount(inputDown),
 );
 const tradeDown = campaign ? '' : first(tradeIn(message), tradeIn(history), tradeIn(memoryText(rawMemory)));
 const downCandidate = cashDown || tradeDown;
@@ -614,6 +643,7 @@ return {
   channel: String(inputData.channel ?? ''),
   real_name: realName,
   vehicle_type: vehicle,
+  vehicle_year: vehicleYear,
   customer_location: customerLocation,
   vehicle_category: vehicleCategory || null,
   required_down_payment: requiredDownPayment,

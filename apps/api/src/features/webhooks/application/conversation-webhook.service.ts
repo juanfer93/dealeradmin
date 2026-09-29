@@ -88,6 +88,7 @@ type ConversationSnapshot = {
   real_name: string;
   phone: string;
   vehicle_type: string;
+  vehicle_year?: number | null;
   customer_location?: string;
   vehicle_category?: string | null;
   required_down_payment?: number | null;
@@ -381,6 +382,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       // Inbound evidence still wins whenever it is available.
       const realName = normalized.real_name || clean(current.real_name);
       const vehicle = normalized.vehicle_type || clean(current.vehicle_type);
+      const vehicleYear = normalized.vehicle_year ?? (typeof current.vehicle_year === 'number' ? current.vehicle_year : null);
       const downPayment = normalizeDownPayment(normalized.down_payment || clean(current.down_payment));
       const purchaseTimeline = normalized.purchase_timeline || clean(current.purchase_timeline);
       const documents = normalized.documents || clean(current.documents);
@@ -412,6 +414,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         real_name: realName,
         phone: effectivePhone,
         vehicle_type: vehicle,
+        vehicle_year: vehicleYear,
         customer_location: normalized.customer_location || clean(current.customer_location),
         vehicle_category: downPaymentRule.category,
         required_down_payment: downPaymentRule.minimum,
@@ -820,6 +823,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         real_name: normalized.real_name,
         phone: effectivePhone || '',
         vehicle_type: normalized.vehicle_type,
+        vehicle_year: normalized.vehicle_year,
         customer_location: normalized.customer_location,
         vehicle_category: downPaymentRule.category,
         required_down_payment: downPaymentRule.minimum,

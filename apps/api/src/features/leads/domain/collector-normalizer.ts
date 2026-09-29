@@ -26,6 +26,7 @@ export type CollectorInput = {
 export type CollectorOutput = {
   real_name: string;
   vehicle_type: string;
+  vehicle_year: number | null;
   customer_location: string;
   vehicle_category: VehicleCategory | null;
   required_down_payment: number | null;
@@ -311,6 +312,10 @@ const VEHICLE_MODELS = /\b(?:grand caravan|grand cherokee|transit connect|promas
 const VEHICLE_CATEGORIES = /\b(?:suv|sedan|truck|truk|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i;
 const VEHICLE_TRIMS = /\b(?:\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i;
 const VEHICLE_CONTEXT = /\b(?:tengo|tiene|tienen|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i;
+const VEHICLE_YEAR_PATTERN = /\b(19\d{2}|20(?:0\d|1\d|2[0-6]))\b/g;
+const VEHICLE_YEAR_CONTEXT = /\b(?:vehicle|car|auto|carro|coche|veh[ií]culo|model|modelo|year|año|ano|f[- ]?\d{3})\b/i;
+const FINANCIAL_AMOUNT_PREFIX = /(?:\$|doy|dar(?:é|as|emos)?|pongo|poner|tengo|have|i have|i can put|puedo poner|down|payment|enganche|inicial|pago\s+inicial|cuota\s+inicial|deposit|dep[oó]sito)\s*(?:de|para|as|is|es|:)?\s*$/i;
+const FINANCIAL_AMOUNT_SUFFIX = /^\s*(?:down|payment|enganche|inicial|pago\s+inicial|cuota\s+inicial|deposit|dep[oó]sito)\b/i;
 // Stafford's WhatsApp flow commonly answers the vehicle-type prompt with
 // "Algo económico" followed by "Normal". Treat that exact economic intent as
 // a sedan category so a late reconciliation cannot leave the lead as advisor
@@ -629,6 +634,34 @@ function normalizeAmount(value: string): string {
   return clean(value);
 }
 
+/**
+ * Extract a model year only when the nearby text is vehicle evidence. A
+ * financial marker immediately before/after the number wins, so "doy 2018"
+ * remains a payment even though it falls inside the model-year range.
+ */
+export function extractVehicleYear(value: string | null | undefined): number | null {
+  const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter(Boolean);
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex];
+    for (const match of line.matchAll(VEHICLE_YEAR_PATTERN)) {
+      const year = Number(match[1]);
+      const index = match.index ?? 0;
+      const before = line.slice(Math.max(0, index - 60), index);
+      const after = line.slice(index + match[0].length, index + match[0].length + 60);
+      if (FINANCIAL_AMOUNT_PREFIX.test(before) || FINANCIAL_AMOUNT_SUFFIX.test(after)) continue;
+      const neighborhood = [lines[lineIndex - 1] ?? '', line, lines[lineIndex + 1] ?? ''].join(' ');
+      if (VEHICLE_BRANDS.test(neighborhood)
+        || VEHICLE_MODELS.test(neighborhood)
+        || VEHICLE_CATEGORIES.test(neighborhood)
+        || VEHICLE_CONTEXT.test(neighborhood)
+        || VEHICLE_YEAR_CONTEXT.test(neighborhood)) {
+        return year;
+      }
+    }
+  }
+  return null;
+}
+
 function normalizeMemoryDownPayment(value: string): string {
   const source = clean(value);
   if (!source) return EMPTY;
@@ -786,6 +819,7 @@ function extractDownPayment(message: string): string {
   const amount = source.match(new RegExp(`(?:down|enganche|inicial|deposit|dep[oó]sito)[ \\t]*(?:payment|pago)?[ \\t]*(?:is|es|de|:)?[ \\t]*\\$?[ \\t]*(${amountToken})`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\$?[ \\t]*(${amountToken})[ \\t]*(?:(?:for|para|as|on|de|del)[ \\t]*(?:el|la|the)?[ \\t]*)?(?:down|enganche|inicial)`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\b(?:tengo|have|i have|i can put|puedo poner)[ \\t]+(?:down[ \\t]+)?(?:a[ \\t]+)?\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
+    ?? source.match(new RegExp(`\\b(?:doy|dar[eé]?|pongo|poner|i(?:'|’)ll put|i put)[ \\t]+(?:de[ \\t]+|para[ \\t]+)?\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\b(?:cuento|cuenta)[ \\t.,;:]+con[ \\t.,;:]*\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\b(?:cuento|cuenta)\\b[^\\n]{0,80}?(?:y|and|plus)[ \\t.,;:]*\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\b(?:puedo|puede|can|could|i can|i could)[ \\t]+(?:con|with)[ \\t]+\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
@@ -870,7 +904,7 @@ function extractStandaloneDownPayment(message: string): string {
   if (NO_DOWN_PAYMENT_RESPONSE.test(source)) return 'No down payment';
   const safeSource = source.split('\n').filter((line) => !isPhoneOnlyLine(line)).join('\n');
   const matches = [...safeSource.matchAll(/(?:^|\n)\$?[ \t]*(\d{1,3}(?:[,.]\d{3})+|\d+(?:[,.]\d+)?\s*k?|\d{1,2}\s*(?:mil|thousand)|mil(?:\s+quinientos)?|(?:un|one|a|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\s+(?:mil|thousand)(?:\s+(?:quinientos|five hundred))?)[ \t]*\$?[ \t]*(?:tengo|have|available|disponible|i have|i can put)?[ \t]*\d{0,2}[ \t]*\.?[ \t]*(?=\n|$)/gim)];
-  const standalone = matches.reverse().find((match) => !/^20(?:1\d|2\d)$/.test(match[1].replace(/[$,\s]/g, '')));
+  const standalone = matches.reverse().find((match) => !/^20(?:1\d|2[0-6])$/.test(match[1].replace(/[$,\s]/g, '')));
   if (!standalone) return EMPTY;
   // A standalone recent four-digit answer is a vehicle year, not a down
   // payment. Values such as 1000/2000/3000 remain valid down payments.
@@ -1145,6 +1179,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const vehicle = extractedVehicle || (hasExistingAdvisorMarker || phoneFromConversation || (isWhatsAppChannel(input.channel) && chatPhone)
     ? ADVISOR_HANDOFF_VEHICLE
     : EMPTY);
+  const vehicleYear = extractVehicleYear(vehicleSource);
   const hasRealVehicle = Boolean(vehicle) && !isAdvisorHandoffVehicle(vehicle);
   const explicitCashDown = firstValidAmount(
     extractLatestDownPayment(rawMessage),
@@ -1170,8 +1205,8 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     confirmedQuestionDown,
     extractStandaloneDownPayment(rawMessage),
     extractStandaloneDownPayment(rawHistory),
-    isPhoneAreaCodeAmount(memoryDown, chatPhone) ? EMPTY : memoryDown,
-    campaignReply || isPhoneAreaCodeAmount(inputDown, chatPhone) ? EMPTY : inputDown,
+    isPhoneAreaCodeAmount(memoryDown, chatPhone) || (vehicleYear !== null && normalizeAmount(memoryDown) === String(vehicleYear)) ? EMPTY : memoryDown,
+    campaignReply || isPhoneAreaCodeAmount(inputDown, chatPhone) || (vehicleYear !== null && normalizeAmount(inputDown) === String(vehicleYear)) ? EMPTY : inputDown,
   );
   const cashDown = isPhoneAreaCodeAmount(cashDownCandidate, chatPhone) && !explicitCashDown
     ? EMPTY
@@ -1293,6 +1328,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   return {
     real_name: realName,
     vehicle_type: vehicle,
+    vehicle_year: vehicleYear,
     customer_location: customerLocation,
     vehicle_category: downPaymentRule.category,
     required_down_payment: downPaymentRule.minimum,

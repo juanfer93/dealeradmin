@@ -858,6 +858,20 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(execute({ message }).down_payment).toBe('');
   });
 
+  it('keeps the Custom Code vehicle year separate from an explicit down payment', () => {
+    expect(execute({ message: 'Quiero el Honda Civic 2020 y tengo 2500 de down' })).toMatchObject({
+      vehicle_year: 2020,
+      down_payment: '2500',
+    });
+  });
+
+  it('accepts Spanish down-payment intent for an intermediate amount in Custom Code', () => {
+    expect(execute({ message: 'Doy 1800' })).toMatchObject({
+      vehicle_year: null,
+      down_payment: '1800',
+    });
+  });
+
   it('extracts Elias Alvarado from the Stafford conversation in Custom Code', () => {
     expect(execute({ message: 'Elias alvarado' }).real_name).toBe('Elias Alvarado');
   });

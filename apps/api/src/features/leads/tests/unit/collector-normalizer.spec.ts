@@ -1248,6 +1248,39 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message }).down_payment).toBe('');
   });
 
+  it('separates a vehicle year from down payment when only the vehicle is mentioned', () => {
+    expect(normalizeCollectorInput({ message: 'Me interesa la F150 2018' })).toMatchObject({
+      vehicle_type: 'F-150',
+      vehicle_year: 2018,
+      down_payment: '',
+    });
+  });
+
+  it('keeps a vehicle year separate from an explicit intermediate down payment', () => {
+    expect(normalizeCollectorInput({ message: 'Quiero el Honda Civic 2020 y tengo 2500 de down' })).toMatchObject({
+      vehicle_type: 'Honda Civic',
+      vehicle_year: 2020,
+      down_payment: '2500',
+      down_payment_amount: 2500,
+    });
+  });
+
+  it('accepts an intermediate down payment with Spanish payment context', () => {
+    expect(normalizeCollectorInput({ message: 'Tengo 1800 para dar de cuota inicial' })).toMatchObject({
+      vehicle_year: null,
+      down_payment: '1800',
+      down_payment_amount: 1800,
+    });
+  });
+
+  it('separates a vehicle year from a second explicit down payment', () => {
+    expect(normalizeCollectorInput({ message: 'Busco carro 2008 con 2000 down' })).toMatchObject({
+      vehicle_year: 2008,
+      down_payment: '2000',
+      down_payment_amount: 2000,
+    });
+  });
+
   it('extracts a declared personal name from a Stafford conversation', () => {
     expect(normalizeCollectorInput({ message: 'Elias alvarado' }).real_name).toBe('Elias Alvarado');
   });
