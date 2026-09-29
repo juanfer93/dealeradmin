@@ -73,6 +73,23 @@ describe('HighLevel collector custom-code normalizer', () => {
     })).toMatchObject({ vehicle_type: 'Sedan', previous_financing: 'yes', down_payment_sufficient: false });
   });
 
+  it('normalizes Stafford WhatsApp "Camionetq" as a truck in Custom Code', () => {
+    expect(execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      phone: '+12406882096',
+      real_name: 'Manuel',
+      message: 'Manuel\nCamionetq\nE financiado en otro lugar\n2000\nEste mes',
+      chat_history_log: 'Manuel\nCamionetq\nE financiado en otro lugar\n2000\nEste mes',
+    })).toMatchObject({
+      real_name: 'Manuel',
+      vehicle_type: 'truck',
+      required_down_payment: 3000,
+      down_payment: '2000',
+      down_payment_sufficient: false,
+    });
+  });
+
   it.each([
     ['1000', '1000'],
     ['2000', '2000'],

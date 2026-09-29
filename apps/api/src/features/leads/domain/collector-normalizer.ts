@@ -308,7 +308,7 @@ const NAME_PARTICLES = new Set(['da', 'de', 'del', 'der', 'di', 'la', 'las', 'lo
 const NON_VEHICLE_INTENT_VALUES = /^(?:(?:(?:quiero|necesito|me gustar[ií]a|me interesa)\s+)?(?:m[aá]s\s+)?(?:informaci[oó]n|info|detalles?|details?|information)|more\s+(?:information|info|details?)|learn\s+more)$/i;
 const VEHICLE_BRANDS = /\b(?:toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i;
 const VEHICLE_MODELS = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacoma|tacma|tecoma|rav\s*4|civic|civc|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|for\s+runner|for\s+runer|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|odisea|paila|sierra|silverado|tahoe|tajo|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|rlx|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
-const VEHICLE_CATEGORIES = /\b(?:suv|sedan|truck|truk|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camion|camión)\b/i;
+const VEHICLE_CATEGORIES = /\b(?:suv|sedan|truck|truk|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i;
 const VEHICLE_TRIMS = /\b(?:\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i;
 const VEHICLE_CONTEXT = /\b(?:tengo|tiene|tienen|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i;
 // Stafford's WhatsApp flow commonly answers the vehicle-type prompt with
@@ -353,7 +353,7 @@ function canonicalVehicleLabel(value: string): string {
 }
 
 function canonicalVehicleCategory(value: string): string {
-  return clean(value).replace(/\b(?:truk|troca|trokita|troquita|troque|trokas|camioneta|camion|camión)\b/gi, 'truck');
+  return clean(value).replace(/\b(?:truk|troca|trokita|troquita|troque|trokas|camioneta|camionetq|camion|camión)\b/gi, 'truck');
 }
 
 function extractVehicleLabel(value: string | null | undefined): string {
@@ -668,11 +668,11 @@ function normalizeVehicle(value: string): string {
   const extractedLabel = extractVehicleLabel(source);
   if (extractedLabel) return extractedLabel;
   const lower = source.toLowerCase();
-  const category = lower.match(/\b(suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camion|camión|carro|auto|coche)\b/i)?.[1];
+  const category = lower.match(/\b(suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión|carro|auto|coche)\b/i)?.[1];
   const brand = source.match(/\b(toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i)?.[1];
   if (category && brand) return `${category.replace('troca', 'truck')} — ${source}`;
   if (category && clean(source).toLocaleLowerCase() === category.toLocaleLowerCase()) {
-    return category.replace(/^troca$/i, 'truck').replace(/^camion(?:eta)?$/i, 'truck').replace(/^camión(?:eta)?$/i, 'truck');
+    return category.replace(/^troca$/i, 'truck').replace(/^camion(?:eta|etq)?$/i, 'truck').replace(/^camión(?:eta)?$/i, 'truck');
   }
   return EMPTY;
 }
@@ -723,7 +723,7 @@ function extractVehicle(message: string): string {
     }
     // A transcript can contain several facts (for example "Sedan" followed by
     // a Subaru trade-in). Return the vehicle token, never the complete transcript.
-    const category = withoutOtherFacts.match(/\b(suv|sedan|truck|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto)\b/i)?.[1];
+    const category = withoutOtherFacts.match(/\b(suv|sedan|truck|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i)?.[1];
     const transcriptionModelAlias = /\b(?:odisea|paila|tajo)\b/i.test(candidate);
     const hasModel = VEHICLE_MODELS.test(withoutOtherFacts) || transcriptionModelAlias;
     const brand = withoutOtherFacts.match(VEHICLE_BRANDS)?.[0] ?? EMPTY;
@@ -746,7 +746,7 @@ function extractVehicle(message: string): string {
         lineIndex,
         hasModel,
         brand,
-        isColloquialTruck: /\b(?:troca|trokita|troquita|troque|trokas)\b/i.test(candidate),
+        isColloquialTruck: /\b(?:troca|trokita|troquita|troque|trokas|camionetq)\b/i.test(candidate),
       });
     }
   }

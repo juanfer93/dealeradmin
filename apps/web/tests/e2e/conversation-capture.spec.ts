@@ -23,6 +23,49 @@ test('recibe cada Customer Replied con el contact id y conversation id sin depen
   await expect(response.json()).resolves.toMatchObject({ accepted: true, source: 'stafford', status: 'processed' });
 });
 
+test('procesa el transcript real de Manuel Rivera en Stafford, incluido Camionetq', async ({ request }) => {
+  const suffix = `ghl-e2e-manuel-stafford-${Date.now()}`;
+  const messages = [
+    '*Headline:* Financiamiento interno! *Source URL:* https://fb.me/4vmjVnKBD\n\nQuiero financiar un auto!',
+    'Si',
+    'Manuel',
+    'Camionetq',
+    'E financiado en otro lugar',
+    'Si mandame models porfavor',
+    'Solo mandame models el enhance ntpes',
+    '2000',
+    'Este mes',
+    'Solo mandame modelosnporfavor',
+  ];
+
+  for (const [index, message] of messages.entries()) {
+    const eventId = `${suffix}-${index + 1}`;
+    const response = await request.post('http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/stafford', {
+      data: JSON.stringify({
+        message_body: message,
+        contact_phone: '+12406882096',
+        contact_name: 'Manuel Rivera',
+        channel: 'whatsapp',
+        event_id: eventId,
+      }),
+      headers: {
+        'content-type': 'application/json',
+        'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
+        'X-DealerADMIN-Contact-ID': `${suffix}-contact`,
+        'X-DealerADMIN-Conversation-ID': `${suffix}-conversation`,
+        'X-DealerADMIN-Message-ID': `${eventId}-message`,
+      },
+    });
+
+    expect(response.status(), `Manuel message ${index + 1}`).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({
+      accepted: true,
+      source: 'stafford',
+      status: 'processed',
+    });
+  }
+});
+
 test('acepta la conversación completa de Messenger con teléfono capturado en el chat', async ({ request }) => {
   const suffix = `ghl-e2e-messenger-${Date.now()}`;
   const messages = [

@@ -68,7 +68,7 @@ const greetingOnly = /^(?:buenos\s+d[ií]as|buenas\s+tardes|buenas\s+noches|salu
 const singleWordNameBlocklist = /^(?:ok(?:ay)?|si|s[ií]|yes|no|yeah|yep|correct|cash|today|hoy|now|ahora|asap|inmediato|requirements?|requisitos?|information|informaci[oó]n|details?|detalles?|baltimore|maryland|virginia|laurel|rosedale|sterling|elkton|manda|nada|bale|vale|ubicaci[oó]n|ubicasion|tacoma|toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion|mustang|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|maverick|ranger|bronco|explorer|expedition|escape|edge|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|range rover|defender|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|financiar|finance|financing|down|payment|enganche|documents?|documentos?|identificaci[oó]n|income|ingresos|proof|prueba|phone|tel[eé]fono|number|n[uú]mero)$/i;
 const vehicleBrands = /\b(?:toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i;
 const vehicleModels = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacoma|tacma|tecoma|rav\s*4|civic|civc|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|for\s+runner|for\s+runer|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|rlx|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
-const vehicleCategories = /\b(?:suv|sedan|truck|truk|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camion|camión)\b/i;
+const vehicleCategories = /\b(?:suv|sedan|truck|truk|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i;
 const vehicleContext = /\b(?:tengo|tiene|tienen|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
 const economicCarIntent = /\b(?:carro|auto|coche|veh[ií]culo)\s+econ[oó]mic[oa]s?\b/i;
 // Stafford's WhatsApp flow commonly answers the vehicle-type prompt with
@@ -102,7 +102,7 @@ const canonicalVehicleLabel = (value) => clean(value)
     if (/^f-?\d+$/.test(lower)) return lower.replace(/^f/, 'F-');
     return `${lower[0].toLocaleUpperCase()}${lower.slice(1)}`;
   }).join(' '));
-const canonicalVehicleCategory = (value) => clean(value).replace(/\b(?:truk|troca|trokita|troquita|troque|trokas|camioneta|camion|camión)\b/gi, 'truck');
+const canonicalVehicleCategory = (value) => clean(value).replace(/\b(?:truk|troca|trokita|troquita|troque|trokas|camioneta|camionetq|camion|camión)\b/gi, 'truck');
 const tradeInLanguage = /\btrade[- ]?in\b|\bmy (?:car|vehicle|van|truck)\b|\bmi (?:carro|auto|veh[ií]culo|van|troca|camioneta|camion)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\bchange\s+(?:my\s+)?(?:vehicle|car|van|truck)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b/i;
 const vehicleLabel = (value) => {
   let source = clean(value)
@@ -359,7 +359,7 @@ const vehicleFrom = (text) => {
       const requestedLabel = vehicleLabel(requested);
       if (requestedLabel) candidates.push({ label: requestedLabel, score: 100 + (vehicleModels.test(requested) ? 25 : 0) + lineIndex / 1000, lineIndex, hasModel: vehicleModels.test(requested), brand: requested.match(vehicleBrands)?.[0] || '', isColloquialTruck: false });
     }
-    const category = cleaned.match(/\b(?:suv|sedan|truck|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camion|camión)\b/i);
+    const category = cleaned.match(/\b(?:suv|sedan|truck|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i);
     const hasModel = vehicleModels.test(cleaned);
     const brand = cleaned.match(vehicleBrands)?.[0] || '';
     const label = vehicleLabel(cleaned);
@@ -400,8 +400,8 @@ const cleanVehicleValue = (value) => {
   // Do not allow arbitrary Custom Code/memory text to become vehicle_type.
   // Keep exact categories and recognized make/model labels only.
   const label = vehicleLabel(candidate);
-  const categoryOnly = /^(?:suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camion|camión|carro|auto|coche)$/i.test(candidate);
-  return label || categoryOnly ? (label || candidate.replace(/^troca$/i, 'truck').replace(/^camion(?:eta)?$/i, 'truck').replace(/^camión(?:eta)?$/i, 'truck')) : '';
+  const categoryOnly = /^(?:suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión|carro|auto|coche)$/i.test(candidate);
+  return label || categoryOnly ? (label || candidate.replace(/^troca$/i, 'truck').replace(/^camion(?:eta|etq)?$/i, 'truck').replace(/^camión(?:eta)?$/i, 'truck')) : '';
 };
 const timelineFrom = (text) => {
   const hit = clean(text).match(/\b(?:today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes posible|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|within \d+ days?|en \d+ d[ií]as?)\b/i)?.[0] || '';

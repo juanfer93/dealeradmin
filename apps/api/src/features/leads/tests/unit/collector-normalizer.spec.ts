@@ -18,6 +18,40 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ phone: '(240) 681-5028', message: 'Ok' }).phone).toBe('+12406815028');
   });
 
+  it('normalizes Manuel Stafford\'s misspelled Camionetq answer as a truck', () => {
+    const transcript = [
+      '*Headline:* Financiamiento interno! Source URL: x Quiero financiar un auto!',
+      'Si',
+      'Manuel',
+      'Camionetq',
+      'E financiado en otro lugar',
+      'Si mandame models porfavor',
+      'Solo mandame models el enhance ntpes',
+      '2000',
+      'Este mes',
+      'Solo mandame modelosnporfavor',
+    ].join('\n');
+
+    expect(normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Manuel Rivera',
+      phone: '+12406882096',
+      message: transcript,
+      chat_history_log: transcript,
+    })).toMatchObject({
+      real_name: 'Manuel',
+      phone: '+12406882096',
+      vehicle_type: 'truck',
+      vehicle_category: 'truck',
+      down_payment: '2000',
+      required_down_payment: 3000,
+      down_payment_amount: 2000,
+      down_payment_sufficient: false,
+      qualification_step: 'complete',
+    });
+  });
+
   it('repairs Danilo Rivera\'s stale Ford F--150 snapshot and recognizes the $3,000 truck minimum', () => {
     const transcript = [
       'informacion',
