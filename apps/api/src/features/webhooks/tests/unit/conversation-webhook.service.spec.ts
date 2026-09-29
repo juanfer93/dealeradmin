@@ -479,7 +479,7 @@ describe('ConversationWebhookService', () => {
     await expect(findSourceDealer.call(service, queryRunner, 'ZxadcudjvBz7KFCB1od4', 'action-cars', 'en')).resolves.toMatchObject({ id: 'dealer-action-en' });
   });
 
-  it('alternates the shared Millersville source even when the durable state is many days old', async () => {
+  it('alternates to White Marsh when the latest valid assignment is Millersville', async () => {
     expect(GHL_SOURCE_CONFIG['easterns-millersville']).toEqual({
       locationId: '113zMWQlhKKBUu5wOYtR',
       defaultChannel: 'messenger',
@@ -490,15 +490,37 @@ describe('ConversationWebhookService', () => {
       defaultChannel: 'messenger',
     });
 
-    let nextIndex = 0;
     const queryRunner = {
-      query: vi.fn(async (sql: string, parameters?: unknown[]) => {
+      query: vi.fn(async (sql: string, ...parameters: unknown[]) => {
+        void parameters;
         if (sql.includes('FROM dealers')) return [
           { id: 'dealer-millersville', code: 'EAST-MILLERSVILLE', name: 'Easterns Millersville', timezone: 'America/New_York', routing_config: { group: 'Easterns Direct', allocation_key: 'easterns-millersville', allocation_order: 0 } },
           { id: 'dealer-white-marsh', code: 'EAST-WHITE-MARSH', name: 'Easterns Nissan of White Marsh', timezone: 'America/New_York', routing_config: { group: 'Easterns Direct', allocation_key: 'easterns-millersville', allocation_order: 1 } },
         ];
-        if (sql.includes('SELECT next_index FROM dealer_round_robin_state')) return [{ next_index: nextIndex, updated_at: '2020-01-01T00:00:00.000Z' }];
-        if (sql.includes('UPDATE dealer_round_robin_state')) nextIndex = Number(parameters?.[1]);
+        if (sql.includes('FROM lead_dealers')) return [{ dealer_id: 'dealer-millersville' }];
+        return [];
+      }),
+    };
+    const service = new ConversationWebhookService();
+    const findSourceDealer = (service as unknown as {
+      findSourceDealer: (...args: unknown[]) => Promise<{ id: string; name: string }>;
+    }).findSourceDealer;
+
+    await expect(findSourceDealer.call(service, queryRunner, '113zMWQlhKKBUu5wOYtR', 'easterns-millersville')).resolves.toMatchObject({ id: 'dealer-white-marsh' });
+    const historyQuery = queryRunner.query.mock.calls.find(([sql]) => sql.includes('FROM lead_dealers'));
+    expect(historyQuery?.[0]).toContain('ORDER BY ld.created_at DESC');
+    expect(historyQuery?.[0]).not.toContain('dealer_round_robin_state');
+    expect(historyQuery?.[1]).toEqual([['dealer-millersville', 'dealer-white-marsh']]);
+  });
+
+  it('alternates to Millersville when the latest valid assignment is White Marsh', async () => {
+    const queryRunner = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM dealers')) return [
+          { id: 'dealer-millersville', code: 'EAST-MILLERSVILLE', name: 'Easterns Millersville', timezone: 'America/New_York', routing_config: { allocation_key: 'easterns-millersville', allocation_order: 0 } },
+          { id: 'dealer-white-marsh', code: 'EAST-WHITE-MARSH', name: 'Easterns Nissan of White Marsh', timezone: 'America/New_York', routing_config: { allocation_key: 'easterns-millersville', allocation_order: 1 } },
+        ];
+        if (sql.includes('FROM lead_dealers')) return [{ dealer_id: 'dealer-white-marsh' }];
         return [];
       }),
     };
@@ -508,7 +530,25 @@ describe('ConversationWebhookService', () => {
     }).findSourceDealer;
 
     await expect(findSourceDealer.call(service, queryRunner, '113zMWQlhKKBUu5wOYtR', 'easterns-millersville')).resolves.toMatchObject({ id: 'dealer-millersville' });
-    await expect(findSourceDealer.call(service, queryRunner, '113zMWQlhKKBUu5wOYtR', 'easterns-millersville')).resolves.toMatchObject({ id: 'dealer-white-marsh' });
+  });
+
+  it('starts the cycle with Millersville when there is no valid assignment history', async () => {
+    const queryRunner = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM dealers')) return [
+          { id: 'dealer-millersville', code: 'EAST-MILLERSVILLE', name: 'Easterns Millersville', timezone: 'America/New_York', routing_config: { allocation_key: 'easterns-millersville', allocation_order: 0 } },
+          { id: 'dealer-white-marsh', code: 'EAST-WHITE-MARSH', name: 'Easterns Nissan of White Marsh', timezone: 'America/New_York', routing_config: { allocation_key: 'easterns-millersville', allocation_order: 1 } },
+        ];
+        if (sql.includes('FROM lead_dealers')) return [];
+        return [];
+      }),
+    };
+    const service = new ConversationWebhookService();
+    const findSourceDealer = (service as unknown as {
+      findSourceDealer: (...args: unknown[]) => Promise<{ id: string; name: string }>;
+    }).findSourceDealer;
+
+    await expect(findSourceDealer.call(service, queryRunner, '113zMWQlhKKBUu5wOYtR', 'easterns-millersville')).resolves.toMatchObject({ id: 'dealer-millersville' });
   });
 
   it('does not replace an existing lead name with the GHL fallback when the reply has no name', async () => {

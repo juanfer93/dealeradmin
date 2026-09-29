@@ -1188,24 +1188,23 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         if (assigned) return assigned;
       }
       if (candidates.length < 2) throw new BadRequestException(`El grupo alternado ${alternatingGroup} requiere al menos dos dealers activos`);
+      // The assignment history is the source of truth. Keep the transaction
+      // lock so concurrent leads cannot observe the same previous assignment,
+      // but do not persist a separate round-robin cursor that can drift after
+      // manual copies or deletions.
       await runner.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [alternatingGroup]);
-      await runner.query(
-        `INSERT INTO dealer_round_robin_state (allocation_key, next_index)
-         VALUES ($1, 0)
-         ON CONFLICT (allocation_key) DO NOTHING`,
-        [alternatingGroup],
-      );
-      const state = await runner.query(
-        `SELECT next_index FROM dealer_round_robin_state WHERE allocation_key = $1 FOR UPDATE`,
-        [alternatingGroup],
-      ) as Array<{ next_index: number }>;
-      const nextIndex = Number(state[0]?.next_index ?? 0) % candidates.length;
-      await runner.query(
-        `UPDATE dealer_round_robin_state
-         SET next_index = $2, updated_at = CURRENT_TIMESTAMP
-         WHERE allocation_key = $1`,
-        [alternatingGroup, (nextIndex + 1) % candidates.length],
-      );
+      const lastAssignments = await runner.query(
+        `SELECT COALESCE(ld.assigned_dealer_id, ld.dealer_id) AS dealer_id
+         FROM lead_dealers ld
+         INNER JOIN leads l ON l.id = ld.lead_id
+         WHERE COALESCE(ld.assigned_dealer_id, ld.dealer_id) = ANY($1::uuid[])
+         ORDER BY ld.created_at DESC, ld.updated_at DESC, l.created_at DESC, ld.lead_id DESC
+         LIMIT 1`,
+        [candidates.map((candidate) => candidate.id)],
+      ) as Array<{ dealer_id: string }>;
+      const lastDealerId = lastAssignments[0]?.dealer_id;
+      const lastIndex = candidates.findIndex((candidate) => candidate.id === lastDealerId);
+      const nextIndex = lastIndex < 0 ? 0 : (lastIndex + 1) % candidates.length;
       return candidates[nextIndex];
     }
     if (rows.length > 1) throw new BadRequestException(`El Location ID ${locationId} está vinculado a más de un dealer activo`);
