@@ -24,6 +24,7 @@ describeDatabase('Easterns real-name production replay', () => {
     `${latestVehicleSuffix}-fredericksburg-contact`,
   ];
   const informationLabelContact = `${suffix}-information-label-contact`;
+  const neonStaffordContact = `${suffix}-neon-stafford-contact`;
   const ticketContactIds = [
     `${suffix}-ticket-stafford-contact`,
     `${suffix}-ticket-arlington-contact`,
@@ -37,7 +38,7 @@ describeDatabase('Easterns real-name production replay', () => {
 
   afterAll(async () => {
     if (!dataSource?.isInitialized) return;
-    for (const testContactId of [contactId, informationLabelContact, ...latestVehicleContacts, ...ticketContactIds]) {
+    for (const testContactId of [contactId, informationLabelContact, neonStaffordContact, ...latestVehicleContacts, ...ticketContactIds]) {
       await dataSource.query('DELETE FROM conversation_bot_pause_events WHERE ghl_contact_id = $1', [testContactId]);
       await dataSource.query('DELETE FROM lead_dealers WHERE lead_id IN (SELECT id FROM leads WHERE ghl_contact_id = $1)', [testContactId]);
       await dataSource.query(
@@ -181,6 +182,58 @@ describeDatabase('Easterns real-name production replay', () => {
     expect(rows[0]).toMatchObject({ first_name: 'Lead', last_name: '' });
     expect(rows[0].qualification_snapshot).toMatchObject({ real_name: '' });
     expect(JSON.stringify(rows[0].qualification_snapshot)).not.toContain('Más Información');
+  }, 20_000);
+
+  it('replays the exact Neon Stafford WhatsApp transcript and persists Andres instead of Precio de Hailader', async () => {
+    const service = new ConversationWebhookService(dataSource);
+    const conversationId = `${suffix}-neon-stafford-conversation`;
+    const messages = [
+      '*Headline:* Off Lease Motors Of Stafford *Source URL:* https://fb.me/46LvP8ksN ¡Hola! Quiero más información',
+      'Hailander 2014',
+      'Precio de hailader',
+      'Andres',
+      'Yo no e financiado ante',
+      'Ha civic 2014',
+      'Para hacer uber',
+      '1000',
+      'Estoy en virginia',
+    ];
+
+    for (const [index, message] of messages.entries()) {
+      const eventId = `${suffix}-neon-stafford-${index}`;
+      await service.acceptCustomerReplied({
+        event_id: eventId,
+        ghl_message_id: `${eventId}-message`,
+        ghl_contact_id: neonStaffordContact,
+        ghl_conversation_id: conversationId,
+        channel: 'whatsapp',
+        contact_name: "I'm Andres",
+        contact_phone: '+17577762572',
+        message_body: message,
+        occurred_at: `2026-09-29T18:${String(21 + index).padStart(2, '0')}:00.000Z`,
+      }, 'stafford', {
+        contactId: neonStaffordContact,
+        conversationId,
+        messageId: `${eventId}-message`,
+      });
+    }
+
+    const rows = await dataSource.query(
+      `SELECT l.first_name, l.last_name, c.qualification_snapshot
+       FROM conversations c
+       JOIN leads l ON l.id = c.lead_id
+       WHERE c.ghl_contact_id = $1 AND c.ghl_conversation_id = $2`,
+      [neonStaffordContact, conversationId],
+    ) as Array<{ first_name: string; last_name: string; qualification_snapshot: Record<string, unknown> }>;
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ first_name: 'Andres', last_name: '' });
+    expect(rows[0].qualification_snapshot).toMatchObject({
+      real_name: 'Andres',
+      phone: '+17577762572',
+      vehicle_type: 'Civic',
+    });
+    expect(JSON.stringify(rows[0].qualification_snapshot)).not.toContain('Precio de Hailader');
   }, 20_000);
 
   it('persists the ticket 0001 WhatsApp vehicle and name corrections in local PostgreSQL', async () => {

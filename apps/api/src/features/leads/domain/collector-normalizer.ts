@@ -173,6 +173,18 @@ function isWhatsAppChannel(value: string | null | undefined): boolean {
   return /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(clean(value));
 }
 
+/**
+ * `channel` is the canonical field. Some direct collector callers only have
+ * a channel-shaped `source`, so support that fallback without interpreting a
+ * dealer source such as `stafford` as a transport channel.
+ */
+function effectiveChannel(input: CollectorInput): string {
+  const channel = clean(input.channel);
+  if (channel) return channel;
+  const source = clean(input.source);
+  return /(?:^|[^a-z])(?:messenger|facebook|whats?app)(?:$|[^a-z])/i.test(source) ? source : EMPTY;
+}
+
 type CollectorFlowPolicy = {
   sourceAware: boolean;
   stafford: boolean;
@@ -305,6 +317,10 @@ const GREETING_ONLY = /^(?:buenos\s+d[ií]as|buenas\s+tardes|buenas\s+noches|sal
 const SINGLE_WORD_NAME_BLOCKLIST = /^(?:ok(?:ay)?|si|s[ií]|sim|yes|no|yeah|yep|correct|cash|today|hoy|now|ahora|asap|inmediato|need|vehicle|car|auto|carro|coche|veh[ií]culo|requirements?|requisitos?|information|informaci[oó]n|details?|detalles?|location|baltimore|maryland|virginia|laurel|rosedale|sterling|elkton|manda|nada|bale|vale|ubicaci[oó]n|ubicasion|tacoma|toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion|mustang|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|maverick|ranger|bronco|explorer|expedition|escape|edge|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|range rover|defender|rlx|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|financiar|finance|financing|down|payment|enganche|documents?|documentos?|identificaci[oó]n|income|ingresos|proof|prueba|phone|tel[eé]fono|number|n[uú]mero)$/i;
 const NAME_DECLARATION = /(?:me llamo|mi nombre es|soy|yo soy|my name is|my name['’]s|i am|i['’]m|this is|call me(?!\s+at\b)|ll[aá]mame)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i;
 const PHONE_LIKE_TEXT = /\b(?:mi|my)\s+(?:n[uú]mero|number|phone|tel[eé]fono|telephone|contact)\b/i;
+const REAL_NAME_TOKEN = "[\\p{L}\\p{M}]+(?:[-'][\\p{L}\\p{M}]+)*";
+const REAL_NAME_PATTERN = new RegExp(`^${REAL_NAME_TOKEN}(?:\\s+${REAL_NAME_TOKEN})*$`, 'u');
+const TECHNICAL_NAME_LABEL = /^(?:precio|price)\s+(?:de|of)\b/i;
+const LOCATION_RESPONSE = /^(?:estoy|vivo)\s+en\b/i;
 const NAME_PARTICLES = new Set(['da', 'de', 'del', 'der', 'di', 'la', 'las', 'los', 'van', 'von', 'y']);
 const NON_VEHICLE_INTENT_VALUES = /^(?:(?:(?:quiero|necesito|me gustar[ií]a|me interesa)\s+)?(?:m[aá]s\s+)?(?:informaci[oó]n|info|detalles?|details?|information)|more\s+(?:information|info|details?)|learn\s+more)$/i;
 const VEHICLE_BRANDS = /\b(?:toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i;
@@ -426,7 +442,7 @@ function isVehicleStatement(value: string | null | undefined): boolean {
 }
 
 function formatPersonalName(value: string): string {
-  if (isLikelyBusinessName(value) || !/^[a-záéíóúüñ][a-záéíóúüñ' -]*$/i.test(value)) return value;
+  if (isLikelyBusinessName(value) || !REAL_NAME_PATTERN.test(value)) return value;
   return value.split(/\s+/).map((part, index) => {
     const lower = part.toLocaleLowerCase();
     if (index > 0 && NAME_PARTICLES.has(lower)) return lower;
@@ -434,11 +450,27 @@ function formatPersonalName(value: string): string {
   }).join(' ');
 }
 
+/**
+ * Accept only human-name characters. Every whitespace-delimited token must
+ * contain at least two letters; hyphens and apostrophes are allowed only
+ * between letters so valid names such as O'Neal remain supported.
+ */
+export function isValidRealName(value: string | null | undefined): boolean {
+  const candidate = clean(value);
+  if (!candidate || !REAL_NAME_PATTERN.test(candidate)) return false;
+  return candidate
+    .split(/\s+/)
+    .every((token) => token.toLocaleLowerCase() === 'y' || token.replace(/[-']/g, '').length >= 2);
+}
+
 export function normalizeRealName(value: string | null | undefined): string {
   const candidate = clean(value);
   if (!candidate || INVALID_REAL_NAMES.has(candidate.toLowerCase())) return EMPTY;
   if (PHONE_LIKE_TEXT.test(candidate) || candidate.replace(/\D/g, '').length >= 7) return EMPTY;
-  if (!/[a-záéíóúüñ]/i.test(candidate) || /^[\W_\d]+$/u.test(candidate)) return EMPTY;
+  if (!isValidRealName(candidate)) return EMPTY;
+  if (TECHNICAL_NAME_LABEL.test(candidate)) return EMPTY;
+  if (LOCATION_RESPONSE.test(candidate)) return EMPTY;
+  if (SINGLE_WORD_NAME_BLOCKLIST.test(candidate)) return EMPTY;
   // Qualification answers can look like names (for example "En este mes").
   // Never promote a timeline, location, vehicle category, or yes/no answer
   // into the contact's real name.
@@ -457,7 +489,7 @@ export function isLikelyBusinessName(value: string | null | undefined): boolean 
 }
 
 function isLikelyProfileDisplayName(value: string | null | undefined): boolean {
-  return /[^\p{L}\p{M}\s.'-]/u.test(clean(value));
+  return NAME_DECLARATION.test(clean(value)) || !isValidRealName(value);
 }
 
 const NON_CONVERSATIONAL_METADATA_LINE = /(?:\b(?:headline|source\s+url|attribution|ad\s*(?:id|name))\b|https?:\/\/|fb\.me\/|\.post\b)/i;
@@ -1116,6 +1148,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const customerLocation = extractCustomerLocation(input, languageText);
   const campaignReply = isCampaignButton(message);
   const messageForExtraction = stripCampaignButtonPhrases(rawMessage);
+  const channel = effectiveChannel(input);
   const suppliedName = normalizeRealName(input.real_name);
   const profileName = profileNameFromInput(input);
   const extractedNames = [
@@ -1134,14 +1167,14 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     extractDeclaredRealNameFromText(rawHistory),
     ...extractedNames,
   ].map(normalizeRealName).find(Boolean) ?? EMPTY;
-  const messengerProfileName = profileName || suppliedName;
-  const realName = isMessengerChannel(input.channel)
+  const messengerProfileName = suppliedName || profileName;
+  const realName = isMessengerChannel(channel)
     // A valid contact/profile name is authoritative. Message text may replace
     // only a business/technical label, or answer an explicit name prompt.
     ? (messengerProfileName && !isLikelyBusinessName(messengerProfileName)
       ? messengerProfileName
       : messengerTextName || messengerProfileName)
-    : isWhatsAppChannel(input.channel)
+    : isWhatsAppChannel(channel)
       // WhatsApp gets a declared chat name first, then the profile name. The
       // message body and profile are separate fields in the webhook contract.
       ? whatsappNames.map(normalizeRealName).find(Boolean) ?? EMPTY

@@ -164,17 +164,31 @@ const phoneLikeText = (value) => {
     || digits.length >= 7;
 };
 const nameDeclaration = /(?:me llamo|mi nombre es|soy|yo soy|my name is|my name['’]s|i am|i['’]m|this is|call me(?!\s+at\b)|ll[aá]mame)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i;
+const realNameToken = "[\\p{L}\\p{M}]+(?:[-'][\\p{L}\\p{M}]+)*";
+const realNamePattern = new RegExp(`^${realNameToken}(?:\\s+${realNameToken})*$`, 'u');
+const technicalNameLabel = /^(?:precio|price)\s+(?:de|of)\b/i;
+const locationResponse = /^(?:estoy|vivo)\s+en\b/i;
 for (const technicalName of ['location', 'información', 'informacion', 'más información', 'mas informacion', 'más info', 'mas info', 'more information', 'more info', 'details', 'detalles']) invalidRealNames.add(technicalName);
+const isValidRealName = (value) => {
+  const candidate = clean(value);
+  return Boolean(candidate && realNamePattern.test(candidate) && candidate.split(/\s+/).every((token) => token.toLocaleLowerCase() === 'y' || token.replace(/[-']/g, '').length >= 2));
+};
 const normalizeRealName = (value) => {
   const candidate = clean(value);
-  if (!candidate || invalidRealNames.has(candidate.toLowerCase()) || phoneLikeText(candidate) || !/[a-záéíóúüñ]/i.test(candidate) || /^[\W_\d]+$/u.test(candidate) || qualificationResponseMarkers.test(candidate) || genericVehicleIntent.test(candidate) || inventoryIntent.test(candidate) || greetingOnly.test(candidate) || isVehicleStatement(candidate)) return '';
+  if (!candidate || invalidRealNames.has(candidate.toLowerCase()) || phoneLikeText(candidate) || !isValidRealName(candidate) || technicalNameLabel.test(candidate) || locationResponse.test(candidate) || singleWordNameBlocklist.test(candidate) || qualificationResponseMarkers.test(candidate) || genericVehicleIntent.test(candidate) || inventoryIntent.test(candidate) || greetingOnly.test(candidate) || isVehicleStatement(candidate)) return '';
   if (candidate.length > 100 || candidate.split(/\s+/).length > 5) return '';
   return formatPersonalName(candidate);
 };
 const isMessengerChannel = (value) => /(?:^|[^a-z])(?:messenger|facebook)(?:$|[^a-z])/i.test(clean(value));
 const isWhatsAppChannel = (value) => /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(clean(value));
+const effectiveChannel = (input) => {
+  const channel = clean(input.channel);
+  if (channel) return channel;
+  const source = clean(input.source);
+  return /(?:^|[^a-z])(?:messenger|facebook|whats?app)(?:$|[^a-z])/i.test(source) ? source : '';
+};
 const isBusinessName = (value) => /\b(?:auto\s*sales|motors?|dealership|dealer|llc|inc(?:orporated)?|corp(?:oration)?|company|tatuajes?|tattoos?|operaciones?|operations?|transport(?:ation)?|logistics|construction|remodeling|roofing|realty|consulting|services?|servicios?|shop|tienda|salon|barbershop|restaurant)\b/i.test(clean(value));
-const isProfileDisplayName = (value) => /[^\p{L}\p{M}\s.'-]/u.test(clean(value));
+const isProfileDisplayName = (value) => nameDeclaration.test(clean(value)) || !isValidRealName(value);
 const nameParticles = new Set(['da', 'de', 'del', 'der', 'di', 'la', 'las', 'los', 'van', 'von', 'y']);
 const formatPersonalName = (value) => {
   if (isBusinessName(value) || !/^[a-záéíóúüñ][a-záéíóúüñ' -]*$/i.test(value)) return value;
@@ -221,6 +235,8 @@ const profile = inputData.profile && typeof inputData.profile === 'object' ? inp
 const whatsappProfile = inputData.whatsapp && typeof inputData.whatsapp === 'object' && inputData.whatsapp.profile && typeof inputData.whatsapp.profile === 'object' ? inputData.whatsapp.profile : {};
 const rawContactName = first(inputData.contact_name, inputData.contactName, profile.name, whatsappProfile.name, inputData.name);
 const contactName = isProfileDisplayName(rawContactName) ? '' : normalizeRealName(rawContactName);
+const channel = effectiveChannel(inputData);
+const messengerProfileName = suppliedName || contactName;
 const extractedNames = [
   memoryValue(['real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name', 'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre']),
   nameFromText(rawMessage),
@@ -232,9 +248,11 @@ const whatsappNames = [
   contactName,
   memoryValue(['real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name', 'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre']),
 ];
-const realName = isMessengerChannel(inputData.channel)
-  ? (contactName || suppliedName || declaredNameFromText(rawMessage) || declaredNameFromText(rawHistory) || extractedNames.map(normalizeRealName).find(Boolean) || '')
-  : isWhatsAppChannel(inputData.channel)
+const realName = isMessengerChannel(channel)
+  ? (messengerProfileName && !isBusinessName(messengerProfileName)
+    ? messengerProfileName
+    : declaredNameFromText(rawMessage) || declaredNameFromText(rawHistory) || extractedNames.map(normalizeRealName).find(Boolean) || messengerProfileName || '')
+  : isWhatsAppChannel(channel)
     ? whatsappNames.map(normalizeRealName).find(Boolean) || ''
     : ((isBusinessName(suppliedName) || isProfileDisplayName(suppliedName)) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) || '';
 const isCampaignButton = (value) => /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today|quiero financiar un auto(?: con ustedes)?|me gustaria financiar un auto(?: con ustedes)?|financiar un auto(?: con ustedes)?|(?:quiero )?financiar con easterns?)$/.test(normalizeMatch(String(value ?? '').replace(/([!?])\s*\d{1,3}$/, '$1').replace(/[!?.,]/g, '')));

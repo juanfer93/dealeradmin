@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADVISOR_HANDOFF_VEHICLE, detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isAdvisorHandoffVehicle, isQualificationComplete, normalizeCollectorInput, normalizeRealName } from '../../domain/collector-normalizer';
+import { ADVISOR_HANDOFF_VEHICLE, detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isAdvisorHandoffVehicle, isQualificationComplete, isValidRealName, normalizeCollectorInput, normalizeRealName } from '../../domain/collector-normalizer';
 
 describe('normalizeCollectorInput', () => {
   it.each([
@@ -1870,6 +1870,69 @@ describe('normalizeCollectorInput', () => {
       profile: { name: 'Juan Perez' },
       message: 'Buenos Días Bendiciones',
     }).real_name).toBe('Juan Perez');
+  });
+
+  it.each([
+    ['EliasJosue 🕊Mnegra', false],
+    ['J0hn Doe', false],
+    ['Juan_123', false],
+    ['A B', false],
+    ['Precio de Hailader', true],
+    ['Juan-Perez', true],
+    ["Maria O'Neal", true],
+  ] as const)('validates strict real-name characters: %s', (value, expected) => {
+    expect(isValidRealName(value)).toBe(expected);
+    expect(normalizeRealName(value)).toBe(expected ? normalizeRealName(value) : '');
+  });
+
+  it('rejects the production vehicle-price label even though its characters are alphabetic', () => {
+    expect(normalizeRealName('Precio de Hailader')).toBe('');
+  });
+
+  it('keeps Messenger real_name priority and falls back from invalid WhatsApp real_name to history', () => {
+    expect(normalizeCollectorInput({
+      source: 'messenger',
+      real_name: 'Maria Lopez',
+      message: 'SUV',
+    }).real_name).toBe('Maria Lopez');
+
+    expect(normalizeCollectorInput({
+      source: 'whatsapp',
+      real_name: 'EliasJosue 🕊Mnegra',
+      message: 'A las 5 si se puede',
+      chat_history_log: 'Me llamo Carlos Mendoza\nSUV',
+    }).real_name).toBe('Carlos Mendoza');
+  });
+
+  it('replays the Stafford WhatsApp transcript and ignores the vehicle-price label as a name', () => {
+    const transcript = [
+      '*Headline:* Off Lease Motors Of Stafford *Source URL:* https://fb.me/46LvP8ksN ¡Hola! Quiero más información',
+      'Hailander 2014',
+      'Precio de hailader',
+      'Andres',
+      'Yo no e financiado ante',
+      'Ha civic 2014',
+      'Para hacer uber',
+      '1000',
+      'Estoy en virginia',
+    ];
+
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      real_name: 'Precio de Hailader',
+      contact_name: "I'm Andres",
+      phone: '+17577762572',
+      message: transcript.at(-1),
+      chat_history_log: transcript.join('\n'),
+      qualification_memory: 'real_name: Precio de Hailader; vehicle: Civic; down payment: 1000',
+      vehicle_type: 'Civic',
+      down_payment: '1000',
+    });
+
+    expect(result.real_name).toBe('Andres');
+    expect(result.vehicle_type).toBe('Civic');
+    expect(normalizeRealName('Precio de Hailader')).toBe('');
   });
 
   it.each([
