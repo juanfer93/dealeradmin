@@ -16,6 +16,7 @@ export interface ReportMailer {
 }
 
 type MailSocket = net.Socket | tls.TLSSocket;
+const SMTP_TIMEOUT_MS = 10_000;
 
 function responseError(response: string): Error {
   const code = response.slice(0, 3);
@@ -25,7 +26,7 @@ function responseError(response: string): Error {
 function readResponse(socket: MailSocket): Promise<string> {
   return new Promise((resolve, reject) => {
     let data = '';
-    const timeout = setTimeout(() => finish(new Error('SMTP server response timed out.')), 30000);
+    const timeout = setTimeout(() => finish(new Error('SMTP server response timed out.')), SMTP_TIMEOUT_MS);
     const onData = (chunk: Buffer | string) => {
       data += chunk.toString();
       const lines = data.split('\r\n');
@@ -107,7 +108,11 @@ export class SmtpReportMailer implements ReportMailer {
       socket.write(`${payload}\r\n.\r\n`);
       await readResponse(socket);
       const messageId = `<${randomUUID()}@dealeradmin>`;
-      await command(socket, 'QUIT').catch(() => undefined);
+      try {
+        await command(socket, 'QUIT');
+      } catch (error) {
+        console.warn('[Monthly Report SMTP]: connection close failed after delivery confirmation.', error instanceof Error ? error.message : error);
+      }
       return { messageId };
     } finally {
       socket.destroy();
@@ -122,7 +127,7 @@ export class SmtpReportMailer implements ReportMailer {
       const connected = () => resolve(socket);
       socket.once(this.config.smtpSecure ? 'secureConnect' : 'connect', connected);
       socket.once('error', () => reject(new Error('SMTP connection failed.')));
-      socket.setTimeout(30000, () => socket.destroy(new Error('SMTP connection timed out.')));
+      socket.setTimeout(SMTP_TIMEOUT_MS, () => socket.destroy(new Error('SMTP connection timed out.')));
     });
   }
 

@@ -38,9 +38,11 @@ describe('monthly lead reports', () => {
     vi.stubEnv('MONTHLY_REPORTS_ENABLED', 'true');
     vi.stubEnv('MONTHLY_REPORTS_SMTP_PASSWORD', 'unit-test-placeholder');
     const sent: ReportMail[] = [];
-    const query = vi.fn()
-      .mockResolvedValueOnce([{ id: 'delivery-1' }])
-      .mockResolvedValueOnce([]);
+    const order: string[] = [];
+    const query = vi.fn(async (sql: string, _params?: unknown[]) => {
+      order.push(sql.includes('INSERT INTO monthly_report_deliveries') ? 'insert' : 'query');
+      return [];
+    });
     const dataSource = { query } as unknown as DataSource;
     const exportService = {
       generateMonthlyReport: vi.fn().mockResolvedValue({
@@ -53,7 +55,7 @@ describe('monthly lead reports', () => {
         ],
       }),
     };
-    const mailer: ReportMailer = { send: vi.fn(async (message) => { sent.push(message); return { messageId: 'provider-1' }; }) };
+    const mailer: ReportMailer = { send: vi.fn(async (message) => { order.push('send'); sent.push(message); return { messageId: 'provider-1' }; }) };
     const service = new MonthlyReportService(dataSource, exportService as never, mailer);
 
     await expect(service.run(new Date('2026-10-01T17:00:00.000Z'))).resolves.toMatchObject({ status: 'sent', rowCount: 3, dealerCount: 2 });
@@ -79,6 +81,7 @@ describe('monthly lead reports', () => {
       new Date('2026-09-01T17:00:00.000Z'),
       new Date('2026-10-01T17:00:00.000Z'),
     ]);
+    expect(order.indexOf('insert')).toBeGreaterThan(order.indexOf('send'));
   });
 
   it('does not query or generate when disabled', async () => {
@@ -100,13 +103,52 @@ describe('monthly lead reports', () => {
     const exportService = { generateMonthlyReport: vi.fn().mockResolvedValue({ buffer: Buffer.from('xlsx'), rowCount: 0, sheetCount: 1, dealerCounts: [] }) };
     const mailer = { send: vi.fn().mockResolvedValue({ messageId: 'provider-2' }) };
     const query = vi.fn()
-      .mockResolvedValueOnce([]).mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ id: 'retry-1' }]).mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([]).mockResolvedValueOnce([{ status: 'sent' }])
+      .mockResolvedValueOnce([]).mockResolvedValueOnce([{ status: 'failed' }])
+      .mockResolvedValueOnce([]).mockResolvedValueOnce([]);
     const service = new MonthlyReportService({ query } as unknown as DataSource, exportService as never, mailer);
 
     await expect(service.run(new Date('2026-10-01T17:00:00.000Z'))).resolves.toMatchObject({ status: 'skipped_duplicate' });
     await expect(service.run(new Date('2026-10-01T17:00:00.000Z'))).resolves.toMatchObject({ status: 'sent', rowCount: 0 });
     expect(mailer.send).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not register a delivery when SMTP fails', async () => {
+    vi.stubEnv('MONTHLY_REPORTS_ENABLED', 'true');
+    vi.stubEnv('MONTHLY_REPORTS_SMTP_PASSWORD', 'unit-test-placeholder');
+    const query = vi.fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    const exportService = {
+      generateMonthlyReport: vi.fn().mockResolvedValue({ buffer: Buffer.from('xlsx'), rowCount: 1, sheetCount: 1, dealerCounts: [] }),
+    };
+    const mailer: ReportMailer = { send: vi.fn().mockRejectedValue(new Error('SMTP Connection Timeout')) };
+    const service = new MonthlyReportService({ query } as unknown as DataSource, exportService as never, mailer);
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    await expect(service.run(new Date('2026-10-01T17:00:00.000Z'))).rejects.toMatchObject({ code: 'SMTP_DELIVERY_FAILED' });
+    expect(query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO monthly_report_deliveries'))).toBe(false);
+    expect(log).toHaveBeenCalledWith('[Monthly Report Error]:', 'SMTP Connection Timeout');
+    log.mockRestore();
+  });
+
+  it('forces a resend even when the period was already sent', async () => {
+    vi.stubEnv('MONTHLY_REPORTS_ENABLED', 'true');
+    vi.stubEnv('MONTHLY_REPORTS_SMTP_PASSWORD', 'unit-test-placeholder');
+    const query = vi.fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ status: 'sent' }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    const exportService = {
+      generateMonthlyReport: vi.fn().mockResolvedValue({ buffer: Buffer.from('xlsx'), rowCount: 1, sheetCount: 1, dealerCounts: [] }),
+    };
+    const mailer: ReportMailer = { send: vi.fn().mockResolvedValue({ messageId: 'forced-1' }) };
+    const service = new MonthlyReportService({ query } as unknown as DataSource, exportService as never, mailer);
+
+    await expect(service.run(new Date('2026-10-01T17:00:00.000Z'), undefined, true)).resolves.toMatchObject({ status: 'sent' });
+    expect(mailer.send).toHaveBeenCalledOnce();
+    expect(query.mock.calls.some(([sql]) => String(sql).includes('ON CONFLICT (period_key) DO UPDATE'))).toBe(true);
   });
 
   it('sanitizes credentials and addresses from delivery errors', () => {

@@ -8,12 +8,13 @@ import {
   Req,
   Res,
   UnauthorizedException,
+  InternalServerErrorException,
   UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService } from '../../auth/application/auth.service';
 import { ExportReportService } from '../application/export-report.service';
-import { MonthlyReportService } from '../application/monthly-report.service';
+import { MonthlyReportDeliveryError, MonthlyReportService } from '../application/monthly-report.service';
 import { monthlyReportPeriod } from '../application/monthly-report.service';
 import { MonthlyReportCronGuard } from './monthly-report-cron.guard';
 import { parseMonthlyReportsConfig } from '@dealeradmin/config';
@@ -42,8 +43,16 @@ export class ReportsController {
 
   @Get('monthly/run')
   @UseGuards(MonthlyReportCronGuard)
-  runMonthlyReport(): Promise<unknown> {
-    return this.monthlyReportService.run();
+  async runMonthlyReport(@Query('force') force?: string): Promise<unknown> {
+    try {
+      const result = await this.monthlyReportService.run(new Date(), undefined, force === 'true');
+      return { success: true, period: result.periodKey, ...result };
+    } catch (error) {
+      if (error instanceof MonthlyReportDeliveryError) {
+        throw new InternalServerErrorException({ success: false, error: error.code });
+      }
+      throw error;
+    }
   }
 
   @Get('monthly/status')

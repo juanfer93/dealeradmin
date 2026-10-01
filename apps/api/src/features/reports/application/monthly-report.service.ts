@@ -1,6 +1,6 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { createHash } from 'node:crypto';
 import { parseMonthlyReportsConfig, type MonthlyReportsConfig } from '@dealeradmin/config';
 import { ExportReportService } from './export-report.service';
@@ -23,6 +23,15 @@ export type MonthlyReportRunResult = {
   rowCount?: number;
   dealerCount?: number;
 };
+
+export class MonthlyReportDeliveryError extends Error {
+  readonly code = 'SMTP_DELIVERY_FAILED';
+
+  constructor() {
+    super('SMTP delivery failed.');
+    this.name = 'MonthlyReportDeliveryError';
+  }
+}
 
 const MONTHS_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
@@ -87,7 +96,7 @@ export class MonthlyReportService {
     @Optional() @Inject(MONTHLY_REPORT_MAILER) private readonly mailer?: ReportMailer,
   ) {}
 
-  async run(now = new Date(), requestedPeriodKey?: string): Promise<MonthlyReportRunResult> {
+  async run(now = new Date(), requestedPeriodKey?: string, force = false): Promise<MonthlyReportRunResult> {
     const config = parseMonthlyReportsConfig();
     const period = requestedPeriodKey ? periodFromKey(requestedPeriodKey, config.timezone) : monthlyReportPeriod(now, config.timezone);
     if (!config.enabled) {
@@ -98,11 +107,47 @@ export class MonthlyReportService {
 
     const subject = `Reporte leads (${period.label})`;
     const fileName = `Reporte leads (${period.label}).xlsx`;
-    const owner = await this.acquire(period, config, subject, fileName);
-    if (!owner) return { periodKey: period.periodKey, status: 'skipped_duplicate' };
-
+    let result: MonthlyReportRunResult;
     try {
-      const report = await this.exportReportService.generateMonthlyReport(period.start, period.end, fileName);
+      result = await this.sendAndRecord(period, config, subject, fileName, force);
+    } catch (error) {
+      console.error('[Monthly Report Error]:', sanitizeMonthlyReportError(error));
+      throw new MonthlyReportDeliveryError();
+    }
+    if (result.status === 'skipped_duplicate' || result.status === 'skipped_dry_run') return result;
+    try {
+      await this.archiveReportedSentLeads(period);
+    } catch (error) {
+      console.error('[Monthly Report Archive Error]:', sanitizeMonthlyReportError(error));
+      throw error;
+    }
+    return result;
+  }
+
+  private async sendAndRecord(
+    period: MonthlyReportPeriod,
+    config: MonthlyReportsConfig,
+    subject: string,
+    fileName: string,
+    force: boolean,
+  ): Promise<MonthlyReportRunResult> {
+    const execute = async (manager: EntityManager): Promise<MonthlyReportRunResult> => {
+      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`monthly-report:${period.periodKey}`]);
+      const existing = await manager.query(
+        `SELECT status FROM monthly_report_deliveries WHERE period_key = $1 LIMIT 1`,
+        [period.periodKey],
+      ) as Array<{ status: string }>;
+      const existingStatus = existing[0]?.status;
+      const retryableStatuses = new Set(['failed', 'skipped_disabled', 'skipped_dry_run']);
+      if (!force && existingStatus && !retryableStatuses.has(existingStatus)) {
+        return { periodKey: period.periodKey, status: 'skipped_duplicate' };
+      }
+
+      const report = await this.exportReportService!.generateMonthlyReport(period.start, period.end, fileName);
+      if (config.dryRun) {
+        return { periodKey: period.periodKey, status: 'skipped_dry_run', rowCount: report.rowCount, dealerCount: report.dealerCounts.length };
+      }
+
       const body = [
         'Buenas tardes,',
         '',
@@ -112,10 +157,6 @@ export class MonthlyReportService {
         'Saludos,',
       ].join('\n');
       const attachmentSha256 = createHash('sha256').update(report.buffer).digest('hex');
-      if (config.dryRun) {
-        await this.markDryRun(period.periodKey, report.rowCount, report.dealerCounts.length, fileName, attachmentSha256);
-        return { periodKey: period.periodKey, status: 'skipped_dry_run', rowCount: report.rowCount, dealerCount: report.dealerCounts.length };
-      }
       const message: ReportMail = {
         from: config.from,
         to: config.to.split(',').map((value) => value.trim()).filter(Boolean),
@@ -124,13 +165,32 @@ export class MonthlyReportService {
         attachment: { filename: fileName, content: report.buffer },
       };
       const sent = await (this.mailer ?? new SmtpReportMailer(config)).send(message);
-      await this.markSent(period.periodKey, report.rowCount, report.dealerCounts.length, fileName, attachmentSha256, sent.messageId);
-      await this.archiveReportedSentLeads(period);
+
+      await manager.query(
+        `INSERT INTO monthly_report_deliveries
+         (period_key, period_start, period_end, timezone, from_address, to_address, subject,
+          row_count, dealer_count, attachment_filename, attachment_sha256, status, attempt_count,
+          provider_message_id, sent_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'sent', 1, $12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         ON CONFLICT (period_key) DO UPDATE SET
+           period_start = EXCLUDED.period_start, period_end = EXCLUDED.period_end,
+           timezone = EXCLUDED.timezone, from_address = EXCLUDED.from_address,
+           to_address = EXCLUDED.to_address, subject = EXCLUDED.subject,
+           row_count = EXCLUDED.row_count, dealer_count = EXCLUDED.dealer_count,
+           attachment_filename = EXCLUDED.attachment_filename, attachment_sha256 = EXCLUDED.attachment_sha256,
+           status = 'sent', attempt_count = monthly_report_deliveries.attempt_count + 1,
+           last_error = NULL, next_retry_at = NULL, provider_message_id = EXCLUDED.provider_message_id,
+           sent_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP`,
+        [
+          period.periodKey, period.start, period.end, period.timezone, config.from, config.to, subject,
+          report.rowCount, report.dealerCounts.length, fileName, attachmentSha256, sent.messageId ?? null,
+        ],
+      );
       return { periodKey: period.periodKey, status: 'sent', rowCount: report.rowCount, dealerCount: report.dealerCounts.length };
-    } catch (error) {
-      await this.markFailed(period.periodKey, sanitizeMonthlyReportError(error));
-      throw error;
-    }
+    };
+
+    if (typeof this.dataSource!.transaction === 'function') return this.dataSource!.transaction(execute);
+    return execute(this.dataSource as unknown as EntityManager);
   }
 
   private async recordDisabled(period: MonthlyReportPeriod): Promise<void> {
@@ -141,62 +201,6 @@ export class MonthlyReportService {
        VALUES ($1, $2, $3, $4, 'disabled', 'disabled', 'disabled', $5, 'skipped_disabled')
        ON CONFLICT (period_key) DO NOTHING`,
       [period.periodKey, period.start, period.end, period.timezone, `Reporte leads (${period.label}).xlsx`],
-    );
-  }
-
-  private async acquire(period: MonthlyReportPeriod, config: MonthlyReportsConfig, subject: string, fileName: string): Promise<boolean> {
-    const inserted = await this.dataSource!.query(
-      `INSERT INTO monthly_report_deliveries
-       (period_key, period_start, period_end, timezone, from_address, to_address, subject, attachment_filename, status, attempt_count)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'processing', 1)
-       ON CONFLICT (period_key) DO NOTHING
-       RETURNING id`,
-      [period.periodKey, period.start, period.end, period.timezone, config.from, config.to, subject, fileName],
-    );
-    if ((inserted as Array<{ id: string }>).length > 0) return true;
-
-    const reclaimed = await this.dataSource!.query(
-      `UPDATE monthly_report_deliveries
-       SET period_start = $2, period_end = $3, timezone = $4, from_address = $5, to_address = $6,
-           subject = $7, attachment_filename = $8, status = 'processing', attempt_count = attempt_count + 1,
-           last_error = NULL, next_retry_at = NULL, updated_at = CURRENT_TIMESTAMP
-       WHERE period_key = $1 AND status IN ('failed', 'skipped_disabled', 'skipped_dry_run')
-         AND (next_retry_at IS NULL OR next_retry_at <= CURRENT_TIMESTAMP)
-       RETURNING id`,
-      [period.periodKey, period.start, period.end, period.timezone, config.from, config.to, subject, fileName],
-    );
-    if ((reclaimed as Array<{ id: string }>).length > 0) return true;
-    return false;
-  }
-
-  private async markDryRun(periodKey: string, rowCount: number, dealerCount: number, fileName: string, sha256: string): Promise<void> {
-    await this.dataSource!.query(
-      `UPDATE monthly_report_deliveries
-       SET status = 'skipped_dry_run', row_count = $2, dealer_count = $3, attachment_filename = $4,
-           attachment_sha256 = $5, updated_at = CURRENT_TIMESTAMP
-       WHERE period_key = $1 AND status = 'processing'`,
-      [periodKey, rowCount, dealerCount, fileName, sha256],
-    );
-  }
-
-  private async markSent(periodKey: string, rowCount: number, dealerCount: number, fileName: string, sha256: string, messageId?: string): Promise<void> {
-    await this.dataSource!.query(
-      `UPDATE monthly_report_deliveries
-       SET status = 'sent', row_count = $2, dealer_count = $3, attachment_filename = $4,
-           attachment_sha256 = $5, provider_message_id = $6, sent_at = CURRENT_TIMESTAMP,
-           updated_at = CURRENT_TIMESTAMP
-       WHERE period_key = $1 AND status = 'processing'`,
-      [periodKey, rowCount, dealerCount, fileName, sha256, messageId ?? null],
-    );
-  }
-
-  private async markFailed(periodKey: string, error: string): Promise<void> {
-    await this.dataSource!.query(
-      `UPDATE monthly_report_deliveries
-       SET status = 'failed', last_error = $2, next_retry_at = CURRENT_TIMESTAMP + INTERVAL '15 minutes',
-           updated_at = CURRENT_TIMESTAMP
-       WHERE period_key = $1 AND status = 'processing'`,
-      [periodKey, error],
     );
   }
 
