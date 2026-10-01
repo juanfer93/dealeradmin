@@ -77,26 +77,42 @@ export default function ReportsPage() {
       setMonthlyStatusLoading(false);
       return undefined;
     }
-    const controller = new AbortController();
-    setMonthlyStatusLoading(true);
-    fetch('/api/reports/monthly/status', { credentials: 'include', signal: controller.signal })
-      .then(async (response) => {
+    let disposed = false;
+    let firstLoad = true;
+    let activeController: AbortController | null = null;
+
+    async function loadMonthlyStatus() {
+      activeController?.abort();
+      const controller = new AbortController();
+      activeController = controller;
+      if (firstLoad) setMonthlyStatusLoading(true);
+      try {
+        const response = await fetch('/api/reports/monthly/status', { credentials: 'include', signal: controller.signal });
         if (response.status === 401) {
           router.replace('/login');
-          return null;
+          return;
         }
         if (!response.ok) throw new Error(t.reports.monthlyUnavailable);
-        return response.json() as Promise<MonthlyStatus>;
-      })
-      .then((data) => {
-        if (data) setMonthlyStatus(data);
-      })
-      .catch((statusError: unknown) => {
+        const data = await response.json() as MonthlyStatus;
+        if (!disposed) setMonthlyStatus(data);
+      } catch (statusError: unknown) {
         if (statusError instanceof DOMException && statusError.name === 'AbortError') return;
-        setMonthlyStatus(null);
-      })
-      .finally(() => setMonthlyStatusLoading(false));
-    return () => controller.abort();
+        if (!disposed && firstLoad) setMonthlyStatus(null);
+      } finally {
+        if (firstLoad) {
+          firstLoad = false;
+          if (!disposed) setMonthlyStatusLoading(false);
+        }
+      }
+    }
+
+    void loadMonthlyStatus();
+    const refreshId = window.setInterval(() => { void loadMonthlyStatus(); }, 60_000);
+    return () => {
+      disposed = true;
+      activeController?.abort();
+      window.clearInterval(refreshId);
+    };
   }, [router, t.reports.monthlyUnavailable]);
 
   const hasDates = Boolean(fromDate && toDate);
