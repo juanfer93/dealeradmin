@@ -6,6 +6,7 @@ import { buildManualLeadMessage } from '../domain/manual-message-builder';
 import { normalizeDownPayment } from '../domain/down-payment';
 import { parseBulkLeads, ParsedBulkLead } from '../domain/bulk-lead-parser';
 import { findDealerLeadDuplicate } from '../domain/lead-duplicate';
+import { normalizePhone } from '../domain/phone-normalizer';
 import { addTestManualLead, getTestDealer, hasTestDealerLeadDuplicate } from './test-lead-store';
 
 type DealerRow = { id: string; ghl_location_id: string };
@@ -94,12 +95,19 @@ export class BulkLeadService {
         rows.push({ rowNumber: item.rowNumber, name: item.name, phone: item.phone, status: 'invalid', reason: item.error ?? 'Datos inválidos.' });
         continue;
       }
-      if (hasTestDealerLeadDuplicate(dealer.id, item.dto.name, item.dto.phone)) {
-        summary.duplicates += 1;
-        rows.push({ rowNumber: item.rowNumber, name: item.dto.name, phone: item.dto.phone, status: 'duplicate', reason: duplicateReason(item.dto.name, item.dto.phone) });
+      const canonicalPhone = this.normalizeParsedPhone(item);
+      if (!canonicalPhone) {
+        summary.invalid += 1;
+        rows.push({ rowNumber: item.rowNumber, name: item.dto.name, phone: item.phone, status: 'invalid', reason: 'El teléfono no tiene un formato válido.' });
         continue;
       }
-      const lead = addTestManualLead(dealer.id, item.dto, item.dto.phone, buildManualLeadMessage(item.dto.name, item.dto.phone, item.dto));
+      const dto = { ...item.dto, phone: canonicalPhone };
+      if (hasTestDealerLeadDuplicate(dealer.id, dto.name, canonicalPhone)) {
+        summary.duplicates += 1;
+        rows.push({ rowNumber: item.rowNumber, name: dto.name, phone: canonicalPhone, status: 'duplicate', reason: duplicateReason(dto.name, canonicalPhone) });
+        continue;
+      }
+      const lead = addTestManualLead(dealer.id, dto, canonicalPhone, buildManualLeadMessage(dto.name, canonicalPhone, dto));
       summary.inserted += 1;
       rows.push({ rowNumber: item.rowNumber, name: lead.name, phone: lead.phone, status: 'inserted', leadId: lead.id });
     }
@@ -112,22 +120,29 @@ export class BulkLeadService {
       return { rowNumber: item.rowNumber, name: item.name, phone: item.phone, status: 'invalid', reason: item.error ?? 'Datos inválidos.' };
     }
 
-    const duplicate = await findDealerLeadDuplicate(queryRunner, dealer.id, item.dto.name, item.dto.phone);
+    const canonicalPhone = this.normalizeParsedPhone(item);
+    if (!canonicalPhone) {
+      const reason = 'El teléfono no tiene un formato válido.';
+      await this.recordRow(queryRunner, _batchId, item, 'invalid', reason);
+      return { rowNumber: item.rowNumber, name: item.dto.name, phone: item.phone, status: 'invalid', reason };
+    }
+    const dto = { ...item.dto, phone: canonicalPhone };
+    const duplicate = await findDealerLeadDuplicate(queryRunner, dealer.id, dto.name, canonicalPhone);
     if (duplicate) {
-      const reason = duplicateReason(item.dto.name, item.dto.phone, duplicate);
+      const reason = duplicateReason(dto.name, canonicalPhone, duplicate);
       await this.recordRow(queryRunner, _batchId, item, 'duplicate', reason, duplicate.id);
-      return { rowNumber: item.rowNumber, name: item.dto.name, phone: item.dto.phone, status: 'duplicate', reason, leadId: duplicate.id };
+      return { rowNumber: item.rowNumber, name: dto.name, phone: canonicalPhone, status: 'duplicate', reason, leadId: duplicate.id };
     }
 
-    const names = item.dto.name.trim().split(/\s+/).filter(Boolean);
+    const names = dto.name.trim().split(/\s+/).filter(Boolean);
     let leadId: string;
     const inserted = await queryRunner.query(
       `INSERT INTO leads (canonical_phone, first_name, last_name, ghl_contact_id, ghl_location_id, source)
        VALUES ($1, $2, $3, $4, $5, 'Manual Bulk Console') RETURNING id`,
-      [item.dto.phone, names[0], names.slice(1).join(' '), `bulk_${randomBytes(4).toString('hex')}`, dealer.ghl_location_id],
+      [canonicalPhone, names[0], names.slice(1).join(' '), `bulk_${randomBytes(4).toString('hex')}`, dealer.ghl_location_id],
     ) as LeadRow[];
     leadId = inserted[0].id;
-    const message = buildManualLeadMessage(item.dto.name, item.dto.phone, item.dto);
+    const message = buildManualLeadMessage(dto.name, canonicalPhone, dto);
     await queryRunner.query(
       `INSERT INTO lead_dealers
         (lead_id, dealer_id, vehicle_type, down_payment, purchase_timeline, documents, identification,
@@ -139,10 +154,19 @@ export class BulkLeadService {
          identification = EXCLUDED.identification, bank_account = EXCLUDED.bank_account,
          status = CASE WHEN lead_dealers.status = 'sent' THEN 'sent' ELSE 'pending' END,
          message_text = EXCLUDED.message_text, updated_at = CURRENT_TIMESTAMP`,
-      [leadId, dealer.id, item.dto.vehicle_type, normalizeDownPayment(item.dto.down_payment), item.dto.purchase_timeline, item.dto.documents, item.dto.identification, item.dto.bank_account, message],
+      [leadId, dealer.id, dto.vehicle_type, normalizeDownPayment(dto.down_payment), dto.purchase_timeline, dto.documents, dto.identification, dto.bank_account, message],
     );
     await this.recordRow(queryRunner, _batchId, item, 'inserted', undefined, leadId);
-    return { rowNumber: item.rowNumber, name: item.dto.name, phone: item.dto.phone, status: 'inserted', leadId };
+    return { rowNumber: item.rowNumber, name: dto.name, phone: canonicalPhone, status: 'inserted', leadId };
+  }
+
+  private normalizeParsedPhone(item: ParsedBulkLead): string | null {
+    if (!item.dto?.phone) return null;
+    try {
+      return normalizePhone(item.dto.phone);
+    } catch {
+      return null;
+    }
   }
 
   private async recordRow(queryRunner: any, batchId: string, item: ParsedBulkLead, status: string, reason?: string, leadId?: string) {

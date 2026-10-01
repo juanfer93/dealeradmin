@@ -90,6 +90,38 @@ describe('Día 6 - generación de reportes XLSX', () => {
     expect(workbook.getWorksheet('Dealer Uno')?.getRow(2).getCell(3).value).toBe('573233321701');
   });
 
+  it('incluye leads con teléfono crudo y lo sanitiza en el XLSX', async () => {
+    mockQuery
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{
+        dealer_id: 'dealer-1',
+        dealer_name: 'Dealer Uno',
+        received_at: '2026-08-24T12:00:00.000Z',
+        name: 'Raw Phone Lead',
+        phone: '+1 (703) 555-0123',
+        vehicle_type: null,
+        down_payment: null,
+        purchase_timeline: null,
+        documents: null,
+        identification: null,
+        bank_account: null,
+        status: 'pending',
+        sent_at: null,
+      }])
+      .mockResolvedValueOnce([]);
+
+    const result = await service.generateMonthlyReport(
+      new Date('2026-08-01T00:00:00.000Z'),
+      new Date('2026-09-01T00:00:00.000Z'),
+      'Reporte leads (Agosto 2026).xlsx',
+    );
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(result.buffer as unknown as Parameters<typeof workbook.xlsx.load>[0]);
+
+    expect(result.rowCount).toBe(1);
+    expect(workbook.getWorksheet('Dealer Uno')?.getRow(2).getCell(3).value).toBe('7035550123');
+  });
+
   it('resume ID y cuenta bancaria sin exponer el identificador de la persona', async () => {
     mockQuery
       .mockResolvedValueOnce([])

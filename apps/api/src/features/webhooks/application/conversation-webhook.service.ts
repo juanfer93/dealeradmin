@@ -1212,6 +1212,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
   }
 
   private async upsertLead(runner: QueryRunner, input: { locationId: string; contactId: string; phone: string | null; firstName: string; lastName: string }): Promise<LeadRow> {
+    const canonicalPhone = this.safePhone(input.phone);
     const existing = await runner.query(
       `SELECT id, canonical_phone, first_name, last_name FROM leads WHERE ghl_location_id = $1 AND ghl_contact_id = $2 FOR UPDATE`,
       [input.locationId, input.contactId],
@@ -1225,12 +1226,12 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
              last_name = CASE WHEN NULLIF($3, '') IS NULL OR LOWER($2) = 'lead' THEN last_name ELSE $3 END,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $4`,
-        [input.phone, input.firstName, input.lastName, lead.id],
+        [canonicalPhone, input.firstName, input.lastName, lead.id],
       );
       const hasRealName = Boolean(input.firstName && input.firstName.toLowerCase() !== 'lead');
       return {
         ...lead,
-        canonical_phone: input.phone || lead.canonical_phone,
+        canonical_phone: canonicalPhone || lead.canonical_phone,
         first_name: hasRealName ? input.firstName : lead.first_name,
         last_name: hasRealName ? input.lastName : lead.last_name,
       };
@@ -1238,7 +1239,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     const inserted = await runner.query(
       `INSERT INTO leads (canonical_phone, first_name, last_name, ghl_contact_id, ghl_location_id, source)
        VALUES ($1, $2, $3, $4, $5, 'GHL Customer Replied') RETURNING id, canonical_phone, first_name, last_name`,
-      [input.phone, input.firstName, input.lastName, input.contactId, input.locationId],
+      [canonicalPhone, input.firstName, input.lastName, input.contactId, input.locationId],
     ) as LeadRow[];
     return inserted[0];
   }

@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import * as ExcelJS from 'exceljs';
 import { randomUUID } from 'node:crypto';
 import { isCashDownPayment, isNoDownPayment, normalizeDownPayment } from '../../leads/domain/down-payment';
+import { normalizePhoneOrNull } from '../../leads/domain/phone-normalizer';
 import { normalizePurchaseTimeline, LOOKING_OPTIONS_LABEL } from '../../leads/domain/message-builder';
 import {
   easternsTestLead,
@@ -48,7 +49,10 @@ export type MonthlyReportResult = {
 };
 
 function formatExportPhone(value: string | null | undefined): string {
-  const digits = (value ?? '').replace(/\D/g, '');
+  // Existing rows may predate canonical_phone or may contain a formatted value.
+  // Normalize first, then keep the workbook's historical digits-only display.
+  const canonical = normalizePhoneOrNull(value);
+  const digits = (canonical ?? value ?? '').replace(/\D/g, '');
   if (!digits) return '';
 
   // Export US/NANP numbers without the country code, while preserving
