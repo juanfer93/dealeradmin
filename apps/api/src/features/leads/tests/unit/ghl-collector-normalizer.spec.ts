@@ -62,6 +62,23 @@ describe('HighLevel collector custom-code normalizer', () => {
     }).vehicle_type).toBe('Sedan');
   });
 
+  it('replays Orlando Jones Jr. without losing the suffix, small-car category, or down payment in Custom Code', () => {
+    expect(execute({
+      source: 'action-cars',
+      channel: 'messenger',
+      real_name: 'Orlando Jones Jr.',
+      phone: '+14102270075',
+      message: "I’m looking for a small car that I can use to run back-and-forth to DC on a daily basis from Maryland\nI’m looking for a car $10,000 or less I’ll put down at least 2000 if not pay for the whole thing upfront",
+    })).toMatchObject({
+      real_name: 'Orlando Jones Jr',
+      phone: '+14102270075',
+      vehicle_type: 'Sedan',
+      vehicle_year: null,
+      down_payment: '2000',
+    });
+    expect(execute({ source: 'action-cars', channel: 'messenger', message: 'Busco un carro pequeño' }).vehicle_type).toBe('Sedan');
+  });
+
   it('normalizes Stafford WhatsApp "Algo económico" to Sedan during reconciliation', () => {
     expect(execute({
       source: 'stafford',

@@ -70,6 +70,7 @@ const vehicleBrands = /\b(?:toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyun
 const vehicleModels = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacoma|tacma|tecoma|rav\s*4|civic|civc|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|for\s+runner|for\s+runer|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|rlx|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
 const vehicleCategories = /\b(?:suv|sedan|truck|truk|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i;
 const vehicleContext = /\b(?:tengo|tiene|tienen|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
+const genericSedanIntent = /\b(?:small|compact|affordable|budget|economical)\s+(?:car|auto|coche|carro|vehicle)\b|\b(?:carro|auto|coche|veh[ií]culo)\s+pequeñ[oa]\b/i;
 const economicCarIntent = /\b(?:carro|auto|coche|veh[ií]culo)\s+econ[oó]mic[oa]s?\b/i;
 // Stafford's WhatsApp flow commonly answers the vehicle-type prompt with
 // "Algo económico" followed by "Normal". Keep it as a sedan category during
@@ -168,13 +169,15 @@ const realNameToken = "[\\p{L}\\p{M}]+(?:[-'][\\p{L}\\p{M}]+)*";
 const realNamePattern = new RegExp(`^${realNameToken}(?:\\s+${realNameToken})*$`, 'u');
 const technicalNameLabel = /^(?:precio|price)\s+(?:de|of)\b/i;
 const locationResponse = /^(?:estoy|vivo)\s+en\b/i;
+const nameSuffixPunctuation = /\b(jr|sr|ii|iii|iv|v)\.(?=\s|,|$)/gi;
+const normalizeNameSuffixPunctuation = (value) => clean(value).replace(nameSuffixPunctuation, '$1').replace(/,\s*$/, '').trim();
 for (const technicalName of ['location', 'información', 'informacion', 'más información', 'mas informacion', 'más info', 'mas info', 'more information', 'more info', 'details', 'detalles']) invalidRealNames.add(technicalName);
 const isValidRealName = (value) => {
-  const candidate = clean(value);
+  const candidate = normalizeNameSuffixPunctuation(value);
   return Boolean(candidate && realNamePattern.test(candidate) && candidate.split(/\s+/).every((token) => token.toLocaleLowerCase() === 'y' || token.replace(/[-']/g, '').length >= 2));
 };
 const normalizeRealName = (value) => {
-  const candidate = clean(value);
+  const candidate = normalizeNameSuffixPunctuation(value);
   if (!candidate || invalidRealNames.has(candidate.toLowerCase()) || phoneLikeText(candidate) || !isValidRealName(candidate) || technicalNameLabel.test(candidate) || locationResponse.test(candidate) || singleWordNameBlocklist.test(candidate) || qualificationResponseMarkers.test(candidate) || genericVehicleIntent.test(candidate) || inventoryIntent.test(candidate) || greetingOnly.test(candidate) || isVehicleStatement(candidate)) return '';
   if (candidate.length > 100 || candidate.split(/\s+/).length > 5) return '';
   return formatPersonalName(candidate);
@@ -345,7 +348,7 @@ const downFrom = (text) => {
   const explicit = source.match(new RegExp(`(?:down|enganche|inicial|deposit|dep[oó]sito)[ \\t]*(?:payment|pago)?[ \\t]*(?:is|es|de|:)?[ \\t]*\\$?[ \\t]*${token}`, 'i'));
   const withAmount = source.match(new RegExp(`\\b(?:puedo|puede|can|could|i can|i could)[ \\t]+(?:con|with)[ \\t]*\\$?[ \\t]*${token}\\b`, 'i'));
   const declared = source.match(new RegExp(`\\b(?:i have|tengo|i can put|puedo poner)[ \\t]+\\$?[ \\t]*${token}[ \\t]*(?:down|payment|enganche|inicial)?\\b`, 'i'));
-  const spanishDeclared = source.match(new RegExp(`\\b(?:doy|dar[eé]?|pongo|poner|i(?:'|’)ll put|i put)[ \\t]+(?:de[ \\t]+|para[ \\t]+)?\\$?[ \\t]*${token}\\b`, 'i'));
+  const spanishDeclared = source.match(new RegExp(`\\b(?:doy|dar[eé]?|pongo|poner|i(?:'|’)ll put|i put)[ \\t]+(?:down[ \\t]+)?(?:at least[ \\t]+|de[ \\t]+|para[ \\t]+)?\\$?[ \\t]*${token}\\b`, 'i'));
   const noisyDeclared = source.match(new RegExp(`\\b(?:cuento|cuenta)\\b[^\\n]{0,80}?(?:y|and|plus)[ \\t.,;:]*\\$?[ \\t]*${token}\\b`, 'i'));
   const safeSource = source.split('\\n').filter((line) => !isPhoneOnlyLine(line)).join('\\n');
   const standalone = safeSource.match(new RegExp(`(?:^|\\n)\\$?[ \\t]*${token}[ \\t]*\\$?[ \\t]*(?:tengo|have|available|disponible|i have|i can put|m[aá]ximo|maximum)?[ \\t]*\\d{0,2}[ \\t]*\\.?[ \\t]*(?=\\n|$)`, 'im'));
@@ -456,7 +459,7 @@ const vehicleYearFrom = (value) => {
       const index = match.index || 0;
       const before = line.slice(Math.max(0, index - 60), index);
       const after = line.slice(index + match[0].length, index + match[0].length + 60);
-      if (financialPrefix.test(before) || financialSuffix.test(after)) continue;
+      if (financialPrefix.test(before) || financialSuffix.test(after) || /\b(?:down|payment|enganche|inicial|pago\s+inicial|cuota\s+inicial|deposit|dep[oó]sito)\b[^\d]{0,40}$/i.test(before)) continue;
       const neighborhood = [lines[lineIndex - 1] || '', line, lines[lineIndex + 1] || ''].join(' ');
       if (vehicleBrands.test(neighborhood) || vehicleModels.test(neighborhood) || vehicleCategories.test(neighborhood)
         || vehicleContext.test(neighborhood) || /\b(?:vehicle|car|auto|carro|coche|veh[ií]culo|model|modelo|year|año|ano)\b/i.test(neighborhood)) {
@@ -524,6 +527,8 @@ const extractedVehicle = familyPassengerVanIntent.test(vehicleSource)
   ? 'van'
   : economicSedanIntent.test(vehicleSource)
     ? 'Sedan'
+    : genericSedanIntent.test(vehicleSource)
+      ? 'Sedan'
     : first(
     campaign ? '' : cleanVehicleValue(vehicleFrom(vehicleSource)),
     cleanVehicleValue(memoryValue(['vehicle', 'vehicle_type'])),

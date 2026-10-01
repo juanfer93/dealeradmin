@@ -319,6 +319,7 @@ const NAME_DECLARATION = /(?:me llamo|mi nombre es|soy|yo soy|my name is|my name
 const PHONE_LIKE_TEXT = /\b(?:mi|my)\s+(?:n[uú]mero|number|phone|tel[eé]fono|telephone|contact)\b/i;
 const REAL_NAME_TOKEN = "[\\p{L}\\p{M}]+(?:[-'][\\p{L}\\p{M}]+)*";
 const REAL_NAME_PATTERN = new RegExp(`^${REAL_NAME_TOKEN}(?:\\s+${REAL_NAME_TOKEN})*$`, 'u');
+const NAME_SUFFIX_PUNCTUATION = /\b(jr|sr|ii|iii|iv|v)\.(?=\s|,|$)/gi;
 const TECHNICAL_NAME_LABEL = /^(?:precio|price)\s+(?:de|of)\b/i;
 const LOCATION_RESPONSE = /^(?:estoy|vivo)\s+en\b/i;
 const NAME_PARTICLES = new Set(['da', 'de', 'del', 'der', 'di', 'la', 'las', 'los', 'van', 'von', 'y']);
@@ -332,11 +333,13 @@ const VEHICLE_YEAR_PATTERN = /\b(19\d{2}|20(?:0\d|1\d|2[0-6]))\b/g;
 const VEHICLE_YEAR_CONTEXT = /\b(?:vehicle|car|auto|carro|coche|veh[ií]culo|model|modelo|year|año|ano|f[- ]?\d{3})\b/i;
 const FINANCIAL_AMOUNT_PREFIX = /(?:\$|doy|dar(?:é|as|emos)?|pongo|poner|tengo|have|i have|i can put|puedo poner|down|payment|enganche|inicial|pago\s+inicial|cuota\s+inicial|deposit|dep[oó]sito)\s*(?:de|para|as|is|es|:)?\s*$/i;
 const FINANCIAL_AMOUNT_SUFFIX = /^\s*(?:down|payment|enganche|inicial|pago\s+inicial|cuota\s+inicial|deposit|dep[oó]sito)\b/i;
+const FINANCIAL_CONTEXT_BEFORE_AMOUNT = /\b(?:down|payment|enganche|inicial|pago\s+inicial|cuota\s+inicial|deposit|dep[oó]sito)\b[^\d]{0,40}$/i;
 // Stafford's WhatsApp flow commonly answers the vehicle-type prompt with
 // "Algo económico" followed by "Normal". Treat that exact economic intent as
 // a sedan category so a late reconciliation cannot leave the lead as advisor
 // handoff after GHL has already completed the flow.
 const ECONOMIC_SEDAN_INTENT = /\b(?:carro|auto|coche|veh[ií]culo|algo)\s+econ[oó]mic[oa]s?\b/i;
+const GENERIC_SEDAN_INTENT = /\b(?:small|compact|affordable|budget|economical)\s+(?:car|auto|coche|carro|vehicle)\b|\b(?:carro|auto|coche|veh[ií]culo)\s+pequeñ[oa]\b/i;
 const FAMILY_PASSENGER_VAN_INTENT = /\b(?:algo\s+)?familiar\b[\s\S]{0,80}\bpasajeros?\b/i;
 const NO_DOWN_PAYMENT_RESPONSE = /\b(?:no(?:\s+\w+){0,3}\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)|no\s+(?:cuento|cuenta)\s+con\s+(?:dinero|down|enganche|pago\s+inicial))\b/i;
 const TRADE_IN_INTENT = /\btrade[- ]?in\b|\bmy (?:car|vehicle|van|truck)\b|\bmi (?:carro|auto|veh[ií]culo|van|troca|camioneta|camioneta|camion)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\bchange\s+(?:my\s+)?(?:vehicle|car|van|truck)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b/i;
@@ -450,13 +453,17 @@ function formatPersonalName(value: string): string {
   }).join(' ');
 }
 
+function normalizeNameSuffixPunctuation(value: string): string {
+  return value.replace(NAME_SUFFIX_PUNCTUATION, '$1').replace(/,\s*$/, '').trim();
+}
+
 /**
  * Accept only human-name characters. Every whitespace-delimited token must
  * contain at least two letters; hyphens and apostrophes are allowed only
  * between letters so valid names such as O'Neal remain supported.
  */
 export function isValidRealName(value: string | null | undefined): boolean {
-  const candidate = clean(value);
+  const candidate = normalizeNameSuffixPunctuation(clean(value));
   if (!candidate || !REAL_NAME_PATTERN.test(candidate)) return false;
   return candidate
     .split(/\s+/)
@@ -464,7 +471,7 @@ export function isValidRealName(value: string | null | undefined): boolean {
 }
 
 export function normalizeRealName(value: string | null | undefined): string {
-  const candidate = clean(value);
+  const candidate = normalizeNameSuffixPunctuation(clean(value));
   if (!candidate || INVALID_REAL_NAMES.has(candidate.toLowerCase())) return EMPTY;
   if (PHONE_LIKE_TEXT.test(candidate) || candidate.replace(/\D/g, '').length >= 7) return EMPTY;
   if (!isValidRealName(candidate)) return EMPTY;
@@ -690,7 +697,7 @@ export function extractVehicleYear(value: string | null | undefined): number | n
       const index = match.index ?? 0;
       const before = line.slice(Math.max(0, index - 60), index);
       const after = line.slice(index + match[0].length, index + match[0].length + 60);
-      if (FINANCIAL_AMOUNT_PREFIX.test(before) || FINANCIAL_AMOUNT_SUFFIX.test(after)) continue;
+      if (FINANCIAL_AMOUNT_PREFIX.test(before) || FINANCIAL_AMOUNT_SUFFIX.test(after) || FINANCIAL_CONTEXT_BEFORE_AMOUNT.test(before)) continue;
       const neighborhood = [lines[lineIndex - 1] ?? '', line, lines[lineIndex + 1] ?? ''].join(' ');
       if (VEHICLE_BRANDS.test(neighborhood)
         || VEHICLE_MODELS.test(neighborhood)
@@ -861,7 +868,7 @@ function extractDownPayment(message: string): string {
   const amount = source.match(new RegExp(`(?:down|enganche|inicial|deposit|dep[oó]sito)[ \\t]*(?:payment|pago)?[ \\t]*(?:is|es|de|:)?[ \\t]*\\$?[ \\t]*(${amountToken})`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\$?[ \\t]*(${amountToken})[ \\t]*(?:(?:for|para|as|on|de|del)[ \\t]*(?:el|la|the)?[ \\t]*)?(?:down|enganche|inicial)`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\b(?:tengo|have|i have|i can put|puedo poner)[ \\t]+(?:down[ \\t]+)?(?:a[ \\t]+)?\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
-    ?? source.match(new RegExp(`\\b(?:doy|dar[eé]?|pongo|poner|i(?:'|’)ll put|i put)[ \\t]+(?:de[ \\t]+|para[ \\t]+)?\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
+    ?? source.match(new RegExp(`\\b(?:doy|dar[eé]?|pongo|poner|i(?:'|’)ll put|i put)[ \\t]+(?:down[ \\t]+)?(?:at least[ \\t]+|de[ \\t]+|para[ \\t]+)?\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\b(?:cuento|cuenta)[ \\t.,;:]+con[ \\t.,;:]*\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\b(?:cuento|cuenta)\\b[^\\n]{0,80}?(?:y|and|plus)[ \\t.,;:]*\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\b(?:puedo|puede|can|could|i can|i could)[ \\t]+(?:con|with)[ \\t]+\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
@@ -969,7 +976,7 @@ function extractLatestDownPayment(message: string): string {
       || isPhoneOnlyLine(line)
       || PHONE_LIKE_TEXT.test(line)
       || /\b(?:phone|telephone|tel[eé]fono|n[uú]mero|number)\b/i.test(line)
-      || (lineDigits.length >= 7 && !paymentRange)) continue;
+      || (lineDigits.length >= 7 && !paymentRange && !/\b(?:down|payment|enganche|inicial|deposit|dep[oó]sito)\b/i.test(line))) continue;
     const contextual = extractDownPayment(line);
     if (contextual) return contextual;
     const standalone = extractStandaloneDownPayment(line);
@@ -1205,6 +1212,8 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     ? 'van'
     : ECONOMIC_SEDAN_INTENT.test(vehicleSource)
       ? 'Sedan'
+      : GENERIC_SEDAN_INTENT.test(vehicleSource)
+        ? 'Sedan'
       : normalizeVehicle(firstNonEmpty(
       extractVehicle(vehicleSource),
       [
