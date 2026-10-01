@@ -26,7 +26,7 @@ import { RepairConversationAttachmentUrlIndex1710000023000 } from './migrations/
 import { MonthlyReportDeliveries1710000024000 } from './migrations/1710000024000-MonthlyReportDeliveries';
 import { ConversationBotPauseEvents1710000025000 } from './migrations/1710000025000-ConversationBotPauseEvents';
 import { MonthlyReportQueueArchive1710000026000 } from './migrations/1710000026000-MonthlyReportQueueArchive';
-import { ProblemTickets1710000027000 } from './migrations/1710000027000-ProblemTickets';
+import { DropProblemTickets1710000028000 } from './migrations/1710000028000-DropProblemTickets';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -66,7 +66,7 @@ export const AppDataSource = new DataSource({
     MonthlyReportDeliveries1710000024000,
     ConversationBotPauseEvents1710000025000,
     MonthlyReportQueueArchive1710000026000,
-    ProblemTickets1710000027000,
+    DropProblemTickets1710000028000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,
