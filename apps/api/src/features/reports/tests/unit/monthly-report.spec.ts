@@ -2,7 +2,7 @@ import { DataSource } from 'typeorm';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import * as ExcelJS from 'exceljs';
 import { parseMonthlyReportsConfig } from '@dealeradmin/config';
-import { MonthlyReportService, monthlyReportPeriod, periodFromKey, sanitizeMonthlyReportError } from '../../application/monthly-report.service';
+import { MonthlyReportService, monthlyReportPeriod, nextMonthlyReportRunAt, periodFromKey, sanitizeMonthlyReportError } from '../../application/monthly-report.service';
 import type { ReportMail, ReportMailer } from '../../application/monthly-report.mailer';
 
 describe('monthly lead reports', () => {
@@ -32,6 +32,14 @@ describe('monthly lead reports', () => {
     expect(period.start.toISOString()).toBe('2026-09-01T17:00:00.000Z');
     expect(period.end.toISOString()).toBe('2026-10-01T17:00:00.000Z');
     expect(periodFromKey('2026-10').label).toBe('Octubre 2026');
+  });
+
+  it('shows the next calendar-month run after the current month schedule has passed', () => {
+    expect(nextMonthlyReportRunAt(new Date('2026-10-01T17:01:00.000Z')).toISOString()).toBe('2026-11-01T17:00:00.000Z');
+  });
+
+  it('keeps today as the next run before the configured schedule time', () => {
+    expect(nextMonthlyReportRunAt(new Date('2026-10-01T16:59:00.000Z')).toISOString()).toBe('2026-10-01T17:00:00.000Z');
   });
 
   it('builds the same summary and attachment contract passed to the mailer', async () => {

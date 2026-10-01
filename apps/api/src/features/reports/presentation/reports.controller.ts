@@ -14,8 +14,7 @@ import {
 import type { Request, Response } from 'express';
 import { AuthService } from '../../auth/application/auth.service';
 import { ExportReportService } from '../application/export-report.service';
-import { MonthlyReportDeliveryError, MonthlyReportService } from '../application/monthly-report.service';
-import { monthlyReportPeriod } from '../application/monthly-report.service';
+import { MonthlyReportDeliveryError, MonthlyReportService, nextMonthlyReportRunAt } from '../application/monthly-report.service';
 import { MonthlyReportCronGuard } from './monthly-report-cron.guard';
 import { parseMonthlyReportsConfig } from '@dealeradmin/config';
 
@@ -66,7 +65,9 @@ export class ReportsController {
   } {
     this.requireSession(request);
     const config = parseMonthlyReportsConfig();
-    const nextRunAt = monthlyReportPeriod(new Date(), config.timezone).end.toISOString();
+    const nextRunAt = config.enabled
+      ? nextMonthlyReportRunAt(new Date(), config.timezone, config.sendHour, config.sendMinute).toISOString()
+      : null;
     return {
       enabled: config.enabled,
       dayOfMonth: 1,

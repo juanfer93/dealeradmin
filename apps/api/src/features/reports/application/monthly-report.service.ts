@@ -67,6 +67,30 @@ export function monthlyReportPeriod(now: Date, timezone = 'America/Bogota'): Mon
   return { periodKey, start, end, timezone, label };
 }
 
+export function nextMonthlyReportRunAt(
+  now: Date,
+  timezone = 'America/Bogota',
+  sendHour = 12,
+  sendMinute = 0,
+): Date {
+  const current = localParts(now, timezone);
+  let year = current.year;
+  let month = current.month;
+  let nextRunAt = localDateTimeToUtc(year, month, 1, sendHour, sendMinute, timezone);
+
+  if (nextRunAt.getTime() <= now.getTime()) {
+    if (month === 12) {
+      year += 1;
+      month = 1;
+    } else {
+      month += 1;
+    }
+    nextRunAt = localDateTimeToUtc(year, month, 1, sendHour, sendMinute, timezone);
+  }
+
+  return nextRunAt;
+}
+
 export function periodFromKey(periodKey: string, timezone = 'America/Bogota'): MonthlyReportPeriod {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(periodKey)) throw new Error('Invalid monthly report period key.');
   const [yearText, monthText] = periodKey.split('-');
