@@ -10,6 +10,24 @@ describeDatabase('Arlington real GHL transcript replay', () => {
   const suffix = `arlington-real-replay-${Date.now()}`;
   const cases = [
     {
+      label: 'Alonzo Gerber / exact Arlington Messenger transcript with tacomo spelling',
+      expectedRealName: 'Alonzo Gerber',
+      contactName: 'Alonzo Gerber',
+      phone: '+12402740544',
+      messages: [
+        'Hola',
+        'Una tacomo manual de 4 puerta',
+        '2402740544',
+        'Con 5000',
+        'Mandame la direccion para yegar ber los beiculos',
+      ],
+      phoneMessageIndex: 2,
+      phoneMetadataIndex: 2,
+      expectedVehicle: 'Tacoma',
+      expectedPhone: '+12402740544',
+      shouldQueue: true,
+    },
+    {
       label: 'Paolitha Garcia / persisted GHL turns',
       expectedRealName: undefined,
       contactName: 'Paolitha Garcia',

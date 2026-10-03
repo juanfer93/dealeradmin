@@ -597,6 +597,35 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
   });
 
+  it('replays Alonzo Gerber’s Arlington Messenger vehicle answer as a routable Tacoma in Custom Code', () => {
+    const transcript = [
+      'Hola',
+      'Una tacomo manual de 4 puerta',
+      '2402740544',
+      'Con 5000',
+      'Mandame la direccion para yegar ber los beiculos',
+    ].join('\n');
+
+    expect(execute({
+      source: 'arlington',
+      channel: 'messenger',
+      real_name: 'Alonzo Gerber',
+      contact_name: 'Alonzo Gerber',
+      phone: '+12402740544',
+      chat_history_log: transcript,
+      message: 'Mandame la direccion para yegar ber los beiculos',
+      vehicle_type: 'Quiere hablar con un asesor',
+    })).toMatchObject({
+      real_name: 'Alonzo Gerber',
+      phone: '+12402740544',
+      vehicle_type: 'Tacoma',
+      vehicle_category: 'truck',
+      required_down_payment: 3000,
+      down_payment: '5000',
+      qualification_complete: true,
+    });
+  });
+
   it('uses the Messenger contact name as real_name in Custom Code', () => {
     expect(execute({
       channel: 'messenger',

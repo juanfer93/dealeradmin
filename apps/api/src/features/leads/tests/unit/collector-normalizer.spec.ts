@@ -845,6 +845,7 @@ describe('normalizeCollectorInput', () => {
     ['Corola', 'Corolla'],
     ['civc', 'Civic'],
     ['Tacma', 'Tacoma'],
+    ['tacomo', 'Tacoma'],
     ['Tecoma', 'Tacoma'],
     ['Rav 4', 'RAV4'],
     ['4 runner', '4Runner'],
@@ -870,6 +871,34 @@ describe('normalizeCollectorInput', () => {
     ['Truk', 'truck'],
   ])('normalizes common dealer vehicle request: %s', (message, expected) => {
     expect(normalizeCollectorInput({ message }).vehicle_type).toBe(expected);
+  });
+
+  it('replays Alonzo Gerber’s Arlington Messenger vehicle answer as a routable Tacoma', () => {
+    const transcript = [
+      'Hola',
+      'Una tacomo manual de 4 puerta',
+      '2402740544',
+      'Con 5000',
+      'Mandame la direccion para yegar ber los beiculos',
+    ].join('\n');
+
+    expect(normalizeCollectorInput({
+      source: 'arlington',
+      channel: 'messenger',
+      real_name: 'Alonzo Gerber',
+      phone: '+12402740544',
+      chat_history_log: transcript,
+      message: 'Mandame la direccion para yegar ber los beiculos',
+      vehicle_type: 'Quiere hablar con un asesor',
+    })).toMatchObject({
+      real_name: 'Alonzo Gerber',
+      phone: '+12402740544',
+      vehicle_type: 'Tacoma',
+      vehicle_category: 'truck',
+      required_down_payment: 3000,
+      down_payment: '5000',
+      qualification_complete: true,
+    });
   });
 
   it('replays the exact Jaimen Cruz GHL inbound transcript as a routable 4Runner lead', () => {
