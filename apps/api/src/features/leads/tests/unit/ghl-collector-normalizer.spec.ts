@@ -6,13 +6,6 @@ const body = readFileSync(resolve(__dirname, '../../domain/ghl-collector-normali
 const execute = (inputData: Record<string, unknown>) => new Function('inputData', body)(inputData) as Record<string, any>;
 
 describe('HighLevel collector custom-code normalizer', () => {
-  it.each(['350 disel', '350diesel', '350 disell', 'Ram 350 diesel'])(
-    'normalizes the Ram 350 diesel vehicle label: %s',
-    (vehicle_type) => {
-      expect(execute({ vehicle_type }).vehicle_type).toBe('Ram 350 diesel');
-    },
-  );
-
   it('promotes a complete qualification memory without custom fields', () => {
     const result = execute({
       real_name: 'QA Customer',

@@ -115,7 +115,6 @@ const vehicleLabel = (value) => {
     .replace(/\s+/g, ' ')
     .trim();
   if (!source) return '';
-  if (/^(?:ram\s*)?350\s*d(?:ie|i)s?e?l{1,2}$/i.test(source)) return 'Ram 350 diesel';
   const brandMatch = source.match(vehicleBrands);
   const modelMatch = source.match(vehicleModels);
   const categoryMatch = source.match(vehicleCategories);
