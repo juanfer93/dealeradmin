@@ -734,6 +734,7 @@ function normalizeVehicle(value: string): string {
   let source = clean(value).replace(/-{2,}/g, '-').replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
   if (isAdvisorHandoffVehicle(source)) return ADVISOR_HANDOFF_VEHICLE;
   if (isCampaignButton(source) || isNonVehicleIntent(source)) return EMPTY;
+  if (/^(?:ram\s*)?350\s*d(?:ie|i)s?e?l{1,2}$/i.test(source)) return 'Ram 350 diesel';
   // HighLevel can concatenate the Custom Code output and the AI output
   // without a separator. Keep the value before a repeated label such as
   // "Toyota HilanderVehicle: Toyota HilanderToyota Hilander".

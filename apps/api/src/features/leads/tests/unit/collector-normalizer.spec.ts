@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { ADVISOR_HANDOFF_VEHICLE, detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isAdvisorHandoffVehicle, isQualificationComplete, isValidRealName, normalizeCollectorInput, normalizeRealName } from '../../domain/collector-normalizer';
 
 describe('normalizeCollectorInput', () => {
+  it.each(['350 disel', '350diesel', '350 disell', 'Ram 350 diesel'])(
+    'normalizes the Ram 350 diesel vehicle label: %s',
+    (vehicle_type) => {
+      expect(normalizeCollectorInput({ vehicle_type }).vehicle_type).toBe('Ram 350 diesel');
+    },
+  );
+
   it.each([
     ['I am looking for a sedan this month.', 'en'],
     ['Quiero un sedán este mes.', 'es'],

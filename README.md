@@ -21,3 +21,7 @@ The API rejects invalid configuration at startup. The webhook endpoint accepts o
 ## Production migrations
 
 Vercel runs `pnpm --filter api migrate` before `pnpm build`, so every production deployment applies pending TypeORM migrations against the configured `DATABASE_URL` (Neon). Configure `DATABASE_URL` in Vercel for the Production environment before deploying. The command is idempotent: already-applied migrations are skipped.
+
+## CI validation
+
+GitHub Actions runs `pnpm test:unit` and `pnpm test:e2e` on every push and pull request. To block merges when either suite fails, require the `CI / test` status check in the repository's branch protection rules or ruleset.
