@@ -24,4 +24,4 @@ Vercel runs `pnpm --filter api migrate` before `pnpm build`, so every production
 
 ## CI validation
 
-GitHub Actions runs `pnpm test:unit` and `pnpm test:e2e` on every push and pull request. To block merges when either suite fails, require the `CI / test` status check in the repository's branch protection rules or ruleset.
+GitHub Actions runs the existing `pnpm test:unit` and `pnpm test:e2e` scripts on pull requests. The required `Unit and E2E / tests` status check blocks merges when either suite fails.
