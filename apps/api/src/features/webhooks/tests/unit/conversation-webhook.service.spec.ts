@@ -106,6 +106,7 @@ describe('ConversationWebhookService', () => {
     const leadInsert = queryRunner.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO leads')) as [string, unknown[]] | undefined;
     expect(leadInsert?.[1]?.[0]).toBe('+14438144460');
     const conversationUpdate = queryRunner.query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(conversationUpdate?.[0]).toContain('GREATEST(COALESCE(last_message_at, $5::timestamptz), $5::timestamptz)');
     expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({
       real_name: 'Fidel Aparicio',
       phone: '+14438144460',

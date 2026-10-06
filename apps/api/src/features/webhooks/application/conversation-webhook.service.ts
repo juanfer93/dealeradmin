@@ -754,7 +754,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       if (conversation.isExisting && conversation.status === 'sent') {
         await runner.query(
           `UPDATE conversations
-           SET last_message_at = $2, updated_at = CURRENT_TIMESTAMP
+           SET last_message_at = GREATEST(COALESCE(last_message_at, $2::timestamptz), $2::timestamptz), updated_at = CURRENT_TIMESTAMP
            WHERE id = $1`,
           [conversation.id, occurredAt],
         );
@@ -865,7 +865,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         await runner.query(
           `UPDATE conversations
            SET status = 'stale_phone_ignored', qualification_snapshot = $2::jsonb,
-               location_snapshot = $3::jsonb, last_message_at = $4,
+               location_snapshot = $3::jsonb, last_message_at = GREATEST(COALESCE(last_message_at, $4::timestamptz), $4::timestamptz),
                next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP
            WHERE id = $1`,
           [conversation.id, JSON.stringify(snapshot), JSON.stringify(location), occurredAt],
@@ -904,7 +904,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         await runner.query(
           `UPDATE conversations
            SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
-               last_message_at = $5, next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP
+               last_message_at = GREATEST(COALESCE(last_message_at, $5::timestamptz), $5::timestamptz), next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP
            WHERE id = $1`,
           [conversation.id, isSameQueuedConversation ? 'queued' : 'duplicate_ignored', JSON.stringify(snapshot), JSON.stringify(location), occurredAt],
         );
@@ -918,7 +918,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       await runner.query(
         `UPDATE conversations
          SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
-             last_message_at = $5, ready_at = CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued') THEN COALESCE(ready_at, $7::timestamptz) ELSE ready_at END,
+             last_message_at = GREATEST(COALESCE(last_message_at, $5::timestamptz), $5::timestamptz), ready_at = CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued') THEN COALESCE(ready_at, $7::timestamptz) ELSE ready_at END,
              next_attempt_at = $6, updated_at = CURRENT_TIMESTAMP
            WHERE id = $1`,
         [conversation.id, status.status, JSON.stringify(snapshot), JSON.stringify(location), occurredAt, status.nextAttemptAt, now.toISOString()],

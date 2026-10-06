@@ -2,6 +2,24 @@ import { describe, expect, it } from 'vitest';
 import { ADVISOR_HANDOFF_VEHICLE, detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isAdvisorHandoffVehicle, isQualificationComplete, isValidRealName, normalizeCollectorInput, normalizeRealName } from '../../domain/collector-normalizer';
 
 describe('normalizeCollectorInput', () => {
+  it('normalizes Katherine Amaya\'s Spanish truck and down-payment answer', () => {
+    const result = normalizeCollectorInput({
+      source: 'koons-fredericksburg',
+      channel: 'messenger',
+      real_name: 'Katherine Amaya',
+      phone: '5712417295',
+      message: 'Estoy buscando una troca tengo $1500 de daw',
+      chat_history_log: 'Estoy buscando una troca tengo $1500 de daw\n5712417295',
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Katherine Amaya',
+      phone: '+15712417295',
+      vehicle_type: 'truck',
+      down_payment: '1500',
+    });
+  });
+
   it.each([
     ['I am looking for a sedan this month.', 'en'],
     ['Quiero un sedán este mes.', 'es'],
