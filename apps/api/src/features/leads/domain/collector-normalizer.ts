@@ -93,6 +93,7 @@ export function detectLeadLanguage(value: string | null | undefined): CollectorL
 }
 
 const PHONE_PATTERN = /(?<!\d)(?:\+?1[\s().-]*)?(?:\([2-9]\d{2}\)|[2-9]\d{2})[\s.-]*\d{3}[\s.-]*\d{4}(?!\d)/g;
+const EXPLICIT_PHONE_LABEL_PATTERN = /(?:phone(?:\s*(?:number|#))?|mobile(?:\s*(?:phone|#))?|cell(?:ular)?(?:\s*(?:phone|#))?|telephone|tel(?:ephone)?|teléfono|telefono|celular|m[oó]vil|n[uú]mero\s+de\s+tel[eé]fono)\b/iu;
 
 function extractPhone(value: string | null | undefined): string {
   const source = clean(value);
@@ -107,6 +108,18 @@ function extractPhone(value: string | null | undefined): string {
   return digits.length === 11 && digits.startsWith('1') ? `+${digits}` : EMPTY;
 }
 
+function extractExplicitPhone(value: string | null | undefined): string {
+  const source = clean(value);
+  const label = source.match(EXPLICIT_PHONE_LABEL_PATTERN);
+  if (!label || label.index === undefined) return EMPTY;
+
+  // OCR commonly puts the value on the next line, so inspect only the short
+  // span immediately after the label. This prevents an ID/passport number
+  // elsewhere in the document from being mistaken for the sender's phone.
+  const afterLabel = source.slice(label.index + label[0].length, label.index + label[0].length + 80);
+  return extractPhone(afterLabel);
+}
+
 export const RECENT_PHONE_EVIDENCE_DAYS = 3;
 
 /**
@@ -115,7 +128,7 @@ export const RECENT_PHONE_EVIDENCE_DAYS = 3;
  * recent conversation window; old transcript evidence must not resurrect it.
  */
 export function extractRecentMessagePhone(
-  messages: Array<{ body?: string | null; direction?: string | null; occurred_at?: string | Date | null }>,
+  messages: Array<{ body?: string | null; direction?: string | null; occurred_at?: string | Date | null; is_attachment_evidence?: boolean }>,
   referenceAt: Date,
   maxAgeDays = RECENT_PHONE_EVIDENCE_DAYS,
 ): string {
@@ -125,10 +138,11 @@ export function extractRecentMessagePhone(
       body: String(message.body ?? ''),
       direction: String(message.direction ?? '').toLowerCase(),
       occurredAt: message.occurred_at ? new Date(message.occurred_at).getTime() : Number.NaN,
+      isAttachmentEvidence: message.is_attachment_evidence === true,
     }))
     .filter((message) => message.direction === 'inbound' && Number.isFinite(message.occurredAt) && message.occurredAt >= cutoff && message.occurredAt <= referenceAt.getTime())
     .sort((left, right) => right.occurredAt - left.occurredAt)
-    .map((message) => extractPhone(message.body))
+    .map((message) => message.isAttachmentEvidence ? extractExplicitPhone(message.body) : extractPhone(message.body))
     .find(Boolean) ?? EMPTY;
 }
 

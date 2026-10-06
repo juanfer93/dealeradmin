@@ -401,6 +401,44 @@ describe('normalizeCollectorInput', () => {
     ], referenceAt)).toBe('');
   });
 
+  it('accepts OCR phone evidence only when the capture explicitly labels it as a phone', () => {
+    const referenceAt = new Date('2026-10-06T12:00:00.000Z');
+    expect(extractRecentMessagePhone([
+      {
+        body: 'Phone Number: (804) 216-7319',
+        direction: 'inbound',
+        occurred_at: '2026-10-06T11:50:00.000Z',
+        is_attachment_evidence: true,
+      },
+    ], referenceAt)).toBe('+18042167319');
+    expect(extractRecentMessagePhone([
+      {
+        body: 'Número de teléfono\n+1-240-841-4199',
+        direction: 'inbound',
+        occurred_at: '2026-10-06T11:51:00.000Z',
+        is_attachment_evidence: true,
+      },
+    ], referenceAt)).toBe('+12408414199');
+  });
+
+  it('rejects OCR numbers that are not explicitly labeled as phone numbers', () => {
+    const referenceAt = new Date('2026-10-06T12:00:00.000Z');
+    expect(extractRecentMessagePhone([
+      {
+        body: 'Passport OCR: ELMER GIOVANI SANCHEZ PALENCIA 19501047786',
+        direction: 'inbound',
+        occurred_at: '2026-10-06T11:50:00.000Z',
+        is_attachment_evidence: true,
+      },
+      {
+        body: 'ID number: 804-216-7319',
+        direction: 'inbound',
+        occurred_at: '2026-10-06T11:51:00.000Z',
+        is_attachment_evidence: true,
+      },
+    ], referenceAt)).toBe('');
+  });
+
   it.each([
     ['(240) 681-5028', '+12406815028'],
     ['240.681.5028', '+12406815028'],

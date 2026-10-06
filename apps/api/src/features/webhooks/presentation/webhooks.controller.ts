@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { WebhookService } from '../application/webhook.service';
 import { normalizeGhlOutboundPayload } from '../application/ghl-outbound-payload';
@@ -20,13 +20,14 @@ export class WebhooksController {
   }
 
   @Post('ghl/customer-replied/:source')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(HmacSignatureGuard)
-  receiveCustomerReplied(
+  async receiveCustomerReplied(
     @Param('source') source: string,
     @Req() request: Request & { rawBody?: Buffer },
     @Body() body: unknown,
   ) {
-    return this.conversationWebhookService.acceptCustomerReplied(
+    const response = await this.conversationWebhookService.acceptCustomerReplied(
       body,
       source,
       {
@@ -37,6 +38,7 @@ export class WebhooksController {
       },
       request.rawBody?.toString('utf8'),
     );
+    return response.status === 'ignored_channel' ? undefined : response;
   }
 
   @Post('ghl/conversations/process-due')

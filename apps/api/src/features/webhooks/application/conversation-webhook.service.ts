@@ -53,6 +53,49 @@ type ConversationMessageRow = {
   attachment_extracted_text?: string | null;
 };
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function normalizedChannel(value: unknown): string {
+  const channel = clean(value).toLowerCase();
+  if (channel === 'wa' || channel === 'whatsapp' || channel.includes('whatsapp')) return 'whatsapp';
+  if (channel === 'fb' || channel === 'facebook' || channel.includes('messenger')) return 'messenger';
+  return channel;
+}
+
+function nativeAttributionChannel(input: unknown): string {
+  const value = asRecord(input);
+  const contact = asRecord(value.contact);
+  const sources = [contact.attributionSource, contact.lastAttributionSource, value.attributionSource, value.lastAttributionSource].map(asRecord);
+  for (const source of sources) {
+    for (const candidate of [source.medium, source.channel, source.type, source.source]) {
+      const channel = normalizedChannel(candidate);
+      if (channel === 'whatsapp' || channel === 'messenger') return channel;
+    }
+  }
+  return '';
+}
+
+function inputIndicatesWhatsApp(input: unknown, normalizedEventChannel: string): boolean {
+  const value = asRecord(input);
+  const customData = asRecord(value.customData ?? value.custom_data);
+  const nativeMessage = asRecord(value.message);
+  return [
+    normalizedEventChannel,
+    value.channel,
+    customData.channel,
+    nativeAttributionChannel(input),
+    nativeMessage.channel,
+    nativeMessage.type,
+  ].some((candidate) => normalizedChannel(candidate) === 'whatsapp');
+}
+
+function isAttachmentEvidenceMessage(message: ConversationMessageRow): boolean {
+  const payload = asRecord(message.raw_payload);
+  return payload.source === 'image_interpretation' || payload.source === 'image_ocr_attachment_fallback';
+}
+
 function addProcessedImageEvidence(messages: ConversationMessageRow[]): ConversationMessageRow[] {
   return messages.flatMap((message) => message.attachment_extracted_text
     ? [message, {
@@ -123,7 +166,7 @@ export type ConversationWebhookResponse = {
   eventId: string;
   conversationId: string;
   source: SourceKey;
-  status: 'processed' | 'duplicate_ignored' | 'stale_phone_ignored';
+  status: 'processed' | 'duplicate_ignored' | 'stale_phone_ignored' | 'ignored_channel';
 };
 
 export type DueConversationResponse = { accepted: true; processed: number };
@@ -334,6 +377,16 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
          ORDER BY cm.occurred_at ASC, cm.created_at ASC`,
         [id],
       ) as ConversationMessageRow[];
+      if (source === 'fredericksburg-2' && messages.some((message) => inputIndicatesWhatsApp(message.raw_payload, row.channel))) {
+        await runner.query(
+          `UPDATE conversations
+           SET status = 'ignored_channel', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [id],
+        );
+        await runner.commitTransaction();
+        return;
+      }
       // The media worker normally inserts a derived inbound message. Keep a
       // direct attachment fallback as well: GHL never writes the OCR phone
       // into its native Contact Phone field, and a callback can arrive after
@@ -347,7 +400,10 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         return;
       }
       const contactName = clean(`${row.first_name || ''} ${row.last_name || ''}`) || 'Lead';
-      const recentPhone = this.safePhone(extractRecentMessagePhone(evidenceMessages, now));
+      const recentPhone = this.safePhone(extractRecentMessagePhone(evidenceMessages.map((message) => ({
+        ...message,
+        is_attachment_evidence: isAttachmentEvidenceMessage(message),
+      })), now));
       // Stafford is the only WhatsApp source. For WhatsApp, GHL's native
       // contact phone identifies the inbound sender even when the customer
       // never types the number in the conversation. Messenger must continue
@@ -532,6 +588,15 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     }
 
     const event = parsed.data;
+    if (source === 'fredericksburg-2' && inputIndicatesWhatsApp(input, event.channel)) {
+      return {
+        accepted: true,
+        eventId: event.event_id || `ghl:${source}:${hash(rawBody || JSON.stringify(input))}`,
+        conversationId: event.ghl_conversation_id || `contact:${event.ghl_contact_id}:whatsapp`,
+        source,
+        status: 'ignored_channel',
+      };
+    }
     if (source === 'stafford' && event.channel.trim().toLowerCase() !== 'whatsapp') {
       throw new UnprocessableEntityException('Stafford solo acepta conversaciones de WhatsApp');
     }
@@ -642,7 +707,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         ?? nestedWhatsappProfile.name
         ?? value.name
         ?? value.full_name,
-      channel: value.channel ?? customData.channel ?? defaultChannel,
+      channel: nativeAttributionChannel(input) || value.channel || customData.channel || defaultChannel,
       occurred_at: value.occurred_at ?? value.occurredAt ?? value.date_updated ?? value.dateUpdated,
       message_attachments: attachmentValue,
       raw_payload: value.raw_payload ?? value,
@@ -733,7 +798,10 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         .filter(Boolean)
         .join('\n');
       const now = controlledNow ?? currentLocalNow();
-      const recentPhone = this.safePhone(extractRecentMessagePhone(evidenceMessages, now));
+      const recentPhone = this.safePhone(extractRecentMessagePhone(evidenceMessages.map((message) => ({
+        ...message,
+        is_attachment_evidence: isAttachmentEvidenceMessage(message),
+      })), now));
       // Messenger uses the phone written in a recent inbound message. A GHL
       // contact phone may corroborate it, but must never be the only evidence
       // because it can be stale when a buyer returns.

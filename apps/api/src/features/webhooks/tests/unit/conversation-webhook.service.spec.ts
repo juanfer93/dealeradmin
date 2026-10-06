@@ -65,6 +65,37 @@ describe('ConversationWebhookService', () => {
     ]);
   });
 
+  it('ignores native WhatsApp attribution for Fredericksburg 2 even when customData says messenger', async () => {
+    const service = new ConversationWebhookService();
+    const result = await service.acceptCustomerReplied(
+      {
+        contact: {
+          id: 'ypXWEQgzejm3mvz3WJtk',
+          attributionSource: { medium: 'whatsapp' },
+          lastAttributionSource: { medium: 'whatsapp' },
+        },
+        customData: {
+          channel: 'messenger',
+          contact_name: 'Elmer Sanchez',
+          contact_phone: '(804) 216-7319',
+          message_body: '¡Hola! Quiero más información',
+        },
+        phone: '+18042167319',
+        location: { id: GHL_SOURCE_CONFIG['fredericksburg-2'].locationId },
+      },
+      'fredericksburg-2',
+      { conversationId: 'contact:ypXWEQgzejm3mvz3WJtk:messenger' },
+    );
+
+    expect(result).toMatchObject({
+      accepted: true,
+      source: 'fredericksburg-2',
+      conversationId: 'contact:ypXWEQgzejm3mvz3WJtk:messenger',
+      status: 'ignored_channel',
+    });
+    expect(getTestConversationEvents()).toEqual([]);
+  });
+
   it('uses Stafford WhatsApp contact.phone when the buyer does not type the number', async () => {
     const transcript = [
       '¡Hola! 👋 Te saludamos de Off Lease Stafford. Para iniciar tu proceso, ¿cuál es tu nombre?',
