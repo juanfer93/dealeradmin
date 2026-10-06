@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { parseEnvironment } from '@dealeradmin/config';
 import { AuthModule } from './features/auth/presentation/auth.module';
@@ -82,6 +84,7 @@ const useDatabase = process.env.NODE_ENV !== 'test' || process.env.E2E_USE_DATAB
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     ...(useDatabase ? [databaseModule] : []),
     AuthModule,
     WebhooksModule,
@@ -90,5 +93,6 @@ const useDatabase = process.env.NODE_ENV !== 'test' || process.env.E2E_USE_DATAB
     ReportsModule,
     ...(process.env.NODE_ENV === 'test' ? [TestFixturesModule] : []),
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

@@ -7,6 +7,7 @@ export const EnvironmentSchema = z.object({
   GHL_WEBHOOK_SECRET: z.string().min(16),
   ADMIN_USERNAME: z.string().min(1),
   ADMIN_PASSWORD_HASH: z.string().startsWith('$argon2id$'),
+  CORS_ORIGINS: z.string().default(''),
   PORT: z.coerce.number().int().positive().max(65535).default(3001),
 });
 

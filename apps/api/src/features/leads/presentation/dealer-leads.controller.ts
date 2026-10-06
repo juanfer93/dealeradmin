@@ -7,6 +7,7 @@ import { AuthService } from '../../auth/application/auth.service';
 import { ManualLeadService } from '../application/manual-lead.service';
 import { BulkLeadService } from '../application/bulk-lead.service';
 import { testDealers } from '../application/test-lead-store';
+import { BulkLeadImportRequestDto, CreateManualLeadRequestDto } from './lead-request.dto';
 
 @Controller('dealers')
 export class DealerLeadsController {
@@ -43,7 +44,7 @@ export class DealerLeadsController {
   async createManualLead(
     @Req() request: Request,
     @Param('dealerId') dealerId: string,
-    @Body() body: unknown,
+    @Body() body: CreateManualLeadRequestDto,
   ) {
     if (!this.authService.verifySession(request.cookies?.dealeradmin_session)) {
       throw new UnauthorizedException('Authentication required');
@@ -61,7 +62,7 @@ export class DealerLeadsController {
   async createBulkLeads(
     @Req() request: Request,
     @Param('dealerId') dealerId: string,
-    @Body() body: unknown,
+    @Body() body: BulkLeadImportRequestDto,
   ) {
     if (!this.authService.verifySession(request.cookies?.dealeradmin_session)) {
       throw new UnauthorizedException('Authentication required');

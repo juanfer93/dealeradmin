@@ -25,15 +25,18 @@ import { buildManualLeadMessage } from '../domain/manual-message-builder';
 import { normalizeDownPayment } from '../domain/down-payment';
 import { normalizePhone } from '../domain/phone-normalizer';
 import { findDealerLeadDuplicate } from '../domain/lead-duplicate';
+import {
+  BulkDeleteRequestDto,
+  CopyLeadRequestDto,
+  LeadStatusRequestDto,
+  ReassignLeadRequestDto,
+  UpdateLeadRequestDto,
+} from './lead-request.dto';
 
 type LeadStatus = 'pending' | 'sent';
 
-type StatusBody = { status?: unknown; dealerId?: unknown };
-type ReassignBody = { currentDealerId?: unknown; targetDealerId?: unknown };
-type CopyBody = { sourceDealerId?: unknown; targetDealerId?: unknown };
 type EditLeadBody = UpdateLeadDto & { dealerId?: unknown };
 type BulkDeleteItem = { leadId?: unknown; dealerId?: unknown };
-type BulkDeleteBody = { items?: unknown };
 
 @Controller('leads')
 export class LeadsController {
@@ -141,7 +144,7 @@ export class LeadsController {
   async updateStatus(
     @Req() request: Request,
     @Param('id') leadId: string,
-    @Body() body: StatusBody,
+    @Body() body: LeadStatusRequestDto,
   ) {
     this.requireSession(request);
     if (body.status !== 'sent') {
@@ -189,7 +192,7 @@ export class LeadsController {
   async updateLead(
     @Req() request: Request,
     @Param('id') leadId: string,
-    @Body() body: unknown,
+    @Body() body: UpdateLeadRequestDto,
   ) {
     this.requireSession(request);
     const input = (typeof body === 'object' && body !== null ? body : {}) as Partial<EditLeadBody>;
@@ -317,7 +320,7 @@ export class LeadsController {
   @Delete()
   async deleteSelected(
     @Req() request: Request,
-    @Body() body: BulkDeleteBody,
+    @Body() body: BulkDeleteRequestDto,
   ) {
     this.requireSession(request);
     if (!Array.isArray(body.items) || body.items.length === 0) {
@@ -463,7 +466,7 @@ export class LeadsController {
   async reassign(
     @Req() request: Request,
     @Param('id') leadId: string,
-    @Body() body: ReassignBody,
+    @Body() body: ReassignLeadRequestDto,
   ) {
     this.requireSession(request);
     if (typeof body.currentDealerId !== 'string' || typeof body.targetDealerId !== 'string' || !body.currentDealerId || !body.targetDealerId) {
@@ -515,7 +518,7 @@ export class LeadsController {
   async copy(
     @Req() request: Request,
     @Param('id') leadId: string,
-    @Body() body: CopyBody,
+    @Body() body: CopyLeadRequestDto,
   ) {
     this.requireSession(request);
     if (typeof body.sourceDealerId !== 'string' || typeof body.targetDealerId !== 'string' || !body.sourceDealerId || !body.targetDealerId) {
