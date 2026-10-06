@@ -372,7 +372,6 @@ export class LeadsController {
           `DELETE FROM lead_dealers
            WHERE lead_id = $1
              AND COALESCE(assigned_dealer_id, dealer_id) = $2
-             AND status <> 'sent'
            RETURNING lead_id`,
           [item.leadId, item.dealerId],
         ) as Array<{ lead_id: string }>;
@@ -383,9 +382,9 @@ export class LeadsController {
       return {
         success: true,
         requestedCount: uniqueItems.length,
-        // Queue removal is relationship-scoped. Keep the lead and its
-        // conversation as durable audit history so a later webhook can
-        // reconcile it again without losing the original evidence.
+        // Removal is relationship-scoped. Keep the lead and its conversation
+        // as durable audit history, but remove sent rows from the dashboard
+        // when an administrator explicitly deletes them.
         deletedLeadCount: 0,
         deletedRelationshipCount,
       };
@@ -441,7 +440,6 @@ export class LeadsController {
         `DELETE FROM lead_dealers
          WHERE lead_id = $1
            AND COALESCE(assigned_dealer_id, dealer_id) = $2
-           AND status <> 'sent'
          RETURNING lead_id`,
         [leadId, dealerIdQuery],
       ) as Array<{ lead_id: string }>;
@@ -450,8 +448,8 @@ export class LeadsController {
         return { success: true, deletedLead: false, deletedRelationship: false };
       }
       await queryRunner.commitTransaction();
-      // Queue removal is relationship-scoped. Never remove the lead or its
-      // conversation: webhook evidence must remain available for recovery.
+      // Removal is relationship-scoped. Never remove the lead or its
+      // conversation: webhook evidence remains available for recovery.
       return { success: true, deletedLead: false, deletedRelationship: deletedRelationships.length > 0 };
     } catch (error) {
       if (queryRunner.isTransactionActive) await queryRunner.rollbackTransaction();

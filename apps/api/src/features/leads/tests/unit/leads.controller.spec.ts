@@ -41,18 +41,18 @@ describe('LeadsController deletion', () => {
     expect(runner.rollbackTransaction).not.toHaveBeenCalled();
   });
 
-  it('does not remove a dealer relationship that is already sent', async () => {
+  it('removes a dealer relationship even when it is already sent', async () => {
     process.env.NODE_ENV = 'production';
     const runner = createRunner([
       [{ id: 'lead-sent' }],
-      [],
+      [{ lead_id: 'lead-sent' }],
     ]);
     const controller = createController(runner);
 
     await expect(controller.delete({ cookies: {} } as never, 'lead-sent', 'dealer-source'))
-      .resolves.toEqual({ success: true, deletedLead: false, deletedRelationship: false });
+      .resolves.toEqual({ success: true, deletedLead: false, deletedRelationship: true });
     const calls = runner.query.mock.calls as unknown[][];
-    expect(calls[1]?.[0]).toContain("status <> 'sent'");
+    expect(calls[1]?.[0]).not.toContain("status <> 'sent'");
     expect(calls).toHaveLength(2);
     expect(runner.commitTransaction).toHaveBeenCalledOnce();
   });

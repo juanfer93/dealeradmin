@@ -26,7 +26,7 @@ describe('retiro de relaciones sin borrar leads', () => {
     expect(deleteTestLead(lead.id, dealer.id)).toMatchObject({ ok: true, deletedLead: false, deletedRelationship: false });
   });
 
-  it('no elimina un lead que ya fue marcado como enviado', () => {
+  it('elimina de la cola un lead que ya fue marcado como enviado', () => {
     const dealer = getTestDealer('dealer-stafford')!;
     const lead = addTestManualLead(
       dealer.id,
@@ -36,7 +36,7 @@ describe('retiro de relaciones sin borrar leads', () => {
     );
 
     expect(updateTestLeadStatus(lead.id, 'sent')).toBe(true);
-    expect(deleteTestLead(lead.id, dealer.id)).toEqual({ ok: true, deletedLead: false, deletedRelationship: false });
+    expect(deleteTestLead(lead.id, dealer.id)).toEqual({ ok: true, deletedLead: false, deletedRelationship: true });
     expect(getTestManualLeads()).toContainEqual(expect.objectContaining({ id: lead.id, status: 'sent' }));
   });
 
