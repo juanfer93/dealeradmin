@@ -984,6 +984,18 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(execute({ message: 'Ok', phone }).phone).toBe(expected);
   });
 
+  it.each([
+    ['7046990761', '+17046990761'],
+    ['704-699-0761', '+17046990761'],
+    ['(704) 699-0761', '+17046990761'],
+    ['704 699 07 61', '+17046990761'],
+    ['704.699.07.61', '+17046990761'],
+    ['+1 704 699 07 61', '+17046990761'],
+    ['1 (704) 699-0761', '+17046990761'],
+  ])('normalizes phone formatting %s from the conversation', (phone, expected) => {
+    expect(execute({ message: `Es ${phone}` }).phone).toBe(expected);
+  });
+
   it('captures a standalone full-name answer without treating a vehicle request as a name', () => {
     expect(execute({ message: 'María José López' }).real_name).toBe('María José López');
     expect(execute({ message: 'Quiero una camioneta' }).real_name).toBe('');

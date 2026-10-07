@@ -401,6 +401,21 @@ describe('normalizeCollectorInput', () => {
     ], referenceAt)).toBe('');
   });
 
+  it.each([
+    ['7046990761', '+17046990761'],
+    ['704-699-0761', '+17046990761'],
+    ['(704) 699-0761', '+17046990761'],
+    ['704 699 07 61', '+17046990761'],
+    ['704.699.07.61', '+17046990761'],
+    ['+1 704 699 07 61', '+17046990761'],
+    ['1 (704) 699-0761', '+17046990761'],
+  ])('normalizes phone formatting %s from an inbound message', (body, expected) => {
+    const referenceAt = new Date('2026-10-07T02:05:00.000Z');
+    expect(extractRecentMessagePhone([
+      { body: `Es ${body}`, direction: 'inbound', occurred_at: '2026-10-07T02:03:56.142Z' },
+    ], referenceAt)).toBe(expected);
+  });
+
   it('accepts OCR phone evidence only when the capture explicitly labels it as a phone', () => {
     const referenceAt = new Date('2026-10-06T12:00:00.000Z');
     expect(extractRecentMessagePhone([

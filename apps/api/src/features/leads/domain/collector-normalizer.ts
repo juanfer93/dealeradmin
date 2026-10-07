@@ -92,7 +92,10 @@ export function detectLeadLanguage(value: string | null | undefined): CollectorL
   return englishScore > spanishScore ? 'en' : 'es';
 }
 
-const PHONE_PATTERN = /(?<!\d)(?:\+?1[\s().-]*)?(?:\([2-9]\d{2}\)|[2-9]\d{2})[\s.-]*\d{3}[\s.-]*\d{4}(?!\d)/g;
+// Accept spoken/grouped US numbers such as "704 699 07 61" while keeping
+// the area code and exact 10/11-digit boundary checks that prevent prices,
+// mileage, years, or IDs from becoming phone evidence.
+const PHONE_PATTERN = /(?<!\d)(?:\+?1[\s().-]*)?(?:\([2-9]\d{2}\)|[2-9]\d{2})(?:[\s().-]*\d){7}(?!\d)/g;
 const EXPLICIT_PHONE_LABEL_PATTERN = /(?:phone(?:\s*(?:number|#))?|mobile(?:\s*(?:phone|#))?|cell(?:ular)?(?:\s*(?:phone|#))?|telephone|tel(?:ephone)?|teléfono|telefono|celular|m[oó]vil|n[uú]mero\s+de\s+tel[eé]fono)\b/iu;
 
 function extractPhone(value: string | null | undefined): string {

@@ -27,7 +27,10 @@ const phoneFrom = (...values) => {
   for (const value of values) {
     const direct = normalizePhone(value);
     if (direct) return direct;
-    const matches = String(value ?? '').match(/(?<!\d)(?:\+?1[\s().-]*)?(?:\([2-9]\d{2}\)|[2-9]\d{2})[\s.-]*\d{3}[\s.-]*\d{4}(?!\d)/g) || [];
+    // Keep the same bounded parser as collector-normalizer.ts. This accepts
+    // spoken/grouped numbers such as "704 699 07 61" without turning prices,
+    // mileage, years, or IDs into phone evidence.
+    const matches = String(value ?? '').match(/(?<!\d)(?:\+?1[\s().-]*)?(?:\([2-9]\d{2}\)|[2-9]\d{2})(?:[\s().-]*\d){7}(?!\d)/g) || [];
     for (const candidate of matches) {
       const normalized = normalizePhone(candidate);
       if (normalized) return normalized;
