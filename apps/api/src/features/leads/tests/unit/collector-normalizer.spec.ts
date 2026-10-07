@@ -1732,6 +1732,26 @@ describe('normalizeCollectorInput', () => {
     expect(result.qualification_memory).not.toContain('trade-in0');
   });
 
+  it.each([
+    'Quiero mi Auto con Eastern STERLING!',
+    'Quiero mi Auto con Eastern BALTIMORE!',
+    'Quiero mi Auto con Eastern LAUREL!',
+  ])('does not infer trade-in from an Easterns advertising CTA in history: %s', (buttonReply) => {
+    const transcript = [buttonReply, 'Tienes un 2014 Toyota Tacoma 4x4?', '3016460540'].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'easterns',
+      channel: 'messenger',
+      real_name: 'Jose Cabrera',
+      message: '3016460540',
+      chat_history_log: transcript,
+    });
+
+    expect(result.phone).toBe('+13016460540');
+    expect(result.vehicle_type).toContain('Tacoma');
+    expect(result.down_payment).toBe('');
+    expect(result.qualification_memory).not.toMatch(/trade[- ]?in/i);
+  });
+
   it('merges conversation history and replaces stale keyed facts without duplicating them', () => {
     const result = normalizeCollectorInput({
       message: 'I have proof of income',

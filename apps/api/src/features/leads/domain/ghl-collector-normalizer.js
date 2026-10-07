@@ -108,7 +108,9 @@ const canonicalVehicleLabel = (value) => clean(value)
     return `${lower[0].toLocaleUpperCase()}${lower.slice(1)}`;
   }).join(' '));
 const canonicalVehicleCategory = (value) => clean(value).replace(/\b(?:truk|troca|trokita|troquita|troque|trokas|camioneta|camionetq|camion|camión)\b/gi, 'truck');
-const tradeInLanguage = /\btrade[- ]?in\b|\bmy (?:car|vehicle|van|truck)\b|\bmi (?:carro|auto|veh[ií]culo|van|troca|camioneta|camion)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\bchange\s+(?:my\s+)?(?:vehicle|car|van|truck)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b/i;
+// Trade-in requires affirmative intent. A campaign CTA such as "Quiero mi
+// Auto con Eastern" is not evidence that the buyer has a vehicle to trade.
+const tradeInLanguage = /\btrade[- ]?in\b|\b(?:carro|auto|veh[ií]culo)\s+como\s+enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\bchange\s+(?:my\s+)?(?:vehicle|car|van|truck)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\b(?:and|y)\s+(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion)\b|\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion)\s+(?:for|para)\s+(?:trade(?:[- ]?in)?|entregar|cambiar|dar)\b|\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion|ban)\b[\s\S]{0,24}\b(?:\d{3,5}\s*(?:dollars?|d[oó]lares?)|down|payment|enganche)\b|\b(?:\d{3,5}\s*(?:dollars?|d[oó]lares?)|down|payment|enganche)\b[\s\S]{0,24}\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion|ban)\b/i;
 const vehicleLabel = (value) => {
   let source = clean(value)
     .replace(/\b(?:19|20)\d{2}\b/g, ' ')
@@ -289,6 +291,7 @@ const stripCampaignButtonPhrases = (value) => String(value ?? '')
   .replace(/\bme gustar[ií]a financiar un auto(?: con ustedes)?\b/gi, ' ')
   .replace(/\b(?:quiero )?financiar con easterns?\b/gi, ' ');
 const campaign = isCampaignButton(message);
+const historyForExtraction = stripCampaignButtonPhrases(rawHistory);
 const amount = (value) => {
   const source = clean(value).toLowerCase();
   if (!source || emptyMarker(source)) return '';
@@ -524,7 +527,7 @@ const documentStatus = (pattern, memoryAliases, custom) => {
   }
   return '';
 };
-const vehicleSource = [rawHistory, rawMessage].filter(Boolean).join('\n');
+const vehicleSource = [historyForExtraction, rawMessage].filter(Boolean).join('\n');
 const phoneFromConversation = phoneFrom(message, history);
 // Keep the WhatsApp/Messenger shorthand "carro económico" as the stable
 // Sedan category.
@@ -588,10 +591,10 @@ const cashDown = campaign ? '' : first(
   isPhoneAreaCodeAmount(memoryDown, phone) || (vehicleYear !== null && validAmount(memoryDown) === String(vehicleYear)) ? '' : memoryDown,
   isPhoneAreaCodeAmount(inputDown, phone) || (vehicleYear !== null && validAmount(inputDown) === String(vehicleYear)) ? '' : validAmount(inputDown),
 );
-const tradeDown = campaign ? '' : first(tradeIn(message), tradeIn(history), tradeIn(memoryText(rawMemory)));
+const tradeDown = campaign ? '' : first(tradeIn(message), tradeIn(historyForExtraction), tradeIn(memoryText(rawMemory)));
 const downCandidate = cashDown || tradeDown;
-const conversationalDownSource = `${message}; ${history}`;
-let down = validAmount(cashDown && /trade[- ]?in|my car|my vehicle|mi carro|mi auto|carro como enganche|(?:cambiar|cambio)\\s+(?:(?:mi|el|de)\\s+)?(?:veh[ií]culo|carro|auto)|change\\s+(?:my\\s+)?(?:vehicle|car)/i.test(conversationalDownSource) && !/trade[- ]?in/i.test(cashDown)
+const conversationalDownSource = `${message}; ${historyForExtraction}`;
+let down = validAmount(cashDown && tradeInLanguage.test(conversationalDownSource) && !/trade[- ]?in/i.test(cashDown)
   ? `${cashDown} + trade-in`
   : downCandidate);
 const source = clean(inputData.source).toLocaleLowerCase();
@@ -610,7 +613,7 @@ const vehicleCategory = /\b(?:truck|troca|trokita|troquita|troque|trokas|pickup|
         ? 'sedan'
         : '';
 const requiredDownPayment = ({ sedan: 1500, luxury_sedan: 2000, suv_or_van: 2000, truck: 3000 }[vehicleCategory] || null);
-const tradeInDownPayment = /\btrade[\s-]?in\b|\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion)\b|\bcarro\s+como\s+enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\bchange\s+(?:my\s+)?(?:vehicle|car|van|truck)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b/i.test(down);
+const tradeInDownPayment = tradeInLanguage.test(down);
 const downPaymentAmount = /^\d+(?:\.\d+)?$/.test(String(down).replace(/[$,\s]/g, '')) ? Number(String(down).replace(/[$,\s]/g, '')) : null;
 const downPaymentSufficient = requiredDownPayment !== null && (tradeInDownPayment || down === cashDownPayment || down.toLocaleLowerCase().includes(cashDownPayment.toLocaleLowerCase()) || (downPaymentAmount !== null && downPaymentAmount >= requiredDownPayment));
 const rawTimeline = first(timelineFrom(message), timelineFrom(history), memoryValue(['timeline', 'purchase timeline', 'purchase_timeline']), inputData.purchase_timeline);

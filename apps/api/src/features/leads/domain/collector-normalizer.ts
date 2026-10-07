@@ -359,7 +359,10 @@ const ECONOMIC_SEDAN_INTENT = /\b(?:carro|auto|coche|veh[ií]culo|algo)\s+econ[o
 const GENERIC_SEDAN_INTENT = /\b(?:small|compact|affordable|budget|economical)\s+(?:car|auto|coche|carro|vehicle)\b|\b(?:carro|auto|coche|veh[ií]culo)\s+pequeñ[oa]\b/i;
 const FAMILY_PASSENGER_VAN_INTENT = /\b(?:algo\s+)?familiar\b[\s\S]{0,80}\bpasajeros?\b/i;
 const NO_DOWN_PAYMENT_RESPONSE = /\b(?:no(?:\s+\w+){0,3}\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)|no\s+(?:cuento|cuenta)\s+con\s+(?:dinero|down|enganche|pago\s+inicial))\b/i;
-const TRADE_IN_INTENT = /\btrade[- ]?in\b|\bmy (?:car|vehicle|van|truck)\b|\bmi (?:carro|auto|veh[ií]culo|van|troca|camioneta|camioneta|camion)\b|\bcarro como enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\bchange\s+(?:my\s+)?(?:vehicle|car|van|truck)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b/i;
+// Trade-in is affirmative evidence, not a generic reference to the buyer's
+// car. In particular, ad-button replies such as "Quiero mi Auto con
+// Eastern" must never become a trade-in just because they contain "mi auto".
+const TRADE_IN_INTENT = /\btrade[- ]?in\b|\b(?:carro|auto|veh[ií]culo)\s+como\s+enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\bchange\s+(?:my\s+)?(?:vehicle|car|van|truck)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\b(?:and|y)\s+(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion)\b|\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion)\s+(?:for|para)\s+(?:trade(?:[- ]?in)?|entregar|cambiar|dar)\b|\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion|ban)\b[\s\S]{0,24}\b(?:\d{3,5}\s*(?:dollars?|d[oó]lares?)|down|payment|enganche)\b|\b(?:\d{3,5}\s*(?:dollars?|d[oó]lares?)|down|payment|enganche)\b[\s\S]{0,24}\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion|ban)\b/i;
 
 function canonicalVehicleLabel(value: string): string {
   const normalized = clean(value)
@@ -1184,6 +1187,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const customerLocation = extractCustomerLocation(input, languageText);
   const campaignReply = isCampaignButton(message);
   const messageForExtraction = stripCampaignButtonPhrases(rawMessage);
+  const historyForExtraction = stripCampaignButtonPhrases(rawHistory);
   const channel = effectiveChannel(input);
   const suppliedName = normalizeRealName(input.real_name);
   const profileName = profileNameFromInput(input, isMessengerChannel(channel));
@@ -1224,7 +1228,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const phoneFromConversation = extractPhone(input.chat_history_log) || extractPhone(input.message);
   const memoryDown = normalizeMemoryDownPayment(memoryValue(memory, ['down payment', 'down_payment', 'downpayment']));
   const inputDown = clean(input.down_payment ?? EMPTY);
-  const vehicleSource = [rawHistory, messageForExtraction].filter(Boolean).join('\n');
+  const vehicleSource = [historyForExtraction, messageForExtraction].filter(Boolean).join('\n');
   // Buyers on WhatsApp and Messenger use "carro económico" as a category
   // request. Keep this deterministic so it cannot be mistaken for a make/model.
   const extractedVehicle = FAMILY_PASSENGER_VAN_INTENT.test(vehicleSource)
@@ -1286,11 +1290,11 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     : cashDownCandidate;
   const tradeDown = firstValidAmount(
     extractTradeInDownPayment(messageForExtraction),
-    extractTradeInDownPayment(history),
+    extractTradeInDownPayment(historyForExtraction),
     extractTradeInDownPayment(memoryText(memory)),
   );
   const baseDown = cashDown || tradeDown;
-  const conversationalSource = [history, message].filter(Boolean).join('; ');
+  const conversationalSource = [clean(historyForExtraction), messageForExtraction].filter(Boolean).join('; ');
   let down = baseDown && TRADE_IN_INTENT.test(conversationalSource) && !/trade[- ]?in/i.test(baseDown)
     ? `${baseDown} + trade-in`
     : baseDown;

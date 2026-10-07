@@ -75,4 +75,15 @@ describe('qualification message normalization', () => {
   ])('omits an explicit negative down payment from copied text: %s', (down_payment, expected) => {
     expect(buildWhatsAppMessage('Lead', '+15550001111', { down_payment })).toBe(expected);
   });
+
+  it('omits trade-in text when the normalized trade-in value is absent', () => {
+    const message = buildWhatsAppMessage('Jose Cabrera', '+13016460540', {
+      vehicle_type: 'Toyota Tacoma',
+      down_payment: null,
+    });
+
+    expect(message).toBe('Jose Cabrera +13016460540 Toyota Tacoma.');
+    expect(message).not.toMatch(/trade[- ]?in/i);
+    expect(message).not.toContain('trade-in down');
+  });
 });

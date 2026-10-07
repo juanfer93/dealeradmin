@@ -8,11 +8,12 @@ const CASH_PATTERNS = [
 export const CASH_DOWN_PAYMENT = 'Pagara en cash / de contado';
 const TRADE_IN_PATTERNS = [
   /\btrade[\s-]?in\b/i,
-  /\b(?:my|mi)\s+(?:car|vehicle|carro|auto|veh[ií]culo)\b/i,
-  /\bcarro\s+como\s+enganche\b/i,
+  /\b(?:carro|auto|veh[ií]culo)\s+como\s+enganche\b/i,
   /\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b/i,
   /\bchange\s+(?:my\s+)?(?:vehicle|car)\b/i,
   /\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto)\b/i,
+  /\b(?:and|y)\s+(?:my|mi)\s+(?:car|vehicle|carro|auto|veh[ií]culo)\b/i,
+  /\b(?:my|mi)\s+(?:car|vehicle|carro|auto|veh[ií]culo)\s+(?:for|para)\s+(?:trade(?:[\s-]?in)?|entregar|cambiar|dar)\b/i,
 ];
 const NO_DOWN_PATTERNS = /\b(?:no\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|(?:i\s+)?(?:do\s+not|don't|dont)\s+have\s+(?:any\s+)?(?:money\s+for\s+)?(?:a\s+|the\s+)?down(?:\s+payment)?|(?:no\s+tengo|no\s+cuenta\s+con)\s+(?:dinero\s+para\s+)?(?:el\s+)?(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)?)\b/i;
 
