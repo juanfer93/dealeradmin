@@ -3,9 +3,22 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const body = readFileSync(resolve(__dirname, '../../domain/ghl-collector-normalizer.js'), 'utf8');
+const sourceModules = [
+  '01-runtime-text.js',
+  '02-contact-memory.js',
+  '03-vehicle.js',
+  '04-contact-flow.js',
+  '05-qualification-pipeline.js',
+].map((fileName) => readFileSync(resolve(__dirname, '../../domain/ghl-collector-normalizer/source/modules', fileName), 'utf8').trim());
 const execute = (inputData: Record<string, unknown>) => new Function('inputData', body)(inputData) as Record<string, any>;
 
 describe('HighLevel collector custom-code normalizer', () => {
+  it('keeps the standalone entrypoint generated from the maintainable source', () => {
+    expect(body).toContain('Generated GHL Custom Code entrypoint.');
+    for (const sourceModule of sourceModules) expect(body).toContain(sourceModule);
+    expect(body).not.toMatch(/(^|\n)\s*import\s|\brequire\s*\(/);
+  });
+
   it('promotes a complete qualification memory without custom fields', () => {
     const result = execute({
       real_name: 'QA Customer',
