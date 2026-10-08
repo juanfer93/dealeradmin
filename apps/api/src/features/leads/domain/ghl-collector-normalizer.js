@@ -69,11 +69,14 @@ const genericVehicleIntent = /\b(?:need|needs|looking\s+for|want|wants|seeking|s
 const inventoryIntent = /\b(?:inventory|inventario|see\s+(?:the\s+)?inventory|can\s+i\s+see|show\s+me|mu[eé]strame|ver\s+(?:el\s+)?inventario)\b/i;
 const greetingOnly = /^(?:buenos\s+d[ií]as|buenas\s+tardes|buenas\s+noches|saludos|hello|hi|hey|hola|ola|greetings)(?:[,.!?\s]+bendiciones)?[,.!?\s]*$/i;
 const singleWordNameBlocklist = /^(?:ok(?:ay)?|si|s[ií]|yes|no|yeah|yep|correct|cash|today|hoy|now|ahora|asap|inmediato|requirements?|requisitos?|information|informaci[oó]n|details?|detalles?|baltimore|maryland|virginia|laurel|rosedale|sterling|elkton|manda|nada|bale|vale|ubicaci[oó]n|ubicasion|tacoma|toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion|mustang|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|maverick|ranger|bronco|explorer|expedition|escape|edge|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|range rover|defender|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|financiar|finance|financing|down|payment|enganche|documents?|documentos?|identificaci[oó]n|income|ingresos|proof|prueba|phone|tel[eé]fono|number|n[uú]mero)$/i;
-const vehicleBrands = /\b(?:toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i;
-const vehicleModels = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacoma|tacma|tacomo|tecoma|rav\s*4|civic|civc|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|for\s+runner|for\s+runer|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|rlx|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
+const vehicleBrands = /\b(?:toyotas?|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subarus?|suvarus?|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i;
+const vehicleModels = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacomas?|tacomos?|tacmas?|tecomas?|sti|rav\s*4|civic|civc|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|for\s+runner|for\s+runer|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|rlx|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
 const vehicleCategories = /\b(?:suv|sedan|truck|truk|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i;
 const vehicleContext = /\b(?:tengo|tiene|tienen|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
-const genericSedanIntent = /\b(?:small|compact|affordable|budget|economical)\s+(?:car|auto|coche|carro|vehicle)\b|\b(?:carro|auto|coche|veh[ií]culo)\s+pequeñ[oa]\b/i;
+// Messenger may insert an emoji/punctuation into a compact-car answer, and
+// Spanish speech-to-text commonly produces phonetic spellings such as
+// "pek[e]no" or "chico". Keep these answers in the Sedan category.
+const genericSedanIntent = /\b(?:small|compact|affordable|budget|economical)\s+(?:car|auto|coche|carro|vehicle)\b|\b(?:carro|auto|coche|veh[ií]culo)[\s\W_]{1,8}(?:pequeñ[oa]|pequen[oa]|peken[oa]|chic[oa])\b/i;
 const economicCarIntent = /\b(?:carro|auto|coche|veh[ií]culo)\s+econ[oó]mic[oa]s?\b/i;
 // Stafford's WhatsApp flow commonly answers the vehicle-type prompt with
 // "Algo económico" followed by "Normal". Keep it as a sedan category during
@@ -82,11 +85,14 @@ const economicSedanIntent = /\b(?:carro|auto|coche|veh[ií]culo|algo)\s+econ[oó
 const familyPassengerVanIntent = /\b(?:algo\s+)?familiar\b[\s\S]{0,80}\bpasajeros?\b/i;
 const noDownPaymentResponse = /\b(?:no(?:\s+\w+){0,3}\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)?)\b/i;
 const canonicalVehicleLabel = (value) => clean(value)
+  .replace(/\btoyotas?\b/gi, 'Toyota')
+  .replace(/\bsuvarus?\b/gi, 'Subaru')
   .replace(/\bcorola\b/gi, 'Corolla')
   .replace(/\bcivc\b/gi, 'Civic')
-  .replace(/\btacma\b/gi, 'Tacoma')
-  .replace(/\btacomo\b/gi, 'Tacoma')
-  .replace(/\btecoma\b/gi, 'Tacoma')
+  .replace(/\btacomas?\b/gi, 'Tacoma')
+  .replace(/\btacomos?\b/gi, 'Tacoma')
+  .replace(/\btacmas?\b/gi, 'Tacoma')
+  .replace(/\btecomas?\b/gi, 'Tacoma')
   .replace(/\brav\s*4\b/gi, 'RAV4')
   .replace(/\bfor\s+run(?:ner|er)\b/gi, '4Runner')
   .replace(/\b4\s*runner\b/gi, '4Runner')
@@ -100,6 +106,7 @@ const canonicalVehicleLabel = (value) => clean(value)
   })
   .replace(vehicleModels, (match) => match.split(/\s+/).map((token) => {
     const lower = token.toLocaleLowerCase();
+    if (lower === 'sti') return 'STI';
     if (lower === 'rav4') return 'RAV4';
     if (lower === '4runner') return '4Runner';
     if (lower === 'rlx') return 'RLX';

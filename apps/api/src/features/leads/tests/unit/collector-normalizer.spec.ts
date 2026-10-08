@@ -918,6 +918,11 @@ describe('normalizeCollectorInput', () => {
     ['Tacma', 'Tacoma'],
     ['tacomo', 'Tacoma'],
     ['Tecoma', 'Tacoma'],
+    ['Tacomas', 'Tacoma'],
+    ['Tacomos', 'Tacoma'],
+    ['Tacmas', 'Tacoma'],
+    ['Tecomas', 'Tacoma'],
+    ['suvaru sti', 'Subaru STI'],
     ['Rav 4', 'RAV4'],
     ['4 runner', '4Runner'],
     ['for runner', '4Runner'],
@@ -969,6 +974,29 @@ describe('normalizeCollectorInput', () => {
       required_down_payment: 3000,
       down_payment: '5000',
       qualification_complete: true,
+    });
+  });
+
+  it('replays the noisy plural Toyota Tacoma answer from Action Cars as a routable truck', () => {
+    const transcript = [
+      'Toyotas Tacomas. Tienen',
+      'Me puedes mandar. Las fotos. Para verlas. Porfa.',
+      '703 3405401',
+      'Me. Puedes. Mandarme. Las fotos para Verla’s. Porfa',
+    ].join('\n');
+
+    expect(normalizeCollectorInput({
+      source: 'action-cars',
+      channel: 'messenger',
+      real_name: 'Fredy Bautista',
+      phone: '+17033405401',
+      chat_history_log: transcript,
+      message: 'Me. Puedes. Mandarme. Las fotos para Verla’s. Porfa',
+      vehicle_type: 'Quiere hablar con un asesor',
+    })).toMatchObject({
+      phone: '+17033405401',
+      vehicle_type: 'Toyota Tacoma',
+      vehicle_category: 'truck',
     });
   });
 
@@ -1459,6 +1487,22 @@ describe('normalizeCollectorInput', () => {
       channel: 'messenger',
       message: 'Busco un carro economico para esta semana',
     }).vehicle_type).toBe('Sedan');
+  });
+
+  it.each([
+    ['U coche 🚗 pequeño', 'Sedan'],
+    ['un coche pekeno', 'Sedan'],
+    ['auto chico', 'Sedan'],
+  ])('normalizes compact-car wording %s to %s', (message, expected) => {
+    const result = normalizeCollectorInput({
+      channel: 'messenger',
+      message,
+      vehicle_type: ADVISOR_HANDOFF_VEHICLE,
+    });
+
+    expect(result.vehicle_type).toBe(expected);
+    expect(result.qualification_memory).toContain(`vehicle: ${expected}`);
+    expect(result.missing_qualification).not.toContain('vehicle_type');
   });
 
   it('replays Orlando Jones Jr. without losing the suffix, small-car category, or down payment', () => {

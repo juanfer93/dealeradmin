@@ -82,6 +82,22 @@ describe('HighLevel collector custom-code normalizer', () => {
     }).vehicle_type).toBe('Sedan');
   });
 
+  it.each([
+    ['U coche 🚗 pequeño', 'Sedan'],
+    ['un coche pekeno', 'Sedan'],
+    ['auto chico', 'Sedan'],
+  ])('normalizes compact-car wording %s to %s in Custom Code', (message, expected) => {
+    const result = execute({
+      channel: 'messenger',
+      message,
+      vehicle_type: 'Quiere hablar con un asesor',
+    });
+
+    expect(result.vehicle_type).toBe(expected);
+    expect(result.qualification_memory).toContain(`vehicle: ${expected}`);
+    expect(result.missing_qualification).not.toContain('vehicle_type');
+  });
+
   it('replays Orlando Jones Jr. without losing the suffix, small-car category, or down payment in Custom Code', () => {
     expect(execute({
       source: 'action-cars',
@@ -843,6 +859,21 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.vehicle_type).toBe('Hummer sut');
     expect(result.down_payment).toBe('trade-in');
     expect(result.purchase_timeline).toBe('hoy');
+  });
+
+  it('replays the noisy Subaru STI answer with the common speech-to-text alias', () => {
+    const result = execute({
+      channel: 'messenger',
+      real_name: 'Roger Romero',
+      message: 'Si ando en busca de un suvaru sti 2017',
+      vehicle_type: 'Quiere hablar con un asesor',
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'Subaru STI',
+      vehicle_year: 2017,
+    });
+    expect(result.missing_qualification).not.toContain('vehicle_type');
   });
 
   it.each([

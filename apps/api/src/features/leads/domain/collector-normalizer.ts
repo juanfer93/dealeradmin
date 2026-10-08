@@ -341,8 +341,8 @@ const TECHNICAL_NAME_LABEL = /^(?:precio|price)\s+(?:de|of)\b/i;
 const LOCATION_RESPONSE = /^(?:estoy|vivo)\s+en\b/i;
 const NAME_PARTICLES = new Set(['da', 'de', 'del', 'der', 'di', 'la', 'las', 'los', 'van', 'von', 'y']);
 const NON_VEHICLE_INTENT_VALUES = /^(?:(?:(?:quiero|necesito|me gustar[ií]a|me interesa)\s+)?(?:m[aá]s\s+)?(?:informaci[oó]n|info|detalles?|details?|information)|more\s+(?:information|info|details?)|learn\s+more)$/i;
-const VEHICLE_BRANDS = /\b(?:toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i;
-const VEHICLE_MODELS = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacoma|tacma|tacomo|tecoma|rav\s*4|civic|civc|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|for\s+runner|for\s+runer|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|odisea|paila|sierra|silverado|tahoe|tajo|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|rlx|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
+const VEHICLE_BRANDS = /\b(?:toyotas?|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subarus?|suvarus?|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i;
+const VEHICLE_MODELS = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacomas?|tacomos?|tacmas?|tecomas?|sti|rav\s*4|civic|civc|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|for\s+runner|for\s+runer|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|odisea|paila|sierra|silverado|tahoe|tajo|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|rlx|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
 const VEHICLE_CATEGORIES = /\b(?:suv|sedan|truck|truk|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i;
 const VEHICLE_TRIMS = /\b(?:\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i;
 const VEHICLE_CONTEXT = /\b(?:tengo|tiene|tienen|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i;
@@ -356,7 +356,10 @@ const FINANCIAL_CONTEXT_BEFORE_AMOUNT = /\b(?:down|payment|enganche|inicial|pago
 // a sedan category so a late reconciliation cannot leave the lead as advisor
 // handoff after GHL has already completed the flow.
 const ECONOMIC_SEDAN_INTENT = /\b(?:carro|auto|coche|veh[ií]culo|algo)\s+econ[oó]mic[oa]s?\b/i;
-const GENERIC_SEDAN_INTENT = /\b(?:small|compact|affordable|budget|economical)\s+(?:car|auto|coche|carro|vehicle)\b|\b(?:carro|auto|coche|veh[ií]culo)\s+pequeñ[oa]\b/i;
+// Treat colloquial compact-car answers as Sedan even when Messenger inserts
+// an emoji/punctuation between the noun and adjective or the spelling is
+// phonetic ("pek[e]no", "chico").
+const GENERIC_SEDAN_INTENT = /\b(?:small|compact|affordable|budget|economical)\s+(?:car|auto|coche|carro|vehicle)\b|\b(?:carro|auto|coche|veh[ií]culo)[\s\W_]{1,8}(?:pequeñ[oa]|pequen[oa]|peken[oa]|chic[oa])\b/i;
 const FAMILY_PASSENGER_VAN_INTENT = /\b(?:algo\s+)?familiar\b[\s\S]{0,80}\bpasajeros?\b/i;
 const NO_DOWN_PAYMENT_RESPONSE = /\b(?:no(?:\s+\w+){0,3}\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)|no\s+(?:cuento|cuenta)\s+con\s+(?:dinero|down|enganche|pago\s+inicial))\b/i;
 // Trade-in is affirmative evidence, not a generic reference to the buyer's
@@ -367,12 +370,15 @@ const TRADE_IN_INTENT = /\btrade[- ]?in\b|\b(?:carro|auto|veh[ií]culo)\s+como\s
 function canonicalVehicleLabel(value: string): string {
   const normalized = clean(value)
     .replace(/-{2,}/g, '-')
+    .replace(/\btoyotas?\b/gi, 'Toyota')
+    .replace(/\bsuvarus?\b/gi, 'Subaru')
     .replace(/\bcorola\b/gi, 'Corolla')
     .replace(/\bcivc\b/gi, 'Civic')
     .replace(/\bacoitd\b/gi, 'Accord')
-    .replace(/\btacma\b/gi, 'Tacoma')
-    .replace(/\btacomo\b/gi, 'Tacoma')
-    .replace(/\btecoma\b/gi, 'Tacoma')
+    .replace(/\btacomas?\b/gi, 'Tacoma')
+    .replace(/\btacomos?\b/gi, 'Tacoma')
+    .replace(/\btacmas?\b/gi, 'Tacoma')
+    .replace(/\btecomas?\b/gi, 'Tacoma')
     .replace(/\bodisea\b/gi, 'Odyssey')
     .replace(/\bpaila\b/gi, 'Pilot')
     .replace(/\btajo\b/gi, 'Tahoe')
@@ -385,6 +391,7 @@ function canonicalVehicleLabel(value: string): string {
   const canonicalToken = (token: string): string => {
     const lower = token.toLocaleLowerCase();
     if (lower === 'gmc' || lower === 'bmw' || lower === 'vw') return lower.toLocaleUpperCase();
+    if (lower === 'sti') return 'STI';
     if (lower === 'rav4') return 'RAV4';
     if (lower === '4runner') return '4Runner';
     if (lower === 'rlx') return 'RLX';
