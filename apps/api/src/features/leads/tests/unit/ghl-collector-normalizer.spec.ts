@@ -95,6 +95,41 @@ describe('HighLevel collector custom-code normalizer', () => {
     }).vehicle_type).toBe('Sedan');
   });
 
+  it('replays Carlitos with the Easterns location from transcript history in Custom Code', () => {
+    const result = execute({
+      source: 'easterns',
+      channel: 'messenger',
+      real_name: 'Carlitos Caguana',
+      message: '4438392149',
+      chat_history_log: 'Quiero mi Auto con Eastern!\nUn auto\nPequeño\nMe puede mandar fotos para chequiar\nBaltimore\n4438392149',
+    });
+
+    expect(result).toMatchObject({
+      phone: '+14438392149',
+      vehicle_type: 'Sedan',
+      customer_location: 'Baltimore',
+      qualification_complete: true,
+      missing_qualification: [],
+    });
+  });
+
+  it('normalizes comma-separated grouped phone evidence from Ruben in Custom Code', () => {
+    const result = execute({
+      source: 'koons-culpeper',
+      channel: 'messenger',
+      real_name: 'Ruben Albarenga',
+      message: '301,659,90 59',
+      chat_history_log: '¿Dónde están ubicados?\nCamioneta 150\nTiene algunas fotos\n301,659,90 59',
+    });
+
+    expect(result).toMatchObject({
+      phone: '+13016599059',
+      vehicle_type: 'truck',
+      qualification_complete: true,
+      missing_qualification: [],
+    });
+  });
+
   it.each([
     ['U coche 🚗 pequeño', 'Sedan'],
     ['un coche pekeno', 'Sedan'],

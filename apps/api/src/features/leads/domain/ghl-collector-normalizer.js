@@ -26,7 +26,7 @@ const normalizePhone = (value) => {
   const source = String(value ?? '').trim();
   // A phone field may contain formatting, but a free-form message must not
   // be treated as a phone just because its prices/mileage add up to 10 digits.
-  if (!/^\+?[\d\s().-]+$/.test(source)) return '';
+  if (!/^\+?[\d\s().,-]+$/.test(source)) return '';
   const digits = source.replace(/\D/g, '');
   if (digits.length === 10) return `+1${digits}`;
   if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
@@ -39,7 +39,7 @@ const phoneFrom = (...values) => {
     // Keep the same bounded parser as collector-normalizer.ts. This accepts
     // spoken/grouped numbers such as "704 699 07 61" without turning prices,
     // mileage, years, or IDs into phone evidence.
-    const matches = String(value ?? '').match(/(?<!\d)(?:\+?1[\s().-]*)?(?:\([2-9]\d{2}\)|[2-9]\d{2})(?:[\s().-]*\d){7}(?!\d)/g) || [];
+    const matches = String(value ?? '').match(/(?<!\d)(?:\+?1[\s().,-]*)?(?:\([2-9]\d{2}\)|[2-9]\d{2})(?:[\s().,-]*\d){7}(?!\d)/g) || [];
     for (const candidate of matches) {
       const normalized = normalizePhone(candidate);
       if (normalized) return normalized;
@@ -618,7 +618,7 @@ const sourceAware = Boolean(source);
 const stafford = source === 'stafford';
 const requiresLocation = ['easterns', 'easterns-millersville'].includes(source);
 const phoneSatisfiedByNative = stafford && isWhatsAppChannel(inputData.channel);
-const customerLocation = first(inputData.customer_location, message.match(/\b(?:Baltimore|Laurel|Sterling|Millersville|Frederick|Fredericksburg|Woodbridge|Alexandria|Culpeper|Stafford)\b/i)?.[0] || '');
+const customerLocation = first(inputData.customer_location, `${history}; ${message}`.match(/\b(?:Baltimore|Laurel|Sterling|Millersville|Frederick|Fredericksburg|Woodbridge|Alexandria|Culpeper|Stafford)\b/i)?.[0] || '');
 const vehicleCategory = /\b(?:truck|troca|trokita|troquita|troque|trokas|pickup|pick[- ]?up|camioneta|camion|camión|tacoma|tundra|f[- ]?150|f[- ]?250|f[- ]?350|maverick|ranger|silverado|sierra|colorado|frontier|titan|ridgeline|gladiator|ram)\b/i.test(vehicle)
   ? 'truck'
   : /\b(?:suv|van|minivan|crossover|highlander|rav\s*4|4\s*runner|sienna|grand caravan|caravan|pacifica|odyssey|transit|promaster|pilot|passport|cr[- ]?v|hr[- ]?v|tahoe|suburban|traverse|equinox|blazer|yukon|acadia|terrain|wrangler|cherokee|compass|renegade|durango|explorer|expedition|escape|edge|armada|rogue|pathfinder|sportage|telluride|sorento|palisade|santa fe|tucson|forester|outback|ascent|atlas|tiguan|cayenne|range rover|defender)\b/i.test(vehicle)

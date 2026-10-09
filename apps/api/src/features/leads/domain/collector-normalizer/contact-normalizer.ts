@@ -7,12 +7,12 @@ import type { CollectorInput } from './types';
 // Accept spoken/grouped US numbers such as "704 699 07 61" while keeping
 // the area code and exact 10/11-digit boundary checks that prevent prices,
 // mileage, years, or IDs from becoming phone evidence.
-const PHONE_PATTERN = /(?<!\d)(?:\+?1[\s().-]*)?(?:\([2-9]\d{2}\)|[2-9]\d{2})(?:[\s().-]*\d){7}(?!\d)/g;
+const PHONE_PATTERN = /(?<!\d)(?:\+?1[\s().,-]*)?(?:\([2-9]\d{2}\)|[2-9]\d{2})(?:[\s().,-]*\d){7}(?!\d)/g;
 const EXPLICIT_PHONE_LABEL_PATTERN = /(?:phone(?:\s*(?:number|#))?|mobile(?:\s*(?:phone|#))?|cell(?:ular)?(?:\s*(?:phone|#))?|telephone|tel(?:ephone)?|teléfono|telefono|celular|m[oó]vil|n[uú]mero\s+de\s+tel[eé]fono)\b/iu;
 
 export function extractPhone(value: string | null | undefined): string {
   const source = clean(value);
-  const direct = /^\+?[\d\s().-]+$/.test(source)
+  const direct = /^\+?[\d\s().,-]+$/.test(source)
     && (source.replace(/\D/g, '').length === 10 || (source.replace(/\D/g, '').length === 11 && source.replace(/\D/g, '').startsWith('1')))
     ? source
     : EMPTY;

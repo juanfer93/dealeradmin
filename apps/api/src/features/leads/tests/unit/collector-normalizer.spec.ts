@@ -2167,4 +2167,21 @@ describe('normalizeCollectorInput', () => {
   ] as const)('identifies whether qualification came from %s', (input, expected) => {
     expect(normalizeCollectorInput(input).qualification_source).toBe(expected);
   });
+
+  it('normalizes comma-separated grouped phone evidence from Koons', () => {
+    const result = normalizeCollectorInput({
+      source: 'koons-culpeper',
+      channel: 'messenger',
+      real_name: 'Ruben Albarenga',
+      message: '301,659,90 59',
+      chat_history_log: '¿Dónde están ubicados?\nCamioneta 150\nTiene algunas fotos\n301,659,90 59',
+    });
+
+    expect(result).toMatchObject({
+      phone: '+13016599059',
+      vehicle_type: 'truck',
+      qualification_complete: true,
+      missing_qualification: [],
+    });
+  });
 });

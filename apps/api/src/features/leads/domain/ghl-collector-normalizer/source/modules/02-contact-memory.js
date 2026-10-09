@@ -2,7 +2,7 @@ const normalizePhone = (value) => {
   const source = String(value ?? '').trim();
   // A phone field may contain formatting, but a free-form message must not
   // be treated as a phone just because its prices/mileage add up to 10 digits.
-  if (!/^\+?[\d\s().-]+$/.test(source)) return '';
+  if (!/^\+?[\d\s().,-]+$/.test(source)) return '';
   const digits = source.replace(/\D/g, '');
   if (digits.length === 10) return `+1${digits}`;
   if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
@@ -15,7 +15,7 @@ const phoneFrom = (...values) => {
     // Keep the same bounded parser as collector-normalizer.ts. This accepts
     // spoken/grouped numbers such as "704 699 07 61" without turning prices,
     // mileage, years, or IDs into phone evidence.
-    const matches = String(value ?? '').match(/(?<!\d)(?:\+?1[\s().-]*)?(?:\([2-9]\d{2}\)|[2-9]\d{2})(?:[\s().-]*\d){7}(?!\d)/g) || [];
+    const matches = String(value ?? '').match(/(?<!\d)(?:\+?1[\s().,-]*)?(?:\([2-9]\d{2}\)|[2-9]\d{2})(?:[\s().,-]*\d){7}(?!\d)/g) || [];
     for (const candidate of matches) {
       const normalized = normalizePhone(candidate);
       if (normalized) return normalized;
