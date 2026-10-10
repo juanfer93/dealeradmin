@@ -28,6 +28,7 @@ import { ConversationBotPauseEvents1710000025000 } from './migrations/1710000025
 import { MonthlyReportQueueArchive1710000026000 } from './migrations/1710000026000-MonthlyReportQueueArchive';
 import { DropProblemTickets1710000028000 } from './migrations/1710000028000-DropProblemTickets';
 import { EnableStaffordMessenger1710000029000 } from './migrations/1710000029000-EnableStaffordMessenger';
+import { WebhookIngressLogs1710000030000 } from './migrations/1710000030000-WebhookIngressLogs';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -69,6 +70,7 @@ export const AppDataSource = new DataSource({
     MonthlyReportQueueArchive1710000026000,
     DropProblemTickets1710000028000,
     EnableStaffordMessenger1710000029000,
+    WebhookIngressLogs1710000030000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,

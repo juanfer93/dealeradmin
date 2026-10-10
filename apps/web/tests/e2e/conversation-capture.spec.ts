@@ -46,6 +46,23 @@ test('acepta Stafford Messenger sin desviar la fuente del dealer', async ({ requ
   await expect(response.json()).resolves.toMatchObject({ accepted: true, source: 'stafford', status: 'processed' });
 });
 
+test('responde con rechazo auditable cuando la firma del webhook es inválida', async ({ request }) => {
+  const response = await request.post('http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/stafford', {
+    data: JSON.stringify({
+      event_id: `ghl-e2e-invalid-signature-${Date.now()}`,
+      message_body: 'Este evento debe dejar rastro de rechazo.',
+      contact_phone: '+15717741234',
+      channel: 'messenger',
+    }),
+    headers: {
+      'content-type': 'application/json',
+      'X-DealerADMIN-Webhook-Secret': 'wrong-secret',
+    },
+  });
+
+  expect(response.status()).toBe(401);
+});
+
 test('procesa el transcript real de Manuel Rivera en Stafford, incluido Camionetq', async ({ request }) => {
   const suffix = `ghl-e2e-manuel-stafford-${Date.now()}`;
   const messages = [

@@ -1,7 +1,8 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { CanActivate, ExecutionContext, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, Logger, Optional, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 import { parseEnvironment } from '@dealeradmin/config';
+import { WebhookIngressAuditService } from '../application/webhook-ingress-audit.service';
 
 type RawBodyRequest = Request & { rawBody?: Buffer };
 
@@ -39,6 +40,8 @@ export function verifySharedSecret(secretHeader: string | undefined, secret: str
 export class HmacSignatureGuard implements CanActivate {
   private readonly logger = new Logger(HmacSignatureGuard.name);
 
+  constructor(@Optional() private readonly ingressAudit?: WebhookIngressAuditService) {}
+
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<RawBodyRequest>();
     const signatureHeader = request.header('X-GHL-Signature');
@@ -54,22 +57,31 @@ export class HmacSignatureGuard implements CanActivate {
       request.method === 'GET'
       && request.path.endsWith('/webhooks/ghl/conversations/process-due')
       && verifySharedSecret(bearerSecret, cronSecret ?? '')
-    ) return true;
+    ) {
+      void this.ingressAudit?.markAuth(request, 'accepted', 'cron_secret');
+      return true;
+    }
 
     // GHL's native outbound Webhook action does not calculate an HMAC. It can
     // send a fixed custom header, so accept that transport while keeping the
     // HMAC path for signed integrations.
-    if (verifySharedSecret(sharedSecretHeader, configuredSecret)) return true;
+    if (verifySharedSecret(sharedSecretHeader, configuredSecret)) {
+      void this.ingressAudit?.markAuth(request, 'accepted', 'shared_secret');
+      return true;
+    }
 
     if (!signatureHeader || !rawBody) {
+      void this.ingressAudit?.markAuth(request, 'rejected', !rawBody ? 'missing_raw_body' : 'missing_signature');
       this.logger.warn(`Rejected unsigned webhook: ${request.method} ${request.originalUrl} from ${request.ip}`);
       throw new UnauthorizedException('Missing webhook signature');
     }
 
     if (!verifyHmacSignature(rawBody, signatureHeader, configuredSecret, timestampHeader)) {
+      void this.ingressAudit?.markAuth(request, 'rejected', 'invalid_signature');
       this.logger.warn(`Rejected invalid webhook signature: ${request.method} ${request.originalUrl} from ${request.ip}`);
       throw new UnauthorizedException('Invalid webhook signature');
     }
+    void this.ingressAudit?.markAuth(request, 'accepted', 'hmac');
     return true;
   }
 }

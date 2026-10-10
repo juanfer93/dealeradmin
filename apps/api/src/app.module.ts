@@ -36,6 +36,8 @@ import { RepairConversationAttachmentUrlIndex1710000023000 } from './database/mi
 import { MonthlyReportDeliveries1710000024000 } from './database/migrations/1710000024000-MonthlyReportDeliveries';
 import { ConversationBotPauseEvents1710000025000 } from './database/migrations/1710000025000-ConversationBotPauseEvents';
 import { DropProblemTickets1710000028000 } from './database/migrations/1710000028000-DropProblemTickets';
+import { EnableStaffordMessenger1710000029000 } from './database/migrations/1710000029000-EnableStaffordMessenger';
+import { WebhookIngressLogs1710000030000 } from './database/migrations/1710000030000-WebhookIngressLogs';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -73,6 +75,8 @@ const databaseModule = TypeOrmModule.forRootAsync({
             MonthlyReportDeliveries1710000024000,
             ConversationBotPauseEvents1710000025000,
             DropProblemTickets1710000028000,
+            EnableStaffordMessenger1710000029000,
+            WebhookIngressLogs1710000030000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,

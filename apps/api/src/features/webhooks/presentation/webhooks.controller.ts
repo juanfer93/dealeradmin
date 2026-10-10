@@ -4,19 +4,27 @@ import { WebhookService } from '../application/webhook.service';
 import { normalizeGhlOutboundPayload } from '../application/ghl-outbound-payload';
 import { HmacSignatureGuard } from './hmac-signature.guard';
 import { ConversationWebhookService } from '../application/conversation-webhook.service';
+import { WebhookIngressAuditService } from '../application/webhook-ingress-audit.service';
 
 @Controller('webhooks')
 export class WebhooksController {
   constructor(
     private readonly webhookService: WebhookService,
     private readonly conversationWebhookService: ConversationWebhookService,
+    private readonly ingressAudit: WebhookIngressAuditService,
   ) {}
 
   @Post()
   @UseGuards(HmacSignatureGuard)
-  receiveLead(@Req() request: Request & { rawBody?: Buffer }, @Body() body: unknown) {
-    const normalizedBody = normalizeGhlOutboundPayload(body);
-    return this.webhookService.acceptLead(normalizedBody, request.rawBody?.toString('utf8'));
+  async receiveLead(@Req() request: Request & { rawBody?: Buffer }, @Body() body: unknown) {
+    void this.ingressAudit.markHandlerStarted(request);
+    try {
+      const normalizedBody = normalizeGhlOutboundPayload(body);
+      return await this.webhookService.acceptLead(normalizedBody, request.rawBody?.toString('utf8'));
+    } catch (error) {
+      void this.ingressAudit.markError(request, error);
+      throw error;
+    }
   }
 
   @Post('ghl/customer-replied/:source')
@@ -27,18 +35,24 @@ export class WebhooksController {
     @Req() request: Request & { rawBody?: Buffer },
     @Body() body: unknown,
   ) {
-    const response = await this.conversationWebhookService.acceptCustomerReplied(
-      body,
-      source,
-      {
-        contactId: request.header('X-DealerADMIN-Contact-ID') ?? undefined,
-        conversationId: request.header('X-DealerADMIN-Conversation-ID') ?? undefined,
-        messageId: request.header('X-DealerADMIN-Message-ID') ?? undefined,
-        testNow: this.controlledTestNow(request.header('X-DealerADMIN-Test-Now')),
-      },
-      request.rawBody?.toString('utf8'),
-    );
-    return response.status === 'ignored_channel' ? undefined : response;
+    void this.ingressAudit.markHandlerStarted(request);
+    try {
+      const response = await this.conversationWebhookService.acceptCustomerReplied(
+        body,
+        source,
+        {
+          contactId: request.header('X-DealerADMIN-Contact-ID') ?? undefined,
+          conversationId: request.header('X-DealerADMIN-Conversation-ID') ?? undefined,
+          messageId: request.header('X-DealerADMIN-Message-ID') ?? undefined,
+          testNow: this.controlledTestNow(request.header('X-DealerADMIN-Test-Now')),
+        },
+        request.rawBody?.toString('utf8'),
+      );
+      return response.status === 'ignored_channel' ? undefined : response;
+    } catch (error) {
+      await this.ingressAudit.markError(request, error);
+      throw error;
+    }
   }
 
   @Post('ghl/conversations/process-due')
