@@ -19,7 +19,30 @@ test('recibe cada Customer Replied con el contact id y conversation id sin depen
     },
   });
 
-  expect(response.status()).toBe(201);
+  expect(response.status()).toBe(200);
+  await expect(response.json()).resolves.toMatchObject({ accepted: true, source: 'stafford', status: 'processed' });
+});
+
+test('acepta Stafford Messenger sin desviar la fuente del dealer', async ({ request }) => {
+  const suffix = `ghl-e2e-stafford-messenger-${Date.now()}`;
+  const response = await request.post('http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/stafford', {
+    data: JSON.stringify({
+      message_body: 'Busco una SUV.',
+      contact_phone: '+15717741234',
+      contact_name: 'Stafford Messenger QA',
+      channel: 'messenger',
+      event_id: `${suffix}-event`,
+    }),
+    headers: {
+      'content-type': 'application/json',
+      'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
+      'X-DealerADMIN-Contact-ID': `${suffix}-contact`,
+      'X-DealerADMIN-Conversation-ID': `${suffix}-conversation`,
+      'X-DealerADMIN-Message-ID': `${suffix}-message`,
+    },
+  });
+
+  expect(response.status()).toBe(200);
   await expect(response.json()).resolves.toMatchObject({ accepted: true, source: 'stafford', status: 'processed' });
 });
 
@@ -57,7 +80,7 @@ test('procesa el transcript real de Manuel Rivera en Stafford, incluido Camionet
       },
     });
 
-    expect(response.status(), `Manuel message ${index + 1}`).toBe(201);
+    expect(response.status(), `Manuel message ${index + 1}`).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       accepted: true,
       source: 'stafford',
@@ -95,7 +118,7 @@ test('acepta la conversación completa de Messenger con teléfono capturado en e
       },
     });
 
-    expect(response.status()).toBe(201);
+    expect(response.status()).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       accepted: true,
       source: 'arlington',
@@ -127,7 +150,7 @@ test('reproduce Easterns y conserva el nombre real cuando el primer mensaje expr
       },
     });
 
-    expect(response.status(), `Easterns message ${index + 1}`).toBe(201);
+    expect(response.status(), `Easterns message ${index + 1}`).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       accepted: true,
       source: 'easterns',
@@ -159,7 +182,7 @@ test('no persiste el texto Más Información como nombre de Messenger', async ({
       },
     });
 
-    expect(response.status(), `Easterns information-label message ${index + 1}`).toBe(201);
+    expect(response.status(), `Easterns information-label message ${index + 1}`).toBe(200);
     await expect(response.json()).resolves.toMatchObject({ accepted: true, source: 'easterns' });
   }
 });
@@ -203,7 +226,7 @@ test('usa el último vehículo y el teléfono correcto en Stafford WhatsApp y Fr
         },
       });
 
-      expect(response.status(), `${scenario.source} message ${index + 1}`).toBe(201);
+      expect(response.status(), `${scenario.source} message ${index + 1}`).toBe(200);
       await expect(response.json()).resolves.toMatchObject({
         accepted: true,
         source: scenario.source,
@@ -252,7 +275,7 @@ test('libera Stafford y Fredericksburg con solo teléfono y vehículo, sin down 
         },
       });
 
-      expect(response.status(), `${scenario.source} message ${index + 1}`).toBe(201);
+      expect(response.status(), `${scenario.source} message ${index + 1}`).toBe(200);
       await expect(response.json()).resolves.toMatchObject({
         accepted: true,
         source: scenario.source,
@@ -291,7 +314,7 @@ test('acepta la conversación completa de WhatsApp con teléfono ya registrado',
       },
     });
 
-    expect(response.status()).toBe(201);
+    expect(response.status()).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       accepted: true,
       source: 'stafford',
@@ -358,7 +381,7 @@ test('cubre down regular y promoción Offlease en rutas positivas y negativas', 
         },
       });
 
-      expect(response.status(), `${scenario.source} ${scenario.channel} message ${messageIndex + 1}`).toBe(201);
+      expect(response.status(), `${scenario.source} ${scenario.channel} message ${messageIndex + 1}`).toBe(200);
       await expect(response.json()).resolves.toMatchObject({
         accepted: true,
         source: scenario.source,

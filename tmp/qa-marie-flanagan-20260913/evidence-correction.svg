@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="820" viewBox="0 0 1400 820">
+  <rect width="1400" height="820" fill="#f4f7f6"/>
+  <rect x="54" y="46" width="1292" height="728" rx="22" fill="#fff" stroke="#d8e5e2"/>
+  <text x="94" y="92" font-family="Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="3" fill="#087f79">DEALERADMIN · EVIDENCIA LOCAL</text>
+  <text x="94" y="142" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#14302f">Corrección del falso positivo de down payment</text>
+  <text x="94" y="178" font-family="Arial, sans-serif" font-size="18" fill="#56706e">Morningstar Marie Flanagan · Action Pre Owned Cars English · webhook local</text>
+  <rect x="94" y="222" width="576" height="286" rx="16" fill="#fff8f6" stroke="#e5b1a5" stroke-width="2"/>
+  <rect x="94" y="222" width="576" height="9" rx="4" fill="#c95d49"/>
+  <text x="124" y="270" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#14302f">Antes · FAIL reproducido</text>
+  <text x="124" y="320" font-family="Arial, sans-serif" font-size="18" fill="#6b817f">Teléfono</text><text x="350" y="320" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#14302f">+1 443 862-6592</text>
+  <text x="124" y="362" font-family="Arial, sans-serif" font-size="18" fill="#6b817f">Vehículo</text><text x="350" y="362" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#14302f">SUV</text>
+  <text x="124" y="404" font-family="Arial, sans-serif" font-size="18" fill="#6b817f">Down payment</text><text x="350" y="404" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#b14836">443 · falso positivo</text>
+  <text x="124" y="456" font-family="Arial, sans-serif" font-size="16" fill="#6b817f">La regex cruzaba la línea del teléfono.</text>
+  <rect x="730" y="222" width="576" height="286" rx="16" fill="#f2fbf8" stroke="#96d1c5" stroke-width="2"/>
+  <rect x="730" y="222" width="576" height="9" rx="4" fill="#087f79"/>
+  <text x="760" y="270" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#14302f">Después · PASS</text>
+  <text x="760" y="320" font-family="Arial, sans-serif" font-size="18" fill="#6b817f">Teléfono</text><text x="986" y="320" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#14302f">+1 443 862-6592</text>
+  <text x="760" y="362" font-family="Arial, sans-serif" font-size="18" fill="#6b817f">Vehículo</text><text x="986" y="362" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#14302f">SUV</text>
+  <text x="760" y="404" font-family="Arial, sans-serif" font-size="18" fill="#6b817f">Down payment</text><text x="986" y="404" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#087f79">vacío · correcto</text>
+  <text x="760" y="456" font-family="Arial, sans-serif" font-size="16" fill="#56706e">El área de teléfono no se acepta sin evidencia.</text>
+  <rect x="94" y="550" width="1212" height="164" rx="16" fill="#e9f5f2"/>
+  <text x="124" y="594" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#17645f">✓ 178 pruebas unitarias PASS · TypeScript + Custom Code</text>
+  <text x="124" y="632" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#17645f">✓ Webhook local PASS · 5 mensajes · 5 eventos · teléfono y vehículo enlazados</text>
+  <text x="124" y="670" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#17645f">✓ “I have 443 down” explícito permanece válido</text>
+  <text x="94" y="748" font-family="Arial, sans-serif" font-size="14" fill="#6b817f">Fixture sintético local · no se consultó ni modificó producción · secretos no expuestos</text>
+</svg>

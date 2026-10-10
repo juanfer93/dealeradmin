@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>dealerADMIN XLSX preview</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f3f7f6; color: #17211f; font-family: Arial, sans-serif; font-size: 14px; }
+    .window { width: 1180px; margin: 28px auto; background: #fff; border: 1px solid #cfd9d7; box-shadow: 0 12px 28px rgba(19,32,29,.1); }
+    .bar { padding: 16px 20px; border-bottom: 1px solid #dfe7e5; display: flex; justify-content: space-between; }
+    .title { font-size: 18px; font-weight: 700; }
+    .meta { color: #60716d; font-size: 12px; }
+    .tabs { display: flex; border-bottom: 1px solid #ccd7d4; background: #eef5f3; }
+    .tab { padding: 11px 18px; color: #60716d; border-right: 1px solid #d5dfdc; }
+    .active { background: #fff; color: #0b817a; font-weight: 700; border-top: 3px solid #0b817a; padding-top: 8px; }
+    .sheet { padding: 20px; }
+    .note { background: #edf7f5; border-left: 4px solid #0b817a; padding: 12px 14px; margin-bottom: 16px; color: #40514d; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #0b817a; color: #fff; text-align: left; padding: 11px 12px; border: 1px solid #08736d; font-size: 13px; }
+    td { padding: 14px 12px; border: 1px solid #d9e2e0; height: 50px; vertical-align: top; }
+    tr:nth-child(even) td { background: #f7faf9; }
+    .muted { color: #86948f; font-style: italic; }
+    .example { margin-top: 18px; font-size: 12px; color: #60716d; }
+    .example strong { color: #17211f; }
+    .small { font-size: 11px; color: #7b8985; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="window">
+    <div class="bar">
+      <div class="title">dealerADMIN-leads-all-2026-08-01-to-2026-08-31.xlsx</div>
+      <div class="meta">Generado bajo demanda · 8,782 bytes</div>
+    </div>
+    <div class="tabs"><div class="tab">Resumen</div><div class="tab active">Detalle</div><div class="tab">Errores</div></div>
+    <div class="sheet">
+      <div class="note"><strong>Detalle de leads</strong><br>La fecha se conserva como fecha operativa de llegada a dealerADMIN. Los campos sin información se dejan vacíos.</div>
+      <table>
+        <thead><tr><th>Nombre</th><th>Número</th><th>Comentarios</th><th>Fecha de llegada a dealerADMIN</th></tr></thead>
+        <tbody><tr><td class="muted">(sin dato en fixture local)</td><td class="muted">(sin dato en fixture local)</td><td class="muted">(sin dato en fixture local)</td><td>2026-08-21 12:00</td></tr></tbody>
+      </table>
+      <div class="example"><strong>Ejemplo validado por la prueba unitaria:</strong> Maria Lopez · +15559876543 · SUV, $1000 de down, ID y prueba de ingresos, quiere comprar este mes.</div>
+      <div class="small">Formato de encabezado: teal #0B817A · Primera fila congelada · Filtro automático habilitado</div>
+    </div>
+  </div>
+</body>
+</html>

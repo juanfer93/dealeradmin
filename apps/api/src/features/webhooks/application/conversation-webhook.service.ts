@@ -16,6 +16,7 @@ import { isQueuedPauseSourceEnabled, isQueuedTransition, QUEUED_PAUSE_HOURS, typ
 import { QUEUED_PAUSE_NOTIFIER } from '../presentation/queued-pause.tokens';
 
 type SourceKey = 'stafford' | 'fredericksburg' | 'fredericksburg-2' | 'easterns' | 'arlington' | 'koons-fred' | 'koons-fred-eng' | 'koons-culpeper' | 'action-cars' | 'easterns-millersville' | 'easterns-frederick';
+type SourceConfig = { locationId: string; defaultChannel: 'whatsapp' | 'messenger'; supportedChannels?: readonly ('whatsapp' | 'messenger')[]; splitByLanguage?: boolean; alternatingGroup?: string };
 
 export const CONVERSATION_STABILIZATION_MS = 15_000;
 export const INCOMPLETE_QUALIFICATION_WINDOW_HOURS = 0.5;
@@ -26,8 +27,8 @@ export const DUE_CONVERSATION_BATCH_SIZE = 5;
 export const ACTIVE_RECONCILIATION_BATCH_SIZE = 25;
 export const STALE_PHONE_REENTRY_DAYS = 3;
 
-export const GHL_SOURCE_CONFIG: Record<SourceKey, { locationId: string; defaultChannel: 'whatsapp' | 'messenger'; splitByLanguage?: boolean; alternatingGroup?: string }> = {
-  stafford: { locationId: 'LiaoSID3nvAhad49ZpNJ', defaultChannel: 'whatsapp' },
+export const GHL_SOURCE_CONFIG: Record<SourceKey, SourceConfig> = {
+  stafford: { locationId: 'LiaoSID3nvAhad49ZpNJ', defaultChannel: 'whatsapp', supportedChannels: ['whatsapp', 'messenger'] },
   fredericksburg: { locationId: 'MyxWNKacThim798E8KC6', defaultChannel: 'messenger' },
   'fredericksburg-2': { locationId: 'bAuMEQeH48xAtu9tAMFf', defaultChannel: 'messenger' },
   easterns: { locationId: 'xN2LSSl62okzv9GnOJPU', defaultChannel: 'messenger' },
@@ -587,7 +588,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       throw new UnprocessableEntityException({ code: 'INVALID_CUSTOMER_REPLIED_PAYLOAD', issues: parsed.error.issues });
     }
 
-    const event = parsed.data;
+    const event = { ...parsed.data, channel: normalizedChannel(parsed.data.channel) || parsed.data.channel };
     if (source === 'fredericksburg-2' && inputIndicatesWhatsApp(input, event.channel)) {
       return {
         accepted: true,
@@ -597,8 +598,8 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         status: 'ignored_channel',
       };
     }
-    if (source === 'stafford' && event.channel.trim().toLowerCase() !== 'whatsapp') {
-      throw new UnprocessableEntityException('Stafford solo acepta conversaciones de WhatsApp');
+    if (sourceConfig.supportedChannels && !sourceConfig.supportedChannels.includes(event.channel as 'whatsapp' | 'messenger')) {
+      throw new UnprocessableEntityException(`El canal ${event.channel} no está habilitado para ${source}`);
     }
     const contactId = event.ghl_contact_id;
     const message = clean(event.message_body);
@@ -725,7 +726,10 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       const insertedEvents = await runner.query(
         `INSERT INTO webhook_events (event_id, event_type, ghl_location_id, status, payload_hash, raw_transcript, capture_contract, capture_schema_version, received_at)
          VALUES ($1, $2, $3, 'pending', $4, $5, '{}'::jsonb, 'dealeradmin.conversation.v1', CURRENT_TIMESTAMP)
-         ON CONFLICT (event_id) DO NOTHING RETURNING event_id`,
+         ON CONFLICT (event_id) DO UPDATE
+           SET status = 'pending', error_code = NULL, received_at = CURRENT_TIMESTAMP
+           WHERE webhook_events.status = 'failed'
+         RETURNING event_id`,
         [event.event_id, event.event_type, GHL_SOURCE_CONFIG[source].locationId, hash(rawBody), event.message_body ?? ''],
       ) as Array<{ event_id: string }>;
       if (insertedEvents.length === 0) {

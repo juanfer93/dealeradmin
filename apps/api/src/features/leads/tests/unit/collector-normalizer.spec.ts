@@ -472,6 +472,21 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message: '500$' }).down_payment).toBe('500');
   });
 
+  it('keeps a vehicle year out of down payment when GHL supplies it in the vehicle field', () => {
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      vehicle_type: '2018 Honda Accord',
+      down_payment: '2018',
+      message: 'I can put 1000 down',
+      chat_history_log: 'I can put 1000 down',
+    });
+
+    expect(result.vehicle_year).toBe(2018);
+    expect(result.down_payment).toBe('1000');
+    expect(result.down_payment_amount).toBe(1000);
+  });
+
   it('normalizes Spanish thousands and amount confirmations like the Julio conversation', () => {
     const transcript = [
       'Sedan',

@@ -1,0 +1,200 @@
+{
+  "run_id": "qa-marie-flanagan-20260913-webhook-v2",
+  "generated_at": "2026-09-13T03:05:33.885Z",
+  "environment": {
+    "api_url": "http://127.0.0.1:3016",
+    "database": "local PostgreSQL in user-provided Docker container",
+    "timezone": "America/Bogota",
+    "secret_printed": false
+  },
+  "case": {
+    "source": "action-cars",
+    "conversation_id": "qa-marie-flanagan-20260913-webhook-v2-conversation",
+    "message_ids": [
+      "qa-marie-flanagan-20260913-webhook-v2-message-01",
+      "qa-marie-flanagan-20260913-webhook-v2-message-02",
+      "qa-marie-flanagan-20260913-webhook-v2-message-03",
+      "qa-marie-flanagan-20260913-webhook-v2-message-04",
+      "qa-marie-flanagan-20260913-webhook-v2-message-05"
+    ],
+    "responses": [
+      {
+        "status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-marie-flanagan-20260913-webhook-v2-event-01",
+          "conversationId": "f9b14d60-bb7c-4157-afa3-1b4605816ff6",
+          "source": "action-cars",
+          "status": "processed"
+        }
+      },
+      {
+        "status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-marie-flanagan-20260913-webhook-v2-event-02",
+          "conversationId": "f9b14d60-bb7c-4157-afa3-1b4605816ff6",
+          "source": "action-cars",
+          "status": "processed"
+        }
+      },
+      {
+        "status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-marie-flanagan-20260913-webhook-v2-event-03",
+          "conversationId": "f9b14d60-bb7c-4157-afa3-1b4605816ff6",
+          "source": "action-cars",
+          "status": "processed"
+        }
+      },
+      {
+        "status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-marie-flanagan-20260913-webhook-v2-event-04",
+          "conversationId": "f9b14d60-bb7c-4157-afa3-1b4605816ff6",
+          "source": "action-cars",
+          "status": "processed"
+        }
+      },
+      {
+        "status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-marie-flanagan-20260913-webhook-v2-event-05",
+          "conversationId": "f9b14d60-bb7c-4157-afa3-1b4605816ff6",
+          "source": "action-cars",
+          "status": "processed"
+        }
+      }
+    ],
+    "db": {
+      "row": {
+        "conversation_id": "f9b14d60-bb7c-4157-afa3-1b4605816ff6",
+        "status": "duplicate_ignored",
+        "qualification_snapshot": {
+          "phone": "+14438626592",
+          "language": "en",
+          "documents": "",
+          "real_name": "Morningstar Marie Flanagan",
+          "bank_account": "",
+          "down_payment": "",
+          "vehicle_type": "SUV",
+          "message_count": 5,
+          "identification": "",
+          "purchase_timeline": "",
+          "assigned_dealer_id": "e9999999-9999-9999-9999-999999999999",
+          "qualification_memory": "real_name: Morningstar Marie Flanagan; vehicle: SUV",
+          "missing_qualification": [
+            "down_payment",
+            "purchase_timeline",
+            "identification",
+            "proof_of_income",
+            "bank_account"
+          ],
+          "qualification_complete": false,
+          "qualification_progress": {
+            "step": "down_payment",
+            "evidence": "normalized_fields",
+            "language": "en",
+            "confidence": 0.95,
+            "last_answered_field": "vehicle_type",
+            "predicted_bot_question": "How much do you have for the down payment?"
+          }
+        },
+        "location_snapshot": {
+          "city": null,
+          "state": null,
+          "zip_code": null,
+          "easterns_zone": null
+        },
+        "next_attempt_at": null,
+        "canonical_phone": "+14438626592",
+        "first_name": "Morningstar",
+        "last_name": "Marie Flanagan",
+        "dealer_id": null,
+        "assigned_dealer_id": null,
+        "routing_reason": null
+      },
+      "messages": [
+        {
+          "id": "8fed82b7-a200-45e7-804b-59e8b7534123",
+          "ghl_message_id": "qa-marie-flanagan-20260913-webhook-v2-message-01",
+          "direction": "inbound",
+          "body": "A small SUV",
+          "occurred_at": "2026-09-12T23:59:55.000Z"
+        },
+        {
+          "id": "1d50dc4f-480e-47b2-8668-42ac1e789c2f",
+          "ghl_message_id": "qa-marie-flanagan-20260913-webhook-v2-message-02",
+          "direction": "inbound",
+          "body": "But I have down payment",
+          "occurred_at": "2026-09-13T00:00:00.000Z"
+        },
+        {
+          "id": "25a51a99-189b-41c0-b379-8b930cc583b1",
+          "ghl_message_id": "qa-marie-flanagan-20260913-webhook-v2-message-03",
+          "direction": "inbound",
+          "body": "443 862-6592",
+          "occurred_at": "2026-09-13T00:00:05.000Z"
+        },
+        {
+          "id": "4b5626cd-f04a-4ab4-a5a9-a4e3886e4fda",
+          "ghl_message_id": "qa-marie-flanagan-20260913-webhook-v2-message-04",
+          "direction": "inbound",
+          "body": "Could you do 700?",
+          "occurred_at": "2026-09-13T00:00:10.000Z"
+        },
+        {
+          "id": "dab90959-9284-47c3-b7ab-120de5d23a03",
+          "ghl_message_id": "qa-marie-flanagan-20260913-webhook-v2-message-05",
+          "direction": "inbound",
+          "body": "No I need a car like yesterday!!",
+          "occurred_at": "2026-09-13T00:00:15.000Z"
+        }
+      ],
+      "webhook_events": [
+        {
+          "event_id": "qa-marie-flanagan-20260913-webhook-v2-event-01",
+          "status": "processed",
+          "payload_hash": "19225ff7ec8b278156e87ccaa56cff6a92392c789a9169e570281ac449b8d4f6",
+          "ghl_location_id": "ZxadcudjvBz7KFCB1od4"
+        },
+        {
+          "event_id": "qa-marie-flanagan-20260913-webhook-v2-event-02",
+          "status": "processed",
+          "payload_hash": "80fcee42f038936d31000dc7d83e9ed29c00b4ab1a8aadad475063f78335bcee",
+          "ghl_location_id": "ZxadcudjvBz7KFCB1od4"
+        },
+        {
+          "event_id": "qa-marie-flanagan-20260913-webhook-v2-event-03",
+          "status": "processed",
+          "payload_hash": "312553de7f3a2148e69baadd997d1ff5b2148e98ff6df6c5fec90cfd7d5fad68",
+          "ghl_location_id": "ZxadcudjvBz7KFCB1od4"
+        },
+        {
+          "event_id": "qa-marie-flanagan-20260913-webhook-v2-event-04",
+          "status": "processed",
+          "payload_hash": "83e267e4c3dbf9875477ce4638eac733009336e5290d12b043c34d46b431090b",
+          "ghl_location_id": "ZxadcudjvBz7KFCB1od4"
+        },
+        {
+          "event_id": "qa-marie-flanagan-20260913-webhook-v2-event-05",
+          "status": "processed",
+          "payload_hash": "0bce31e8d7ee83f588aee741ba8d1091836a78d7a012b376fb9360d2698b9ddb",
+          "ghl_location_id": "ZxadcudjvBz7KFCB1od4"
+        }
+      ]
+    },
+    "verification_sql": "SELECT conversations JOIN leads LEFT JOIN lead_dealers; SELECT conversation_messages; SELECT webhook_events",
+    "assertions": {
+      "phone": true,
+      "vehicle": true,
+      "no_false_down_payment": true,
+      "linked_messages": true,
+      "webhook_events": true
+    },
+    "pass": true
+  }
+}

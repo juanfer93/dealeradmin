@@ -1,0 +1,146 @@
+dealerADMIN
+Reportes
+Webhook activo
+ES
+EN
+Cerrar sesión
+D
+DEALER ACTIVO
+Action Pre Owned Cars English
+DEALERS
+Action Pre Owned Cars English
+2
+Copiar
+Action Pre Owned Cars Español
+2
+Copiar
+Arlington Motors of Woodbridge
+4
+Copiar
+Easterns Frederick
+2
+Copiar
+Easterns Laurel
+11
+Copiar
+Easterns Millersville
+9
+Copiar
+Easterns Nissan of White Marsh
+7
+Copiar
+Easterns Rosedale
+8
+Copiar
+Easterns Sterling
+11
+Copiar
+Koons Automotive of Culpeper
+2
+Copiar
+Koons Automotive of Fredericksburg
+2
+Copiar
+Koons de Fredericksburg
+2
+Copiar
+Offlease Fredericksburg
+15
+Copiar
+Offlease Fredericksburg 2
+2
+Copiar
+Offlease Motors Stafford
+9
+Copiar
+
+OPERACIONES / COLA
+
+Cola de trabajo de leads
+
+Revisa, prepara y despacha leads calificados.
+
+Pendientes
+Enviados
+Action Pre Owned Cars English
+2 leads pendientes
+Flujo de webhook 
+0 seleccionados
+＋ Agregar lead manual
+Carga masiva
+LEAD	VEHÍCULO	CALIFICACIÓN	RECIBIDO	ACCIONES
+
+Action English
++12405550131
+Action English +12405550131 truck, 2000 down, wants to buy this month.
+	
+truck
+Action Pre Owned Cars English
+	
+2000
+ID no indicado
+cuenta bancaria no indicada
+documentos no indicados
+this month
+	
+LLEGÓ A DEALERADMIN
+12 de sept, 9:06 a. m.	
+Copiar a…
+Copiar a…
+Action Pre Owned Cars Español
+Arlington Motors of Woodbridge
+Easterns Frederick
+Easterns Laurel
+Easterns Millersville
+Easterns Nissan of White Marsh
+Easterns Rosedale
+Easterns Sterling
+Koons Automotive of Culpeper
+Koons Automotive of Fredericksburg
+Koons de Fredericksburg
+Offlease Fredericksburg
+Offlease Fredericksburg 2
+Offlease Motors Stafford
+✎
+Editar
+Copiar
+Marcar enviado
+Eliminar
+
+
+Ceddrick Moody
++12526765964
+Ceddrick Moody +12526765964 Hummer sut, cash, wants to buy today.
+	
+Hummer sut
+Action Pre Owned Cars English
+	
+Cash
+ID no indicado
+cuenta bancaria no indicada
+documentos no indicados
+today
+	
+LLEGÓ A DEALERADMIN
+12 de sept, 5:16 p. m.	
+Copiar a…
+Copiar a…
+Action Pre Owned Cars Español
+Arlington Motors of Woodbridge
+Easterns Frederick
+Easterns Laurel
+Easterns Millersville
+Easterns Nissan of White Marsh
+Easterns Rosedale
+Easterns Sterling
+Koons Automotive of Culpeper
+Koons Automotive of Fredericksburg
+Koons de Fredericksburg
+Offlease Fredericksburg
+Offlease Fredericksburg 2
+Offlease Motors Stafford
+✎
+Editar
+Copiar
+Marcar enviado
+Eliminar

@@ -1,0 +1,42 @@
+{
+  "date": "2026-09-17",
+  "repository": "juanfer93/dealeradmin",
+  "commit": "9590d8d",
+  "deployment": {
+    "provider": "Vercel",
+    "environment": "Production",
+    "status": "Ready",
+    "url": "https://dealeradmin-api-eight.vercel.app/app"
+  },
+  "scope": [
+    "Offlease Fredericksburg, Fredericksburg 2 and Stafford down-payment qualification",
+    "Image OCR phone fallback when GHL native phone is empty",
+    "Normal inbound webhooks after image processing",
+    "Affirmative confirmation of a concrete down-payment question"
+  ],
+  "results": {
+    "vitest_full": { "test_files": 35, "tests": 553, "passed": 553, "failed": 0 },
+    "vitest_targeted": { "test_files": 3, "tests": 213, "passed": 213, "failed": 0 },
+    "playwright_e2e": { "tests": 16, "passed": 16, "failed": 0 },
+    "docker_ocr": {
+      "status": "passed",
+      "input": "qa-media-20260917-job-castillo.jpg",
+      "phone_extracted": "+1-240-841-4183"
+    },
+    "postgres_local": { "container": "dealeradmin-postgres", "status": "passed" },
+    "production_visual": {
+      "status": "passed",
+      "vehicle": "Charger",
+      "normalized_down": "2000",
+      "phone": "+12408311746"
+    }
+  },
+  "behavior_guarantees": [
+    "A down below the vehicle minimum does not enter waiting_window on Offlease.",
+    "Equal or higher down, cash, and accepted trade-in paths remain eligible according to the configured policy.",
+    "OCR evidence is used only for processed image attachments and does not replace the original message.",
+    "A yes-like answer inherits an amount only from the immediately prior concrete down/minimum question; unrelated yes answers do not create a down.",
+    "ready_at is persisted so reconciliation does not extend the waiting window every 30 minutes."
+  ],
+  "production_data": "No production database rows were modified by the QA tests."
+}

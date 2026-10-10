@@ -1,0 +1,55 @@
+{
+  "source": "arlington",
+  "location": "Arlington Motors of Woodbridge",
+  "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci",
+  "ghl_contact_id": "BFM2W8mIyU5suJLeLPEg",
+  "ghl_conversation_id": "5W8UFXx0DeVdYLLOj9oY",
+  "channel": "messenger",
+  "contact_name": "Job Castillo Castillo",
+  "contact_phone": null,
+  "image_fixture": "tmp/qa-media-20260917-job-castillo.jpg",
+  "image_source_url": "https://links.1987marketing.com/conversations-assets/location/9v8zH9Y5eLiiJwZTZDci/conversations/5W8UFXx0DeVdYLLOj9oY/909f68e1-00db-4157-b94a-7623d7ed2d0a.jpg",
+  "messages": [
+    {
+      "direction": "inbound",
+      "body": "¿Podrías enviarme un número de contacto para mandarte las opciones de trocas GMC?",
+      "occurred_at": "2026-09-17T15:07:00.000Z"
+    },
+    {
+      "direction": "outbound",
+      "body": "Solo para cerrar, este será mi último seguimiento por ahora. ¿Sigues interesado en las trocas GMC? Si es así, compárteme tu mejor número para enviarte las opciones; si no, me avisas y lo dejo aquí.",
+      "occurred_at": "2026-09-17T17:07:00.000Z"
+    },
+    {
+      "direction": "inbound",
+      "body": "Si",
+      "occurred_at": "2026-09-17T17:16:00.000Z"
+    },
+    {
+      "direction": "outbound",
+      "body": "Perfecto 👍 ¿Cuál es el mejor número para contactarte y enviarte las opciones de trocas GMC?",
+      "occurred_at": "2026-09-17T17:16:00.000Z"
+    },
+    {
+      "direction": "inbound",
+      "body": "",
+      "occurred_at": "2026-09-17T17:17:00.000Z",
+      "message_attachments": [
+        {
+          "id": "909f68e1-00db-4157-b94a-7623d7ed2d0a",
+          "url": "https://links.1987marketing.com/conversations-assets/location/9v8zH9Y5eLiiJwZTZDci/conversations/5W8UFXx0DeVdYLLOj9oY/909f68e1-00db-4157-b94a-7623d7ed2d0a.jpg",
+          "content_type": "image/jpeg",
+          "filename": "909f68e1-00db-4157-b94a-7623d7ed2d0a.jpg",
+          "type": "image"
+        }
+      ]
+    },
+    {
+      "direction": "outbound",
+      "body": "Gracias. Guardé tu número: +1 240-841-4183. Para las trocas requerimos entre $2000 y $2500 de enganche. ¿Con cuánto contarías tú para el enganche?",
+      "occurred_at": "2026-09-17T17:18:00.000Z"
+    }
+  ],
+  "expected_ocr_text_contains": "+1-240-841-4183",
+  "evidence_note": "Conversación observada en GHL; el campo Contact Details > Phone aparece vacío y el número solo está en la imagen."
+}

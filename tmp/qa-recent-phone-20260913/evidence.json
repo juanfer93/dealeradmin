@@ -1,0 +1,592 @@
+{
+  "run_id": "qa-recent-phone-20260913",
+  "generated_at": "2026-09-13T04:58:11.684Z",
+  "environment": {
+    "api_url": "http://127.0.0.1:3021",
+    "database": "local PostgreSQL in user-provided Docker container",
+    "timezone": "America/Bogota",
+    "secret_printed": false
+  },
+  "rule": "GHL contact phone is eligible only when the same number appears in an inbound message no older than three days at reconciliation time.",
+  "before": {
+    "old": {
+      "rows": [],
+      "messages": [],
+      "events": [],
+      "sql": "SELECT c.id AS conversation_db_id, c.status, c.qualification_snapshot,\n    c.location_snapshot, c.ready_at, c.next_attempt_at,\n    l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n    ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n    ld.routing_reason\n  FROM conversations c JOIN leads l ON l.id = c.lead_id\n  LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n  WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    },
+    "recent": {
+      "rows": [],
+      "messages": [],
+      "events": [],
+      "sql": "SELECT c.id AS conversation_db_id, c.status, c.qualification_snapshot,\n    c.location_snapshot, c.ready_at, c.next_attempt_at,\n    l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n    ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n    ld.routing_reason\n  FROM conversations c JOIN leads l ON l.id = c.lead_id\n  LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n  WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    }
+  },
+  "steps": [
+    {
+      "case": "old",
+      "body": "I am looking for a sedan and can put 2000 down",
+      "at": "2026-09-14T18:29:00.000Z",
+      "response": {
+        "payload": {
+          "event_id": "qa-recent-phone-20260913-old-event-01",
+          "event_type": "customer.replied",
+          "ghl_message_id": "qa-recent-phone-20260913-old-message-01",
+          "ghl_contact_id": "qa-recent-phone-20260913-old-contact",
+          "ghl_conversation_id": "qa-recent-phone-20260913-old-conversation",
+          "message_body": "I am looking for a sedan and can put 2000 down",
+          "contact_phone": "(240) 681-5028",
+          "contact_name": "Old GHL Contact",
+          "channel": "whatsapp",
+          "occurred_at": "2026-09-14T18:29:00.000Z"
+        },
+        "payload_hash": "f77052a09c43ed9d5b2bd2924b6266012896a96a7ca24fb0b8e9c7e3cd8aa538",
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-recent-phone-20260913-old-event-01",
+          "conversationId": "8ec9a750-c6d8-4b27-8658-62764952953f",
+          "source": "stafford",
+          "status": "processed"
+        }
+      }
+    },
+    {
+      "case": "recent",
+      "body": "My number is (301) 555-0123",
+      "at": "2026-09-14T18:26:00.000Z",
+      "response": {
+        "payload": {
+          "event_id": "qa-recent-phone-20260913-recent-event-01",
+          "event_type": "customer.replied",
+          "ghl_message_id": "qa-recent-phone-20260913-recent-message-01",
+          "ghl_contact_id": "qa-recent-phone-20260913-recent-contact",
+          "ghl_conversation_id": "qa-recent-phone-20260913-recent-conversation",
+          "message_body": "My number is (301) 555-0123",
+          "contact_phone": "(301) 555-0123",
+          "contact_name": "Old GHL Contact",
+          "channel": "whatsapp",
+          "occurred_at": "2026-09-14T18:26:00.000Z"
+        },
+        "payload_hash": "fa0a32324d7cbdf072f7d2f33892e4aa5508cd072e5a90e8709da841d2fe9950",
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-recent-phone-20260913-recent-event-01",
+          "conversationId": "dfe53ccd-f33e-45d3-99f8-f483a57e4a68",
+          "source": "stafford",
+          "status": "processed"
+        }
+      }
+    },
+    {
+      "case": "recent",
+      "body": "I am looking for a sedan and can put 2000 down",
+      "at": "2026-09-14T18:29:00.000Z",
+      "response": {
+        "payload": {
+          "event_id": "qa-recent-phone-20260913-recent-event-02",
+          "event_type": "customer.replied",
+          "ghl_message_id": "qa-recent-phone-20260913-recent-message-02",
+          "ghl_contact_id": "qa-recent-phone-20260913-recent-contact",
+          "ghl_conversation_id": "qa-recent-phone-20260913-recent-conversation",
+          "message_body": "I am looking for a sedan and can put 2000 down",
+          "contact_phone": "(301) 555-0123",
+          "contact_name": "Old GHL Contact",
+          "channel": "whatsapp",
+          "occurred_at": "2026-09-14T18:29:00.000Z"
+        },
+        "payload_hash": "2b8cadf951199636dc69ab42fb265cc1598bb0139bcf988f06e10a4465c46734",
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-recent-phone-20260913-recent-event-02",
+          "conversationId": "dfe53ccd-f33e-45d3-99f8-f483a57e4a68",
+          "source": "stafford",
+          "status": "processed"
+        }
+      }
+    }
+  ],
+  "captured": {
+    "old": {
+      "rows": [
+        {
+          "conversation_db_id": "8ec9a750-c6d8-4b27-8658-62764952953f",
+          "status": "partial",
+          "qualification_snapshot": {
+            "phone": "",
+            "documents": "",
+            "real_name": "",
+            "bank_account": "",
+            "down_payment": "2000",
+            "vehicle_type": "sedan",
+            "message_count": 1,
+            "identification": "",
+            "purchase_timeline": "",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "qualification_memory": "vehicle: sedan; down payment: 2000",
+            "missing_qualification": [
+              "real_name",
+              "phone",
+              "purchase_timeline",
+              "identification",
+              "proof_of_income",
+              "bank_account"
+            ],
+            "qualification_complete": false,
+            "qualification_progress": {
+              "step": "real_name",
+              "evidence": "normalized_fields",
+              "language": "en",
+              "confidence": 0.95,
+              "last_answered_field": "down_payment",
+              "predicted_bot_question": "What is your full name?"
+            }
+          },
+          "location_snapshot": {
+            "city": null,
+            "state": null,
+            "zip_code": null,
+            "easterns_zone": null
+          },
+          "ready_at": null,
+          "next_attempt_at": null,
+          "lead_id": "729c4116-d00e-4dbc-b637-33f7704fe9aa",
+          "canonical_phone": "+12406815028",
+          "first_name": "Old",
+          "last_name": "Ghl Contact",
+          "dealer_id": null,
+          "assigned_dealer_id": null,
+          "lead_dealer_status": null,
+          "routing_reason": null
+        }
+      ],
+      "messages": [
+        {
+          "id": "0bacb7b0-ed8e-4d7c-9e5a-f357cebe6c82",
+          "ghl_message_id": "qa-recent-phone-20260913-old-message-01",
+          "direction": "inbound",
+          "body": "I am looking for a sedan and can put 2000 down",
+          "occurred_at": "2026-09-14T18:29:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "event_id": "qa-recent-phone-20260913-old-event-01",
+          "status": "processed",
+          "payload_hash": "f77052a09c43ed9d5b2bd2924b6266012896a96a7ca24fb0b8e9c7e3cd8aa538",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-recent-phone-20260913-recent-event-01",
+          "status": "processed",
+          "payload_hash": "fa0a32324d7cbdf072f7d2f33892e4aa5508cd072e5a90e8709da841d2fe9950",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-recent-phone-20260913-recent-event-02",
+          "status": "processed",
+          "payload_hash": "2b8cadf951199636dc69ab42fb265cc1598bb0139bcf988f06e10a4465c46734",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        }
+      ],
+      "sql": "SELECT c.id AS conversation_db_id, c.status, c.qualification_snapshot,\n    c.location_snapshot, c.ready_at, c.next_attempt_at,\n    l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n    ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n    ld.routing_reason\n  FROM conversations c JOIN leads l ON l.id = c.lead_id\n  LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n  WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    },
+    "recent": {
+      "rows": [
+        {
+          "conversation_db_id": "dfe53ccd-f33e-45d3-99f8-f483a57e4a68",
+          "status": "waiting_window",
+          "qualification_snapshot": {
+            "phone": "+13015550123",
+            "documents": "",
+            "real_name": "",
+            "bank_account": "",
+            "down_payment": "2000",
+            "vehicle_type": "sedan",
+            "message_count": 2,
+            "identification": "",
+            "purchase_timeline": "",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "qualification_memory": "vehicle: sedan; down payment: 2000",
+            "missing_qualification": [
+              "real_name",
+              "purchase_timeline",
+              "identification",
+              "proof_of_income",
+              "bank_account"
+            ],
+            "qualification_complete": false,
+            "qualification_progress": {
+              "step": "real_name",
+              "evidence": "normalized_fields",
+              "language": "en",
+              "confidence": 0.95,
+              "last_answered_field": "down_payment",
+              "predicted_bot_question": "What is your full name?"
+            }
+          },
+          "location_snapshot": {
+            "city": null,
+            "state": null,
+            "zip_code": null,
+            "easterns_zone": null
+          },
+          "ready_at": "2026-09-14T18:29:00.000Z",
+          "next_attempt_at": "2026-09-14T18:29:15.000Z",
+          "lead_id": "59dba245-aacb-491e-a594-c7e59e5b2134",
+          "canonical_phone": "+13015550123",
+          "first_name": "Old",
+          "last_name": "Ghl Contact",
+          "dealer_id": null,
+          "assigned_dealer_id": null,
+          "lead_dealer_status": null,
+          "routing_reason": null
+        }
+      ],
+      "messages": [
+        {
+          "id": "ac1dcf09-b54e-41bd-a0e0-7ac3fc6918fb",
+          "ghl_message_id": "qa-recent-phone-20260913-recent-message-01",
+          "direction": "inbound",
+          "body": "My number is (301) 555-0123",
+          "occurred_at": "2026-09-14T18:26:00.000Z"
+        },
+        {
+          "id": "8a312d66-ad59-44bc-91de-67288110c2f7",
+          "ghl_message_id": "qa-recent-phone-20260913-recent-message-02",
+          "direction": "inbound",
+          "body": "I am looking for a sedan and can put 2000 down",
+          "occurred_at": "2026-09-14T18:29:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "event_id": "qa-recent-phone-20260913-old-event-01",
+          "status": "processed",
+          "payload_hash": "f77052a09c43ed9d5b2bd2924b6266012896a96a7ca24fb0b8e9c7e3cd8aa538",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-recent-phone-20260913-recent-event-01",
+          "status": "processed",
+          "payload_hash": "fa0a32324d7cbdf072f7d2f33892e4aa5508cd072e5a90e8709da841d2fe9950",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-recent-phone-20260913-recent-event-02",
+          "status": "processed",
+          "payload_hash": "2b8cadf951199636dc69ab42fb265cc1598bb0139bcf988f06e10a4465c46734",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        }
+      ],
+      "sql": "SELECT c.id AS conversation_db_id, c.status, c.qualification_snapshot,\n    c.location_snapshot, c.ready_at, c.next_attempt_at,\n    l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n    ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n    ld.routing_reason\n  FROM conversations c JOIN leads l ON l.id = c.lead_id\n  LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n  WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    }
+  },
+  "old_poll": {
+    "at": "2026-09-14T18:30:00.000Z",
+    "http_status": 201,
+    "body": {
+      "accepted": true,
+      "processed": 0
+    }
+  },
+  "recent_stabilization": {
+    "at": "2026-09-14T18:30:00.000Z",
+    "http_status": 201,
+    "body": {
+      "accepted": true,
+      "processed": 0
+    }
+  },
+  "before_release": {
+    "rows": [
+      {
+        "conversation_db_id": "dfe53ccd-f33e-45d3-99f8-f483a57e4a68",
+        "status": "waiting_window",
+        "qualification_snapshot": {
+          "phone": "+13015550123",
+          "documents": "",
+          "real_name": "",
+          "bank_account": "",
+          "down_payment": "2000",
+          "vehicle_type": "sedan",
+          "message_count": 2,
+          "identification": "",
+          "purchase_timeline": "",
+          "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+          "qualification_memory": "vehicle: sedan; down payment: 2000",
+          "missing_qualification": [
+            "real_name",
+            "purchase_timeline",
+            "identification",
+            "proof_of_income",
+            "bank_account"
+          ],
+          "qualification_complete": false,
+          "qualification_progress": {
+            "step": "real_name",
+            "evidence": "normalized_fields",
+            "language": "en",
+            "confidence": 0.95,
+            "last_answered_field": "down_payment",
+            "predicted_bot_question": "What is your full name?"
+          }
+        },
+        "location_snapshot": {
+          "city": null,
+          "state": null,
+          "zip_code": null,
+          "easterns_zone": null
+        },
+        "ready_at": "2026-09-14T18:29:00.000Z",
+        "next_attempt_at": "2026-09-14T18:59:00.000Z",
+        "lead_id": "59dba245-aacb-491e-a594-c7e59e5b2134",
+        "canonical_phone": "+13015550123",
+        "first_name": "Old",
+        "last_name": "Ghl Contact",
+        "dealer_id": null,
+        "assigned_dealer_id": null,
+        "lead_dealer_status": null,
+        "routing_reason": null
+      }
+    ],
+    "messages": [
+      {
+        "id": "ac1dcf09-b54e-41bd-a0e0-7ac3fc6918fb",
+        "ghl_message_id": "qa-recent-phone-20260913-recent-message-01",
+        "direction": "inbound",
+        "body": "My number is (301) 555-0123",
+        "occurred_at": "2026-09-14T18:26:00.000Z"
+      },
+      {
+        "id": "8a312d66-ad59-44bc-91de-67288110c2f7",
+        "ghl_message_id": "qa-recent-phone-20260913-recent-message-02",
+        "direction": "inbound",
+        "body": "I am looking for a sedan and can put 2000 down",
+        "occurred_at": "2026-09-14T18:29:00.000Z"
+      }
+    ],
+    "events": [
+      {
+        "event_id": "qa-recent-phone-20260913-old-event-01",
+        "status": "processed",
+        "payload_hash": "f77052a09c43ed9d5b2bd2924b6266012896a96a7ca24fb0b8e9c7e3cd8aa538",
+        "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+      },
+      {
+        "event_id": "qa-recent-phone-20260913-recent-event-01",
+        "status": "processed",
+        "payload_hash": "fa0a32324d7cbdf072f7d2f33892e4aa5508cd072e5a90e8709da841d2fe9950",
+        "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+      },
+      {
+        "event_id": "qa-recent-phone-20260913-recent-event-02",
+        "status": "processed",
+        "payload_hash": "2b8cadf951199636dc69ab42fb265cc1598bb0139bcf988f06e10a4465c46734",
+        "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+      }
+    ],
+    "sql": "SELECT c.id AS conversation_db_id, c.status, c.qualification_snapshot,\n    c.location_snapshot, c.ready_at, c.next_attempt_at,\n    l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n    ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n    ld.routing_reason\n  FROM conversations c JOIN leads l ON l.id = c.lead_id\n  LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n  WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+  },
+  "release": {
+    "at": "2026-09-14T18:59:00.000Z",
+    "http_status": 201,
+    "body": {
+      "accepted": true,
+      "processed": 0
+    }
+  },
+  "after": {
+    "old": {
+      "rows": [
+        {
+          "conversation_db_id": "8ec9a750-c6d8-4b27-8658-62764952953f",
+          "status": "partial",
+          "qualification_snapshot": {
+            "phone": "",
+            "documents": "",
+            "real_name": "",
+            "bank_account": "",
+            "down_payment": "2000",
+            "vehicle_type": "sedan",
+            "message_count": 1,
+            "identification": "",
+            "purchase_timeline": "",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "qualification_memory": "vehicle: sedan; down payment: 2000",
+            "missing_qualification": [
+              "real_name",
+              "phone",
+              "purchase_timeline",
+              "identification",
+              "proof_of_income",
+              "bank_account"
+            ],
+            "qualification_complete": false,
+            "qualification_progress": {
+              "step": "real_name",
+              "evidence": "normalized_fields",
+              "language": "en",
+              "confidence": 0.95,
+              "last_answered_field": "down_payment",
+              "predicted_bot_question": "What is your full name?"
+            }
+          },
+          "location_snapshot": {
+            "city": null,
+            "state": null,
+            "zip_code": null,
+            "easterns_zone": null
+          },
+          "ready_at": null,
+          "next_attempt_at": null,
+          "lead_id": "729c4116-d00e-4dbc-b637-33f7704fe9aa",
+          "canonical_phone": "+12406815028",
+          "first_name": "Old",
+          "last_name": "Ghl Contact",
+          "dealer_id": null,
+          "assigned_dealer_id": null,
+          "lead_dealer_status": null,
+          "routing_reason": null
+        }
+      ],
+      "messages": [
+        {
+          "id": "0bacb7b0-ed8e-4d7c-9e5a-f357cebe6c82",
+          "ghl_message_id": "qa-recent-phone-20260913-old-message-01",
+          "direction": "inbound",
+          "body": "I am looking for a sedan and can put 2000 down",
+          "occurred_at": "2026-09-14T18:29:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "event_id": "qa-recent-phone-20260913-old-event-01",
+          "status": "processed",
+          "payload_hash": "f77052a09c43ed9d5b2bd2924b6266012896a96a7ca24fb0b8e9c7e3cd8aa538",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-recent-phone-20260913-recent-event-01",
+          "status": "processed",
+          "payload_hash": "fa0a32324d7cbdf072f7d2f33892e4aa5508cd072e5a90e8709da841d2fe9950",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-recent-phone-20260913-recent-event-02",
+          "status": "processed",
+          "payload_hash": "2b8cadf951199636dc69ab42fb265cc1598bb0139bcf988f06e10a4465c46734",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        }
+      ],
+      "sql": "SELECT c.id AS conversation_db_id, c.status, c.qualification_snapshot,\n    c.location_snapshot, c.ready_at, c.next_attempt_at,\n    l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n    ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n    ld.routing_reason\n  FROM conversations c JOIN leads l ON l.id = c.lead_id\n  LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n  WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    },
+    "recent": {
+      "rows": [
+        {
+          "conversation_db_id": "dfe53ccd-f33e-45d3-99f8-f483a57e4a68",
+          "status": "queued",
+          "qualification_snapshot": {
+            "phone": "+13015550123",
+            "documents": "",
+            "real_name": "",
+            "bank_account": "",
+            "down_payment": "2000",
+            "vehicle_type": "sedan",
+            "message_count": 2,
+            "identification": "",
+            "purchase_timeline": "",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "qualification_memory": "vehicle: sedan; down payment: 2000",
+            "missing_qualification": [
+              "real_name",
+              "purchase_timeline",
+              "identification",
+              "proof_of_income",
+              "bank_account"
+            ],
+            "qualification_complete": false,
+            "qualification_progress": {
+              "step": "real_name",
+              "evidence": "normalized_fields",
+              "language": "en",
+              "confidence": 0.95,
+              "last_answered_field": "down_payment",
+              "predicted_bot_question": "What is your full name?"
+            }
+          },
+          "location_snapshot": {
+            "city": null,
+            "state": null,
+            "zip_code": null,
+            "easterns_zone": null
+          },
+          "ready_at": "2026-09-14T18:29:00.000Z",
+          "next_attempt_at": null,
+          "lead_id": "59dba245-aacb-491e-a594-c7e59e5b2134",
+          "canonical_phone": "+13015550123",
+          "first_name": "Old",
+          "last_name": "Ghl Contact",
+          "dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+          "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+          "lead_dealer_status": "pending",
+          "routing_reason": "GHL stafford source dealer"
+        }
+      ],
+      "messages": [
+        {
+          "id": "ac1dcf09-b54e-41bd-a0e0-7ac3fc6918fb",
+          "ghl_message_id": "qa-recent-phone-20260913-recent-message-01",
+          "direction": "inbound",
+          "body": "My number is (301) 555-0123",
+          "occurred_at": "2026-09-14T18:26:00.000Z"
+        },
+        {
+          "id": "8a312d66-ad59-44bc-91de-67288110c2f7",
+          "ghl_message_id": "qa-recent-phone-20260913-recent-message-02",
+          "direction": "inbound",
+          "body": "I am looking for a sedan and can put 2000 down",
+          "occurred_at": "2026-09-14T18:29:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "event_id": "qa-recent-phone-20260913-old-event-01",
+          "status": "processed",
+          "payload_hash": "f77052a09c43ed9d5b2bd2924b6266012896a96a7ca24fb0b8e9c7e3cd8aa538",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-recent-phone-20260913-recent-event-01",
+          "status": "processed",
+          "payload_hash": "fa0a32324d7cbdf072f7d2f33892e4aa5508cd072e5a90e8709da841d2fe9950",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-recent-phone-20260913-recent-event-02",
+          "status": "processed",
+          "payload_hash": "2b8cadf951199636dc69ab42fb265cc1598bb0139bcf988f06e10a4465c46734",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        }
+      ],
+      "sql": "SELECT c.id AS conversation_db_id, c.status, c.qualification_snapshot,\n    c.location_snapshot, c.ready_at, c.next_attempt_at,\n    l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n    ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n    ld.routing_reason\n  FROM conversations c JOIN leads l ON l.id = c.lead_id\n  LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n  WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    }
+  },
+  "verification_sql": "SELECT c.id AS conversation_db_id, c.status, c.qualification_snapshot,\n    c.location_snapshot, c.ready_at, c.next_attempt_at,\n    l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n    ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n    ld.routing_reason\n  FROM conversations c JOIN leads l ON l.id = c.lead_id\n  LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n  WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST",
+  "assertions": {
+    "old_contact_phone_not_evidence": true,
+    "old_reactivation_stays_partial": true,
+    "old_phone_not_sent_to_dealeradmin": true,
+    "old_lead_dealers_not_created": true,
+    "old_no_conversation_phone_history": true,
+    "recent_phone_is_evidence": true,
+    "recent_case_queues": true,
+    "recent_case_has_dealer_row": true,
+    "recent_case_messages_kept": true,
+    "recent_case_events_processed": true,
+    "same_phone_is_not_rejected_when_recent": true
+  },
+  "result": "PASS"
+}

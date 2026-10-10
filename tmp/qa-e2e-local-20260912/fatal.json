@@ -1,0 +1,3 @@
+{
+  "error": "cannot insert multiple commands into a prepared statement"
+}

@@ -400,13 +400,17 @@ describe('ConversationWebhookService', () => {
     await expect(service.acceptCustomerReplied({ message_body: 'SUV' }, 'stafford', {})).rejects.toThrow('Contact ID');
   });
 
-  it('rejects non-WhatsApp Stafford conversations', async () => {
+  it('accepts Stafford Messenger conversations while retaining the source routing', async () => {
     const service = new ConversationWebhookService();
-    await expect(service.acceptCustomerReplied(
+    const result = await service.acceptCustomerReplied(
       { message_body: 'Busco un SUV.', channel: 'messenger' },
       'stafford',
       { contactId: 'ghl-stafford-messenger-contact', conversationId: 'ghl-stafford-messenger-conversation' },
-    )).rejects.toThrow('Stafford solo acepta conversaciones de WhatsApp');
+    );
+    expect(result).toMatchObject({ accepted: true, source: 'stafford', conversationId: 'ghl-stafford-messenger-conversation', status: 'processed' });
+    expect(getTestConversationEvents()).toEqual([
+      expect.objectContaining({ source: 'stafford', channel: 'messenger', conversationId: 'ghl-stafford-messenger-conversation' }),
+    ]);
   });
 
   it('keeps the source mapping for Easterns independent of free-form dealer text', async () => {
@@ -991,6 +995,37 @@ describe('ConversationWebhookService', () => {
     await service.processDueConversations(new Date('2026-09-11T14:00:00.000Z'), { reconcileActive: false });
 
     expect(dataSource.query.mock.calls.some(([sql]) => String(sql).includes("status IN ('partial', 'waiting_window', 'stale_phone_ignored')"))).toBe(false);
+  });
+
+  it('reabre un webhook marcado como failed para que un reintento no se pierda como duplicado', async () => {
+    const queryRunner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [{ event_id: 'evt-retry-failed' }];
+        throw new Error('simulated downstream latency');
+      }),
+    };
+    const dataSource = {
+      createQueryRunner: () => queryRunner,
+      query: vi.fn(async () => []),
+    };
+    const service = new ConversationWebhookService(dataSource as never);
+
+    await expect(service.acceptCustomerReplied(
+      { message_body: 'Busco un SUV', channel: 'messenger' },
+      'fredericksburg',
+      { contactId: 'ghl-retry-contact', conversationId: 'ghl-retry-conversation' },
+    )).rejects.toThrow('simulated downstream latency');
+
+    const eventInsert = queryRunner.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO webhook_events')) as [string, unknown[]] | undefined;
+    expect(eventInsert?.[0]).toContain("WHERE webhook_events.status = 'failed'");
+    expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
+    expect(dataSource.query).toHaveBeenCalled();
   });
 
   it('reconciles active conversations every due poll and queues one once the five core facts are present', async () => {

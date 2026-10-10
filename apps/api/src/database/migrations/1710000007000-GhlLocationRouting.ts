@@ -42,6 +42,12 @@ export class GhlLocationRouting1710000007000 implements MigrationInterface {
         VALUES ('LiaoSID3nvAhad49ZpNJ', stafford_id)
         ON CONFLICT (ghl_location_id) DO UPDATE SET dealer_id = EXCLUDED.dealer_id;
 
+        UPDATE dealers
+        SET routing_config = COALESCE(routing_config, '{}'::jsonb)
+          || '{"channels":["whatsapp","messenger"]}'::jsonb,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = stafford_id;
+
         SELECT id INTO easterns_source_id
         FROM dealers
         WHERE code = 'DLR-EAST-LAUR' OR LOWER(name) = 'easterns laurel'

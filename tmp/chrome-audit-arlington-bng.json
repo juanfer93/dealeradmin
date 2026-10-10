@@ -1,0 +1,20 @@
+{
+  "conversations": [
+    {
+      "channel": "messenger",
+      "contactId": "chrome-ui:GhefI7IGrhvjRFV7NhUF",
+      "contactName": "Bng Sause",
+      "conversationId": "GhefI7IGrhvjRFV7NhUF",
+      "locationId": "9v8zH9Y5eLiiJwZTZDci",
+      "messages": [
+        { "body": "US\n\nPage: Ventas de Autos de Arlington Motors.\nHi Bng! We wanted to follow up. Do you have any questions?\n02:36 AM", "direction": "outbound", "id": "HskYbP3pXwbKwK9acwyj", "occurredAt": "2026-10-04T13:39:26.094Z" },
+        { "body": "BS\n\nPage: Ventas de Autos de Arlington Motors.\n646 FICO score 707 trans union score? 500 down?\n02:36 AM", "direction": "inbound", "id": "D4RE5sm9Vp2rOTG10Lf1", "occurredAt": "2026-10-04T13:39:26.094Z" },
+        { "body": "Page: Ventas de Autos de Arlington Motors.\nGot it. To confirm the exact down payment, what type of vehicle are you looking for: Sedan, SUV, or Truck?\n02:36 AM", "direction": "outbound", "id": "yFYLsfawbv6vBl7pYtW6", "occurredAt": "2026-10-04T13:39:26.094Z" },
+        { "body": "Page: Ventas de Autos de Arlington Motors.\nQuick follow-up—are you leaning toward a Sedan, SUV, or Truck? That'll help me confirm the down payment for you.\n04:36 AM", "direction": "outbound", "id": "Fks1eeSXdWxzQWOpHpBK", "occurredAt": "2026-10-04T13:39:26.094Z" },
+        { "body": "Page: Ventas de Autos de Arlington Motors.\nQuick nudge—what body style are you considering: sedan, SUV, or truck? I can confirm the down payment once I know.\n06:37 AM", "direction": "outbound", "id": "O4pwewLI0gHZl9P39ZuR", "occurredAt": "2026-10-04T13:39:26.094Z" },
+        { "body": "Page: Ventas de Autos de Arlington Motors.\nI'll make this my last check‑in—are you still interested? If so, which are you leaning toward: Sedan, SUV, or Truck, so I can confirm the down payment?\n08:37 AM", "direction": "outbound", "id": "fpcBE2XHrtN2BakIMsu5", "occurredAt": "2026-10-04T13:39:26.095Z" }
+      ],
+      "rawUiText": "BS\n\nBng Sause\nToday\n\nUS\n\nPage: Ventas de Autos de Arlington Motors.\nHi Bng! We wanted to follow up. Do you have any questions?\n02:36 AM\nNew\n\nBS\n\nPage: Ventas de Autos de Arlington Motors.\n646 FICO score 707 trans union score? 500 down?\n02:36 AM\nPage: Ventas de Autos de Arlington Motors.\nGot it. To confirm the exact down payment, what type of vehicle are you looking for: Sedan, SUV, or Truck?\n02:36 AM\nPage: Ventas de Autos de Arlington Motors.\nQuick follow-up—are you leaning toward a Sedan, SUV, or Truck? That'll help me confirm the down payment for you.\n04:36 AM\nPage: Ventas de Autos de Arlington Motors.\nQuick nudge—what body style are you considering: sedan, SUV, or truck? I can confirm the down payment once I know.\n06:37 AM\nPage: Ventas de Autos de Arlington Motors.\nI'll make this my last check‑in—are you still interested? If so, which are you leaning toward: Sedan, SUV, or Truck, so I can confirm the down payment?\n08:37 AM"
+    }
+  ]
+}

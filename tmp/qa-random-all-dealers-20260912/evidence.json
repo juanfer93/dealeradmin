@@ -1,0 +1,1795 @@
+{
+  "run_id": "qa-random-all-dealers-20260912",
+  "generated_at": "2026-09-13T01:31:27.536Z",
+  "environment": {
+    "api_url": "http://127.0.0.1:3016",
+    "database": "local PostgreSQL in user-provided Docker container",
+    "timezone": "America/Bogota",
+    "secret_printed": false
+  },
+  "cases": [
+    {
+      "case_id": "qa-random-all-dealers-20260912-stafford",
+      "source": "stafford",
+      "channel": "whatsapp",
+      "location_id": "LiaoSID3nvAhad49ZpNJ",
+      "event_id": "qa-random-all-dealers-20260912-stafford-event-01",
+      "conversation_id": "qa-random-all-dealers-20260912-stafford-conversation",
+      "payload_hash": "62d0ea13cf8e43d9f3ba86b9b938d0cc6933ae65fbd52a16700a48c334cbf0e4",
+      "message_ids": [
+        "b7f13a19-5115-435b-8290-4c5f1a9d2464"
+      ],
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_before": null,
+      "snapshot_after": {
+        "phone": "+12405550701",
+        "documents": "",
+        "real_name": "Rafael Soto",
+        "bank_account": "",
+        "down_payment": "2000",
+        "vehicle_type": "Toyota Tacoma",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "esta semana",
+        "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+        "qualification_memory": "real_name: Rafael Soto; vehicle: Toyota Tacoma; down payment: 2000; timeline: esta semana",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "Offlease Motors Stafford"
+      ],
+      "next_attempt_at": null,
+      "routing_reason": [
+        "GHL stafford source dealer"
+      ],
+      "webhook": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-random-all-dealers-20260912-stafford-event-01",
+          "conversationId": "437a3c38-9e37-4893-acac-91573a16c39b",
+          "source": "stafford",
+          "status": "processed"
+        }
+      },
+      "poll": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      },
+      "after_webhook": {
+        "state": [
+          {
+            "conversation_db_id": "437a3c38-9e37-4893-acac-91573a16c39b",
+            "ghl_conversation_id": "qa-random-all-dealers-20260912-stafford-conversation",
+            "channel": "whatsapp",
+            "status": "waiting_window",
+            "qualification_snapshot": {
+              "phone": "+12405550701",
+              "documents": "",
+              "real_name": "Rafael Soto",
+              "bank_account": "",
+              "down_payment": "2000",
+              "vehicle_type": "Toyota Tacoma",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "esta semana",
+              "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+              "qualification_memory": "real_name: Rafael Soto; vehicle: Toyota Tacoma; down payment: 2000; timeline: esta semana",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": "2026-09-12T16:00:15.000Z",
+            "lead_id": "fcbf28d9-448a-4b7a-ac6b-60084d8dbf1a",
+            "canonical_phone": "+12405550701",
+            "first_name": "Rafael",
+            "last_name": "Soto",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null,
+            "dealer_name": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "b7f13a19-5115-435b-8290-4c5f1a9d2464",
+            "ghl_message_id": "qa-random-all-dealers-20260912-stafford-message-01",
+            "direction": "inbound",
+            "body": "Me llamo Rafael Soto. Busco una Toyota Tacoma, tengo 2000 de enganche y compro esta semana.",
+            "occurred_at": "2026-09-12T16:00:00.000Z"
+          }
+        ],
+        "events": [
+          {
+            "event_id": "qa-random-all-dealers-20260912-stafford-event-01",
+            "status": "processed",
+            "payload_hash": "62d0ea13cf8e43d9f3ba86b9b938d0cc6933ae65fbd52a16700a48c334cbf0e4",
+            "error_code": null,
+            "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+          }
+        ]
+      },
+      "assertions": {
+        "webhook_processed": true,
+        "event_processed": true,
+        "message_persisted": true,
+        "one_conversation_and_assignment": true,
+        "queued": true,
+        "vehicle_is_clean": true,
+        "progress_present": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason,\n       d.name AS dealer_name\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     LEFT JOIN dealers d ON d.id = ld.dealer_id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST",
+      "result": "PASS"
+    },
+    {
+      "case_id": "qa-random-all-dealers-20260912-fredericksburg",
+      "source": "fredericksburg",
+      "channel": "messenger",
+      "location_id": "MyxWNKacThim798E8KC6",
+      "event_id": "qa-random-all-dealers-20260912-fredericksburg-event-01",
+      "conversation_id": "qa-random-all-dealers-20260912-fredericksburg-conversation",
+      "payload_hash": "2483a1cf6a80a84f23971256526752dcb7e73df69ad6f0b1cc574cfc0e660f3f",
+      "message_ids": [
+        "bbd422be-583f-43ad-a333-ae64c662ac9d"
+      ],
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_before": null,
+      "snapshot_after": {
+        "phone": "+12405550702",
+        "documents": "",
+        "real_name": "Random Fredericksburg",
+        "bank_account": "",
+        "down_payment": "1000",
+        "vehicle_type": "Honda Civic",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "esta semana",
+        "assigned_dealer_id": "dc621cd1-a389-4785-b7ee-20cc2c7a0a15",
+        "qualification_memory": "real_name: Random Fredericksburg; vehicle: Honda Civic; down payment: 1000; timeline: esta semana",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "Offlease Fredericksburg"
+      ],
+      "next_attempt_at": null,
+      "routing_reason": [
+        "GHL fredericksburg source dealer"
+      ],
+      "webhook": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-random-all-dealers-20260912-fredericksburg-event-01",
+          "conversationId": "42ec08b7-49c9-4f81-bbb6-859756271f9b",
+          "source": "fredericksburg",
+          "status": "processed"
+        }
+      },
+      "poll": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      },
+      "after_webhook": {
+        "state": [
+          {
+            "conversation_db_id": "42ec08b7-49c9-4f81-bbb6-859756271f9b",
+            "ghl_conversation_id": "qa-random-all-dealers-20260912-fredericksburg-conversation",
+            "channel": "messenger",
+            "status": "waiting_window",
+            "qualification_snapshot": {
+              "phone": "+12405550702",
+              "documents": "",
+              "real_name": "Random Fredericksburg",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "Honda Civic",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "esta semana",
+              "assigned_dealer_id": "dc621cd1-a389-4785-b7ee-20cc2c7a0a15",
+              "qualification_memory": "real_name: Random Fredericksburg; vehicle: Honda Civic; down payment: 1000; timeline: esta semana",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": "2026-09-12T16:00:15.000Z",
+            "lead_id": "2ea5d48c-bd18-4caf-95c2-d37ebe484a5c",
+            "canonical_phone": "+12405550702",
+            "first_name": "Random",
+            "last_name": "Fredericksburg",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null,
+            "dealer_name": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "bbd422be-583f-43ad-a333-ae64c662ac9d",
+            "ghl_message_id": "qa-random-all-dealers-20260912-fredericksburg-message-01",
+            "direction": "inbound",
+            "body": "Busco un Honda Civic, tengo 1000 de enganche y compro esta semana.",
+            "occurred_at": "2026-09-12T16:00:00.000Z"
+          }
+        ],
+        "events": [
+          {
+            "event_id": "qa-random-all-dealers-20260912-fredericksburg-event-01",
+            "status": "processed",
+            "payload_hash": "2483a1cf6a80a84f23971256526752dcb7e73df69ad6f0b1cc574cfc0e660f3f",
+            "error_code": null,
+            "ghl_location_id": "MyxWNKacThim798E8KC6"
+          }
+        ]
+      },
+      "assertions": {
+        "webhook_processed": true,
+        "event_processed": true,
+        "message_persisted": true,
+        "one_conversation_and_assignment": true,
+        "queued": true,
+        "vehicle_is_clean": true,
+        "progress_present": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason,\n       d.name AS dealer_name\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     LEFT JOIN dealers d ON d.id = ld.dealer_id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST",
+      "result": "PASS"
+    },
+    {
+      "case_id": "qa-random-all-dealers-20260912-fredericksburg-2",
+      "source": "fredericksburg-2",
+      "channel": "messenger",
+      "location_id": "bAuMEQeH48xAtu9tAMFf",
+      "event_id": "qa-random-all-dealers-20260912-fredericksburg-2-event-01",
+      "conversation_id": "qa-random-all-dealers-20260912-fredericksburg-2-conversation",
+      "payload_hash": "476d8514dd6a2724810167a450e6af8f7e13237f6e59606749908815504ed5b1",
+      "message_ids": [
+        "08c1de13-c2d1-412c-a2b7-3361ebb00959"
+      ],
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_before": null,
+      "snapshot_after": {
+        "phone": "+12405550703",
+        "documents": "",
+        "real_name": "Random fredericksburg 2",
+        "bank_account": "",
+        "down_payment": "3000",
+        "vehicle_type": "Ford Explorer",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "this month",
+        "assigned_dealer_id": "5445801a-4aa8-49f0-868d-80479a823f78",
+        "qualification_memory": "real_name: Random fredericksburg 2; vehicle: Ford Explorer; down payment: 3000; timeline: this month",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "en",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "Do you have identification and proof of income?"
+        }
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "Offlease Fredericksburg 2"
+      ],
+      "next_attempt_at": null,
+      "routing_reason": [
+        "GHL fredericksburg-2 source dealer"
+      ],
+      "webhook": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-random-all-dealers-20260912-fredericksburg-2-event-01",
+          "conversationId": "f3009990-f17d-49e6-8a5b-2fe509dbb1dd",
+          "source": "fredericksburg-2",
+          "status": "processed"
+        }
+      },
+      "poll": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      },
+      "after_webhook": {
+        "state": [
+          {
+            "conversation_db_id": "f3009990-f17d-49e6-8a5b-2fe509dbb1dd",
+            "ghl_conversation_id": "qa-random-all-dealers-20260912-fredericksburg-2-conversation",
+            "channel": "messenger",
+            "status": "waiting_window",
+            "qualification_snapshot": {
+              "phone": "+12405550703",
+              "documents": "",
+              "real_name": "Random fredericksburg 2",
+              "bank_account": "",
+              "down_payment": "3000",
+              "vehicle_type": "Ford Explorer",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this month",
+              "assigned_dealer_id": "5445801a-4aa8-49f0-868d-80479a823f78",
+              "qualification_memory": "real_name: Random fredericksburg 2; vehicle: Ford Explorer; down payment: 3000; timeline: this month",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "en",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "Do you have identification and proof of income?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": "2026-09-12T16:00:15.000Z",
+            "lead_id": "8cae2452-4cb7-41b5-b002-c37cde89756d",
+            "canonical_phone": "+12405550703",
+            "first_name": "Random",
+            "last_name": "fredericksburg 2",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null,
+            "dealer_name": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "08c1de13-c2d1-412c-a2b7-3361ebb00959",
+            "ghl_message_id": "qa-random-all-dealers-20260912-fredericksburg-2-message-01",
+            "direction": "inbound",
+            "body": "I want a Ford Explorer, I have 3000 down, buying this month.",
+            "occurred_at": "2026-09-12T16:00:00.000Z"
+          }
+        ],
+        "events": [
+          {
+            "event_id": "qa-random-all-dealers-20260912-fredericksburg-2-event-01",
+            "status": "processed",
+            "payload_hash": "476d8514dd6a2724810167a450e6af8f7e13237f6e59606749908815504ed5b1",
+            "error_code": null,
+            "ghl_location_id": "bAuMEQeH48xAtu9tAMFf"
+          }
+        ]
+      },
+      "assertions": {
+        "webhook_processed": true,
+        "event_processed": true,
+        "message_persisted": true,
+        "one_conversation_and_assignment": true,
+        "queued": true,
+        "vehicle_is_clean": true,
+        "progress_present": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason,\n       d.name AS dealer_name\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     LEFT JOIN dealers d ON d.id = ld.dealer_id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST",
+      "result": "PASS"
+    },
+    {
+      "case_id": "qa-random-all-dealers-20260912-easterns",
+      "source": "easterns",
+      "channel": "messenger",
+      "location_id": "xN2LSSl62okzv9GnOJPU",
+      "event_id": "qa-random-all-dealers-20260912-easterns-event-01",
+      "conversation_id": "qa-random-all-dealers-20260912-easterns-conversation",
+      "payload_hash": "2855511b97241f662beba5adff05f4ed89992d6d89e990c9d055e150e4d4b6b8",
+      "message_ids": [
+        "1f1aa4ba-9319-48d4-a6fb-16bb3cb9dd9a"
+      ],
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_before": null,
+      "snapshot_after": {
+        "phone": "+12405550704",
+        "documents": "",
+        "real_name": "Random Easterns",
+        "bank_account": "",
+        "down_payment": "1000",
+        "vehicle_type": "Chevy Malibu",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "this week",
+        "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+        "qualification_memory": "real_name: Random Easterns; vehicle: Chevy Malibu; down payment: 1000; timeline: this week",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "en",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "Do you have identification and proof of income?"
+        }
+      },
+      "location_snapshot": {
+        "city": "Silver Spring",
+        "state": "MD",
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "Easterns Rosedale"
+      ],
+      "next_attempt_at": null,
+      "routing_reason": [
+        "Exclusive Zone: Maryland catalog → Laurel"
+      ],
+      "webhook": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-random-all-dealers-20260912-easterns-event-01",
+          "conversationId": "406ac2c5-0257-4585-b2c3-83c923f76e5a",
+          "source": "easterns",
+          "status": "processed"
+        }
+      },
+      "poll": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      },
+      "after_webhook": {
+        "state": [
+          {
+            "conversation_db_id": "406ac2c5-0257-4585-b2c3-83c923f76e5a",
+            "ghl_conversation_id": "qa-random-all-dealers-20260912-easterns-conversation",
+            "channel": "messenger",
+            "status": "waiting_window",
+            "qualification_snapshot": {
+              "phone": "+12405550704",
+              "documents": "",
+              "real_name": "Random Easterns",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "Chevy Malibu",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+              "qualification_memory": "real_name: Random Easterns; vehicle: Chevy Malibu; down payment: 1000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "en",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "Do you have identification and proof of income?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Silver Spring",
+              "state": "MD",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": "2026-09-12T16:00:15.000Z",
+            "lead_id": "c81b3e45-e347-4531-bd50-c55069a13bf7",
+            "canonical_phone": "+12405550704",
+            "first_name": "Random",
+            "last_name": "Easterns",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null,
+            "dealer_name": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "1f1aa4ba-9319-48d4-a6fb-16bb3cb9dd9a",
+            "ghl_message_id": "qa-random-all-dealers-20260912-easterns-message-01",
+            "direction": "inbound",
+            "body": "I am looking for a Chevy Malibu, I have 1000 down, buying this week. I live in Silver Spring MD.",
+            "occurred_at": "2026-09-12T16:00:00.000Z"
+          }
+        ],
+        "events": [
+          {
+            "event_id": "qa-random-all-dealers-20260912-easterns-event-01",
+            "status": "processed",
+            "payload_hash": "2855511b97241f662beba5adff05f4ed89992d6d89e990c9d055e150e4d4b6b8",
+            "error_code": null,
+            "ghl_location_id": "xN2LSSl62okzv9GnOJPU"
+          }
+        ]
+      },
+      "assertions": {
+        "webhook_processed": true,
+        "event_processed": true,
+        "message_persisted": true,
+        "one_conversation_and_assignment": true,
+        "queued": true,
+        "vehicle_is_clean": true,
+        "progress_present": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason,\n       d.name AS dealer_name\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     LEFT JOIN dealers d ON d.id = ld.dealer_id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST",
+      "result": "PASS"
+    },
+    {
+      "case_id": "qa-random-all-dealers-20260912-arlington",
+      "source": "arlington",
+      "channel": "messenger",
+      "location_id": "9v8zH9Y5eLiiJwZTZDci",
+      "event_id": "qa-random-all-dealers-20260912-arlington-event-01",
+      "conversation_id": "qa-random-all-dealers-20260912-arlington-conversation",
+      "payload_hash": "025ae83d715d8646553f3e28c6e138352d09a618611805514877151dc204dff3",
+      "message_ids": [
+        "e5c7fdcc-5a0f-4b71-b3b0-ae6b490b61ad"
+      ],
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_before": null,
+      "snapshot_after": {
+        "phone": "+12405550705",
+        "documents": "",
+        "real_name": "Random Arlington",
+        "bank_account": "",
+        "down_payment": "2000",
+        "vehicle_type": "Chevrolet Camaro 2LT",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "esta semana",
+        "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+        "qualification_memory": "real_name: Random Arlington; vehicle: Chevrolet Camaro 2LT; down payment: 2000; timeline: esta semana",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "Arlington Motors of Woodbridge"
+      ],
+      "next_attempt_at": null,
+      "routing_reason": [
+        "GHL arlington source dealer"
+      ],
+      "webhook": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-random-all-dealers-20260912-arlington-event-01",
+          "conversationId": "2032b37d-9c2b-4426-a936-5cae50bdd204",
+          "source": "arlington",
+          "status": "processed"
+        }
+      },
+      "poll": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      },
+      "after_webhook": {
+        "state": [
+          {
+            "conversation_db_id": "2032b37d-9c2b-4426-a936-5cae50bdd204",
+            "ghl_conversation_id": "qa-random-all-dealers-20260912-arlington-conversation",
+            "channel": "messenger",
+            "status": "waiting_window",
+            "qualification_snapshot": {
+              "phone": "+12405550705",
+              "documents": "",
+              "real_name": "Random Arlington",
+              "bank_account": "",
+              "down_payment": "2000",
+              "vehicle_type": "Chevrolet Camaro 2LT",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "esta semana",
+              "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+              "qualification_memory": "real_name: Random Arlington; vehicle: Chevrolet Camaro 2LT; down payment: 2000; timeline: esta semana",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": "2026-09-12T16:00:15.000Z",
+            "lead_id": "4584d604-8a58-4a37-923c-aebe314d5485",
+            "canonical_phone": "+12405550705",
+            "first_name": "Random",
+            "last_name": "Arlington",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null,
+            "dealer_name": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "e5c7fdcc-5a0f-4b71-b3b0-ae6b490b61ad",
+            "ghl_message_id": "qa-random-all-dealers-20260912-arlington-message-01",
+            "direction": "inbound",
+            "body": "Estoy buscando un Chevrolet Camaro con paquete 2LT, tengo 2000 de enganche y compro esta semana.",
+            "occurred_at": "2026-09-12T16:00:00.000Z"
+          }
+        ],
+        "events": [
+          {
+            "event_id": "qa-random-all-dealers-20260912-arlington-event-01",
+            "status": "processed",
+            "payload_hash": "025ae83d715d8646553f3e28c6e138352d09a618611805514877151dc204dff3",
+            "error_code": null,
+            "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+          }
+        ]
+      },
+      "assertions": {
+        "webhook_processed": true,
+        "event_processed": true,
+        "message_persisted": true,
+        "one_conversation_and_assignment": true,
+        "queued": true,
+        "vehicle_is_clean": true,
+        "progress_present": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason,\n       d.name AS dealer_name\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     LEFT JOIN dealers d ON d.id = ld.dealer_id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST",
+      "result": "PASS"
+    },
+    {
+      "case_id": "qa-random-all-dealers-20260912-koons-fred",
+      "source": "koons-fred",
+      "channel": "messenger",
+      "location_id": "xuHo0opTO2g5edIuPJRl",
+      "event_id": "qa-random-all-dealers-20260912-koons-fred-event-01",
+      "conversation_id": "qa-random-all-dealers-20260912-koons-fred-conversation",
+      "payload_hash": "90250edf1243dac3799e25e4df1eff7f6c3737b37548ed981d7e37f6fc8d4f25",
+      "message_ids": [
+        "38ae933f-2635-468c-af07-0a2e3ff48d06"
+      ],
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_before": null,
+      "snapshot_after": {
+        "phone": "+12405550706",
+        "documents": "",
+        "real_name": "Random Koons Fred",
+        "bank_account": "",
+        "down_payment": "1000",
+        "vehicle_type": "Dodge Charger",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "este mes",
+        "assigned_dealer_id": "e5555555-5555-5555-5555-555555555555",
+        "qualification_memory": "real_name: Random Koons Fred; vehicle: Dodge Charger; down payment: 1000; timeline: este mes",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "Koons de Fredericksburg"
+      ],
+      "next_attempt_at": null,
+      "routing_reason": [
+        "GHL koons-fred source dealer"
+      ],
+      "webhook": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-random-all-dealers-20260912-koons-fred-event-01",
+          "conversationId": "b8acc876-1d64-454d-8439-06a0441c1976",
+          "source": "koons-fred",
+          "status": "processed"
+        }
+      },
+      "poll": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      },
+      "after_webhook": {
+        "state": [
+          {
+            "conversation_db_id": "b8acc876-1d64-454d-8439-06a0441c1976",
+            "ghl_conversation_id": "qa-random-all-dealers-20260912-koons-fred-conversation",
+            "channel": "messenger",
+            "status": "waiting_window",
+            "qualification_snapshot": {
+              "phone": "+12405550706",
+              "documents": "",
+              "real_name": "Random Koons Fred",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "Dodge Charger",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "este mes",
+              "assigned_dealer_id": "e5555555-5555-5555-5555-555555555555",
+              "qualification_memory": "real_name: Random Koons Fred; vehicle: Dodge Charger; down payment: 1000; timeline: este mes",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": "2026-09-12T16:00:15.000Z",
+            "lead_id": "88bb1ab2-3432-4b3c-9f36-f15c33e1c230",
+            "canonical_phone": "+12405550706",
+            "first_name": "Random",
+            "last_name": "Koons Fred",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null,
+            "dealer_name": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "38ae933f-2635-468c-af07-0a2e3ff48d06",
+            "ghl_message_id": "qa-random-all-dealers-20260912-koons-fred-message-01",
+            "direction": "inbound",
+            "body": "Tengo una Dodge Charger, 1000 de enganche, compro este mes.",
+            "occurred_at": "2026-09-12T16:00:00.000Z"
+          }
+        ],
+        "events": [
+          {
+            "event_id": "qa-random-all-dealers-20260912-koons-fred-event-01",
+            "status": "processed",
+            "payload_hash": "90250edf1243dac3799e25e4df1eff7f6c3737b37548ed981d7e37f6fc8d4f25",
+            "error_code": null,
+            "ghl_location_id": "xuHo0opTO2g5edIuPJRl"
+          }
+        ]
+      },
+      "assertions": {
+        "webhook_processed": true,
+        "event_processed": true,
+        "message_persisted": true,
+        "one_conversation_and_assignment": true,
+        "queued": true,
+        "vehicle_is_clean": true,
+        "progress_present": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason,\n       d.name AS dealer_name\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     LEFT JOIN dealers d ON d.id = ld.dealer_id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST",
+      "result": "PASS"
+    },
+    {
+      "case_id": "qa-random-all-dealers-20260912-koons-fred-eng",
+      "source": "koons-fred-eng",
+      "channel": "messenger",
+      "location_id": "ozAIEblxTjrh0PfoaHge",
+      "event_id": "qa-random-all-dealers-20260912-koons-fred-eng-event-01",
+      "conversation_id": "qa-random-all-dealers-20260912-koons-fred-eng-conversation",
+      "payload_hash": "d6f3644b6defa3b507763a917178a2dc83a71a3f8b790b160ecaa4ded08b25e0",
+      "message_ids": [
+        "847e198c-2c4a-45c3-90e8-907c42828e7a"
+      ],
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_before": null,
+      "snapshot_after": {
+        "phone": "+12405550707",
+        "documents": "",
+        "real_name": "Random Koons Fred Eng",
+        "bank_account": "",
+        "down_payment": "2000",
+        "vehicle_type": "Toyota Corolla",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "this week",
+        "assigned_dealer_id": "e6666666-6666-6666-6666-666666666666",
+        "qualification_memory": "real_name: Random Koons Fred Eng; vehicle: Toyota Corolla; down payment: 2000; timeline: this week",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "en",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "Do you have identification and proof of income?"
+        }
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "Koons Automotive of Fredericksburg"
+      ],
+      "next_attempt_at": null,
+      "routing_reason": [
+        "GHL koons-fred-eng source dealer"
+      ],
+      "webhook": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-random-all-dealers-20260912-koons-fred-eng-event-01",
+          "conversationId": "01be7a8b-760b-47f3-aef5-c31fd7f07631",
+          "source": "koons-fred-eng",
+          "status": "processed"
+        }
+      },
+      "poll": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      },
+      "after_webhook": {
+        "state": [
+          {
+            "conversation_db_id": "01be7a8b-760b-47f3-aef5-c31fd7f07631",
+            "ghl_conversation_id": "qa-random-all-dealers-20260912-koons-fred-eng-conversation",
+            "channel": "messenger",
+            "status": "waiting_window",
+            "qualification_snapshot": {
+              "phone": "+12405550707",
+              "documents": "",
+              "real_name": "Random Koons Fred Eng",
+              "bank_account": "",
+              "down_payment": "2000",
+              "vehicle_type": "Toyota Corolla",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "e6666666-6666-6666-6666-666666666666",
+              "qualification_memory": "real_name: Random Koons Fred Eng; vehicle: Toyota Corolla; down payment: 2000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "en",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "Do you have identification and proof of income?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": "2026-09-12T16:00:15.000Z",
+            "lead_id": "2c6b5bfc-74ba-48d2-a5fd-f35a5ff38371",
+            "canonical_phone": "+12405550707",
+            "first_name": "Random",
+            "last_name": "Koons Fred Eng",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null,
+            "dealer_name": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "847e198c-2c4a-45c3-90e8-907c42828e7a",
+            "ghl_message_id": "qa-random-all-dealers-20260912-koons-fred-eng-message-01",
+            "direction": "inbound",
+            "body": "Looking for a Toyota Corolla, I have 2000 down, buying this week.",
+            "occurred_at": "2026-09-12T16:00:00.000Z"
+          }
+        ],
+        "events": [
+          {
+            "event_id": "qa-random-all-dealers-20260912-koons-fred-eng-event-01",
+            "status": "processed",
+            "payload_hash": "d6f3644b6defa3b507763a917178a2dc83a71a3f8b790b160ecaa4ded08b25e0",
+            "error_code": null,
+            "ghl_location_id": "ozAIEblxTjrh0PfoaHge"
+          }
+        ]
+      },
+      "assertions": {
+        "webhook_processed": true,
+        "event_processed": true,
+        "message_persisted": true,
+        "one_conversation_and_assignment": true,
+        "queued": true,
+        "vehicle_is_clean": true,
+        "progress_present": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason,\n       d.name AS dealer_name\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     LEFT JOIN dealers d ON d.id = ld.dealer_id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST",
+      "result": "PASS"
+    },
+    {
+      "case_id": "qa-random-all-dealers-20260912-koons-culpeper",
+      "source": "koons-culpeper",
+      "channel": "messenger",
+      "location_id": "bTNJHpNZ8FaS1PUHkuUq",
+      "event_id": "qa-random-all-dealers-20260912-koons-culpeper-event-01",
+      "conversation_id": "qa-random-all-dealers-20260912-koons-culpeper-conversation",
+      "payload_hash": "3f0f046f7064e41fcaee8a06005f15971de1237163fba0d90cdc08eacd70061d",
+      "message_ids": [
+        "2cc1731a-cbb0-47a7-a22e-c455ac7ef70e"
+      ],
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_before": null,
+      "snapshot_after": {
+        "phone": "+12405550708",
+        "documents": "",
+        "real_name": "Random Koons Culpeper",
+        "bank_account": "",
+        "down_payment": "3000",
+        "vehicle_type": "Honda CR-V",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "este mes",
+        "assigned_dealer_id": "e7777777-7777-7777-7777-777777777777",
+        "qualification_memory": "real_name: Random Koons Culpeper; vehicle: Honda CR-V; down payment: 3000; timeline: este mes",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "Koons Automotive of Culpeper"
+      ],
+      "next_attempt_at": null,
+      "routing_reason": [
+        "GHL koons-culpeper source dealer"
+      ],
+      "webhook": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-random-all-dealers-20260912-koons-culpeper-event-01",
+          "conversationId": "9fdaac96-a11c-4e6c-9554-606f53e4cd7c",
+          "source": "koons-culpeper",
+          "status": "processed"
+        }
+      },
+      "poll": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      },
+      "after_webhook": {
+        "state": [
+          {
+            "conversation_db_id": "9fdaac96-a11c-4e6c-9554-606f53e4cd7c",
+            "ghl_conversation_id": "qa-random-all-dealers-20260912-koons-culpeper-conversation",
+            "channel": "messenger",
+            "status": "waiting_window",
+            "qualification_snapshot": {
+              "phone": "+12405550708",
+              "documents": "",
+              "real_name": "Random Koons Culpeper",
+              "bank_account": "",
+              "down_payment": "3000",
+              "vehicle_type": "Honda CR-V",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "este mes",
+              "assigned_dealer_id": "e7777777-7777-7777-7777-777777777777",
+              "qualification_memory": "real_name: Random Koons Culpeper; vehicle: Honda CR-V; down payment: 3000; timeline: este mes",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": "2026-09-12T16:00:15.000Z",
+            "lead_id": "f3e0c63b-4dce-4f74-b9c7-52c5e0eba458",
+            "canonical_phone": "+12405550708",
+            "first_name": "Random",
+            "last_name": "Koons Culpeper",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null,
+            "dealer_name": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "2cc1731a-cbb0-47a7-a22e-c455ac7ef70e",
+            "ghl_message_id": "qa-random-all-dealers-20260912-koons-culpeper-message-01",
+            "direction": "inbound",
+            "body": "Busco una Honda CR-V, tengo 3000 de enganche y compro este mes.",
+            "occurred_at": "2026-09-12T16:00:00.000Z"
+          }
+        ],
+        "events": [
+          {
+            "event_id": "qa-random-all-dealers-20260912-koons-culpeper-event-01",
+            "status": "processed",
+            "payload_hash": "3f0f046f7064e41fcaee8a06005f15971de1237163fba0d90cdc08eacd70061d",
+            "error_code": null,
+            "ghl_location_id": "bTNJHpNZ8FaS1PUHkuUq"
+          }
+        ]
+      },
+      "assertions": {
+        "webhook_processed": true,
+        "event_processed": true,
+        "message_persisted": true,
+        "one_conversation_and_assignment": true,
+        "queued": true,
+        "vehicle_is_clean": true,
+        "progress_present": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason,\n       d.name AS dealer_name\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     LEFT JOIN dealers d ON d.id = ld.dealer_id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST",
+      "result": "PASS"
+    },
+    {
+      "case_id": "qa-random-all-dealers-20260912-action-cars",
+      "source": "action-cars",
+      "channel": "messenger",
+      "location_id": "ZxadcudjvBz7KFCB1od4",
+      "event_id": "qa-random-all-dealers-20260912-action-cars-event-01",
+      "conversation_id": "qa-random-all-dealers-20260912-action-cars-conversation",
+      "payload_hash": "b41f29ef6e973393efb55726c365173fb0914023ac9e99c87b912b2c0c2aa30e",
+      "message_ids": [
+        "635f48c1-21d5-45b8-ad22-6a751754531a"
+      ],
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_before": null,
+      "snapshot_after": {
+        "phone": "+12405550709",
+        "language": "es",
+        "documents": "",
+        "real_name": "Random Action Cars",
+        "bank_account": "",
+        "down_payment": "1000",
+        "vehicle_type": "Jeep Wrangler",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "esta semana",
+        "assigned_dealer_id": "e8888888-8888-8888-8888-888888888888",
+        "qualification_memory": "real_name: Random Action Cars; vehicle: Jeep Wrangler; down payment: 1000; timeline: esta semana",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "Action Pre Owned Cars Español"
+      ],
+      "next_attempt_at": null,
+      "routing_reason": [
+        "GHL action-cars source dealer"
+      ],
+      "webhook": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-random-all-dealers-20260912-action-cars-event-01",
+          "conversationId": "25813604-667f-40c2-9c5f-8c05669c3084",
+          "source": "action-cars",
+          "status": "processed"
+        }
+      },
+      "poll": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      },
+      "after_webhook": {
+        "state": [
+          {
+            "conversation_db_id": "25813604-667f-40c2-9c5f-8c05669c3084",
+            "ghl_conversation_id": "qa-random-all-dealers-20260912-action-cars-conversation",
+            "channel": "messenger",
+            "status": "waiting_window",
+            "qualification_snapshot": {
+              "phone": "+12405550709",
+              "language": "es",
+              "documents": "",
+              "real_name": "Random Action Cars",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "Jeep Wrangler",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "esta semana",
+              "assigned_dealer_id": "e8888888-8888-8888-8888-888888888888",
+              "qualification_memory": "real_name: Random Action Cars; vehicle: Jeep Wrangler; down payment: 1000; timeline: esta semana",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": "2026-09-12T16:00:15.000Z",
+            "lead_id": "3957a5d2-3d62-46d2-8158-23720e8691a0",
+            "canonical_phone": "+12405550709",
+            "first_name": "Random",
+            "last_name": "Action Cars",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null,
+            "dealer_name": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "635f48c1-21d5-45b8-ad22-6a751754531a",
+            "ghl_message_id": "qa-random-all-dealers-20260912-action-cars-message-01",
+            "direction": "inbound",
+            "body": "Quiero una Jeep Wrangler, tengo 1000 de enganche y compro esta semana.",
+            "occurred_at": "2026-09-12T16:00:00.000Z"
+          }
+        ],
+        "events": [
+          {
+            "event_id": "qa-random-all-dealers-20260912-action-cars-event-01",
+            "status": "processed",
+            "payload_hash": "b41f29ef6e973393efb55726c365173fb0914023ac9e99c87b912b2c0c2aa30e",
+            "error_code": null,
+            "ghl_location_id": "ZxadcudjvBz7KFCB1od4"
+          }
+        ]
+      },
+      "assertions": {
+        "webhook_processed": true,
+        "event_processed": true,
+        "message_persisted": true,
+        "one_conversation_and_assignment": true,
+        "queued": true,
+        "vehicle_is_clean": true,
+        "progress_present": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason,\n       d.name AS dealer_name\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     LEFT JOIN dealers d ON d.id = ld.dealer_id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST",
+      "result": "PASS"
+    },
+    {
+      "case_id": "qa-random-all-dealers-20260912-easterns-millersville",
+      "source": "easterns-millersville",
+      "channel": "messenger",
+      "location_id": "113zMWQlhKKBUu5wOYtR",
+      "event_id": "qa-random-all-dealers-20260912-easterns-millersville-event-01",
+      "conversation_id": "qa-random-all-dealers-20260912-easterns-millersville-conversation",
+      "payload_hash": "4225993b438f166bbbaec3c20f6e76b3d96e8e562f41fc014701fc6fcc3c90c1",
+      "message_ids": [
+        "04c1c423-57fd-4405-8c21-a3cfefa6268a"
+      ],
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_before": null,
+      "snapshot_after": {
+        "phone": "+12405550710",
+        "documents": "",
+        "real_name": "Random Easterns Millersville",
+        "bank_account": "",
+        "down_payment": "2000",
+        "vehicle_type": "Toyota Tacoma",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "esta semana",
+        "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "qualification_memory": "real_name: Random Easterns Millersville; vehicle: Toyota Tacoma; down payment: 2000; timeline: esta semana",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": "Elkton",
+        "state": "MD",
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "Easterns Millersville"
+      ],
+      "next_attempt_at": null,
+      "routing_reason": [
+        "GHL easterns-millersville source dealer"
+      ],
+      "webhook": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-random-all-dealers-20260912-easterns-millersville-event-01",
+          "conversationId": "83a8942f-73d7-4318-9c8a-24bd468ddf7d",
+          "source": "easterns-millersville",
+          "status": "processed"
+        }
+      },
+      "poll": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      },
+      "after_webhook": {
+        "state": [
+          {
+            "conversation_db_id": "83a8942f-73d7-4318-9c8a-24bd468ddf7d",
+            "ghl_conversation_id": "qa-random-all-dealers-20260912-easterns-millersville-conversation",
+            "channel": "messenger",
+            "status": "waiting_window",
+            "qualification_snapshot": {
+              "phone": "+12405550710",
+              "documents": "",
+              "real_name": "Random Easterns Millersville",
+              "bank_account": "",
+              "down_payment": "2000",
+              "vehicle_type": "Toyota Tacoma",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "esta semana",
+              "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+              "qualification_memory": "real_name: Random Easterns Millersville; vehicle: Toyota Tacoma; down payment: 2000; timeline: esta semana",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Elkton",
+              "state": "MD",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": "2026-09-12T16:00:15.000Z",
+            "lead_id": "d0c23f61-078f-4f54-9f8f-59e4fbe9115e",
+            "canonical_phone": "+12405550710",
+            "first_name": "Random",
+            "last_name": "Easterns Millersville",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null,
+            "dealer_name": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "04c1c423-57fd-4405-8c21-a3cfefa6268a",
+            "ghl_message_id": "qa-random-all-dealers-20260912-easterns-millersville-message-01",
+            "direction": "inbound",
+            "body": "Quiero una Toyota Tacoma, tengo 2000 de enganche y compro esta semana. Vivo en Elkton MD.",
+            "occurred_at": "2026-09-12T16:00:00.000Z"
+          }
+        ],
+        "events": [
+          {
+            "event_id": "qa-random-all-dealers-20260912-easterns-millersville-event-01",
+            "status": "processed",
+            "payload_hash": "4225993b438f166bbbaec3c20f6e76b3d96e8e562f41fc014701fc6fcc3c90c1",
+            "error_code": null,
+            "ghl_location_id": "113zMWQlhKKBUu5wOYtR"
+          }
+        ]
+      },
+      "assertions": {
+        "webhook_processed": true,
+        "event_processed": true,
+        "message_persisted": true,
+        "one_conversation_and_assignment": true,
+        "queued": true,
+        "vehicle_is_clean": true,
+        "progress_present": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason,\n       d.name AS dealer_name\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     LEFT JOIN dealers d ON d.id = ld.dealer_id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST",
+      "result": "PASS"
+    },
+    {
+      "case_id": "qa-random-all-dealers-20260912-easterns-frederick",
+      "source": "easterns-frederick",
+      "channel": "messenger",
+      "location_id": "MRHcOwdTqaN5cug3eSWW",
+      "event_id": "qa-random-all-dealers-20260912-easterns-frederick-event-01",
+      "conversation_id": "qa-random-all-dealers-20260912-easterns-frederick-conversation",
+      "payload_hash": "9bca46eb5e71e8fd5a9a34e273c2eaa02a479474449a9e30472344c2cd950954",
+      "message_ids": [
+        "fb820251-5b0c-4210-ad0d-b578a4a60d66"
+      ],
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_before": null,
+      "snapshot_after": {
+        "phone": "+12405550711",
+        "documents": "",
+        "real_name": "Random Easterns Frederick",
+        "bank_account": "",
+        "down_payment": "3000",
+        "vehicle_type": "Ram 1500",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "this month",
+        "assigned_dealer_id": "eccccccc-cccc-cccc-cccc-cccccccccccc",
+        "qualification_memory": "real_name: Random Easterns Frederick; vehicle: Ram 1500; down payment: 3000; timeline: this month",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "en",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "Do you have identification and proof of income?"
+        }
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "Easterns Frederick"
+      ],
+      "next_attempt_at": null,
+      "routing_reason": [
+        "GHL easterns-frederick source dealer"
+      ],
+      "webhook": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "eventId": "qa-random-all-dealers-20260912-easterns-frederick-event-01",
+          "conversationId": "fe9d2d9f-d3b7-44db-a5e7-1791a82709fd",
+          "source": "easterns-frederick",
+          "status": "processed"
+        }
+      },
+      "poll": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      },
+      "after_webhook": {
+        "state": [
+          {
+            "conversation_db_id": "fe9d2d9f-d3b7-44db-a5e7-1791a82709fd",
+            "ghl_conversation_id": "qa-random-all-dealers-20260912-easterns-frederick-conversation",
+            "channel": "messenger",
+            "status": "waiting_window",
+            "qualification_snapshot": {
+              "phone": "+12405550711",
+              "documents": "",
+              "real_name": "Random Easterns Frederick",
+              "bank_account": "",
+              "down_payment": "3000",
+              "vehicle_type": "Ram 1500",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this month",
+              "assigned_dealer_id": "eccccccc-cccc-cccc-cccc-cccccccccccc",
+              "qualification_memory": "real_name: Random Easterns Frederick; vehicle: Ram 1500; down payment: 3000; timeline: this month",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "en",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "Do you have identification and proof of income?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": "2026-09-12T16:00:15.000Z",
+            "lead_id": "61abb156-027f-438d-8ef2-c9a750557c20",
+            "canonical_phone": "+12405550711",
+            "first_name": "Random",
+            "last_name": "Easterns Frederick",
+            "dealer_id": null,
+            "assigned_dealer_id": null,
+            "lead_dealer_status": null,
+            "routing_reason": null,
+            "dealer_name": null
+          }
+        ],
+        "messages": [
+          {
+            "id": "fb820251-5b0c-4210-ad0d-b578a4a60d66",
+            "ghl_message_id": "qa-random-all-dealers-20260912-easterns-frederick-message-01",
+            "direction": "inbound",
+            "body": "I want a Ram 1500, I have 3000 down, buying this month.",
+            "occurred_at": "2026-09-12T16:00:00.000Z"
+          }
+        ],
+        "events": [
+          {
+            "event_id": "qa-random-all-dealers-20260912-easterns-frederick-event-01",
+            "status": "processed",
+            "payload_hash": "9bca46eb5e71e8fd5a9a34e273c2eaa02a479474449a9e30472344c2cd950954",
+            "error_code": null,
+            "ghl_location_id": "MRHcOwdTqaN5cug3eSWW"
+          }
+        ]
+      },
+      "assertions": {
+        "webhook_processed": true,
+        "event_processed": true,
+        "message_persisted": true,
+        "one_conversation_and_assignment": true,
+        "queued": true,
+        "vehicle_is_clean": true,
+        "progress_present": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason,\n       d.name AS dealer_name\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     LEFT JOIN dealers d ON d.id = ld.dealer_id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST",
+      "result": "PASS"
+    }
+  ],
+  "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status, ld.routing_reason,\n       d.name AS dealer_name\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     LEFT JOIN dealers d ON d.id = ld.dealer_id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST",
+  "baseline": {
+    "migration": "EasternsLocationRoutingRules1710000021000",
+    "active_dealers": [
+      {
+        "code": "ACTION-CARS-EN",
+        "name": "Action Pre Owned Cars English",
+        "ghl_location_id": "ZxadcudjvBz7KFCB1od4"
+      },
+      {
+        "code": "ACTION-CARS-ES",
+        "name": "Action Pre Owned Cars Español",
+        "ghl_location_id": "ZxadcudjvBz7KFCB1od4"
+      },
+      {
+        "code": "ARL-WOOD",
+        "name": "Arlington Motors of Woodbridge",
+        "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+      },
+      {
+        "code": "DLR-EAST-LAUR",
+        "name": "Easterns Laurel",
+        "ghl_location_id": "loc_laurel_888"
+      },
+      {
+        "code": "DLR-EAST-ROSE",
+        "name": "Easterns Rosedale",
+        "ghl_location_id": "loc_rosedale_999"
+      },
+      {
+        "code": "DLR-EAST-STER",
+        "name": "Easterns Sterling",
+        "ghl_location_id": "loc_sterling_777"
+      },
+      {
+        "code": "DLR-FRED-001",
+        "name": "Offlease Fredericksburg",
+        "ghl_location_id": "loc_fredericksburg_123"
+      },
+      {
+        "code": "DLR-FRED-002",
+        "name": "Offlease Fredericksburg 2",
+        "ghl_location_id": "loc_fredericksburg_456"
+      },
+      {
+        "code": "DLR-STAFF-001",
+        "name": "Offlease Motors Stafford",
+        "ghl_location_id": "loc_stafford_789"
+      },
+      {
+        "code": "EAST-FREDERICK",
+        "name": "Easterns Frederick",
+        "ghl_location_id": "MRHcOwdTqaN5cug3eSWW"
+      },
+      {
+        "code": "EAST-MILLERSVILLE",
+        "name": "Easterns Millersville",
+        "ghl_location_id": "113zMWQlhKKBUu5wOYtR"
+      },
+      {
+        "code": "EAST-WHITE-MARSH",
+        "name": "Easterns Nissan of White Marsh",
+        "ghl_location_id": "113zMWQlhKKBUu5wOYtR"
+      },
+      {
+        "code": "KOONS-CULPEPER",
+        "name": "Koons Automotive of Culpeper",
+        "ghl_location_id": "bTNJHpNZ8FaS1PUHkuUq"
+      },
+      {
+        "code": "KOONS-FRED",
+        "name": "Koons de Fredericksburg",
+        "ghl_location_id": "xuHo0opTO2g5edIuPJRl"
+      },
+      {
+        "code": "KOONS-FRED-ENG",
+        "name": "Koons Automotive of Fredericksburg",
+        "ghl_location_id": "ozAIEblxTjrh0PfoaHge"
+      }
+    ]
+  },
+  "summary": {
+    "result": "PASS",
+    "total": 11,
+    "pass": 11,
+    "fail": 0
+  }
+}

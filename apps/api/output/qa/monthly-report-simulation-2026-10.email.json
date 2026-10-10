@@ -1,0 +1,18 @@
+{
+  "result": {
+    "periodKey": "2026-10",
+    "status": "sent",
+    "rowCount": 105,
+    "dealerCount": 15
+  },
+  "from": "simulation@example.invalid",
+  "to": [
+    "simulation-recipient@example.invalid"
+  ],
+  "subject": "Reporte leads (Octubre 2026)",
+  "text": "Buenas tardes,\n\nAdjunto el reporte de leads del mes de Octubre 2026.\nTodos los leads: 105\nAction Pre Owned Cars English: 4\nAction Pre Owned Cars Español: 3\nArlington Motors of Woodbridge: 4\nEasterns Frederick: 2\nEasterns Laurel: 11\nEasterns Millersville: 9\nEasterns Nissan of White Marsh: 7\nEasterns Rosedale: 8\nEasterns Sterling: 11\nKoons Automotive of Culpeper: 2\nKoons Automotive of Fredericksburg: 2\nKoons de Fredericksburg: 2\nOfflease Fredericksburg: 21\nOfflease Fredericksburg 2: 2\nOfflease Motors Stafford: 17\nSaludos,",
+  "attachment": {
+    "filename": "Reporte leads (Octubre 2026).xlsx",
+    "bytes": 21156
+  }
+}

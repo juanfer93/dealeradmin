@@ -27,6 +27,7 @@ import { MonthlyReportDeliveries1710000024000 } from './migrations/1710000024000
 import { ConversationBotPauseEvents1710000025000 } from './migrations/1710000025000-ConversationBotPauseEvents';
 import { MonthlyReportQueueArchive1710000026000 } from './migrations/1710000026000-MonthlyReportQueueArchive';
 import { DropProblemTickets1710000028000 } from './migrations/1710000028000-DropProblemTickets';
+import { EnableStaffordMessenger1710000029000 } from './migrations/1710000029000-EnableStaffordMessenger';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -67,6 +68,7 @@ export const AppDataSource = new DataSource({
     ConversationBotPauseEvents1710000025000,
     MonthlyReportQueueArchive1710000026000,
     DropProblemTickets1710000028000,
+    EnableStaffordMessenger1710000029000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,

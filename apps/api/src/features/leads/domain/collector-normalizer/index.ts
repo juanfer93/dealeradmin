@@ -539,7 +539,11 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const vehicle = extractedVehicle || (hasExistingAdvisorMarker || phoneFromConversation || (isWhatsAppChannel(input.channel) && chatPhone)
     ? ADVISOR_HANDOFF_VEHICLE
     : EMPTY);
-  const vehicleYear = extractVehicleYear(vehicleSource);
+  const vehicleYear = [
+    extractVehicleYear(vehicleSource),
+    extractVehicleYear(input.vehicle_type),
+    extractVehicleYear(memoryValue(memory, ['vehicle_type', 'vehicle', 'type'])),
+  ].find((value): value is number => value !== null) ?? null;
   const hasRealVehicle = Boolean(vehicle) && !isAdvisorHandoffVehicle(vehicle);
   const explicitCashDown = firstValidAmount(
     extractLatestDownPayment(rawMessage),

@@ -239,6 +239,21 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
   });
 
+  it('separates a vehicle year from down payment when GHL repeats the year in custom fields', () => {
+    expect(execute({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      vehicle_type: '2018 Honda Accord',
+      down_payment: '2018',
+      message: 'I can put 1000 down',
+      chat_history_log: 'I can put 1000 down',
+    })).toMatchObject({
+      vehicle_year: 2018,
+      down_payment: '1000',
+      down_payment_amount: 1000,
+    });
+  });
+
   it('keeps the minimum as additive evidence without blocking the common flow', () => {
     const result = execute({
       source: 'fredericksburg',

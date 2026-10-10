@@ -1,0 +1,55 @@
+{
+  "conversation": {
+    "id": "ce7d9819-995c-46cb-a02f-ef320257e375",
+    "lead_id": "96fb717b-90e6-462d-8f9c-6f5774eb3623",
+    "ghl_location_id": "MyxWNKacThim798E8KC6",
+    "ghl_contact_id": "aFvHRtAZE9eZYEAvNuPr",
+    "ghl_conversation_id": "contact:aFvHRtAZE9eZYEAvNuPr:messenger",
+    "channel": "messenger",
+    "status": "partial",
+    "qualification_snapshot": {
+      "phone": "+18644842725",
+      "documents": "",
+      "real_name": "Rafael Araque",
+      "bank_account": "",
+      "down_payment": "2",
+      "vehicle_type": "Suv",
+      "message_count": 6,
+      "identification": "",
+      "vehicle_category": "suv_or_van",
+      "customer_location": "",
+      "purchase_timeline": "",
+      "assigned_dealer_id": "c1e7db6d-d38d-43f7-a546-fbff7000b0c6",
+      "down_payment_amount": 2,
+      "qualification_memory": "real_name: Rafael Araque; vehicle: Suv; down payment: 2",
+      "missing_qualification": ["down_payment_minimum", "purchase_timeline", "identification", "proof_of_income", "bank_account"],
+      "required_down_payment": 2000,
+      "qualification_complete": false,
+      "qualification_progress": {
+        "step": "down_payment",
+        "evidence": "normalized_fields",
+        "language": "es",
+        "confidence": 0.95,
+        "last_answered_field": "down_payment",
+        "predicted_bot_question": "Te comento que el mínimo para este vehículo es de $2000. ¿Crees que podrías conseguir un poco más?"
+      },
+      "down_payment_sufficient": false
+    },
+    "location_snapshot": {
+      "city": null,
+      "state": null,
+      "zip_code": null,
+      "easterns_zone": null
+    },
+    "ready_at": "2026-09-17T18:07:55.244+00:00",
+    "last_message_at": "2026-09-17T18:29:42.58+00:00"
+  },
+  "messages": [
+    {"direction": "inbound", "body": "Quiero Financiar!", "occurred_at": "2026-09-15T03:47:36.682+00:00"},
+    {"direction": "inbound", "body": "Suv", "occurred_at": "2026-09-17T14:42:32.585+00:00"},
+    {"direction": "inbound", "body": "8644842725 tex", "occurred_at": "2026-09-17T18:07:55.152+00:00"},
+    {"direction": "inbound", "body": "Tengo 2 mil", "occurred_at": "2026-09-17T18:10:10.512+00:00"},
+    {"direction": "inbound", "body": "Westa semana", "occurred_at": "2026-09-17T18:26:16.754+00:00"},
+    {"direction": "inbound", "body": "Yes sir.", "occurred_at": "2026-09-17T18:29:42.58+00:00"}
+  ]
+}

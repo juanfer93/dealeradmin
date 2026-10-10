@@ -1,0 +1,2663 @@
+{
+  "run_id": "qa-yahir-whatsapp-20260912",
+  "generated_at": "2026-09-12T23:35:52.867Z",
+  "environment": {
+    "api_url": "http://127.0.0.1:3015",
+    "database": "local PostgreSQL in user-provided Docker container",
+    "timezone": "America/Bogota",
+    "secret_printed": false
+  },
+  "cases": [
+    {
+      "case_id": "qa-yahir-whatsapp-20260912-yahir-reproduced",
+      "source": "stafford",
+      "location_id": "loc_stafford_789",
+      "channel": "whatsapp",
+      "phone": "+18048446382",
+      "contact_name": "Lo Más Pronto Posible",
+      "conversation_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-conversation",
+      "steps": [
+        {
+          "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-01",
+          "message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-01",
+          "payload_hash": "47da1d933663ce4b4939b88ed6701a96260cdc4bca3b0686f0b3a03cdda46d00",
+          "body": "*Headline:* Financiamiento inmediato",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-01",
+              "conversationId": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+                "ghl_conversation_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-conversation",
+                "channel": "whatsapp",
+                "status": "partial",
+                "qualification_snapshot": {
+                  "phone": "+18048446382",
+                  "documents": "",
+                  "real_name": "",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "today",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "timeline: today",
+                  "missing_qualification": [
+                    "real_name",
+                    "vehicle_type",
+                    "down_payment",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "real_name",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Cuál es tu nombre completo?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": null,
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "canonical_phone": "+18048446382",
+                "first_name": "Lo",
+                "last_name": "Más Pronto Posible",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "668fb78b-1bfd-4f1e-9116-5788ca36b8f9",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-01",
+                "direction": "inbound",
+                "body": "*Headline:* Financiamiento inmediato",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "47da1d933663ce4b4939b88ed6701a96260cdc4bca3b0686f0b3a03cdda46d00",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              }
+            ],
+            "leadRows": [
+              {
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "first_name": "Lo",
+                "last_name": "Más Pronto Posible",
+                "canonical_phone": "+18048446382",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-02",
+          "message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-02",
+          "payload_hash": "f8d44773096726129353182f4c884fe89719b68655f3c83ccbe9552f5028fb07",
+          "body": "Yahir",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-02",
+              "conversationId": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+                "ghl_conversation_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-conversation",
+                "channel": "whatsapp",
+                "status": "partial",
+                "qualification_snapshot": {
+                  "phone": "+18048446382",
+                  "documents": "",
+                  "real_name": "Yahir",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "",
+                  "message_count": 2,
+                  "identification": "",
+                  "purchase_timeline": "today",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "real_name: Yahir; timeline: today",
+                  "missing_qualification": [
+                    "vehicle_type",
+                    "down_payment",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "vehicle_type",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Qué vehículo estás buscando?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": null,
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "canonical_phone": "+18048446382",
+                "first_name": "Yahir",
+                "last_name": "",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "668fb78b-1bfd-4f1e-9116-5788ca36b8f9",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-01",
+                "direction": "inbound",
+                "body": "*Headline:* Financiamiento inmediato",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "b30b59d2-a6f0-4b82-80b5-b7a1b8fcc81d",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Yahir",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "47da1d933663ce4b4939b88ed6701a96260cdc4bca3b0686f0b3a03cdda46d00",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "f8d44773096726129353182f4c884fe89719b68655f3c83ccbe9552f5028fb07",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              }
+            ],
+            "leadRows": [
+              {
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "first_name": "Yahir",
+                "last_name": "",
+                "canonical_phone": "+18048446382",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-03",
+          "message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-03",
+          "payload_hash": "5482867340f7bf69a34ad3a1ecc22fd408b1815feaf37c7b55f4564097894ec6",
+          "body": "Quiero ver si puedo con 1000",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-03",
+              "conversationId": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+                "ghl_conversation_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-conversation",
+                "channel": "whatsapp",
+                "status": "partial",
+                "qualification_snapshot": {
+                  "phone": "+18048446382",
+                  "documents": "",
+                  "real_name": "Yahir",
+                  "bank_account": "",
+                  "down_payment": "1000",
+                  "vehicle_type": "",
+                  "message_count": 3,
+                  "identification": "",
+                  "purchase_timeline": "today",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "real_name: Yahir; down payment: 1000; timeline: today",
+                  "missing_qualification": [
+                    "vehicle_type",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "vehicle_type",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Qué vehículo estás buscando?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": null,
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "canonical_phone": "+18048446382",
+                "first_name": "Yahir",
+                "last_name": "",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "668fb78b-1bfd-4f1e-9116-5788ca36b8f9",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-01",
+                "direction": "inbound",
+                "body": "*Headline:* Financiamiento inmediato",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "b30b59d2-a6f0-4b82-80b5-b7a1b8fcc81d",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Yahir",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "0a25186b-7248-45e6-8c54-ca753cee0ca7",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Quiero ver si puedo con 1000",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "47da1d933663ce4b4939b88ed6701a96260cdc4bca3b0686f0b3a03cdda46d00",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "f8d44773096726129353182f4c884fe89719b68655f3c83ccbe9552f5028fb07",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "5482867340f7bf69a34ad3a1ecc22fd408b1815feaf37c7b55f4564097894ec6",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              }
+            ],
+            "leadRows": [
+              {
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "first_name": "Yahir",
+                "last_name": "",
+                "canonical_phone": "+18048446382",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-04",
+          "message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-04",
+          "payload_hash": "a5554d3474e3c67c759aca515f8f4401252850d4258cda5bd0df99f88e274cd3",
+          "body": "Lo más pronto posible",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-04",
+              "conversationId": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+                "ghl_conversation_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-conversation",
+                "channel": "whatsapp",
+                "status": "partial",
+                "qualification_snapshot": {
+                  "phone": "+18048446382",
+                  "documents": "",
+                  "real_name": "Yahir",
+                  "bank_account": "",
+                  "down_payment": "1000",
+                  "vehicle_type": "",
+                  "message_count": 4,
+                  "identification": "",
+                  "purchase_timeline": "today",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "real_name: Yahir; down payment: 1000; timeline: today",
+                  "missing_qualification": [
+                    "vehicle_type",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "vehicle_type",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Qué vehículo estás buscando?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": null,
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "canonical_phone": "+18048446382",
+                "first_name": "Yahir",
+                "last_name": "",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "668fb78b-1bfd-4f1e-9116-5788ca36b8f9",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-01",
+                "direction": "inbound",
+                "body": "*Headline:* Financiamiento inmediato",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "b30b59d2-a6f0-4b82-80b5-b7a1b8fcc81d",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Yahir",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "0a25186b-7248-45e6-8c54-ca753cee0ca7",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Quiero ver si puedo con 1000",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "7f080010-61d1-456f-8d4d-18a471429e7a",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-04",
+                "direction": "inbound",
+                "body": "Lo más pronto posible",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "47da1d933663ce4b4939b88ed6701a96260cdc4bca3b0686f0b3a03cdda46d00",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "f8d44773096726129353182f4c884fe89719b68655f3c83ccbe9552f5028fb07",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "5482867340f7bf69a34ad3a1ecc22fd408b1815feaf37c7b55f4564097894ec6",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-04",
+                "status": "processed",
+                "payload_hash": "a5554d3474e3c67c759aca515f8f4401252850d4258cda5bd0df99f88e274cd3",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              }
+            ],
+            "leadRows": [
+              {
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "first_name": "Yahir",
+                "last_name": "",
+                "canonical_phone": "+18048446382",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-05",
+          "message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-05",
+          "payload_hash": "21a7a52596a24abf0147d1586ef851f0cb9b619db93f424cdd22896d4718e1aa",
+          "body": "Que y qué papeles ocupo para aplicar",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-05",
+              "conversationId": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+                "ghl_conversation_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-conversation",
+                "channel": "whatsapp",
+                "status": "partial",
+                "qualification_snapshot": {
+                  "phone": "+18048446382",
+                  "documents": "",
+                  "real_name": "Yahir",
+                  "bank_account": "",
+                  "down_payment": "1000",
+                  "vehicle_type": "",
+                  "message_count": 5,
+                  "identification": "",
+                  "purchase_timeline": "today",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "real_name: Yahir; down payment: 1000; timeline: today",
+                  "missing_qualification": [
+                    "vehicle_type",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "vehicle_type",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Qué vehículo estás buscando?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": null,
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "canonical_phone": "+18048446382",
+                "first_name": "Yahir",
+                "last_name": "",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "668fb78b-1bfd-4f1e-9116-5788ca36b8f9",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-01",
+                "direction": "inbound",
+                "body": "*Headline:* Financiamiento inmediato",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "b30b59d2-a6f0-4b82-80b5-b7a1b8fcc81d",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Yahir",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "0a25186b-7248-45e6-8c54-ca753cee0ca7",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Quiero ver si puedo con 1000",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "7f080010-61d1-456f-8d4d-18a471429e7a",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-04",
+                "direction": "inbound",
+                "body": "Lo más pronto posible",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "d6d49351-d4cd-468c-9f4c-54e09bd39f8b",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-05",
+                "direction": "inbound",
+                "body": "Que y qué papeles ocupo para aplicar",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "47da1d933663ce4b4939b88ed6701a96260cdc4bca3b0686f0b3a03cdda46d00",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "f8d44773096726129353182f4c884fe89719b68655f3c83ccbe9552f5028fb07",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "5482867340f7bf69a34ad3a1ecc22fd408b1815feaf37c7b55f4564097894ec6",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-04",
+                "status": "processed",
+                "payload_hash": "a5554d3474e3c67c759aca515f8f4401252850d4258cda5bd0df99f88e274cd3",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-05",
+                "status": "processed",
+                "payload_hash": "21a7a52596a24abf0147d1586ef851f0cb9b619db93f424cdd22896d4718e1aa",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              }
+            ],
+            "leadRows": [
+              {
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "first_name": "Yahir",
+                "last_name": "",
+                "canonical_phone": "+18048446382",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-06",
+          "message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-06",
+          "payload_hash": "ebba35b858debe49a80b40c9c76a921b19e1c0f543b772918945c67d97331425",
+          "body": "Sedan",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-06",
+              "conversationId": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+                "ghl_conversation_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-conversation",
+                "channel": "whatsapp",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+18048446382",
+                  "documents": "",
+                  "real_name": "Yahir",
+                  "bank_account": "",
+                  "down_payment": "1000",
+                  "vehicle_type": "Sedan",
+                  "message_count": 6,
+                  "identification": "",
+                  "purchase_timeline": "today",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "real_name: Yahir; vehicle: Sedan; down payment: 1000; timeline: today",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T19:52:15.000Z",
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "canonical_phone": "+18048446382",
+                "first_name": "Yahir",
+                "last_name": "",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "668fb78b-1bfd-4f1e-9116-5788ca36b8f9",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-01",
+                "direction": "inbound",
+                "body": "*Headline:* Financiamiento inmediato",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "b30b59d2-a6f0-4b82-80b5-b7a1b8fcc81d",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Yahir",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "0a25186b-7248-45e6-8c54-ca753cee0ca7",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Quiero ver si puedo con 1000",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "7f080010-61d1-456f-8d4d-18a471429e7a",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-04",
+                "direction": "inbound",
+                "body": "Lo más pronto posible",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "d6d49351-d4cd-468c-9f4c-54e09bd39f8b",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-05",
+                "direction": "inbound",
+                "body": "Que y qué papeles ocupo para aplicar",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "1794d4fa-24dd-4b22-9b4a-67d2bce84c67",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-06",
+                "direction": "inbound",
+                "body": "Sedan",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "47da1d933663ce4b4939b88ed6701a96260cdc4bca3b0686f0b3a03cdda46d00",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "f8d44773096726129353182f4c884fe89719b68655f3c83ccbe9552f5028fb07",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "5482867340f7bf69a34ad3a1ecc22fd408b1815feaf37c7b55f4564097894ec6",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-04",
+                "status": "processed",
+                "payload_hash": "a5554d3474e3c67c759aca515f8f4401252850d4258cda5bd0df99f88e274cd3",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-05",
+                "status": "processed",
+                "payload_hash": "21a7a52596a24abf0147d1586ef851f0cb9b619db93f424cdd22896d4718e1aa",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-06",
+                "status": "processed",
+                "payload_hash": "ebba35b858debe49a80b40c9c76a921b19e1c0f543b772918945c67d97331425",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              }
+            ],
+            "leadRows": [
+              {
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "first_name": "Yahir",
+                "last_name": "",
+                "canonical_phone": "+18048446382",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-07",
+          "message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-07",
+          "payload_hash": "6509d560a88bcdf58ef60a9706b3b4fc9653cce2fae9ed31030856ff91233900",
+          "body": "Si sin problema",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-07",
+              "conversationId": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+                "ghl_conversation_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-conversation",
+                "channel": "whatsapp",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+18048446382",
+                  "documents": "",
+                  "real_name": "Yahir",
+                  "bank_account": "",
+                  "down_payment": "1000",
+                  "vehicle_type": "Sedan",
+                  "message_count": 7,
+                  "identification": "",
+                  "purchase_timeline": "today",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "real_name: Yahir; vehicle: Sedan; down payment: 1000; timeline: today",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T19:52:15.000Z",
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "canonical_phone": "+18048446382",
+                "first_name": "Yahir",
+                "last_name": "",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "668fb78b-1bfd-4f1e-9116-5788ca36b8f9",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-01",
+                "direction": "inbound",
+                "body": "*Headline:* Financiamiento inmediato",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "b30b59d2-a6f0-4b82-80b5-b7a1b8fcc81d",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Yahir",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "0a25186b-7248-45e6-8c54-ca753cee0ca7",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Quiero ver si puedo con 1000",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "7f080010-61d1-456f-8d4d-18a471429e7a",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-04",
+                "direction": "inbound",
+                "body": "Lo más pronto posible",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "d6d49351-d4cd-468c-9f4c-54e09bd39f8b",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-05",
+                "direction": "inbound",
+                "body": "Que y qué papeles ocupo para aplicar",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "1794d4fa-24dd-4b22-9b4a-67d2bce84c67",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-06",
+                "direction": "inbound",
+                "body": "Sedan",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "3a2901a1-21a3-4e7e-8297-142cb3e28851",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-07",
+                "direction": "inbound",
+                "body": "Si sin problema",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "47da1d933663ce4b4939b88ed6701a96260cdc4bca3b0686f0b3a03cdda46d00",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "f8d44773096726129353182f4c884fe89719b68655f3c83ccbe9552f5028fb07",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "5482867340f7bf69a34ad3a1ecc22fd408b1815feaf37c7b55f4564097894ec6",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-04",
+                "status": "processed",
+                "payload_hash": "a5554d3474e3c67c759aca515f8f4401252850d4258cda5bd0df99f88e274cd3",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-05",
+                "status": "processed",
+                "payload_hash": "21a7a52596a24abf0147d1586ef851f0cb9b619db93f424cdd22896d4718e1aa",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-06",
+                "status": "processed",
+                "payload_hash": "ebba35b858debe49a80b40c9c76a921b19e1c0f543b772918945c67d97331425",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-07",
+                "status": "processed",
+                "payload_hash": "6509d560a88bcdf58ef60a9706b3b4fc9653cce2fae9ed31030856ff91233900",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              }
+            ],
+            "leadRows": [
+              {
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "first_name": "Yahir",
+                "last_name": "",
+                "canonical_phone": "+18048446382",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-08",
+          "message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-08",
+          "payload_hash": "6091f968d68fe7617ddc281d1c57877ad10b092210020348a3b1fc1bedda1bc0",
+          "body": "Si está bien no hay problema",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-08",
+              "conversationId": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+                "ghl_conversation_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-conversation",
+                "channel": "whatsapp",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+18048446382",
+                  "documents": "",
+                  "real_name": "Yahir",
+                  "bank_account": "",
+                  "down_payment": "1000",
+                  "vehicle_type": "Sedan",
+                  "message_count": 8,
+                  "identification": "",
+                  "purchase_timeline": "today",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "real_name: Yahir; vehicle: Sedan; down payment: 1000; timeline: today",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T19:52:15.000Z",
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "canonical_phone": "+18048446382",
+                "first_name": "Yahir",
+                "last_name": "",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "668fb78b-1bfd-4f1e-9116-5788ca36b8f9",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-01",
+                "direction": "inbound",
+                "body": "*Headline:* Financiamiento inmediato",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "b30b59d2-a6f0-4b82-80b5-b7a1b8fcc81d",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Yahir",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "0a25186b-7248-45e6-8c54-ca753cee0ca7",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Quiero ver si puedo con 1000",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "7f080010-61d1-456f-8d4d-18a471429e7a",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-04",
+                "direction": "inbound",
+                "body": "Lo más pronto posible",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "d6d49351-d4cd-468c-9f4c-54e09bd39f8b",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-05",
+                "direction": "inbound",
+                "body": "Que y qué papeles ocupo para aplicar",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "1794d4fa-24dd-4b22-9b4a-67d2bce84c67",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-06",
+                "direction": "inbound",
+                "body": "Sedan",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "3a2901a1-21a3-4e7e-8297-142cb3e28851",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-07",
+                "direction": "inbound",
+                "body": "Si sin problema",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "593307f9-f435-4dfc-8c91-d4ed6ea7259a",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-08",
+                "direction": "inbound",
+                "body": "Si está bien no hay problema",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "47da1d933663ce4b4939b88ed6701a96260cdc4bca3b0686f0b3a03cdda46d00",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "f8d44773096726129353182f4c884fe89719b68655f3c83ccbe9552f5028fb07",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "5482867340f7bf69a34ad3a1ecc22fd408b1815feaf37c7b55f4564097894ec6",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-04",
+                "status": "processed",
+                "payload_hash": "a5554d3474e3c67c759aca515f8f4401252850d4258cda5bd0df99f88e274cd3",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-05",
+                "status": "processed",
+                "payload_hash": "21a7a52596a24abf0147d1586ef851f0cb9b619db93f424cdd22896d4718e1aa",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-06",
+                "status": "processed",
+                "payload_hash": "ebba35b858debe49a80b40c9c76a921b19e1c0f543b772918945c67d97331425",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-07",
+                "status": "processed",
+                "payload_hash": "6509d560a88bcdf58ef60a9706b3b4fc9653cce2fae9ed31030856ff91233900",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-08",
+                "status": "processed",
+                "payload_hash": "6091f968d68fe7617ddc281d1c57877ad10b092210020348a3b1fc1bedda1bc0",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              }
+            ],
+            "leadRows": [
+              {
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "first_name": "Yahir",
+                "last_name": "",
+                "canonical_phone": "+18048446382",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-09",
+          "message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-09",
+          "payload_hash": "fb1c1808458fba70b135cdb478e21ff6ee30f99ccd2a9c39028fe8e1a2c67159",
+          "body": "Hoy si gusta",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-09",
+              "conversationId": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+                "ghl_conversation_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-conversation",
+                "channel": "whatsapp",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+18048446382",
+                  "documents": "",
+                  "real_name": "Yahir",
+                  "bank_account": "",
+                  "down_payment": "1000",
+                  "vehicle_type": "Sedan",
+                  "message_count": 9,
+                  "identification": "",
+                  "purchase_timeline": "today",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "real_name: Yahir; vehicle: Sedan; down payment: 1000; timeline: today",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T19:52:15.000Z",
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "canonical_phone": "+18048446382",
+                "first_name": "Yahir",
+                "last_name": "",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "668fb78b-1bfd-4f1e-9116-5788ca36b8f9",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-01",
+                "direction": "inbound",
+                "body": "*Headline:* Financiamiento inmediato",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "b30b59d2-a6f0-4b82-80b5-b7a1b8fcc81d",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Yahir",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "0a25186b-7248-45e6-8c54-ca753cee0ca7",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Quiero ver si puedo con 1000",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "7f080010-61d1-456f-8d4d-18a471429e7a",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-04",
+                "direction": "inbound",
+                "body": "Lo más pronto posible",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "d6d49351-d4cd-468c-9f4c-54e09bd39f8b",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-05",
+                "direction": "inbound",
+                "body": "Que y qué papeles ocupo para aplicar",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "1794d4fa-24dd-4b22-9b4a-67d2bce84c67",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-06",
+                "direction": "inbound",
+                "body": "Sedan",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "3a2901a1-21a3-4e7e-8297-142cb3e28851",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-07",
+                "direction": "inbound",
+                "body": "Si sin problema",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "593307f9-f435-4dfc-8c91-d4ed6ea7259a",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-08",
+                "direction": "inbound",
+                "body": "Si está bien no hay problema",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "ab3580d8-dabe-4d5a-841a-56372e5739c7",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-09",
+                "direction": "inbound",
+                "body": "Hoy si gusta",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "47da1d933663ce4b4939b88ed6701a96260cdc4bca3b0686f0b3a03cdda46d00",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "f8d44773096726129353182f4c884fe89719b68655f3c83ccbe9552f5028fb07",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "5482867340f7bf69a34ad3a1ecc22fd408b1815feaf37c7b55f4564097894ec6",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-04",
+                "status": "processed",
+                "payload_hash": "a5554d3474e3c67c759aca515f8f4401252850d4258cda5bd0df99f88e274cd3",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-05",
+                "status": "processed",
+                "payload_hash": "21a7a52596a24abf0147d1586ef851f0cb9b619db93f424cdd22896d4718e1aa",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-06",
+                "status": "processed",
+                "payload_hash": "ebba35b858debe49a80b40c9c76a921b19e1c0f543b772918945c67d97331425",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-07",
+                "status": "processed",
+                "payload_hash": "6509d560a88bcdf58ef60a9706b3b4fc9653cce2fae9ed31030856ff91233900",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-08",
+                "status": "processed",
+                "payload_hash": "6091f968d68fe7617ddc281d1c57877ad10b092210020348a3b1fc1bedda1bc0",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-09",
+                "status": "processed",
+                "payload_hash": "fb1c1808458fba70b135cdb478e21ff6ee30f99ccd2a9c39028fe8e1a2c67159",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              }
+            ],
+            "leadRows": [
+              {
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "first_name": "Yahir",
+                "last_name": "",
+                "canonical_phone": "+18048446382",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-10",
+          "message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-10",
+          "payload_hash": "6be5084cf003056529a785eccfd8cdce959b0168d4ab3aafd102888f83f412c9",
+          "body": "A las 5 si se puede por favor",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-10",
+              "conversationId": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+                "ghl_conversation_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-conversation",
+                "channel": "whatsapp",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+18048446382",
+                  "documents": "",
+                  "real_name": "Yahir",
+                  "bank_account": "",
+                  "down_payment": "1000",
+                  "vehicle_type": "Sedan",
+                  "message_count": 10,
+                  "identification": "",
+                  "purchase_timeline": "today",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "real_name: Yahir; vehicle: Sedan; down payment: 1000; timeline: today",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T19:52:15.000Z",
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "canonical_phone": "+18048446382",
+                "first_name": "Yahir",
+                "last_name": "",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "668fb78b-1bfd-4f1e-9116-5788ca36b8f9",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-01",
+                "direction": "inbound",
+                "body": "*Headline:* Financiamiento inmediato",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "b30b59d2-a6f0-4b82-80b5-b7a1b8fcc81d",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Yahir",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "0a25186b-7248-45e6-8c54-ca753cee0ca7",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Quiero ver si puedo con 1000",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "7f080010-61d1-456f-8d4d-18a471429e7a",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-04",
+                "direction": "inbound",
+                "body": "Lo más pronto posible",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "d6d49351-d4cd-468c-9f4c-54e09bd39f8b",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-05",
+                "direction": "inbound",
+                "body": "Que y qué papeles ocupo para aplicar",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "1794d4fa-24dd-4b22-9b4a-67d2bce84c67",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-06",
+                "direction": "inbound",
+                "body": "Sedan",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "3a2901a1-21a3-4e7e-8297-142cb3e28851",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-07",
+                "direction": "inbound",
+                "body": "Si sin problema",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "593307f9-f435-4dfc-8c91-d4ed6ea7259a",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-08",
+                "direction": "inbound",
+                "body": "Si está bien no hay problema",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "ab3580d8-dabe-4d5a-841a-56372e5739c7",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-09",
+                "direction": "inbound",
+                "body": "Hoy si gusta",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "e3ece683-edaf-45c3-9602-20e7cd74752c",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-10",
+                "direction": "inbound",
+                "body": "A las 5 si se puede por favor",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "47da1d933663ce4b4939b88ed6701a96260cdc4bca3b0686f0b3a03cdda46d00",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "f8d44773096726129353182f4c884fe89719b68655f3c83ccbe9552f5028fb07",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "5482867340f7bf69a34ad3a1ecc22fd408b1815feaf37c7b55f4564097894ec6",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-04",
+                "status": "processed",
+                "payload_hash": "a5554d3474e3c67c759aca515f8f4401252850d4258cda5bd0df99f88e274cd3",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-05",
+                "status": "processed",
+                "payload_hash": "21a7a52596a24abf0147d1586ef851f0cb9b619db93f424cdd22896d4718e1aa",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-06",
+                "status": "processed",
+                "payload_hash": "ebba35b858debe49a80b40c9c76a921b19e1c0f543b772918945c67d97331425",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-07",
+                "status": "processed",
+                "payload_hash": "6509d560a88bcdf58ef60a9706b3b4fc9653cce2fae9ed31030856ff91233900",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-08",
+                "status": "processed",
+                "payload_hash": "6091f968d68fe7617ddc281d1c57877ad10b092210020348a3b1fc1bedda1bc0",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-09",
+                "status": "processed",
+                "payload_hash": "fb1c1808458fba70b135cdb478e21ff6ee30f99ccd2a9c39028fe8e1a2c67159",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-10",
+                "status": "processed",
+                "payload_hash": "6be5084cf003056529a785eccfd8cdce959b0168d4ab3aafd102888f83f412c9",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              }
+            ],
+            "leadRows": [
+              {
+                "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+                "first_name": "Yahir",
+                "last_name": "",
+                "canonical_phone": "+18048446382",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        }
+      ],
+      "before": {
+        "state": [],
+        "messages": [],
+        "events": [],
+        "leadRows": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "poll_response": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      },
+      "after": {
+        "state": [
+          {
+            "conversation_db_id": "2d1f6508-6462-4ec7-8ca9-93f01da95d09",
+            "ghl_conversation_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-conversation",
+            "channel": "whatsapp",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+18048446382",
+              "documents": "",
+              "real_name": "Yahir",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "Sedan",
+              "message_count": 10,
+              "identification": "",
+              "purchase_timeline": "today",
+              "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+              "qualification_memory": "real_name: Yahir; vehicle: Sedan; down payment: 1000; timeline: today",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+            "canonical_phone": "+18048446382",
+            "first_name": "Yahir",
+            "last_name": "",
+            "dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL stafford source dealer"
+          }
+        ],
+        "messages": [
+          {
+            "id": "668fb78b-1bfd-4f1e-9116-5788ca36b8f9",
+            "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-01",
+            "direction": "inbound",
+            "body": "*Headline:* Financiamiento inmediato",
+            "occurred_at": "2026-09-12T19:52:00.000Z"
+          },
+          {
+            "id": "b30b59d2-a6f0-4b82-80b5-b7a1b8fcc81d",
+            "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-02",
+            "direction": "inbound",
+            "body": "Yahir",
+            "occurred_at": "2026-09-12T19:52:00.000Z"
+          },
+          {
+            "id": "0a25186b-7248-45e6-8c54-ca753cee0ca7",
+            "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-03",
+            "direction": "inbound",
+            "body": "Quiero ver si puedo con 1000",
+            "occurred_at": "2026-09-12T19:52:00.000Z"
+          },
+          {
+            "id": "7f080010-61d1-456f-8d4d-18a471429e7a",
+            "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-04",
+            "direction": "inbound",
+            "body": "Lo más pronto posible",
+            "occurred_at": "2026-09-12T19:52:00.000Z"
+          },
+          {
+            "id": "d6d49351-d4cd-468c-9f4c-54e09bd39f8b",
+            "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-05",
+            "direction": "inbound",
+            "body": "Que y qué papeles ocupo para aplicar",
+            "occurred_at": "2026-09-12T19:52:00.000Z"
+          },
+          {
+            "id": "1794d4fa-24dd-4b22-9b4a-67d2bce84c67",
+            "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-06",
+            "direction": "inbound",
+            "body": "Sedan",
+            "occurred_at": "2026-09-12T19:52:00.000Z"
+          },
+          {
+            "id": "3a2901a1-21a3-4e7e-8297-142cb3e28851",
+            "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-07",
+            "direction": "inbound",
+            "body": "Si sin problema",
+            "occurred_at": "2026-09-12T19:52:00.000Z"
+          },
+          {
+            "id": "593307f9-f435-4dfc-8c91-d4ed6ea7259a",
+            "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-08",
+            "direction": "inbound",
+            "body": "Si está bien no hay problema",
+            "occurred_at": "2026-09-12T19:52:00.000Z"
+          },
+          {
+            "id": "ab3580d8-dabe-4d5a-841a-56372e5739c7",
+            "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-09",
+            "direction": "inbound",
+            "body": "Hoy si gusta",
+            "occurred_at": "2026-09-12T19:52:00.000Z"
+          },
+          {
+            "id": "e3ece683-edaf-45c3-9602-20e7cd74752c",
+            "ghl_message_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-message-10",
+            "direction": "inbound",
+            "body": "A las 5 si se puede por favor",
+            "occurred_at": "2026-09-12T19:52:00.000Z"
+          }
+        ],
+        "events": [
+          {
+            "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-01",
+            "status": "processed",
+            "payload_hash": "47da1d933663ce4b4939b88ed6701a96260cdc4bca3b0686f0b3a03cdda46d00",
+            "error_code": null,
+            "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+          },
+          {
+            "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-02",
+            "status": "processed",
+            "payload_hash": "f8d44773096726129353182f4c884fe89719b68655f3c83ccbe9552f5028fb07",
+            "error_code": null,
+            "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+          },
+          {
+            "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-03",
+            "status": "processed",
+            "payload_hash": "5482867340f7bf69a34ad3a1ecc22fd408b1815feaf37c7b55f4564097894ec6",
+            "error_code": null,
+            "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+          },
+          {
+            "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-04",
+            "status": "processed",
+            "payload_hash": "a5554d3474e3c67c759aca515f8f4401252850d4258cda5bd0df99f88e274cd3",
+            "error_code": null,
+            "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+          },
+          {
+            "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-05",
+            "status": "processed",
+            "payload_hash": "21a7a52596a24abf0147d1586ef851f0cb9b619db93f424cdd22896d4718e1aa",
+            "error_code": null,
+            "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+          },
+          {
+            "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-06",
+            "status": "processed",
+            "payload_hash": "ebba35b858debe49a80b40c9c76a921b19e1c0f543b772918945c67d97331425",
+            "error_code": null,
+            "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+          },
+          {
+            "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-07",
+            "status": "processed",
+            "payload_hash": "6509d560a88bcdf58ef60a9706b3b4fc9653cce2fae9ed31030856ff91233900",
+            "error_code": null,
+            "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+          },
+          {
+            "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-08",
+            "status": "processed",
+            "payload_hash": "6091f968d68fe7617ddc281d1c57877ad10b092210020348a3b1fc1bedda1bc0",
+            "error_code": null,
+            "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+          },
+          {
+            "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-09",
+            "status": "processed",
+            "payload_hash": "fb1c1808458fba70b135cdb478e21ff6ee30f99ccd2a9c39028fe8e1a2c67159",
+            "error_code": null,
+            "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+          },
+          {
+            "event_id": "qa-yahir-whatsapp-20260912-yahir-reproduced-event-10",
+            "status": "processed",
+            "payload_hash": "6be5084cf003056529a785eccfd8cdce959b0168d4ab3aafd102888f83f412c9",
+            "error_code": null,
+            "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+          }
+        ],
+        "leadRows": [
+          {
+            "lead_id": "e14b50e8-2c14-44b8-8a4b-803fabdeddb1",
+            "first_name": "Yahir",
+            "last_name": "",
+            "canonical_phone": "+18048446382",
+            "dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL stafford source dealer"
+          }
+        ],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "assertions": {
+        "all_webhooks_accepted": true,
+        "all_events_processed": true,
+        "message_count_expected": true,
+        "real_name_expected": true,
+        "lead_name_expected": true,
+        "no_profile_name_contamination": true,
+        "vehicle_expected": true,
+        "down_expected": true,
+        "timeline_expected": true,
+        "phone_normalized": true,
+        "stafford_assigned": true,
+        "one_lead_dealer_row": true,
+        "progress_present": true
+      },
+      "result": "PASS",
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_after": {
+        "phone": "+18048446382",
+        "documents": "",
+        "real_name": "Yahir",
+        "bank_account": "",
+        "down_payment": "1000",
+        "vehicle_type": "Sedan",
+        "message_count": 10,
+        "identification": "",
+        "purchase_timeline": "today",
+        "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+        "qualification_memory": "real_name: Yahir; vehicle: Sedan; down payment: 1000; timeline: today",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "next_attempt_at": null,
+      "dealer_assigned": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+      "routing_reason": "GHL stafford source dealer",
+      "message_ids": [
+        "668fb78b-1bfd-4f1e-9116-5788ca36b8f9",
+        "b30b59d2-a6f0-4b82-80b5-b7a1b8fcc81d",
+        "0a25186b-7248-45e6-8c54-ca753cee0ca7",
+        "7f080010-61d1-456f-8d4d-18a471429e7a",
+        "d6d49351-d4cd-468c-9f4c-54e09bd39f8b",
+        "1794d4fa-24dd-4b22-9b4a-67d2bce84c67",
+        "3a2901a1-21a3-4e7e-8297-142cb3e28851",
+        "593307f9-f435-4dfc-8c91-d4ed6ea7259a",
+        "ab3580d8-dabe-4d5a-841a-56372e5739c7",
+        "e3ece683-edaf-45c3-9602-20e7cd74752c"
+      ],
+      "event_ids": [
+        "qa-yahir-whatsapp-20260912-yahir-reproduced-event-01",
+        "qa-yahir-whatsapp-20260912-yahir-reproduced-event-02",
+        "qa-yahir-whatsapp-20260912-yahir-reproduced-event-03",
+        "qa-yahir-whatsapp-20260912-yahir-reproduced-event-04",
+        "qa-yahir-whatsapp-20260912-yahir-reproduced-event-05",
+        "qa-yahir-whatsapp-20260912-yahir-reproduced-event-06",
+        "qa-yahir-whatsapp-20260912-yahir-reproduced-event-07",
+        "qa-yahir-whatsapp-20260912-yahir-reproduced-event-08",
+        "qa-yahir-whatsapp-20260912-yahir-reproduced-event-09",
+        "qa-yahir-whatsapp-20260912-yahir-reproduced-event-10"
+      ],
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    },
+    {
+      "case_id": "qa-yahir-whatsapp-20260912-compound-name-control",
+      "source": "stafford",
+      "location_id": "loc_stafford_789",
+      "channel": "whatsapp",
+      "phone": "+18045550123",
+      "contact_name": "WhatsApp Contact",
+      "conversation_id": "qa-yahir-whatsapp-20260912-compound-name-control-conversation",
+      "steps": [
+        {
+          "event_id": "qa-yahir-whatsapp-20260912-compound-name-control-event-01",
+          "message_id": "qa-yahir-whatsapp-20260912-compound-name-control-message-01",
+          "payload_hash": "67fa0156cd2fa198fcf149ec7dbc6da575c595f6cd4bdc6b2d3392b3b98e6b51",
+          "body": "Mi nombre es María José López",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-yahir-whatsapp-20260912-compound-name-control-event-01",
+              "conversationId": "e8f57ece-6e6b-462f-a5e5-f55944189afd",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "e8f57ece-6e6b-462f-a5e5-f55944189afd",
+                "ghl_conversation_id": "qa-yahir-whatsapp-20260912-compound-name-control-conversation",
+                "channel": "whatsapp",
+                "status": "partial",
+                "qualification_snapshot": {
+                  "phone": "+18045550123",
+                  "documents": "",
+                  "real_name": "María José López",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "real_name: María José López",
+                  "missing_qualification": [
+                    "vehicle_type",
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "vehicle_type",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "phone",
+                    "predicted_bot_question": "¿Qué vehículo estás buscando?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": null,
+                "lead_id": "228898f1-5024-4280-9965-e8d127d7aa0d",
+                "canonical_phone": "+18045550123",
+                "first_name": "María",
+                "last_name": "José López",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "2346a26a-f259-4fc9-a6df-8a4817aada34",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-compound-name-control-message-01",
+                "direction": "inbound",
+                "body": "Mi nombre es María José López",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-compound-name-control-event-01",
+                "status": "processed",
+                "payload_hash": "67fa0156cd2fa198fcf149ec7dbc6da575c595f6cd4bdc6b2d3392b3b98e6b51",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              }
+            ],
+            "leadRows": [
+              {
+                "lead_id": "228898f1-5024-4280-9965-e8d127d7aa0d",
+                "first_name": "María",
+                "last_name": "José López",
+                "canonical_phone": "+18045550123",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-yahir-whatsapp-20260912-compound-name-control-event-02",
+          "message_id": "qa-yahir-whatsapp-20260912-compound-name-control-message-02",
+          "payload_hash": "a430efe2b5e82bbd30c7ac53597f89f5bbdc4cf0408f9288eee0cbc49a351a47",
+          "body": "Estoy buscando una Honda Civic",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-yahir-whatsapp-20260912-compound-name-control-event-02",
+              "conversationId": "e8f57ece-6e6b-462f-a5e5-f55944189afd",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "e8f57ece-6e6b-462f-a5e5-f55944189afd",
+                "ghl_conversation_id": "qa-yahir-whatsapp-20260912-compound-name-control-conversation",
+                "channel": "whatsapp",
+                "status": "partial",
+                "qualification_snapshot": {
+                  "phone": "+18045550123",
+                  "documents": "",
+                  "real_name": "María José López",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "Honda Civic",
+                  "message_count": 2,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "real_name: María José López; vehicle: Honda Civic",
+                  "missing_qualification": [
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "down_payment",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "vehicle_type",
+                    "predicted_bot_question": "¿Cuánto tienes para el enganche?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": "buscando una honda civic",
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": null,
+                "lead_id": "228898f1-5024-4280-9965-e8d127d7aa0d",
+                "canonical_phone": "+18045550123",
+                "first_name": "María",
+                "last_name": "José López",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "2346a26a-f259-4fc9-a6df-8a4817aada34",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-compound-name-control-message-01",
+                "direction": "inbound",
+                "body": "Mi nombre es María José López",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "7b0f3f02-6742-4834-9d41-82a4c895cad2",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-compound-name-control-message-02",
+                "direction": "inbound",
+                "body": "Estoy buscando una Honda Civic",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-compound-name-control-event-01",
+                "status": "processed",
+                "payload_hash": "67fa0156cd2fa198fcf149ec7dbc6da575c595f6cd4bdc6b2d3392b3b98e6b51",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-compound-name-control-event-02",
+                "status": "processed",
+                "payload_hash": "a430efe2b5e82bbd30c7ac53597f89f5bbdc4cf0408f9288eee0cbc49a351a47",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              }
+            ],
+            "leadRows": [
+              {
+                "lead_id": "228898f1-5024-4280-9965-e8d127d7aa0d",
+                "first_name": "María",
+                "last_name": "José López",
+                "canonical_phone": "+18045550123",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-yahir-whatsapp-20260912-compound-name-control-event-03",
+          "message_id": "qa-yahir-whatsapp-20260912-compound-name-control-message-03",
+          "payload_hash": "ba821471155f9b8d2ea9d13afb96eda7af43ef4b69abca705410fa5350f7b7f1",
+          "body": "Puedo poner 2000 de enganche",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-yahir-whatsapp-20260912-compound-name-control-event-03",
+              "conversationId": "e8f57ece-6e6b-462f-a5e5-f55944189afd",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "e8f57ece-6e6b-462f-a5e5-f55944189afd",
+                "ghl_conversation_id": "qa-yahir-whatsapp-20260912-compound-name-control-conversation",
+                "channel": "whatsapp",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+18045550123",
+                  "documents": "",
+                  "real_name": "María José López",
+                  "bank_account": "",
+                  "down_payment": "2000",
+                  "vehicle_type": "Honda Civic",
+                  "message_count": 3,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "real_name: María José López; vehicle: Honda Civic; down payment: 2000",
+                  "missing_qualification": [
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "purchase_timeline",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "down_payment",
+                    "predicted_bot_question": "¿Cuándo planeas comprar?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T19:52:15.000Z",
+                "lead_id": "228898f1-5024-4280-9965-e8d127d7aa0d",
+                "canonical_phone": "+18045550123",
+                "first_name": "María",
+                "last_name": "José López",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "2346a26a-f259-4fc9-a6df-8a4817aada34",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-compound-name-control-message-01",
+                "direction": "inbound",
+                "body": "Mi nombre es María José López",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "7b0f3f02-6742-4834-9d41-82a4c895cad2",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-compound-name-control-message-02",
+                "direction": "inbound",
+                "body": "Estoy buscando una Honda Civic",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "37cd28e0-25ec-40a1-b4fb-3c022850915d",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-compound-name-control-message-03",
+                "direction": "inbound",
+                "body": "Puedo poner 2000 de enganche",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-compound-name-control-event-01",
+                "status": "processed",
+                "payload_hash": "67fa0156cd2fa198fcf149ec7dbc6da575c595f6cd4bdc6b2d3392b3b98e6b51",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-compound-name-control-event-02",
+                "status": "processed",
+                "payload_hash": "a430efe2b5e82bbd30c7ac53597f89f5bbdc4cf0408f9288eee0cbc49a351a47",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-compound-name-control-event-03",
+                "status": "processed",
+                "payload_hash": "ba821471155f9b8d2ea9d13afb96eda7af43ef4b69abca705410fa5350f7b7f1",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              }
+            ],
+            "leadRows": [
+              {
+                "lead_id": "228898f1-5024-4280-9965-e8d127d7aa0d",
+                "first_name": "María",
+                "last_name": "José López",
+                "canonical_phone": "+18045550123",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-yahir-whatsapp-20260912-compound-name-control-event-04",
+          "message_id": "qa-yahir-whatsapp-20260912-compound-name-control-message-04",
+          "payload_hash": "34c054aebd62ecd33d758983de0c0155fa6b8ed86093101462a22a8a45f61ac4",
+          "body": "Esta semana",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-yahir-whatsapp-20260912-compound-name-control-event-04",
+              "conversationId": "e8f57ece-6e6b-462f-a5e5-f55944189afd",
+              "source": "stafford",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "e8f57ece-6e6b-462f-a5e5-f55944189afd",
+                "ghl_conversation_id": "qa-yahir-whatsapp-20260912-compound-name-control-conversation",
+                "channel": "whatsapp",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+18045550123",
+                  "documents": "",
+                  "real_name": "María José López",
+                  "bank_account": "",
+                  "down_payment": "2000",
+                  "vehicle_type": "Honda Civic",
+                  "message_count": 4,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                  "qualification_memory": "real_name: María José López; vehicle: Honda Civic; down payment: 2000; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T19:52:15.000Z",
+                "lead_id": "228898f1-5024-4280-9965-e8d127d7aa0d",
+                "canonical_phone": "+18045550123",
+                "first_name": "María",
+                "last_name": "José López",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "2346a26a-f259-4fc9-a6df-8a4817aada34",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-compound-name-control-message-01",
+                "direction": "inbound",
+                "body": "Mi nombre es María José López",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "7b0f3f02-6742-4834-9d41-82a4c895cad2",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-compound-name-control-message-02",
+                "direction": "inbound",
+                "body": "Estoy buscando una Honda Civic",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "37cd28e0-25ec-40a1-b4fb-3c022850915d",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-compound-name-control-message-03",
+                "direction": "inbound",
+                "body": "Puedo poner 2000 de enganche",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              },
+              {
+                "id": "f65ecbe0-51c3-44d9-9120-f023e48cbbbd",
+                "ghl_message_id": "qa-yahir-whatsapp-20260912-compound-name-control-message-04",
+                "direction": "inbound",
+                "body": "Esta semana",
+                "occurred_at": "2026-09-12T19:52:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-compound-name-control-event-01",
+                "status": "processed",
+                "payload_hash": "67fa0156cd2fa198fcf149ec7dbc6da575c595f6cd4bdc6b2d3392b3b98e6b51",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-compound-name-control-event-02",
+                "status": "processed",
+                "payload_hash": "a430efe2b5e82bbd30c7ac53597f89f5bbdc4cf0408f9288eee0cbc49a351a47",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-compound-name-control-event-03",
+                "status": "processed",
+                "payload_hash": "ba821471155f9b8d2ea9d13afb96eda7af43ef4b69abca705410fa5350f7b7f1",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              },
+              {
+                "event_id": "qa-yahir-whatsapp-20260912-compound-name-control-event-04",
+                "status": "processed",
+                "payload_hash": "34c054aebd62ecd33d758983de0c0155fa6b8ed86093101462a22a8a45f61ac4",
+                "error_code": null,
+                "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+              }
+            ],
+            "leadRows": [
+              {
+                "lead_id": "228898f1-5024-4280-9965-e8d127d7aa0d",
+                "first_name": "María",
+                "last_name": "José López",
+                "canonical_phone": "+18045550123",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        }
+      ],
+      "before": {
+        "state": [],
+        "messages": [],
+        "events": [],
+        "leadRows": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "poll_response": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      },
+      "after": {
+        "state": [
+          {
+            "conversation_db_id": "e8f57ece-6e6b-462f-a5e5-f55944189afd",
+            "ghl_conversation_id": "qa-yahir-whatsapp-20260912-compound-name-control-conversation",
+            "channel": "whatsapp",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+18045550123",
+              "documents": "",
+              "real_name": "María José López",
+              "bank_account": "",
+              "down_payment": "2000",
+              "vehicle_type": "Honda Civic",
+              "message_count": 4,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+              "qualification_memory": "real_name: María José López; vehicle: Honda Civic; down payment: 2000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "228898f1-5024-4280-9965-e8d127d7aa0d",
+            "canonical_phone": "+18045550123",
+            "first_name": "María",
+            "last_name": "José López",
+            "dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL stafford source dealer"
+          }
+        ],
+        "messages": [
+          {
+            "id": "2346a26a-f259-4fc9-a6df-8a4817aada34",
+            "ghl_message_id": "qa-yahir-whatsapp-20260912-compound-name-control-message-01",
+            "direction": "inbound",
+            "body": "Mi nombre es María José López",
+            "occurred_at": "2026-09-12T19:52:00.000Z"
+          },
+          {
+            "id": "7b0f3f02-6742-4834-9d41-82a4c895cad2",
+            "ghl_message_id": "qa-yahir-whatsapp-20260912-compound-name-control-message-02",
+            "direction": "inbound",
+            "body": "Estoy buscando una Honda Civic",
+            "occurred_at": "2026-09-12T19:52:00.000Z"
+          },
+          {
+            "id": "37cd28e0-25ec-40a1-b4fb-3c022850915d",
+            "ghl_message_id": "qa-yahir-whatsapp-20260912-compound-name-control-message-03",
+            "direction": "inbound",
+            "body": "Puedo poner 2000 de enganche",
+            "occurred_at": "2026-09-12T19:52:00.000Z"
+          },
+          {
+            "id": "f65ecbe0-51c3-44d9-9120-f023e48cbbbd",
+            "ghl_message_id": "qa-yahir-whatsapp-20260912-compound-name-control-message-04",
+            "direction": "inbound",
+            "body": "Esta semana",
+            "occurred_at": "2026-09-12T19:52:00.000Z"
+          }
+        ],
+        "events": [
+          {
+            "event_id": "qa-yahir-whatsapp-20260912-compound-name-control-event-01",
+            "status": "processed",
+            "payload_hash": "67fa0156cd2fa198fcf149ec7dbc6da575c595f6cd4bdc6b2d3392b3b98e6b51",
+            "error_code": null,
+            "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+          },
+          {
+            "event_id": "qa-yahir-whatsapp-20260912-compound-name-control-event-02",
+            "status": "processed",
+            "payload_hash": "a430efe2b5e82bbd30c7ac53597f89f5bbdc4cf0408f9288eee0cbc49a351a47",
+            "error_code": null,
+            "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+          },
+          {
+            "event_id": "qa-yahir-whatsapp-20260912-compound-name-control-event-03",
+            "status": "processed",
+            "payload_hash": "ba821471155f9b8d2ea9d13afb96eda7af43ef4b69abca705410fa5350f7b7f1",
+            "error_code": null,
+            "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+          },
+          {
+            "event_id": "qa-yahir-whatsapp-20260912-compound-name-control-event-04",
+            "status": "processed",
+            "payload_hash": "34c054aebd62ecd33d758983de0c0155fa6b8ed86093101462a22a8a45f61ac4",
+            "error_code": null,
+            "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+          }
+        ],
+        "leadRows": [
+          {
+            "lead_id": "228898f1-5024-4280-9965-e8d127d7aa0d",
+            "first_name": "María",
+            "last_name": "José López",
+            "canonical_phone": "+18045550123",
+            "dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL stafford source dealer"
+          }
+        ],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "assertions": {
+        "all_webhooks_accepted": true,
+        "all_events_processed": true,
+        "message_count_expected": true,
+        "real_name_expected": true,
+        "lead_name_expected": true,
+        "no_profile_name_contamination": true,
+        "vehicle_expected": true,
+        "down_expected": true,
+        "timeline_expected": true,
+        "phone_normalized": true,
+        "stafford_assigned": true,
+        "one_lead_dealer_row": true,
+        "progress_present": true
+      },
+      "result": "PASS",
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_after": {
+        "phone": "+18045550123",
+        "documents": "",
+        "real_name": "María José López",
+        "bank_account": "",
+        "down_payment": "2000",
+        "vehicle_type": "Honda Civic",
+        "message_count": 4,
+        "identification": "",
+        "purchase_timeline": "this week",
+        "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+        "qualification_memory": "real_name: María José López; vehicle: Honda Civic; down payment: 2000; timeline: this week",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "next_attempt_at": null,
+      "dealer_assigned": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+      "routing_reason": "GHL stafford source dealer",
+      "message_ids": [
+        "2346a26a-f259-4fc9-a6df-8a4817aada34",
+        "7b0f3f02-6742-4834-9d41-82a4c895cad2",
+        "37cd28e0-25ec-40a1-b4fb-3c022850915d",
+        "f65ecbe0-51c3-44d9-9120-f023e48cbbbd"
+      ],
+      "event_ids": [
+        "qa-yahir-whatsapp-20260912-compound-name-control-event-01",
+        "qa-yahir-whatsapp-20260912-compound-name-control-event-02",
+        "qa-yahir-whatsapp-20260912-compound-name-control-event-03",
+        "qa-yahir-whatsapp-20260912-compound-name-control-event-04"
+      ],
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    }
+  ],
+  "summary": {
+    "pass": 2,
+    "fail": 0,
+    "blocked": 0,
+    "total_cases": 2,
+    "all_pass": true
+  }
+}

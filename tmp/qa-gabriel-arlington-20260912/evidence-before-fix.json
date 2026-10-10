@@ -1,0 +1,3602 @@
+{
+  "run_id": "qa-gabriel-arlington-20260912",
+  "generated_at": "2026-09-13T00:42:09.525Z",
+  "environment": {
+    "api_url": "http://127.0.0.1:3015",
+    "database": "local PostgreSQL in user-provided Docker container",
+    "timezone": "America/Bogota",
+    "secret_printed": false
+  },
+  "cases": [
+    {
+      "case_id": "qa-gabriel-arlington-20260912-gabriel-reproduced",
+      "source": "arlington",
+      "location_id": "9v8zH9Y5eLiiJwZTZDci",
+      "channel": "messenger",
+      "contact_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-contact",
+      "conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+      "contact_name": "Gabriel Gonzalez",
+      "phone": "+18642651776",
+      "steps": [
+        {
+          "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-01",
+          "conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+          "message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+          "body": "Hola, variedad en chevrolet maneja, buesco uno en 4 o 6 cilindros con modelo 2lt",
+          "payload_hash": "a22ba54f6dddea405574fe85ddd796f3eff12743bb70d44948e92f199733f5c7",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-01",
+              "conversationId": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+              "source": "arlington",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+                "ghl_conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+                "channel": "messenger",
+                "status": "partial",
+                "qualification_snapshot": {
+                  "phone": "",
+                  "documents": "",
+                  "real_name": "Gabriel Gonzalez",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+                  "qualification_memory": "real_name: Gabriel Gonzalez",
+                  "missing_qualification": [
+                    "phone",
+                    "vehicle_type",
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "vehicle_type",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "real_name",
+                    "predicted_bot_question": "¿Qué vehículo estás buscando?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": null,
+                "lead_id": "fba1db93-52b4-4f1b-946c-118f1d25ae5f",
+                "canonical_phone": null,
+                "first_name": "Gabriel",
+                "last_name": "Gonzalez",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "9f62d04e-5bff-4d61-8450-ca71c2b999a1",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "direction": "inbound",
+                "body": "Hola, variedad en chevrolet maneja, buesco uno en 4 o 6 cilindros con modelo 2lt",
+                "occurred_at": "2026-09-12T23:33:53.409Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "a22ba54f6dddea405574fe85ddd796f3eff12743bb70d44948e92f199733f5c7",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-02",
+          "conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+          "message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+          "body": "Oh un chevrolet según su anuncio manejan con estética deportiva",
+          "payload_hash": "9004734b396c15d507ebb4a740e07b93b58e7d9b85ed9769914f5b07373dc29d",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-02",
+              "conversationId": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+              "source": "arlington",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+                "ghl_conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+                "channel": "messenger",
+                "status": "partial",
+                "qualification_snapshot": {
+                  "phone": "",
+                  "documents": "",
+                  "real_name": "Gabriel Gonzalez",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "chevrolet según su",
+                  "message_count": 2,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+                  "qualification_memory": "real_name: Gabriel Gonzalez; vehicle: chevrolet según su",
+                  "missing_qualification": [
+                    "phone",
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "down_payment",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "vehicle_type",
+                    "predicted_bot_question": "¿Cuánto tienes para el enganche?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": null,
+                "lead_id": "fba1db93-52b4-4f1b-946c-118f1d25ae5f",
+                "canonical_phone": null,
+                "first_name": "Gabriel",
+                "last_name": "Gonzalez",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "9f62d04e-5bff-4d61-8450-ca71c2b999a1",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "direction": "inbound",
+                "body": "Hola, variedad en chevrolet maneja, buesco uno en 4 o 6 cilindros con modelo 2lt",
+                "occurred_at": "2026-09-12T23:33:53.409Z"
+              },
+              {
+                "id": "cf84327e-5989-4e38-a7eb-95ef2abfc0d2",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Oh un chevrolet según su anuncio manejan con estética deportiva",
+                "occurred_at": "2026-09-12T23:36:25.858Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "a22ba54f6dddea405574fe85ddd796f3eff12743bb70d44948e92f199733f5c7",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "9004734b396c15d507ebb4a740e07b93b58e7d9b85ed9769914f5b07373dc29d",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-03",
+          "conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+          "message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+          "body": "Un suv",
+          "payload_hash": "d4d96c9e33241a83fd11d04a3a1f482970595d006d0053cf2fc751eb6427008f",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-03",
+              "conversationId": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+              "source": "arlington",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+                "ghl_conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+                "channel": "messenger",
+                "status": "partial",
+                "qualification_snapshot": {
+                  "phone": "",
+                  "documents": "",
+                  "real_name": "Gabriel Gonzalez",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "chevrolet según su",
+                  "message_count": 3,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+                  "qualification_memory": "real_name: Gabriel Gonzalez; vehicle: chevrolet según su",
+                  "missing_qualification": [
+                    "phone",
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "down_payment",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "vehicle_type",
+                    "predicted_bot_question": "¿Cuánto tienes para el enganche?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": null,
+                "lead_id": "fba1db93-52b4-4f1b-946c-118f1d25ae5f",
+                "canonical_phone": null,
+                "first_name": "Gabriel",
+                "last_name": "Gonzalez",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "9f62d04e-5bff-4d61-8450-ca71c2b999a1",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "direction": "inbound",
+                "body": "Hola, variedad en chevrolet maneja, buesco uno en 4 o 6 cilindros con modelo 2lt",
+                "occurred_at": "2026-09-12T23:33:53.409Z"
+              },
+              {
+                "id": "cf84327e-5989-4e38-a7eb-95ef2abfc0d2",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Oh un chevrolet según su anuncio manejan con estética deportiva",
+                "occurred_at": "2026-09-12T23:36:25.858Z"
+              },
+              {
+                "id": "4d7eb7cd-3c3f-49ab-b5f8-6dc7d77aabd9",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Un suv",
+                "occurred_at": "2026-09-12T23:37:51.220Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "a22ba54f6dddea405574fe85ddd796f3eff12743bb70d44948e92f199733f5c7",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "9004734b396c15d507ebb4a740e07b93b58e7d9b85ed9769914f5b07373dc29d",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "d4d96c9e33241a83fd11d04a3a1f482970595d006d0053cf2fc751eb6427008f",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-04",
+          "conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+          "message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+          "body": "8642651776",
+          "payload_hash": "fa569ff78662c131ab8699453e63cbd739078973bdc4651be64a0c1c130f3879",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-04",
+              "conversationId": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+              "source": "arlington",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+                "ghl_conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+                "channel": "messenger",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+18642651776",
+                  "documents": "",
+                  "real_name": "Gabriel Gonzalez",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "chevrolet según su",
+                  "message_count": 4,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+                  "qualification_memory": "real_name: Gabriel Gonzalez; vehicle: chevrolet según su",
+                  "missing_qualification": [
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "down_payment",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "vehicle_type",
+                    "predicted_bot_question": "¿Cuánto tienes para el enganche?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T23:38:50.962Z",
+                "lead_id": "fba1db93-52b4-4f1b-946c-118f1d25ae5f",
+                "canonical_phone": "+18642651776",
+                "first_name": "Gabriel",
+                "last_name": "Gonzalez",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "9f62d04e-5bff-4d61-8450-ca71c2b999a1",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "direction": "inbound",
+                "body": "Hola, variedad en chevrolet maneja, buesco uno en 4 o 6 cilindros con modelo 2lt",
+                "occurred_at": "2026-09-12T23:33:53.409Z"
+              },
+              {
+                "id": "cf84327e-5989-4e38-a7eb-95ef2abfc0d2",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Oh un chevrolet según su anuncio manejan con estética deportiva",
+                "occurred_at": "2026-09-12T23:36:25.858Z"
+              },
+              {
+                "id": "4d7eb7cd-3c3f-49ab-b5f8-6dc7d77aabd9",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Un suv",
+                "occurred_at": "2026-09-12T23:37:51.220Z"
+              },
+              {
+                "id": "e0f067ce-5d93-48e7-a5f1-2157a2218619",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "direction": "inbound",
+                "body": "8642651776",
+                "occurred_at": "2026-09-12T23:38:35.962Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "a22ba54f6dddea405574fe85ddd796f3eff12743bb70d44948e92f199733f5c7",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "9004734b396c15d507ebb4a740e07b93b58e7d9b85ed9769914f5b07373dc29d",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "d4d96c9e33241a83fd11d04a3a1f482970595d006d0053cf2fc751eb6427008f",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-04",
+                "status": "processed",
+                "payload_hash": "fa569ff78662c131ab8699453e63cbd739078973bdc4651be64a0c1c130f3879",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-05",
+          "conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+          "message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+          "body": "Es mi numero",
+          "payload_hash": "c863d661f3180a991aaa3ad99cb244666c27867ea74a84921a2213cbbb7142af",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-05",
+              "conversationId": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+              "source": "arlington",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+                "ghl_conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+                "channel": "messenger",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+18642651776",
+                  "documents": "",
+                  "real_name": "Gabriel Gonzalez",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "chevrolet según su",
+                  "message_count": 5,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+                  "qualification_memory": "real_name: Gabriel Gonzalez; vehicle: chevrolet según su",
+                  "missing_qualification": [
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "down_payment",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "vehicle_type",
+                    "predicted_bot_question": "¿Cuánto tienes para el enganche?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T23:38:57.746Z",
+                "lead_id": "fba1db93-52b4-4f1b-946c-118f1d25ae5f",
+                "canonical_phone": "+18642651776",
+                "first_name": "Gabriel",
+                "last_name": "Gonzalez",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "9f62d04e-5bff-4d61-8450-ca71c2b999a1",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "direction": "inbound",
+                "body": "Hola, variedad en chevrolet maneja, buesco uno en 4 o 6 cilindros con modelo 2lt",
+                "occurred_at": "2026-09-12T23:33:53.409Z"
+              },
+              {
+                "id": "cf84327e-5989-4e38-a7eb-95ef2abfc0d2",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Oh un chevrolet según su anuncio manejan con estética deportiva",
+                "occurred_at": "2026-09-12T23:36:25.858Z"
+              },
+              {
+                "id": "4d7eb7cd-3c3f-49ab-b5f8-6dc7d77aabd9",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Un suv",
+                "occurred_at": "2026-09-12T23:37:51.220Z"
+              },
+              {
+                "id": "e0f067ce-5d93-48e7-a5f1-2157a2218619",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "direction": "inbound",
+                "body": "8642651776",
+                "occurred_at": "2026-09-12T23:38:35.962Z"
+              },
+              {
+                "id": "1064c072-c1ff-4d00-bd96-6c54ae4d114c",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "direction": "inbound",
+                "body": "Es mi numero",
+                "occurred_at": "2026-09-12T23:38:42.746Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "a22ba54f6dddea405574fe85ddd796f3eff12743bb70d44948e92f199733f5c7",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "9004734b396c15d507ebb4a740e07b93b58e7d9b85ed9769914f5b07373dc29d",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "d4d96c9e33241a83fd11d04a3a1f482970595d006d0053cf2fc751eb6427008f",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-04",
+                "status": "processed",
+                "payload_hash": "fa569ff78662c131ab8699453e63cbd739078973bdc4651be64a0c1c130f3879",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-05",
+                "status": "processed",
+                "payload_hash": "c863d661f3180a991aaa3ad99cb244666c27867ea74a84921a2213cbbb7142af",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-06",
+          "conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+          "message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+          "body": "Si me interesa un camaro con paquete 2lt del año no estoy tan especial puede ser 2017 en adelante",
+          "payload_hash": "1ac7dd0f787956c0a2703bf4d163d111de4e74a07235d47b8353df777491db26",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-06",
+              "conversationId": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+              "source": "arlington",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+                "ghl_conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+                "channel": "messenger",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+18642651776",
+                  "documents": "",
+                  "real_name": "Gabriel Gonzalez",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "chevrolet según su",
+                  "message_count": 6,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+                  "qualification_memory": "real_name: Gabriel Gonzalez; vehicle: chevrolet según su",
+                  "missing_qualification": [
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "down_payment",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "vehicle_type",
+                    "predicted_bot_question": "¿Cuánto tienes para el enganche?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T23:39:46.669Z",
+                "lead_id": "fba1db93-52b4-4f1b-946c-118f1d25ae5f",
+                "canonical_phone": "+18642651776",
+                "first_name": "Gabriel",
+                "last_name": "Gonzalez",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "9f62d04e-5bff-4d61-8450-ca71c2b999a1",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "direction": "inbound",
+                "body": "Hola, variedad en chevrolet maneja, buesco uno en 4 o 6 cilindros con modelo 2lt",
+                "occurred_at": "2026-09-12T23:33:53.409Z"
+              },
+              {
+                "id": "cf84327e-5989-4e38-a7eb-95ef2abfc0d2",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Oh un chevrolet según su anuncio manejan con estética deportiva",
+                "occurred_at": "2026-09-12T23:36:25.858Z"
+              },
+              {
+                "id": "4d7eb7cd-3c3f-49ab-b5f8-6dc7d77aabd9",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Un suv",
+                "occurred_at": "2026-09-12T23:37:51.220Z"
+              },
+              {
+                "id": "e0f067ce-5d93-48e7-a5f1-2157a2218619",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "direction": "inbound",
+                "body": "8642651776",
+                "occurred_at": "2026-09-12T23:38:35.962Z"
+              },
+              {
+                "id": "1064c072-c1ff-4d00-bd96-6c54ae4d114c",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "direction": "inbound",
+                "body": "Es mi numero",
+                "occurred_at": "2026-09-12T23:38:42.746Z"
+              },
+              {
+                "id": "f45b153f-80db-4b36-97d6-c12a597d0362",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+                "direction": "inbound",
+                "body": "Si me interesa un camaro con paquete 2lt del año no estoy tan especial puede ser 2017 en adelante",
+                "occurred_at": "2026-09-12T23:39:31.669Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "a22ba54f6dddea405574fe85ddd796f3eff12743bb70d44948e92f199733f5c7",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "9004734b396c15d507ebb4a740e07b93b58e7d9b85ed9769914f5b07373dc29d",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "d4d96c9e33241a83fd11d04a3a1f482970595d006d0053cf2fc751eb6427008f",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-04",
+                "status": "processed",
+                "payload_hash": "fa569ff78662c131ab8699453e63cbd739078973bdc4651be64a0c1c130f3879",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-05",
+                "status": "processed",
+                "payload_hash": "c863d661f3180a991aaa3ad99cb244666c27867ea74a84921a2213cbbb7142af",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-06",
+                "status": "processed",
+                "payload_hash": "1ac7dd0f787956c0a2703bf4d163d111de4e74a07235d47b8353df777491db26",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-07",
+          "conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+          "message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-07",
+          "body": "Claro es lo de menos, igual me gustaria hacer la compra en efectivo",
+          "payload_hash": "f468dacd88f8e954f82b97548422a4a900bcc9ecd84d242cb1e94aea3d0cbb31",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-07",
+              "conversationId": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+              "source": "arlington",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+                "ghl_conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+                "channel": "messenger",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+18642651776",
+                  "documents": "",
+                  "real_name": "Gabriel Gonzalez",
+                  "bank_account": "",
+                  "down_payment": "Cash",
+                  "vehicle_type": "chevrolet según su",
+                  "message_count": 7,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+                  "qualification_memory": "real_name: Gabriel Gonzalez; vehicle: chevrolet según su; down payment: Cash",
+                  "missing_qualification": [
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "purchase_timeline",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "down_payment",
+                    "predicted_bot_question": "¿Cuándo planeas comprar?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T23:40:16.383Z",
+                "lead_id": "fba1db93-52b4-4f1b-946c-118f1d25ae5f",
+                "canonical_phone": "+18642651776",
+                "first_name": "Gabriel",
+                "last_name": "Gonzalez",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "9f62d04e-5bff-4d61-8450-ca71c2b999a1",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "direction": "inbound",
+                "body": "Hola, variedad en chevrolet maneja, buesco uno en 4 o 6 cilindros con modelo 2lt",
+                "occurred_at": "2026-09-12T23:33:53.409Z"
+              },
+              {
+                "id": "cf84327e-5989-4e38-a7eb-95ef2abfc0d2",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Oh un chevrolet según su anuncio manejan con estética deportiva",
+                "occurred_at": "2026-09-12T23:36:25.858Z"
+              },
+              {
+                "id": "4d7eb7cd-3c3f-49ab-b5f8-6dc7d77aabd9",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Un suv",
+                "occurred_at": "2026-09-12T23:37:51.220Z"
+              },
+              {
+                "id": "e0f067ce-5d93-48e7-a5f1-2157a2218619",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "direction": "inbound",
+                "body": "8642651776",
+                "occurred_at": "2026-09-12T23:38:35.962Z"
+              },
+              {
+                "id": "1064c072-c1ff-4d00-bd96-6c54ae4d114c",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "direction": "inbound",
+                "body": "Es mi numero",
+                "occurred_at": "2026-09-12T23:38:42.746Z"
+              },
+              {
+                "id": "f45b153f-80db-4b36-97d6-c12a597d0362",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+                "direction": "inbound",
+                "body": "Si me interesa un camaro con paquete 2lt del año no estoy tan especial puede ser 2017 en adelante",
+                "occurred_at": "2026-09-12T23:39:31.669Z"
+              },
+              {
+                "id": "67c416c7-9f19-466b-981e-95865c0ad61b",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-07",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-07",
+                "direction": "inbound",
+                "body": "Claro es lo de menos, igual me gustaria hacer la compra en efectivo",
+                "occurred_at": "2026-09-12T23:40:01.383Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "a22ba54f6dddea405574fe85ddd796f3eff12743bb70d44948e92f199733f5c7",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "9004734b396c15d507ebb4a740e07b93b58e7d9b85ed9769914f5b07373dc29d",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "d4d96c9e33241a83fd11d04a3a1f482970595d006d0053cf2fc751eb6427008f",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-04",
+                "status": "processed",
+                "payload_hash": "fa569ff78662c131ab8699453e63cbd739078973bdc4651be64a0c1c130f3879",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-05",
+                "status": "processed",
+                "payload_hash": "c863d661f3180a991aaa3ad99cb244666c27867ea74a84921a2213cbbb7142af",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-06",
+                "status": "processed",
+                "payload_hash": "1ac7dd0f787956c0a2703bf4d163d111de4e74a07235d47b8353df777491db26",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-07",
+                "status": "processed",
+                "payload_hash": "f468dacd88f8e954f82b97548422a4a900bcc9ecd84d242cb1e94aea3d0cbb31",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-08",
+          "conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+          "message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-08",
+          "body": "Ps estoy interesado y ver las opciones que tienen y si coincido con alguno lo haria le movimiento en esta semana, igual puedo esperar algunos dias la cosa que me guste el auto",
+          "payload_hash": "2d600505e348a78a99553e9c108b331d77865e376c04c68b5a92dbb9b496175e",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-08",
+              "conversationId": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+              "source": "arlington",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+                "ghl_conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+                "channel": "messenger",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+18642651776",
+                  "documents": "",
+                  "real_name": "Gabriel Gonzalez",
+                  "bank_account": "",
+                  "down_payment": "Cash",
+                  "vehicle_type": "chevrolet según su",
+                  "message_count": 8,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+                  "qualification_memory": "real_name: Gabriel Gonzalez; vehicle: chevrolet según su; down payment: Cash; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T23:42:00.804Z",
+                "lead_id": "fba1db93-52b4-4f1b-946c-118f1d25ae5f",
+                "canonical_phone": "+18642651776",
+                "first_name": "Gabriel",
+                "last_name": "Gonzalez",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "9f62d04e-5bff-4d61-8450-ca71c2b999a1",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "direction": "inbound",
+                "body": "Hola, variedad en chevrolet maneja, buesco uno en 4 o 6 cilindros con modelo 2lt",
+                "occurred_at": "2026-09-12T23:33:53.409Z"
+              },
+              {
+                "id": "cf84327e-5989-4e38-a7eb-95ef2abfc0d2",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Oh un chevrolet según su anuncio manejan con estética deportiva",
+                "occurred_at": "2026-09-12T23:36:25.858Z"
+              },
+              {
+                "id": "4d7eb7cd-3c3f-49ab-b5f8-6dc7d77aabd9",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Un suv",
+                "occurred_at": "2026-09-12T23:37:51.220Z"
+              },
+              {
+                "id": "e0f067ce-5d93-48e7-a5f1-2157a2218619",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "direction": "inbound",
+                "body": "8642651776",
+                "occurred_at": "2026-09-12T23:38:35.962Z"
+              },
+              {
+                "id": "1064c072-c1ff-4d00-bd96-6c54ae4d114c",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "direction": "inbound",
+                "body": "Es mi numero",
+                "occurred_at": "2026-09-12T23:38:42.746Z"
+              },
+              {
+                "id": "f45b153f-80db-4b36-97d6-c12a597d0362",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+                "direction": "inbound",
+                "body": "Si me interesa un camaro con paquete 2lt del año no estoy tan especial puede ser 2017 en adelante",
+                "occurred_at": "2026-09-12T23:39:31.669Z"
+              },
+              {
+                "id": "67c416c7-9f19-466b-981e-95865c0ad61b",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-07",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-07",
+                "direction": "inbound",
+                "body": "Claro es lo de menos, igual me gustaria hacer la compra en efectivo",
+                "occurred_at": "2026-09-12T23:40:01.383Z"
+              },
+              {
+                "id": "7ac31352-5728-461b-8c5c-88e4c8911d07",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-08",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-08",
+                "direction": "inbound",
+                "body": "Ps estoy interesado y ver las opciones que tienen y si coincido con alguno lo haria le movimiento en esta semana, igual puedo esperar algunos dias la cosa que me guste el auto",
+                "occurred_at": "2026-09-12T23:41:45.804Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "a22ba54f6dddea405574fe85ddd796f3eff12743bb70d44948e92f199733f5c7",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "9004734b396c15d507ebb4a740e07b93b58e7d9b85ed9769914f5b07373dc29d",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "d4d96c9e33241a83fd11d04a3a1f482970595d006d0053cf2fc751eb6427008f",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-04",
+                "status": "processed",
+                "payload_hash": "fa569ff78662c131ab8699453e63cbd739078973bdc4651be64a0c1c130f3879",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-05",
+                "status": "processed",
+                "payload_hash": "c863d661f3180a991aaa3ad99cb244666c27867ea74a84921a2213cbbb7142af",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-06",
+                "status": "processed",
+                "payload_hash": "1ac7dd0f787956c0a2703bf4d163d111de4e74a07235d47b8353df777491db26",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-07",
+                "status": "processed",
+                "payload_hash": "f468dacd88f8e954f82b97548422a4a900bcc9ecd84d242cb1e94aea3d0cbb31",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-08",
+                "status": "processed",
+                "payload_hash": "2d600505e348a78a99553e9c108b331d77865e376c04c68b5a92dbb9b496175e",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-09",
+          "conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+          "message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-09",
+          "body": "Con cheque",
+          "payload_hash": "e43dcffe9536a6212d104e7b28a4a11647f673fbd832864a4f4b685a7557ea91",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-09",
+              "conversationId": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+              "source": "arlington",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+                "ghl_conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+                "channel": "messenger",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+18642651776",
+                  "documents": "",
+                  "real_name": "Gabriel Gonzalez",
+                  "bank_account": "",
+                  "down_payment": "Cash",
+                  "vehicle_type": "chevrolet según su",
+                  "message_count": 9,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+                  "qualification_memory": "real_name: Gabriel Gonzalez; vehicle: chevrolet según su; down payment: Cash; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T23:43:22.959Z",
+                "lead_id": "fba1db93-52b4-4f1b-946c-118f1d25ae5f",
+                "canonical_phone": "+18642651776",
+                "first_name": "Gabriel",
+                "last_name": "Gonzalez",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "9f62d04e-5bff-4d61-8450-ca71c2b999a1",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "direction": "inbound",
+                "body": "Hola, variedad en chevrolet maneja, buesco uno en 4 o 6 cilindros con modelo 2lt",
+                "occurred_at": "2026-09-12T23:33:53.409Z"
+              },
+              {
+                "id": "cf84327e-5989-4e38-a7eb-95ef2abfc0d2",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Oh un chevrolet según su anuncio manejan con estética deportiva",
+                "occurred_at": "2026-09-12T23:36:25.858Z"
+              },
+              {
+                "id": "4d7eb7cd-3c3f-49ab-b5f8-6dc7d77aabd9",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Un suv",
+                "occurred_at": "2026-09-12T23:37:51.220Z"
+              },
+              {
+                "id": "e0f067ce-5d93-48e7-a5f1-2157a2218619",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "direction": "inbound",
+                "body": "8642651776",
+                "occurred_at": "2026-09-12T23:38:35.962Z"
+              },
+              {
+                "id": "1064c072-c1ff-4d00-bd96-6c54ae4d114c",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "direction": "inbound",
+                "body": "Es mi numero",
+                "occurred_at": "2026-09-12T23:38:42.746Z"
+              },
+              {
+                "id": "f45b153f-80db-4b36-97d6-c12a597d0362",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+                "direction": "inbound",
+                "body": "Si me interesa un camaro con paquete 2lt del año no estoy tan especial puede ser 2017 en adelante",
+                "occurred_at": "2026-09-12T23:39:31.669Z"
+              },
+              {
+                "id": "67c416c7-9f19-466b-981e-95865c0ad61b",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-07",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-07",
+                "direction": "inbound",
+                "body": "Claro es lo de menos, igual me gustaria hacer la compra en efectivo",
+                "occurred_at": "2026-09-12T23:40:01.383Z"
+              },
+              {
+                "id": "7ac31352-5728-461b-8c5c-88e4c8911d07",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-08",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-08",
+                "direction": "inbound",
+                "body": "Ps estoy interesado y ver las opciones que tienen y si coincido con alguno lo haria le movimiento en esta semana, igual puedo esperar algunos dias la cosa que me guste el auto",
+                "occurred_at": "2026-09-12T23:41:45.804Z"
+              },
+              {
+                "id": "d5003d6d-dcab-4df6-b8b4-d83d5dde1f2d",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-09",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-09",
+                "direction": "inbound",
+                "body": "Con cheque",
+                "occurred_at": "2026-09-12T23:43:07.959Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "a22ba54f6dddea405574fe85ddd796f3eff12743bb70d44948e92f199733f5c7",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "9004734b396c15d507ebb4a740e07b93b58e7d9b85ed9769914f5b07373dc29d",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "d4d96c9e33241a83fd11d04a3a1f482970595d006d0053cf2fc751eb6427008f",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-04",
+                "status": "processed",
+                "payload_hash": "fa569ff78662c131ab8699453e63cbd739078973bdc4651be64a0c1c130f3879",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-05",
+                "status": "processed",
+                "payload_hash": "c863d661f3180a991aaa3ad99cb244666c27867ea74a84921a2213cbbb7142af",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-06",
+                "status": "processed",
+                "payload_hash": "1ac7dd0f787956c0a2703bf4d163d111de4e74a07235d47b8353df777491db26",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-07",
+                "status": "processed",
+                "payload_hash": "f468dacd88f8e954f82b97548422a4a900bcc9ecd84d242cb1e94aea3d0cbb31",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-08",
+                "status": "processed",
+                "payload_hash": "2d600505e348a78a99553e9c108b331d77865e376c04c68b5a92dbb9b496175e",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-09",
+                "status": "processed",
+                "payload_hash": "e43dcffe9536a6212d104e7b28a4a11647f673fbd832864a4f4b685a7557ea91",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-10",
+          "conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+          "message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-10",
+          "body": "Pero para empezar a obtener información?",
+          "payload_hash": "42188f6e6face0285aa177a0231197631bb8d44e42e0e1f744b0b0c1c86fae82",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-10",
+              "conversationId": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+              "source": "arlington",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+                "ghl_conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+                "channel": "messenger",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+18642651776",
+                  "documents": "",
+                  "real_name": "Gabriel Gonzalez",
+                  "bank_account": "",
+                  "down_payment": "Cash",
+                  "vehicle_type": "chevrolet según su",
+                  "message_count": 10,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+                  "qualification_memory": "real_name: Gabriel Gonzalez; vehicle: chevrolet según su; down payment: Cash; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T23:43:35.693Z",
+                "lead_id": "fba1db93-52b4-4f1b-946c-118f1d25ae5f",
+                "canonical_phone": "+18642651776",
+                "first_name": "Gabriel",
+                "last_name": "Gonzalez",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "9f62d04e-5bff-4d61-8450-ca71c2b999a1",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "direction": "inbound",
+                "body": "Hola, variedad en chevrolet maneja, buesco uno en 4 o 6 cilindros con modelo 2lt",
+                "occurred_at": "2026-09-12T23:33:53.409Z"
+              },
+              {
+                "id": "cf84327e-5989-4e38-a7eb-95ef2abfc0d2",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Oh un chevrolet según su anuncio manejan con estética deportiva",
+                "occurred_at": "2026-09-12T23:36:25.858Z"
+              },
+              {
+                "id": "4d7eb7cd-3c3f-49ab-b5f8-6dc7d77aabd9",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Un suv",
+                "occurred_at": "2026-09-12T23:37:51.220Z"
+              },
+              {
+                "id": "e0f067ce-5d93-48e7-a5f1-2157a2218619",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "direction": "inbound",
+                "body": "8642651776",
+                "occurred_at": "2026-09-12T23:38:35.962Z"
+              },
+              {
+                "id": "1064c072-c1ff-4d00-bd96-6c54ae4d114c",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "direction": "inbound",
+                "body": "Es mi numero",
+                "occurred_at": "2026-09-12T23:38:42.746Z"
+              },
+              {
+                "id": "f45b153f-80db-4b36-97d6-c12a597d0362",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+                "direction": "inbound",
+                "body": "Si me interesa un camaro con paquete 2lt del año no estoy tan especial puede ser 2017 en adelante",
+                "occurred_at": "2026-09-12T23:39:31.669Z"
+              },
+              {
+                "id": "67c416c7-9f19-466b-981e-95865c0ad61b",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-07",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-07",
+                "direction": "inbound",
+                "body": "Claro es lo de menos, igual me gustaria hacer la compra en efectivo",
+                "occurred_at": "2026-09-12T23:40:01.383Z"
+              },
+              {
+                "id": "7ac31352-5728-461b-8c5c-88e4c8911d07",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-08",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-08",
+                "direction": "inbound",
+                "body": "Ps estoy interesado y ver las opciones que tienen y si coincido con alguno lo haria le movimiento en esta semana, igual puedo esperar algunos dias la cosa que me guste el auto",
+                "occurred_at": "2026-09-12T23:41:45.804Z"
+              },
+              {
+                "id": "d5003d6d-dcab-4df6-b8b4-d83d5dde1f2d",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-09",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-09",
+                "direction": "inbound",
+                "body": "Con cheque",
+                "occurred_at": "2026-09-12T23:43:07.959Z"
+              },
+              {
+                "id": "d511c6ce-0ebf-4f70-80a9-df9bad3ddf53",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-10",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-10",
+                "direction": "inbound",
+                "body": "Pero para empezar a obtener información?",
+                "occurred_at": "2026-09-12T23:43:20.693Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "a22ba54f6dddea405574fe85ddd796f3eff12743bb70d44948e92f199733f5c7",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "9004734b396c15d507ebb4a740e07b93b58e7d9b85ed9769914f5b07373dc29d",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "d4d96c9e33241a83fd11d04a3a1f482970595d006d0053cf2fc751eb6427008f",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-04",
+                "status": "processed",
+                "payload_hash": "fa569ff78662c131ab8699453e63cbd739078973bdc4651be64a0c1c130f3879",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-05",
+                "status": "processed",
+                "payload_hash": "c863d661f3180a991aaa3ad99cb244666c27867ea74a84921a2213cbbb7142af",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-06",
+                "status": "processed",
+                "payload_hash": "1ac7dd0f787956c0a2703bf4d163d111de4e74a07235d47b8353df777491db26",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-07",
+                "status": "processed",
+                "payload_hash": "f468dacd88f8e954f82b97548422a4a900bcc9ecd84d242cb1e94aea3d0cbb31",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-08",
+                "status": "processed",
+                "payload_hash": "2d600505e348a78a99553e9c108b331d77865e376c04c68b5a92dbb9b496175e",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-09",
+                "status": "processed",
+                "payload_hash": "e43dcffe9536a6212d104e7b28a4a11647f673fbd832864a4f4b685a7557ea91",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-10",
+                "status": "processed",
+                "payload_hash": "42188f6e6face0285aa177a0231197631bb8d44e42e0e1f744b0b0c1c86fae82",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-11",
+          "conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+          "message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-11",
+          "body": "Sobre los vehiculos o tambien pueden conseguirlos si en caso lo\nDescribiera ?",
+          "payload_hash": "b165700cd3ab7ed9104ff85ea591cba0b18e4e95d0a1766e00916c6ec4f4e053",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-11",
+              "conversationId": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+              "source": "arlington",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+                "ghl_conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+                "channel": "messenger",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+18642651776",
+                  "documents": "",
+                  "real_name": "Gabriel Gonzalez",
+                  "bank_account": "",
+                  "down_payment": "Cash",
+                  "vehicle_type": "chevrolet según su",
+                  "message_count": 11,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+                  "qualification_memory": "real_name: Gabriel Gonzalez; vehicle: chevrolet según su; down payment: Cash; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T23:44:03.539Z",
+                "lead_id": "fba1db93-52b4-4f1b-946c-118f1d25ae5f",
+                "canonical_phone": "+18642651776",
+                "first_name": "Gabriel",
+                "last_name": "Gonzalez",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "9f62d04e-5bff-4d61-8450-ca71c2b999a1",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "direction": "inbound",
+                "body": "Hola, variedad en chevrolet maneja, buesco uno en 4 o 6 cilindros con modelo 2lt",
+                "occurred_at": "2026-09-12T23:33:53.409Z"
+              },
+              {
+                "id": "cf84327e-5989-4e38-a7eb-95ef2abfc0d2",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Oh un chevrolet según su anuncio manejan con estética deportiva",
+                "occurred_at": "2026-09-12T23:36:25.858Z"
+              },
+              {
+                "id": "4d7eb7cd-3c3f-49ab-b5f8-6dc7d77aabd9",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Un suv",
+                "occurred_at": "2026-09-12T23:37:51.220Z"
+              },
+              {
+                "id": "e0f067ce-5d93-48e7-a5f1-2157a2218619",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "direction": "inbound",
+                "body": "8642651776",
+                "occurred_at": "2026-09-12T23:38:35.962Z"
+              },
+              {
+                "id": "1064c072-c1ff-4d00-bd96-6c54ae4d114c",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "direction": "inbound",
+                "body": "Es mi numero",
+                "occurred_at": "2026-09-12T23:38:42.746Z"
+              },
+              {
+                "id": "f45b153f-80db-4b36-97d6-c12a597d0362",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+                "direction": "inbound",
+                "body": "Si me interesa un camaro con paquete 2lt del año no estoy tan especial puede ser 2017 en adelante",
+                "occurred_at": "2026-09-12T23:39:31.669Z"
+              },
+              {
+                "id": "67c416c7-9f19-466b-981e-95865c0ad61b",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-07",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-07",
+                "direction": "inbound",
+                "body": "Claro es lo de menos, igual me gustaria hacer la compra en efectivo",
+                "occurred_at": "2026-09-12T23:40:01.383Z"
+              },
+              {
+                "id": "7ac31352-5728-461b-8c5c-88e4c8911d07",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-08",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-08",
+                "direction": "inbound",
+                "body": "Ps estoy interesado y ver las opciones que tienen y si coincido con alguno lo haria le movimiento en esta semana, igual puedo esperar algunos dias la cosa que me guste el auto",
+                "occurred_at": "2026-09-12T23:41:45.804Z"
+              },
+              {
+                "id": "d5003d6d-dcab-4df6-b8b4-d83d5dde1f2d",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-09",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-09",
+                "direction": "inbound",
+                "body": "Con cheque",
+                "occurred_at": "2026-09-12T23:43:07.959Z"
+              },
+              {
+                "id": "d511c6ce-0ebf-4f70-80a9-df9bad3ddf53",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-10",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-10",
+                "direction": "inbound",
+                "body": "Pero para empezar a obtener información?",
+                "occurred_at": "2026-09-12T23:43:20.693Z"
+              },
+              {
+                "id": "44982ff4-127c-4d88-aed9-f627ea73d2f8",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-11",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-11",
+                "direction": "inbound",
+                "body": "Sobre los vehiculos o tambien pueden conseguirlos si en caso lo\nDescribiera ?",
+                "occurred_at": "2026-09-12T23:43:48.539Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "a22ba54f6dddea405574fe85ddd796f3eff12743bb70d44948e92f199733f5c7",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "9004734b396c15d507ebb4a740e07b93b58e7d9b85ed9769914f5b07373dc29d",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "d4d96c9e33241a83fd11d04a3a1f482970595d006d0053cf2fc751eb6427008f",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-04",
+                "status": "processed",
+                "payload_hash": "fa569ff78662c131ab8699453e63cbd739078973bdc4651be64a0c1c130f3879",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-05",
+                "status": "processed",
+                "payload_hash": "c863d661f3180a991aaa3ad99cb244666c27867ea74a84921a2213cbbb7142af",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-06",
+                "status": "processed",
+                "payload_hash": "1ac7dd0f787956c0a2703bf4d163d111de4e74a07235d47b8353df777491db26",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-07",
+                "status": "processed",
+                "payload_hash": "f468dacd88f8e954f82b97548422a4a900bcc9ecd84d242cb1e94aea3d0cbb31",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-08",
+                "status": "processed",
+                "payload_hash": "2d600505e348a78a99553e9c108b331d77865e376c04c68b5a92dbb9b496175e",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-09",
+                "status": "processed",
+                "payload_hash": "e43dcffe9536a6212d104e7b28a4a11647f673fbd832864a4f4b685a7557ea91",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-10",
+                "status": "processed",
+                "payload_hash": "42188f6e6face0285aa177a0231197631bb8d44e42e0e1f744b0b0c1c86fae82",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-11",
+                "status": "processed",
+                "payload_hash": "b165700cd3ab7ed9104ff85ea591cba0b18e4e95d0a1766e00916c6ec4f4e053",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-12",
+          "conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+          "message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-12",
+          "body": "Msip claro",
+          "payload_hash": "46d624ffc7f2a23374ac20c627b334ad953dd4976e3e0e1ec00b8c37affb52d6",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-12",
+              "conversationId": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+              "source": "arlington",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+                "ghl_conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+                "channel": "messenger",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+18642651776",
+                  "documents": "",
+                  "real_name": "Gabriel Gonzalez",
+                  "bank_account": "",
+                  "down_payment": "Cash",
+                  "vehicle_type": "chevrolet según su",
+                  "message_count": 12,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+                  "qualification_memory": "real_name: Gabriel Gonzalez; vehicle: chevrolet según su; down payment: Cash; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T23:44:26.469Z",
+                "lead_id": "fba1db93-52b4-4f1b-946c-118f1d25ae5f",
+                "canonical_phone": "+18642651776",
+                "first_name": "Gabriel",
+                "last_name": "Gonzalez",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "9f62d04e-5bff-4d61-8450-ca71c2b999a1",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "direction": "inbound",
+                "body": "Hola, variedad en chevrolet maneja, buesco uno en 4 o 6 cilindros con modelo 2lt",
+                "occurred_at": "2026-09-12T23:33:53.409Z"
+              },
+              {
+                "id": "cf84327e-5989-4e38-a7eb-95ef2abfc0d2",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Oh un chevrolet según su anuncio manejan con estética deportiva",
+                "occurred_at": "2026-09-12T23:36:25.858Z"
+              },
+              {
+                "id": "4d7eb7cd-3c3f-49ab-b5f8-6dc7d77aabd9",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Un suv",
+                "occurred_at": "2026-09-12T23:37:51.220Z"
+              },
+              {
+                "id": "e0f067ce-5d93-48e7-a5f1-2157a2218619",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "direction": "inbound",
+                "body": "8642651776",
+                "occurred_at": "2026-09-12T23:38:35.962Z"
+              },
+              {
+                "id": "1064c072-c1ff-4d00-bd96-6c54ae4d114c",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "direction": "inbound",
+                "body": "Es mi numero",
+                "occurred_at": "2026-09-12T23:38:42.746Z"
+              },
+              {
+                "id": "f45b153f-80db-4b36-97d6-c12a597d0362",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+                "direction": "inbound",
+                "body": "Si me interesa un camaro con paquete 2lt del año no estoy tan especial puede ser 2017 en adelante",
+                "occurred_at": "2026-09-12T23:39:31.669Z"
+              },
+              {
+                "id": "67c416c7-9f19-466b-981e-95865c0ad61b",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-07",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-07",
+                "direction": "inbound",
+                "body": "Claro es lo de menos, igual me gustaria hacer la compra en efectivo",
+                "occurred_at": "2026-09-12T23:40:01.383Z"
+              },
+              {
+                "id": "7ac31352-5728-461b-8c5c-88e4c8911d07",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-08",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-08",
+                "direction": "inbound",
+                "body": "Ps estoy interesado y ver las opciones que tienen y si coincido con alguno lo haria le movimiento en esta semana, igual puedo esperar algunos dias la cosa que me guste el auto",
+                "occurred_at": "2026-09-12T23:41:45.804Z"
+              },
+              {
+                "id": "d5003d6d-dcab-4df6-b8b4-d83d5dde1f2d",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-09",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-09",
+                "direction": "inbound",
+                "body": "Con cheque",
+                "occurred_at": "2026-09-12T23:43:07.959Z"
+              },
+              {
+                "id": "d511c6ce-0ebf-4f70-80a9-df9bad3ddf53",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-10",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-10",
+                "direction": "inbound",
+                "body": "Pero para empezar a obtener información?",
+                "occurred_at": "2026-09-12T23:43:20.693Z"
+              },
+              {
+                "id": "44982ff4-127c-4d88-aed9-f627ea73d2f8",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-11",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-11",
+                "direction": "inbound",
+                "body": "Sobre los vehiculos o tambien pueden conseguirlos si en caso lo\nDescribiera ?",
+                "occurred_at": "2026-09-12T23:43:48.539Z"
+              },
+              {
+                "id": "9e6e6fc7-5a7b-4ed0-84ef-cb70ef177022",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-12",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-12",
+                "direction": "inbound",
+                "body": "Msip claro",
+                "occurred_at": "2026-09-12T23:44:11.469Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "a22ba54f6dddea405574fe85ddd796f3eff12743bb70d44948e92f199733f5c7",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "9004734b396c15d507ebb4a740e07b93b58e7d9b85ed9769914f5b07373dc29d",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "d4d96c9e33241a83fd11d04a3a1f482970595d006d0053cf2fc751eb6427008f",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-04",
+                "status": "processed",
+                "payload_hash": "fa569ff78662c131ab8699453e63cbd739078973bdc4651be64a0c1c130f3879",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-05",
+                "status": "processed",
+                "payload_hash": "c863d661f3180a991aaa3ad99cb244666c27867ea74a84921a2213cbbb7142af",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-06",
+                "status": "processed",
+                "payload_hash": "1ac7dd0f787956c0a2703bf4d163d111de4e74a07235d47b8353df777491db26",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-07",
+                "status": "processed",
+                "payload_hash": "f468dacd88f8e954f82b97548422a4a900bcc9ecd84d242cb1e94aea3d0cbb31",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-08",
+                "status": "processed",
+                "payload_hash": "2d600505e348a78a99553e9c108b331d77865e376c04c68b5a92dbb9b496175e",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-09",
+                "status": "processed",
+                "payload_hash": "e43dcffe9536a6212d104e7b28a4a11647f673fbd832864a4f4b685a7557ea91",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-10",
+                "status": "processed",
+                "payload_hash": "42188f6e6face0285aa177a0231197631bb8d44e42e0e1f744b0b0c1c86fae82",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-11",
+                "status": "processed",
+                "payload_hash": "b165700cd3ab7ed9104ff85ea591cba0b18e4e95d0a1766e00916c6ec4f4e053",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-12",
+                "status": "processed",
+                "payload_hash": "46d624ffc7f2a23374ac20c627b334ad953dd4976e3e0e1ec00b8c37affb52d6",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-13",
+          "conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+          "message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-13",
+          "body": "Perfecto, gracias…",
+          "payload_hash": "19e3e2deb6a3baef4e747adaac020f075a1d42ec508c04455371a803965bed40",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-13",
+              "conversationId": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+              "source": "arlington",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+                "ghl_conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+                "channel": "messenger",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+18642651776",
+                  "documents": "",
+                  "real_name": "Gabriel Gonzalez",
+                  "bank_account": "",
+                  "down_payment": "Cash",
+                  "vehicle_type": "chevrolet según su",
+                  "message_count": 13,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+                  "qualification_memory": "real_name: Gabriel Gonzalez; vehicle: chevrolet según su; down payment: Cash; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T23:51:13.343Z",
+                "lead_id": "fba1db93-52b4-4f1b-946c-118f1d25ae5f",
+                "canonical_phone": "+18642651776",
+                "first_name": "Gabriel",
+                "last_name": "Gonzalez",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "9f62d04e-5bff-4d61-8450-ca71c2b999a1",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "direction": "inbound",
+                "body": "Hola, variedad en chevrolet maneja, buesco uno en 4 o 6 cilindros con modelo 2lt",
+                "occurred_at": "2026-09-12T23:33:53.409Z"
+              },
+              {
+                "id": "cf84327e-5989-4e38-a7eb-95ef2abfc0d2",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Oh un chevrolet según su anuncio manejan con estética deportiva",
+                "occurred_at": "2026-09-12T23:36:25.858Z"
+              },
+              {
+                "id": "4d7eb7cd-3c3f-49ab-b5f8-6dc7d77aabd9",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Un suv",
+                "occurred_at": "2026-09-12T23:37:51.220Z"
+              },
+              {
+                "id": "e0f067ce-5d93-48e7-a5f1-2157a2218619",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "direction": "inbound",
+                "body": "8642651776",
+                "occurred_at": "2026-09-12T23:38:35.962Z"
+              },
+              {
+                "id": "1064c072-c1ff-4d00-bd96-6c54ae4d114c",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "direction": "inbound",
+                "body": "Es mi numero",
+                "occurred_at": "2026-09-12T23:38:42.746Z"
+              },
+              {
+                "id": "f45b153f-80db-4b36-97d6-c12a597d0362",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+                "direction": "inbound",
+                "body": "Si me interesa un camaro con paquete 2lt del año no estoy tan especial puede ser 2017 en adelante",
+                "occurred_at": "2026-09-12T23:39:31.669Z"
+              },
+              {
+                "id": "67c416c7-9f19-466b-981e-95865c0ad61b",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-07",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-07",
+                "direction": "inbound",
+                "body": "Claro es lo de menos, igual me gustaria hacer la compra en efectivo",
+                "occurred_at": "2026-09-12T23:40:01.383Z"
+              },
+              {
+                "id": "7ac31352-5728-461b-8c5c-88e4c8911d07",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-08",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-08",
+                "direction": "inbound",
+                "body": "Ps estoy interesado y ver las opciones que tienen y si coincido con alguno lo haria le movimiento en esta semana, igual puedo esperar algunos dias la cosa que me guste el auto",
+                "occurred_at": "2026-09-12T23:41:45.804Z"
+              },
+              {
+                "id": "d5003d6d-dcab-4df6-b8b4-d83d5dde1f2d",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-09",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-09",
+                "direction": "inbound",
+                "body": "Con cheque",
+                "occurred_at": "2026-09-12T23:43:07.959Z"
+              },
+              {
+                "id": "d511c6ce-0ebf-4f70-80a9-df9bad3ddf53",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-10",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-10",
+                "direction": "inbound",
+                "body": "Pero para empezar a obtener información?",
+                "occurred_at": "2026-09-12T23:43:20.693Z"
+              },
+              {
+                "id": "44982ff4-127c-4d88-aed9-f627ea73d2f8",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-11",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-11",
+                "direction": "inbound",
+                "body": "Sobre los vehiculos o tambien pueden conseguirlos si en caso lo\nDescribiera ?",
+                "occurred_at": "2026-09-12T23:43:48.539Z"
+              },
+              {
+                "id": "9e6e6fc7-5a7b-4ed0-84ef-cb70ef177022",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-12",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-12",
+                "direction": "inbound",
+                "body": "Msip claro",
+                "occurred_at": "2026-09-12T23:44:11.469Z"
+              },
+              {
+                "id": "a6c85a51-794b-44a9-96cb-fd73dbce11f2",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-13",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-13",
+                "direction": "inbound",
+                "body": "Perfecto, gracias…",
+                "occurred_at": "2026-09-12T23:50:58.343Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "a22ba54f6dddea405574fe85ddd796f3eff12743bb70d44948e92f199733f5c7",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "9004734b396c15d507ebb4a740e07b93b58e7d9b85ed9769914f5b07373dc29d",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "d4d96c9e33241a83fd11d04a3a1f482970595d006d0053cf2fc751eb6427008f",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-04",
+                "status": "processed",
+                "payload_hash": "fa569ff78662c131ab8699453e63cbd739078973bdc4651be64a0c1c130f3879",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-05",
+                "status": "processed",
+                "payload_hash": "c863d661f3180a991aaa3ad99cb244666c27867ea74a84921a2213cbbb7142af",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-06",
+                "status": "processed",
+                "payload_hash": "1ac7dd0f787956c0a2703bf4d163d111de4e74a07235d47b8353df777491db26",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-07",
+                "status": "processed",
+                "payload_hash": "f468dacd88f8e954f82b97548422a4a900bcc9ecd84d242cb1e94aea3d0cbb31",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-08",
+                "status": "processed",
+                "payload_hash": "2d600505e348a78a99553e9c108b331d77865e376c04c68b5a92dbb9b496175e",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-09",
+                "status": "processed",
+                "payload_hash": "e43dcffe9536a6212d104e7b28a4a11647f673fbd832864a4f4b685a7557ea91",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-10",
+                "status": "processed",
+                "payload_hash": "42188f6e6face0285aa177a0231197631bb8d44e42e0e1f744b0b0c1c86fae82",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-11",
+                "status": "processed",
+                "payload_hash": "b165700cd3ab7ed9104ff85ea591cba0b18e4e95d0a1766e00916c6ec4f4e053",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-12",
+                "status": "processed",
+                "payload_hash": "46d624ffc7f2a23374ac20c627b334ad953dd4976e3e0e1ec00b8c37affb52d6",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-13",
+                "status": "processed",
+                "payload_hash": "19e3e2deb6a3baef4e747adaac020f075a1d42ec508c04455371a803965bed40",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-14",
+          "conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+          "message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-14",
+          "body": "Con gusto!",
+          "payload_hash": "be0a03fa71a31200903d896d56df2bd7dc31a1e123a5bbd83641a763777a1760",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-14",
+              "conversationId": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+              "source": "arlington",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+                "ghl_conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+                "channel": "messenger",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+18642651776",
+                  "documents": "",
+                  "real_name": "Gabriel Gonzalez",
+                  "bank_account": "",
+                  "down_payment": "Cash",
+                  "vehicle_type": "chevrolet según su",
+                  "message_count": 14,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+                  "qualification_memory": "real_name: Gabriel Gonzalez; vehicle: chevrolet según su; down payment: Cash; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T23:51:56.927Z",
+                "lead_id": "fba1db93-52b4-4f1b-946c-118f1d25ae5f",
+                "canonical_phone": "+18642651776",
+                "first_name": "Gabriel",
+                "last_name": "Gonzalez",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "9f62d04e-5bff-4d61-8450-ca71c2b999a1",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+                "direction": "inbound",
+                "body": "Hola, variedad en chevrolet maneja, buesco uno en 4 o 6 cilindros con modelo 2lt",
+                "occurred_at": "2026-09-12T23:33:53.409Z"
+              },
+              {
+                "id": "cf84327e-5989-4e38-a7eb-95ef2abfc0d2",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+                "direction": "inbound",
+                "body": "Oh un chevrolet según su anuncio manejan con estética deportiva",
+                "occurred_at": "2026-09-12T23:36:25.858Z"
+              },
+              {
+                "id": "4d7eb7cd-3c3f-49ab-b5f8-6dc7d77aabd9",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+                "direction": "inbound",
+                "body": "Un suv",
+                "occurred_at": "2026-09-12T23:37:51.220Z"
+              },
+              {
+                "id": "e0f067ce-5d93-48e7-a5f1-2157a2218619",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+                "direction": "inbound",
+                "body": "8642651776",
+                "occurred_at": "2026-09-12T23:38:35.962Z"
+              },
+              {
+                "id": "1064c072-c1ff-4d00-bd96-6c54ae4d114c",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+                "direction": "inbound",
+                "body": "Es mi numero",
+                "occurred_at": "2026-09-12T23:38:42.746Z"
+              },
+              {
+                "id": "f45b153f-80db-4b36-97d6-c12a597d0362",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+                "direction": "inbound",
+                "body": "Si me interesa un camaro con paquete 2lt del año no estoy tan especial puede ser 2017 en adelante",
+                "occurred_at": "2026-09-12T23:39:31.669Z"
+              },
+              {
+                "id": "67c416c7-9f19-466b-981e-95865c0ad61b",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-07",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-07",
+                "direction": "inbound",
+                "body": "Claro es lo de menos, igual me gustaria hacer la compra en efectivo",
+                "occurred_at": "2026-09-12T23:40:01.383Z"
+              },
+              {
+                "id": "7ac31352-5728-461b-8c5c-88e4c8911d07",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-08",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-08",
+                "direction": "inbound",
+                "body": "Ps estoy interesado y ver las opciones que tienen y si coincido con alguno lo haria le movimiento en esta semana, igual puedo esperar algunos dias la cosa que me guste el auto",
+                "occurred_at": "2026-09-12T23:41:45.804Z"
+              },
+              {
+                "id": "d5003d6d-dcab-4df6-b8b4-d83d5dde1f2d",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-09",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-09",
+                "direction": "inbound",
+                "body": "Con cheque",
+                "occurred_at": "2026-09-12T23:43:07.959Z"
+              },
+              {
+                "id": "d511c6ce-0ebf-4f70-80a9-df9bad3ddf53",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-10",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-10",
+                "direction": "inbound",
+                "body": "Pero para empezar a obtener información?",
+                "occurred_at": "2026-09-12T23:43:20.693Z"
+              },
+              {
+                "id": "44982ff4-127c-4d88-aed9-f627ea73d2f8",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-11",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-11",
+                "direction": "inbound",
+                "body": "Sobre los vehiculos o tambien pueden conseguirlos si en caso lo\nDescribiera ?",
+                "occurred_at": "2026-09-12T23:43:48.539Z"
+              },
+              {
+                "id": "9e6e6fc7-5a7b-4ed0-84ef-cb70ef177022",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-12",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-12",
+                "direction": "inbound",
+                "body": "Msip claro",
+                "occurred_at": "2026-09-12T23:44:11.469Z"
+              },
+              {
+                "id": "a6c85a51-794b-44a9-96cb-fd73dbce11f2",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-13",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-13",
+                "direction": "inbound",
+                "body": "Perfecto, gracias…",
+                "occurred_at": "2026-09-12T23:50:58.343Z"
+              },
+              {
+                "id": "b981a2a0-fe88-4b09-b0f9-20c98fcfe879",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-14",
+                "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-14",
+                "direction": "inbound",
+                "body": "Con gusto!",
+                "occurred_at": "2026-09-12T23:51:41.927Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-01",
+                "status": "processed",
+                "payload_hash": "a22ba54f6dddea405574fe85ddd796f3eff12743bb70d44948e92f199733f5c7",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-02",
+                "status": "processed",
+                "payload_hash": "9004734b396c15d507ebb4a740e07b93b58e7d9b85ed9769914f5b07373dc29d",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-03",
+                "status": "processed",
+                "payload_hash": "d4d96c9e33241a83fd11d04a3a1f482970595d006d0053cf2fc751eb6427008f",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-04",
+                "status": "processed",
+                "payload_hash": "fa569ff78662c131ab8699453e63cbd739078973bdc4651be64a0c1c130f3879",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-05",
+                "status": "processed",
+                "payload_hash": "c863d661f3180a991aaa3ad99cb244666c27867ea74a84921a2213cbbb7142af",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-06",
+                "status": "processed",
+                "payload_hash": "1ac7dd0f787956c0a2703bf4d163d111de4e74a07235d47b8353df777491db26",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-07",
+                "status": "processed",
+                "payload_hash": "f468dacd88f8e954f82b97548422a4a900bcc9ecd84d242cb1e94aea3d0cbb31",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-08",
+                "status": "processed",
+                "payload_hash": "2d600505e348a78a99553e9c108b331d77865e376c04c68b5a92dbb9b496175e",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-09",
+                "status": "processed",
+                "payload_hash": "e43dcffe9536a6212d104e7b28a4a11647f673fbd832864a4f4b685a7557ea91",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-10",
+                "status": "processed",
+                "payload_hash": "42188f6e6face0285aa177a0231197631bb8d44e42e0e1f744b0b0c1c86fae82",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-11",
+                "status": "processed",
+                "payload_hash": "b165700cd3ab7ed9104ff85ea591cba0b18e4e95d0a1766e00916c6ec4f4e053",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-12",
+                "status": "processed",
+                "payload_hash": "46d624ffc7f2a23374ac20c627b334ad953dd4976e3e0e1ec00b8c37affb52d6",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-13",
+                "status": "processed",
+                "payload_hash": "19e3e2deb6a3baef4e747adaac020f075a1d42ec508c04455371a803965bed40",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-14",
+                "status": "processed",
+                "payload_hash": "be0a03fa71a31200903d896d56df2bd7dc31a1e123a5bbd83641a763777a1760",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        }
+      ],
+      "before": {
+        "state": [],
+        "messages": [],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "poll_response": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      },
+      "after": {
+        "state": [
+          {
+            "conversation_db_id": "3fbcedef-724e-4643-ae75-f1b9ab0164fe",
+            "ghl_conversation_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-conversation",
+            "channel": "messenger",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+18642651776",
+              "documents": "",
+              "real_name": "Gabriel Gonzalez",
+              "bank_account": "",
+              "down_payment": "Cash",
+              "vehicle_type": "chevrolet según su",
+              "message_count": 14,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+              "qualification_memory": "real_name: Gabriel Gonzalez; vehicle: chevrolet según su; down payment: Cash; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "fba1db93-52b4-4f1b-946c-118f1d25ae5f",
+            "canonical_phone": "+18642651776",
+            "first_name": "Gabriel",
+            "last_name": "Gonzalez",
+            "dealer_id": "d4444444-4444-4444-4444-444444444444",
+            "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL arlington source dealer"
+          }
+        ],
+        "messages": [
+          {
+            "id": "9f62d04e-5bff-4d61-8450-ca71c2b999a1",
+            "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+            "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-01",
+            "direction": "inbound",
+            "body": "Hola, variedad en chevrolet maneja, buesco uno en 4 o 6 cilindros con modelo 2lt",
+            "occurred_at": "2026-09-12T23:33:53.409Z"
+          },
+          {
+            "id": "cf84327e-5989-4e38-a7eb-95ef2abfc0d2",
+            "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+            "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-02",
+            "direction": "inbound",
+            "body": "Oh un chevrolet según su anuncio manejan con estética deportiva",
+            "occurred_at": "2026-09-12T23:36:25.858Z"
+          },
+          {
+            "id": "4d7eb7cd-3c3f-49ab-b5f8-6dc7d77aabd9",
+            "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+            "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-03",
+            "direction": "inbound",
+            "body": "Un suv",
+            "occurred_at": "2026-09-12T23:37:51.220Z"
+          },
+          {
+            "id": "e0f067ce-5d93-48e7-a5f1-2157a2218619",
+            "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+            "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-04",
+            "direction": "inbound",
+            "body": "8642651776",
+            "occurred_at": "2026-09-12T23:38:35.962Z"
+          },
+          {
+            "id": "1064c072-c1ff-4d00-bd96-6c54ae4d114c",
+            "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+            "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-05",
+            "direction": "inbound",
+            "body": "Es mi numero",
+            "occurred_at": "2026-09-12T23:38:42.746Z"
+          },
+          {
+            "id": "f45b153f-80db-4b36-97d6-c12a597d0362",
+            "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+            "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-06",
+            "direction": "inbound",
+            "body": "Si me interesa un camaro con paquete 2lt del año no estoy tan especial puede ser 2017 en adelante",
+            "occurred_at": "2026-09-12T23:39:31.669Z"
+          },
+          {
+            "id": "67c416c7-9f19-466b-981e-95865c0ad61b",
+            "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-07",
+            "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-07",
+            "direction": "inbound",
+            "body": "Claro es lo de menos, igual me gustaria hacer la compra en efectivo",
+            "occurred_at": "2026-09-12T23:40:01.383Z"
+          },
+          {
+            "id": "7ac31352-5728-461b-8c5c-88e4c8911d07",
+            "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-08",
+            "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-08",
+            "direction": "inbound",
+            "body": "Ps estoy interesado y ver las opciones que tienen y si coincido con alguno lo haria le movimiento en esta semana, igual puedo esperar algunos dias la cosa que me guste el auto",
+            "occurred_at": "2026-09-12T23:41:45.804Z"
+          },
+          {
+            "id": "d5003d6d-dcab-4df6-b8b4-d83d5dde1f2d",
+            "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-09",
+            "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-09",
+            "direction": "inbound",
+            "body": "Con cheque",
+            "occurred_at": "2026-09-12T23:43:07.959Z"
+          },
+          {
+            "id": "d511c6ce-0ebf-4f70-80a9-df9bad3ddf53",
+            "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-10",
+            "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-10",
+            "direction": "inbound",
+            "body": "Pero para empezar a obtener información?",
+            "occurred_at": "2026-09-12T23:43:20.693Z"
+          },
+          {
+            "id": "44982ff4-127c-4d88-aed9-f627ea73d2f8",
+            "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-11",
+            "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-11",
+            "direction": "inbound",
+            "body": "Sobre los vehiculos o tambien pueden conseguirlos si en caso lo\nDescribiera ?",
+            "occurred_at": "2026-09-12T23:43:48.539Z"
+          },
+          {
+            "id": "9e6e6fc7-5a7b-4ed0-84ef-cb70ef177022",
+            "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-12",
+            "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-12",
+            "direction": "inbound",
+            "body": "Msip claro",
+            "occurred_at": "2026-09-12T23:44:11.469Z"
+          },
+          {
+            "id": "a6c85a51-794b-44a9-96cb-fd73dbce11f2",
+            "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-13",
+            "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-13",
+            "direction": "inbound",
+            "body": "Perfecto, gracias…",
+            "occurred_at": "2026-09-12T23:50:58.343Z"
+          },
+          {
+            "id": "b981a2a0-fe88-4b09-b0f9-20c98fcfe879",
+            "ghl_message_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-14",
+            "dedupe_key": "qa-gabriel-arlington-20260912-gabriel-reproduced-message-14",
+            "direction": "inbound",
+            "body": "Con gusto!",
+            "occurred_at": "2026-09-12T23:51:41.927Z"
+          }
+        ],
+        "events": [
+          {
+            "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-01",
+            "status": "processed",
+            "payload_hash": "a22ba54f6dddea405574fe85ddd796f3eff12743bb70d44948e92f199733f5c7",
+            "error_code": null,
+            "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+          },
+          {
+            "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-02",
+            "status": "processed",
+            "payload_hash": "9004734b396c15d507ebb4a740e07b93b58e7d9b85ed9769914f5b07373dc29d",
+            "error_code": null,
+            "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+          },
+          {
+            "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-03",
+            "status": "processed",
+            "payload_hash": "d4d96c9e33241a83fd11d04a3a1f482970595d006d0053cf2fc751eb6427008f",
+            "error_code": null,
+            "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+          },
+          {
+            "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-04",
+            "status": "processed",
+            "payload_hash": "fa569ff78662c131ab8699453e63cbd739078973bdc4651be64a0c1c130f3879",
+            "error_code": null,
+            "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+          },
+          {
+            "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-05",
+            "status": "processed",
+            "payload_hash": "c863d661f3180a991aaa3ad99cb244666c27867ea74a84921a2213cbbb7142af",
+            "error_code": null,
+            "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+          },
+          {
+            "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-06",
+            "status": "processed",
+            "payload_hash": "1ac7dd0f787956c0a2703bf4d163d111de4e74a07235d47b8353df777491db26",
+            "error_code": null,
+            "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+          },
+          {
+            "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-07",
+            "status": "processed",
+            "payload_hash": "f468dacd88f8e954f82b97548422a4a900bcc9ecd84d242cb1e94aea3d0cbb31",
+            "error_code": null,
+            "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+          },
+          {
+            "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-08",
+            "status": "processed",
+            "payload_hash": "2d600505e348a78a99553e9c108b331d77865e376c04c68b5a92dbb9b496175e",
+            "error_code": null,
+            "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+          },
+          {
+            "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-09",
+            "status": "processed",
+            "payload_hash": "e43dcffe9536a6212d104e7b28a4a11647f673fbd832864a4f4b685a7557ea91",
+            "error_code": null,
+            "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+          },
+          {
+            "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-10",
+            "status": "processed",
+            "payload_hash": "42188f6e6face0285aa177a0231197631bb8d44e42e0e1f744b0b0c1c86fae82",
+            "error_code": null,
+            "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+          },
+          {
+            "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-11",
+            "status": "processed",
+            "payload_hash": "b165700cd3ab7ed9104ff85ea591cba0b18e4e95d0a1766e00916c6ec4f4e053",
+            "error_code": null,
+            "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+          },
+          {
+            "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-12",
+            "status": "processed",
+            "payload_hash": "46d624ffc7f2a23374ac20c627b334ad953dd4976e3e0e1ec00b8c37affb52d6",
+            "error_code": null,
+            "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+          },
+          {
+            "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-13",
+            "status": "processed",
+            "payload_hash": "19e3e2deb6a3baef4e747adaac020f075a1d42ec508c04455371a803965bed40",
+            "error_code": null,
+            "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+          },
+          {
+            "event_id": "qa-gabriel-arlington-20260912-gabriel-reproduced-event-14",
+            "status": "processed",
+            "payload_hash": "be0a03fa71a31200903d896d56df2bd7dc31a1e123a5bbd83641a763777a1760",
+            "error_code": null,
+            "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+          }
+        ],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_before": null,
+      "snapshot_after": {
+        "phone": "+18642651776",
+        "documents": "",
+        "real_name": "Gabriel Gonzalez",
+        "bank_account": "",
+        "down_payment": "Cash",
+        "vehicle_type": "chevrolet según su",
+        "message_count": 14,
+        "identification": "",
+        "purchase_timeline": "this week",
+        "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+        "qualification_memory": "real_name: Gabriel Gonzalez; vehicle: chevrolet según su; down payment: Cash; timeline: this week",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "next_attempt_at": null,
+      "dealer_assigned": [
+        "d4444444-4444-4444-4444-444444444444"
+      ],
+      "routing_reason": [
+        "GHL arlington source dealer"
+      ],
+      "message_ids": [
+        "9f62d04e-5bff-4d61-8450-ca71c2b999a1",
+        "cf84327e-5989-4e38-a7eb-95ef2abfc0d2",
+        "4d7eb7cd-3c3f-49ab-b5f8-6dc7d77aabd9",
+        "e0f067ce-5d93-48e7-a5f1-2157a2218619",
+        "1064c072-c1ff-4d00-bd96-6c54ae4d114c",
+        "f45b153f-80db-4b36-97d6-c12a597d0362",
+        "67c416c7-9f19-466b-981e-95865c0ad61b",
+        "7ac31352-5728-461b-8c5c-88e4c8911d07",
+        "d5003d6d-dcab-4df6-b8b4-d83d5dde1f2d",
+        "d511c6ce-0ebf-4f70-80a9-df9bad3ddf53",
+        "44982ff4-127c-4d88-aed9-f627ea73d2f8",
+        "9e6e6fc7-5a7b-4ed0-84ef-cb70ef177022",
+        "a6c85a51-794b-44a9-96cb-fd73dbce11f2",
+        "b981a2a0-fe88-4b09-b0f9-20c98fcfe879"
+      ],
+      "event_ids": [
+        "qa-gabriel-arlington-20260912-gabriel-reproduced-event-01",
+        "qa-gabriel-arlington-20260912-gabriel-reproduced-event-02",
+        "qa-gabriel-arlington-20260912-gabriel-reproduced-event-03",
+        "qa-gabriel-arlington-20260912-gabriel-reproduced-event-04",
+        "qa-gabriel-arlington-20260912-gabriel-reproduced-event-05",
+        "qa-gabriel-arlington-20260912-gabriel-reproduced-event-06",
+        "qa-gabriel-arlington-20260912-gabriel-reproduced-event-07",
+        "qa-gabriel-arlington-20260912-gabriel-reproduced-event-08",
+        "qa-gabriel-arlington-20260912-gabriel-reproduced-event-09",
+        "qa-gabriel-arlington-20260912-gabriel-reproduced-event-10",
+        "qa-gabriel-arlington-20260912-gabriel-reproduced-event-11",
+        "qa-gabriel-arlington-20260912-gabriel-reproduced-event-12",
+        "qa-gabriel-arlington-20260912-gabriel-reproduced-event-13",
+        "qa-gabriel-arlington-20260912-gabriel-reproduced-event-14"
+      ],
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST",
+      "assertions": {
+        "all_webhooks_accepted": true,
+        "all_events_processed": true,
+        "all_messages_stored": true,
+        "one_conversation": true,
+        "one_lead_dealer_row": true,
+        "lead_identity": true,
+        "phone_normalized": true,
+        "vehicle_correct": false,
+        "down_correct": true,
+        "timeline_correct_and_localized": false,
+        "documents_not_invented": true,
+        "dealer_correct": true,
+        "progress_and_question_present": true,
+        "queued": true
+      },
+      "result": "FAIL"
+    },
+    {
+      "case_id": "qa-gabriel-arlington-20260912-control-corolla",
+      "source": "arlington",
+      "location_id": "9v8zH9Y5eLiiJwZTZDci",
+      "channel": "messenger",
+      "contact_id": "qa-gabriel-arlington-20260912-control-corolla-contact",
+      "conversation_id": "qa-gabriel-arlington-20260912-control-corolla-conversation",
+      "contact_name": "Ana Torres",
+      "phone": "+12405550199",
+      "steps": [
+        {
+          "event_id": "qa-gabriel-arlington-20260912-control-corolla-event-01",
+          "conversation_id": "qa-gabriel-arlington-20260912-control-corolla-conversation",
+          "message_id": "qa-gabriel-arlington-20260912-control-corolla-message-01",
+          "body": "Busco una Toyota Corolla",
+          "payload_hash": "22adff509c3cee3039e87e9a2c29c5364eca6c276066409851f5f1e4b69ba544",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-gabriel-arlington-20260912-control-corolla-event-01",
+              "conversationId": "83afa089-758f-45fb-ba3e-f38be8e089cc",
+              "source": "arlington",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "83afa089-758f-45fb-ba3e-f38be8e089cc",
+                "ghl_conversation_id": "qa-gabriel-arlington-20260912-control-corolla-conversation",
+                "channel": "messenger",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405550199",
+                  "documents": "",
+                  "real_name": "Ana Torres",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "Toyota Corolla",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+                  "qualification_memory": "real_name: Ana Torres; vehicle: Toyota Corolla",
+                  "missing_qualification": [
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "down_payment",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "vehicle_type",
+                    "predicted_bot_question": "¿Cuánto tienes para el enganche?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T23:55:15.000Z",
+                "lead_id": "6939d044-5876-488e-b0ec-70321fc8adbd",
+                "canonical_phone": "+12405550199",
+                "first_name": "Ana",
+                "last_name": "Torres",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "ef249173-3c1e-4817-9702-ec8054b11980",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-control-corolla-message-01",
+                "dedupe_key": "qa-gabriel-arlington-20260912-control-corolla-message-01",
+                "direction": "inbound",
+                "body": "Busco una Toyota Corolla",
+                "occurred_at": "2026-09-12T23:55:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-gabriel-arlington-20260912-control-corolla-event-01",
+                "status": "processed",
+                "payload_hash": "22adff509c3cee3039e87e9a2c29c5364eca6c276066409851f5f1e4b69ba544",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-gabriel-arlington-20260912-control-corolla-event-02",
+          "conversation_id": "qa-gabriel-arlington-20260912-control-corolla-conversation",
+          "message_id": "qa-gabriel-arlington-20260912-control-corolla-message-02",
+          "body": "Tengo 2000 de enganche",
+          "payload_hash": "3cb8b81b9adbcb8ad276100536b8e4e763be7e317c8c09a56b31a132dce84815",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-gabriel-arlington-20260912-control-corolla-event-02",
+              "conversationId": "83afa089-758f-45fb-ba3e-f38be8e089cc",
+              "source": "arlington",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "83afa089-758f-45fb-ba3e-f38be8e089cc",
+                "ghl_conversation_id": "qa-gabriel-arlington-20260912-control-corolla-conversation",
+                "channel": "messenger",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405550199",
+                  "documents": "",
+                  "real_name": "Ana Torres",
+                  "bank_account": "",
+                  "down_payment": "2000",
+                  "vehicle_type": "Toyota Corolla",
+                  "message_count": 2,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+                  "qualification_memory": "real_name: Ana Torres; vehicle: Toyota Corolla; down payment: 2000",
+                  "missing_qualification": [
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "purchase_timeline",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "down_payment",
+                    "predicted_bot_question": "¿Cuándo planeas comprar?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T23:56:15.000Z",
+                "lead_id": "6939d044-5876-488e-b0ec-70321fc8adbd",
+                "canonical_phone": "+12405550199",
+                "first_name": "Ana",
+                "last_name": "Torres",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "ef249173-3c1e-4817-9702-ec8054b11980",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-control-corolla-message-01",
+                "dedupe_key": "qa-gabriel-arlington-20260912-control-corolla-message-01",
+                "direction": "inbound",
+                "body": "Busco una Toyota Corolla",
+                "occurred_at": "2026-09-12T23:55:00.000Z"
+              },
+              {
+                "id": "971f1c54-6811-46be-ba07-3cf114614b44",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-control-corolla-message-02",
+                "dedupe_key": "qa-gabriel-arlington-20260912-control-corolla-message-02",
+                "direction": "inbound",
+                "body": "Tengo 2000 de enganche",
+                "occurred_at": "2026-09-12T23:56:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-gabriel-arlington-20260912-control-corolla-event-01",
+                "status": "processed",
+                "payload_hash": "22adff509c3cee3039e87e9a2c29c5364eca6c276066409851f5f1e4b69ba544",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-control-corolla-event-02",
+                "status": "processed",
+                "payload_hash": "3cb8b81b9adbcb8ad276100536b8e4e763be7e317c8c09a56b31a132dce84815",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-gabriel-arlington-20260912-control-corolla-event-03",
+          "conversation_id": "qa-gabriel-arlington-20260912-control-corolla-conversation",
+          "message_id": "qa-gabriel-arlington-20260912-control-corolla-message-03",
+          "body": "Esta semana",
+          "payload_hash": "05e9d6432394fa62a46e2d36706f9217415048737adaf0ba72174daea1399cf8",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-gabriel-arlington-20260912-control-corolla-event-03",
+              "conversationId": "83afa089-758f-45fb-ba3e-f38be8e089cc",
+              "source": "arlington",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "83afa089-758f-45fb-ba3e-f38be8e089cc",
+                "ghl_conversation_id": "qa-gabriel-arlington-20260912-control-corolla-conversation",
+                "channel": "messenger",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405550199",
+                  "documents": "",
+                  "real_name": "Ana Torres",
+                  "bank_account": "",
+                  "down_payment": "2000",
+                  "vehicle_type": "Toyota Corolla",
+                  "message_count": 3,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+                  "qualification_memory": "real_name: Ana Torres; vehicle: Toyota Corolla; down payment: 2000; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T23:57:15.000Z",
+                "lead_id": "6939d044-5876-488e-b0ec-70321fc8adbd",
+                "canonical_phone": "+12405550199",
+                "first_name": "Ana",
+                "last_name": "Torres",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "ef249173-3c1e-4817-9702-ec8054b11980",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-control-corolla-message-01",
+                "dedupe_key": "qa-gabriel-arlington-20260912-control-corolla-message-01",
+                "direction": "inbound",
+                "body": "Busco una Toyota Corolla",
+                "occurred_at": "2026-09-12T23:55:00.000Z"
+              },
+              {
+                "id": "971f1c54-6811-46be-ba07-3cf114614b44",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-control-corolla-message-02",
+                "dedupe_key": "qa-gabriel-arlington-20260912-control-corolla-message-02",
+                "direction": "inbound",
+                "body": "Tengo 2000 de enganche",
+                "occurred_at": "2026-09-12T23:56:00.000Z"
+              },
+              {
+                "id": "ad4579fa-884c-4f97-87d3-d2bb28481454",
+                "ghl_message_id": "qa-gabriel-arlington-20260912-control-corolla-message-03",
+                "dedupe_key": "qa-gabriel-arlington-20260912-control-corolla-message-03",
+                "direction": "inbound",
+                "body": "Esta semana",
+                "occurred_at": "2026-09-12T23:57:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-gabriel-arlington-20260912-control-corolla-event-01",
+                "status": "processed",
+                "payload_hash": "22adff509c3cee3039e87e9a2c29c5364eca6c276066409851f5f1e4b69ba544",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-control-corolla-event-02",
+                "status": "processed",
+                "payload_hash": "3cb8b81b9adbcb8ad276100536b8e4e763be7e317c8c09a56b31a132dce84815",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              },
+              {
+                "event_id": "qa-gabriel-arlington-20260912-control-corolla-event-03",
+                "status": "processed",
+                "payload_hash": "05e9d6432394fa62a46e2d36706f9217415048737adaf0ba72174daea1399cf8",
+                "error_code": null,
+                "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        }
+      ],
+      "before": {
+        "state": [],
+        "messages": [],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "poll_response": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      },
+      "after": {
+        "state": [
+          {
+            "conversation_db_id": "83afa089-758f-45fb-ba3e-f38be8e089cc",
+            "ghl_conversation_id": "qa-gabriel-arlington-20260912-control-corolla-conversation",
+            "channel": "messenger",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405550199",
+              "documents": "",
+              "real_name": "Ana Torres",
+              "bank_account": "",
+              "down_payment": "2000",
+              "vehicle_type": "Toyota Corolla",
+              "message_count": 3,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+              "qualification_memory": "real_name: Ana Torres; vehicle: Toyota Corolla; down payment: 2000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "6939d044-5876-488e-b0ec-70321fc8adbd",
+            "canonical_phone": "+12405550199",
+            "first_name": "Ana",
+            "last_name": "Torres",
+            "dealer_id": "d4444444-4444-4444-4444-444444444444",
+            "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL arlington source dealer"
+          }
+        ],
+        "messages": [
+          {
+            "id": "ef249173-3c1e-4817-9702-ec8054b11980",
+            "ghl_message_id": "qa-gabriel-arlington-20260912-control-corolla-message-01",
+            "dedupe_key": "qa-gabriel-arlington-20260912-control-corolla-message-01",
+            "direction": "inbound",
+            "body": "Busco una Toyota Corolla",
+            "occurred_at": "2026-09-12T23:55:00.000Z"
+          },
+          {
+            "id": "971f1c54-6811-46be-ba07-3cf114614b44",
+            "ghl_message_id": "qa-gabriel-arlington-20260912-control-corolla-message-02",
+            "dedupe_key": "qa-gabriel-arlington-20260912-control-corolla-message-02",
+            "direction": "inbound",
+            "body": "Tengo 2000 de enganche",
+            "occurred_at": "2026-09-12T23:56:00.000Z"
+          },
+          {
+            "id": "ad4579fa-884c-4f97-87d3-d2bb28481454",
+            "ghl_message_id": "qa-gabriel-arlington-20260912-control-corolla-message-03",
+            "dedupe_key": "qa-gabriel-arlington-20260912-control-corolla-message-03",
+            "direction": "inbound",
+            "body": "Esta semana",
+            "occurred_at": "2026-09-12T23:57:00.000Z"
+          }
+        ],
+        "events": [
+          {
+            "event_id": "qa-gabriel-arlington-20260912-control-corolla-event-01",
+            "status": "processed",
+            "payload_hash": "22adff509c3cee3039e87e9a2c29c5364eca6c276066409851f5f1e4b69ba544",
+            "error_code": null,
+            "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+          },
+          {
+            "event_id": "qa-gabriel-arlington-20260912-control-corolla-event-02",
+            "status": "processed",
+            "payload_hash": "3cb8b81b9adbcb8ad276100536b8e4e763be7e317c8c09a56b31a132dce84815",
+            "error_code": null,
+            "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+          },
+          {
+            "event_id": "qa-gabriel-arlington-20260912-control-corolla-event-03",
+            "status": "processed",
+            "payload_hash": "05e9d6432394fa62a46e2d36706f9217415048737adaf0ba72174daea1399cf8",
+            "error_code": null,
+            "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+          }
+        ],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_before": null,
+      "snapshot_after": {
+        "phone": "+12405550199",
+        "documents": "",
+        "real_name": "Ana Torres",
+        "bank_account": "",
+        "down_payment": "2000",
+        "vehicle_type": "Toyota Corolla",
+        "message_count": 3,
+        "identification": "",
+        "purchase_timeline": "this week",
+        "assigned_dealer_id": "d4444444-4444-4444-4444-444444444444",
+        "qualification_memory": "real_name: Ana Torres; vehicle: Toyota Corolla; down payment: 2000; timeline: this week",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "next_attempt_at": null,
+      "dealer_assigned": [
+        "d4444444-4444-4444-4444-444444444444"
+      ],
+      "routing_reason": [
+        "GHL arlington source dealer"
+      ],
+      "message_ids": [
+        "ef249173-3c1e-4817-9702-ec8054b11980",
+        "971f1c54-6811-46be-ba07-3cf114614b44",
+        "ad4579fa-884c-4f97-87d3-d2bb28481454"
+      ],
+      "event_ids": [
+        "qa-gabriel-arlington-20260912-control-corolla-event-01",
+        "qa-gabriel-arlington-20260912-control-corolla-event-02",
+        "qa-gabriel-arlington-20260912-control-corolla-event-03"
+      ],
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.channel, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n       ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n       ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST",
+      "assertions": {
+        "all_webhooks_accepted": true,
+        "all_events_processed": true,
+        "all_messages_stored": true,
+        "one_conversation": true,
+        "one_lead_dealer_row": true,
+        "lead_identity": true,
+        "phone_normalized": true,
+        "vehicle_correct": true,
+        "down_correct": true,
+        "timeline_correct_and_localized": false,
+        "documents_not_invented": true,
+        "dealer_correct": true,
+        "progress_and_question_present": true,
+        "queued": true
+      },
+      "result": "FAIL"
+    }
+  ],
+  "checks": [
+    {
+      "check": "process_due_2026-09-13T00:00:00.000Z",
+      "response": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    },
+    {
+      "check": "process_due_2026-09-13T00:00:00.000Z",
+      "response": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    }
+  ],
+  "baseline": {
+    "migration": "EasternsLocationRoutingRules1710000021000",
+    "tables": [
+      "conversation_messages",
+      "conversations",
+      "dealer_location_aliases",
+      "dealer_round_robin_state",
+      "dealers",
+      "lead_dealers",
+      "lead_ingestion_batches",
+      "lead_ingestion_rows",
+      "leads",
+      "locations",
+      "migrations",
+      "report_export_history",
+      "webhook_events"
+    ],
+    "dealer": [
+      {
+        "id": "d4444444-4444-4444-4444-444444444444",
+        "name": "Arlington Motors of Woodbridge",
+        "ghl_location_id": "9v8zH9Y5eLiiJwZTZDci"
+      }
+    ]
+  },
+  "summary": {
+    "result": "FAIL",
+    "cases": [
+      {
+        "case_id": "qa-gabriel-arlington-20260912-gabriel-reproduced",
+        "result": "FAIL",
+        "vehicle": "chevrolet según su",
+        "timeline": "this week"
+      },
+      {
+        "case_id": "qa-gabriel-arlington-20260912-control-corolla",
+        "result": "FAIL",
+        "vehicle": "Toyota Corolla",
+        "timeline": "this week"
+      }
+    ]
+  }
+}

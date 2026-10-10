@@ -1,0 +1,4035 @@
+{
+  "run_id": "qa-millersville-easterns-elkton-20260912",
+  "generated_at": "2026-09-12T21:40:38.826Z",
+  "environment": {
+    "api_url": "http://127.0.0.1:3015",
+    "database": "local PostgreSQL in user-provided Docker container",
+    "timezone": "America/Bogota",
+    "secret_printed": false
+  },
+  "baseline": {
+    "locations": [
+      {
+        "name": "Elkton",
+        "normalized_name": "elkton",
+        "state_code": "MD",
+        "easterns_routing_zone": "maryland_laurel"
+      },
+      {
+        "name": "Elkton",
+        "normalized_name": "elkton",
+        "state_code": "VA",
+        "easterns_routing_zone": "virginia"
+      },
+      {
+        "name": "Tacoma",
+        "normalized_name": "tacoma",
+        "state_code": "VA",
+        "easterns_routing_zone": "virginia"
+      }
+    ],
+    "last_baltimore": {
+      "assigned_dealer_id": "d2222222-2222-2222-2222-222222222222",
+      "routing_reason": "Baltimore Overlap: Round-Robin (Previous: Rosedale)"
+    },
+    "last_southern_md": {
+      "assigned_dealer_id": "d3333333-3333-3333-3333-333333333333",
+      "routing_reason": "Southern MD/DC Overlap: Round-Robin (Previous: Laurel)"
+    }
+  },
+  "cases": [
+    {
+      "case_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton",
+      "source": "easterns-millersville",
+      "locationId": "113zMWQlhKKBUu5wOYtR",
+      "phone": "+12405553001",
+      "contactName": "Ana Rivera",
+      "conversationId": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-conversation",
+      "steps": [
+        {
+          "event_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-event-01",
+          "message_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-message-01",
+          "payload_hash": "70bdbbde07efe7a4103874633a9ba62cd9395f158226913af00c5cb5e226d9f5",
+          "body": "Troca, que queria una troca",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-event-01",
+              "conversationId": "3b7424f4-5d10-4118-9457-553e4f0bef45",
+              "source": "easterns-millersville",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "0e4a5ae4-a9e3-4bbe-90ed-57670b83fa33",
+                "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-conversation",
+                "status": "queued",
+                "qualification_snapshot": {
+                  "phone": "+12405553001",
+                  "documents": "",
+                  "real_name": "",
+                  "bank_account": "",
+                  "down_payment": "2000",
+                  "vehicle_type": "truck",
+                  "message_count": 3,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "qualification_memory": "vehicle: truck; down payment: 2000; timeline: this week",
+                  "missing_qualification": [
+                    "real_name",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "real_name",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Cuál es tu nombre completo?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": "Elkton",
+                  "state": "MD",
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": null,
+                "lead_id": "74f64c9e-fbef-4ccf-9270-5d2242a39387",
+                "canonical_phone": "+12405553001",
+                "dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "lead_dealer_status": "pending",
+                "routing_reason": "GHL easterns-millersville source dealer"
+              },
+              {
+                "conversation_db_id": "3b7424f4-5d10-4118-9457-553e4f0bef45",
+                "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-conversation",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405553001",
+                  "documents": "",
+                  "real_name": "Ana Rivera",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "truck",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "qualification_memory": "real_name: Ana Rivera; vehicle: truck",
+                  "missing_qualification": [
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "down_payment",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "vehicle_type",
+                    "predicted_bot_question": "¿Cuánto tienes para el enganche?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T15:00:15.000Z",
+                "lead_id": "c13075b6-7c19-4441-afe5-393ea07b8b9d",
+                "canonical_phone": "+12405553001",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "177d2437-4cbe-44a1-871f-6ab09936ad75",
+                "ghl_message_id": "undefined-message-01",
+                "body": "Troca, que queria una troca",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              },
+              {
+                "id": "015361df-74d9-4dfa-9c42-11f74a6f3e75",
+                "ghl_message_id": "undefined-message-02",
+                "body": "Vivo en Elkton MD",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              },
+              {
+                "id": "21406419-5d37-4f14-8f83-268ba5d2697b",
+                "ghl_message_id": "undefined-message-03",
+                "body": "Me llamo Ana QA, tengo 2000 de enganche y compro esta semana",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-event-01",
+                "status": "processed",
+                "payload_hash": "70bdbbde07efe7a4103874633a9ba62cd9395f158226913af00c5cb5e226d9f5",
+                "error_code": null,
+                "ghl_location_id": "113zMWQlhKKBUu5wOYtR"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-event-02",
+          "message_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-message-02",
+          "payload_hash": "4095233ed8201a8c0239b15e48c1f9617811c6df7fe934f4d28b873bad88a7d4",
+          "body": "Vivo en Elkton MD",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-event-02",
+              "conversationId": "3b7424f4-5d10-4118-9457-553e4f0bef45",
+              "source": "easterns-millersville",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "0e4a5ae4-a9e3-4bbe-90ed-57670b83fa33",
+                "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-conversation",
+                "status": "queued",
+                "qualification_snapshot": {
+                  "phone": "+12405553001",
+                  "documents": "",
+                  "real_name": "",
+                  "bank_account": "",
+                  "down_payment": "2000",
+                  "vehicle_type": "truck",
+                  "message_count": 3,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "qualification_memory": "vehicle: truck; down payment: 2000; timeline: this week",
+                  "missing_qualification": [
+                    "real_name",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "real_name",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Cuál es tu nombre completo?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": "Elkton",
+                  "state": "MD",
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": null,
+                "lead_id": "74f64c9e-fbef-4ccf-9270-5d2242a39387",
+                "canonical_phone": "+12405553001",
+                "dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "lead_dealer_status": "pending",
+                "routing_reason": "GHL easterns-millersville source dealer"
+              },
+              {
+                "conversation_db_id": "3b7424f4-5d10-4118-9457-553e4f0bef45",
+                "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-conversation",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405553001",
+                  "documents": "",
+                  "real_name": "Ana Rivera",
+                  "bank_account": "",
+                  "down_payment": "",
+                  "vehicle_type": "truck",
+                  "message_count": 2,
+                  "identification": "",
+                  "purchase_timeline": "",
+                  "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "qualification_memory": "real_name: Ana Rivera; vehicle: truck",
+                  "missing_qualification": [
+                    "down_payment",
+                    "purchase_timeline",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "down_payment",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "vehicle_type",
+                    "predicted_bot_question": "¿Cuánto tienes para el enganche?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": "Elkton",
+                  "state": "MD",
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T15:00:15.000Z",
+                "lead_id": "c13075b6-7c19-4441-afe5-393ea07b8b9d",
+                "canonical_phone": "+12405553001",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "177d2437-4cbe-44a1-871f-6ab09936ad75",
+                "ghl_message_id": "undefined-message-01",
+                "body": "Troca, que queria una troca",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              },
+              {
+                "id": "015361df-74d9-4dfa-9c42-11f74a6f3e75",
+                "ghl_message_id": "undefined-message-02",
+                "body": "Vivo en Elkton MD",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              },
+              {
+                "id": "21406419-5d37-4f14-8f83-268ba5d2697b",
+                "ghl_message_id": "undefined-message-03",
+                "body": "Me llamo Ana QA, tengo 2000 de enganche y compro esta semana",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-event-01",
+                "status": "processed",
+                "payload_hash": "70bdbbde07efe7a4103874633a9ba62cd9395f158226913af00c5cb5e226d9f5",
+                "error_code": null,
+                "ghl_location_id": "113zMWQlhKKBUu5wOYtR"
+              },
+              {
+                "event_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-event-02",
+                "status": "processed",
+                "payload_hash": "4095233ed8201a8c0239b15e48c1f9617811c6df7fe934f4d28b873bad88a7d4",
+                "error_code": null,
+                "ghl_location_id": "113zMWQlhKKBUu5wOYtR"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        },
+        {
+          "event_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-event-03",
+          "message_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-message-03",
+          "payload_hash": "9a6f3b05d0b009e34a9534232d9f56c1cdfe42e32e5ce5877e2a0d44355e80cb",
+          "body": "Me llamo Ana Rivera, tengo 2000 de enganche y compro esta semana",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-event-03",
+              "conversationId": "3b7424f4-5d10-4118-9457-553e4f0bef45",
+              "source": "easterns-millersville",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "0e4a5ae4-a9e3-4bbe-90ed-57670b83fa33",
+                "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-conversation",
+                "status": "queued",
+                "qualification_snapshot": {
+                  "phone": "+12405553001",
+                  "documents": "",
+                  "real_name": "",
+                  "bank_account": "",
+                  "down_payment": "2000",
+                  "vehicle_type": "truck",
+                  "message_count": 3,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "qualification_memory": "vehicle: truck; down payment: 2000; timeline: this week",
+                  "missing_qualification": [
+                    "real_name",
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": false,
+                  "qualification_progress": {
+                    "step": "real_name",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Cuál es tu nombre completo?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": "Elkton",
+                  "state": "MD",
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": null,
+                "lead_id": "74f64c9e-fbef-4ccf-9270-5d2242a39387",
+                "canonical_phone": "+12405553001",
+                "dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "lead_dealer_status": "pending",
+                "routing_reason": "GHL easterns-millersville source dealer"
+              },
+              {
+                "conversation_db_id": "3b7424f4-5d10-4118-9457-553e4f0bef45",
+                "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-conversation",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405553001",
+                  "documents": "",
+                  "real_name": "Ana Rivera",
+                  "bank_account": "",
+                  "down_payment": "2000",
+                  "vehicle_type": "truck",
+                  "message_count": 3,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "qualification_memory": "real_name: Ana Rivera; vehicle: truck; down payment: 2000; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": "Elkton",
+                  "state": "MD",
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T15:00:15.000Z",
+                "lead_id": "c13075b6-7c19-4441-afe5-393ea07b8b9d",
+                "canonical_phone": "+12405553001",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "177d2437-4cbe-44a1-871f-6ab09936ad75",
+                "ghl_message_id": "undefined-message-01",
+                "body": "Troca, que queria una troca",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              },
+              {
+                "id": "015361df-74d9-4dfa-9c42-11f74a6f3e75",
+                "ghl_message_id": "undefined-message-02",
+                "body": "Vivo en Elkton MD",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              },
+              {
+                "id": "21406419-5d37-4f14-8f83-268ba5d2697b",
+                "ghl_message_id": "undefined-message-03",
+                "body": "Me llamo Ana QA, tengo 2000 de enganche y compro esta semana",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-event-01",
+                "status": "processed",
+                "payload_hash": "70bdbbde07efe7a4103874633a9ba62cd9395f158226913af00c5cb5e226d9f5",
+                "error_code": null,
+                "ghl_location_id": "113zMWQlhKKBUu5wOYtR"
+              },
+              {
+                "event_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-event-02",
+                "status": "processed",
+                "payload_hash": "4095233ed8201a8c0239b15e48c1f9617811c6df7fe934f4d28b873bad88a7d4",
+                "error_code": null,
+                "ghl_location_id": "113zMWQlhKKBUu5wOYtR"
+              },
+              {
+                "event_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-event-03",
+                "status": "processed",
+                "payload_hash": "9a6f3b05d0b009e34a9534232d9f56c1cdfe42e32e5ce5877e2a0d44355e80cb",
+                "error_code": null,
+                "ghl_location_id": "113zMWQlhKKBUu5wOYtR"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        }
+      ],
+      "before": {
+        "state": [
+          {
+            "conversation_db_id": "0e4a5ae4-a9e3-4bbe-90ed-57670b83fa33",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405553001",
+              "documents": "",
+              "real_name": "",
+              "bank_account": "",
+              "down_payment": "2000",
+              "vehicle_type": "truck",
+              "message_count": 3,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+              "qualification_memory": "vehicle: truck; down payment: 2000; timeline: this week",
+              "missing_qualification": [
+                "real_name",
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": false,
+              "qualification_progress": {
+                "step": "real_name",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Cuál es tu nombre completo?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Elkton",
+              "state": "MD",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "74f64c9e-fbef-4ccf-9270-5d2242a39387",
+            "canonical_phone": "+12405553001",
+            "dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL easterns-millersville source dealer"
+          }
+        ],
+        "messages": [
+          {
+            "id": "177d2437-4cbe-44a1-871f-6ab09936ad75",
+            "ghl_message_id": "undefined-message-01",
+            "body": "Troca, que queria una troca",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          },
+          {
+            "id": "015361df-74d9-4dfa-9c42-11f74a6f3e75",
+            "ghl_message_id": "undefined-message-02",
+            "body": "Vivo en Elkton MD",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          },
+          {
+            "id": "21406419-5d37-4f14-8f83-268ba5d2697b",
+            "ghl_message_id": "undefined-message-03",
+            "body": "Me llamo Ana QA, tengo 2000 de enganche y compro esta semana",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "poll_after": {
+        "state": [
+          {
+            "conversation_db_id": "0e4a5ae4-a9e3-4bbe-90ed-57670b83fa33",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405553001",
+              "documents": "",
+              "real_name": "",
+              "bank_account": "",
+              "down_payment": "2000",
+              "vehicle_type": "truck",
+              "message_count": 3,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+              "qualification_memory": "vehicle: truck; down payment: 2000; timeline: this week",
+              "missing_qualification": [
+                "real_name",
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": false,
+              "qualification_progress": {
+                "step": "real_name",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Cuál es tu nombre completo?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Elkton",
+              "state": "MD",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "74f64c9e-fbef-4ccf-9270-5d2242a39387",
+            "canonical_phone": "+12405553001",
+            "dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL easterns-millersville source dealer"
+          },
+          {
+            "conversation_db_id": "3b7424f4-5d10-4118-9457-553e4f0bef45",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405553001",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "2000",
+              "vehicle_type": "truck",
+              "message_count": 3,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: truck; down payment: 2000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Elkton",
+              "state": "MD",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "c13075b6-7c19-4441-afe5-393ea07b8b9d",
+            "canonical_phone": "+12405553001",
+            "dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL easterns-millersville source dealer"
+          }
+        ],
+        "messages": [
+          {
+            "id": "177d2437-4cbe-44a1-871f-6ab09936ad75",
+            "ghl_message_id": "undefined-message-01",
+            "body": "Troca, que queria una troca",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          },
+          {
+            "id": "015361df-74d9-4dfa-9c42-11f74a6f3e75",
+            "ghl_message_id": "undefined-message-02",
+            "body": "Vivo en Elkton MD",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          },
+          {
+            "id": "21406419-5d37-4f14-8f83-268ba5d2697b",
+            "ghl_message_id": "undefined-message-03",
+            "body": "Me llamo Ana QA, tengo 2000 de enganche y compro esta semana",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "after": {
+        "state": [
+          {
+            "conversation_db_id": "0e4a5ae4-a9e3-4bbe-90ed-57670b83fa33",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405553001",
+              "documents": "",
+              "real_name": "",
+              "bank_account": "",
+              "down_payment": "2000",
+              "vehicle_type": "truck",
+              "message_count": 3,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+              "qualification_memory": "vehicle: truck; down payment: 2000; timeline: this week",
+              "missing_qualification": [
+                "real_name",
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": false,
+              "qualification_progress": {
+                "step": "real_name",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Cuál es tu nombre completo?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Elkton",
+              "state": "MD",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "74f64c9e-fbef-4ccf-9270-5d2242a39387",
+            "canonical_phone": "+12405553001",
+            "dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL easterns-millersville source dealer"
+          },
+          {
+            "conversation_db_id": "3b7424f4-5d10-4118-9457-553e4f0bef45",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-troca-elkton-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405553001",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "2000",
+              "vehicle_type": "truck",
+              "message_count": 3,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: truck; down payment: 2000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Elkton",
+              "state": "MD",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "c13075b6-7c19-4441-afe5-393ea07b8b9d",
+            "canonical_phone": "+12405553001",
+            "dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL easterns-millersville source dealer"
+          }
+        ],
+        "messages": [
+          {
+            "id": "177d2437-4cbe-44a1-871f-6ab09936ad75",
+            "ghl_message_id": "undefined-message-01",
+            "body": "Troca, que queria una troca",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          },
+          {
+            "id": "015361df-74d9-4dfa-9c42-11f74a6f3e75",
+            "ghl_message_id": "undefined-message-02",
+            "body": "Vivo en Elkton MD",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          },
+          {
+            "id": "21406419-5d37-4f14-8f83-268ba5d2697b",
+            "ghl_message_id": "undefined-message-03",
+            "body": "Me llamo Ana QA, tengo 2000 de enganche y compro esta semana",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": "queued",
+      "status_after": "queued",
+      "snapshot_after": {
+        "phone": "+12405553001",
+        "documents": "",
+        "real_name": "",
+        "bank_account": "",
+        "down_payment": "2000",
+        "vehicle_type": "truck",
+        "message_count": 3,
+        "identification": "",
+        "purchase_timeline": "this week",
+        "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "qualification_memory": "vehicle: truck; down payment: 2000; timeline: this week",
+        "missing_qualification": [
+          "real_name",
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": false,
+        "qualification_progress": {
+          "step": "real_name",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Cuál es tu nombre completo?"
+        }
+      },
+      "location_snapshot": {
+        "city": "Elkton",
+        "state": "MD",
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+      ],
+      "routing_reason": [
+        "GHL easterns-millersville source dealer",
+        "GHL easterns-millersville source dealer"
+      ],
+      "message_ids": [
+        "177d2437-4cbe-44a1-871f-6ab09936ad75",
+        "015361df-74d9-4dfa-9c42-11f74a6f3e75",
+        "21406419-5d37-4f14-8f83-268ba5d2697b",
+        "177d2437-4cbe-44a1-871f-6ab09936ad75",
+        "015361df-74d9-4dfa-9c42-11f74a6f3e75",
+        "21406419-5d37-4f14-8f83-268ba5d2697b",
+        "177d2437-4cbe-44a1-871f-6ab09936ad75",
+        "015361df-74d9-4dfa-9c42-11f74a6f3e75",
+        "21406419-5d37-4f14-8f83-268ba5d2697b"
+      ],
+      "expected_dealers": [
+        "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+      ],
+      "result": "PASS",
+      "assertions": {
+        "no_tacoma_false_positive": true,
+        "expected_dealer": true,
+        "progress_present_after_poll": true,
+        "vehicle_normalized_to_truck": true,
+        "elkton_md_resolved": true,
+        "no_tacoma_in_location": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    },
+    {
+      "case_id": "qa-millersville-easterns-elkton-20260912-miller-02",
+      "source": "easterns-millersville",
+      "locationId": "113zMWQlhKKBUu5wOYtR",
+      "phone": "+12405553002",
+      "contactName": "Ana Rivera",
+      "conversationId": "qa-millersville-easterns-elkton-20260912-miller-02-conversation",
+      "steps": [
+        {
+          "event_id": "qa-millersville-easterns-elkton-20260912-miller-02-event-01",
+          "message_id": "qa-millersville-easterns-elkton-20260912-miller-02-message-01",
+          "payload_hash": "e360ac02f82ade9745f9a2075f6cca563eff422ee5a1d9f0f723671de014ba9e",
+          "body": "busco un truck, tengo 1000 de enganche y compro esta semana",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-millersville-easterns-elkton-20260912-miller-02-event-01",
+              "conversationId": "23b4dbea-0d6f-4546-b9aa-96a0bd293151",
+              "source": "easterns-millersville",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "23b4dbea-0d6f-4546-b9aa-96a0bd293151",
+                "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-02-conversation",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405553002",
+                  "documents": "",
+                  "real_name": "Ana Rivera",
+                  "bank_account": "",
+                  "down_payment": "1000",
+                  "vehicle_type": "truck",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                  "qualification_memory": "real_name: Ana Rivera; vehicle: truck; down payment: 1000; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T15:00:15.000Z",
+                "lead_id": "bf8fa171-271e-4766-b150-1956345c80e9",
+                "canonical_phone": "+12405553002",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "d9d42712-fa45-4054-a0ef-249bc71a2425",
+                "ghl_message_id": "qa-millersville-easterns-elkton-20260912-miller-02-message-01",
+                "body": "busco un truck, tengo 1000 de enganche y compro esta semana",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-millersville-easterns-elkton-20260912-miller-02-event-01",
+                "status": "processed",
+                "payload_hash": "e360ac02f82ade9745f9a2075f6cca563eff422ee5a1d9f0f723671de014ba9e",
+                "error_code": null,
+                "ghl_location_id": "113zMWQlhKKBUu5wOYtR"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        }
+      ],
+      "before": {
+        "state": [],
+        "messages": [],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "poll_after": {
+        "state": [
+          {
+            "conversation_db_id": "23b4dbea-0d6f-4546-b9aa-96a0bd293151",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-02-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405553002",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "truck",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: truck; down payment: 1000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "bf8fa171-271e-4766-b150-1956345c80e9",
+            "canonical_phone": "+12405553002",
+            "dealer_id": "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            "assigned_dealer_id": "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL easterns-millersville source dealer"
+          }
+        ],
+        "messages": [
+          {
+            "id": "d9d42712-fa45-4054-a0ef-249bc71a2425",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-miller-02-message-01",
+            "body": "busco un truck, tengo 1000 de enganche y compro esta semana",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "after": {
+        "state": [
+          {
+            "conversation_db_id": "23b4dbea-0d6f-4546-b9aa-96a0bd293151",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-02-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405553002",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "truck",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: truck; down payment: 1000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "bf8fa171-271e-4766-b150-1956345c80e9",
+            "canonical_phone": "+12405553002",
+            "dealer_id": "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            "assigned_dealer_id": "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL easterns-millersville source dealer"
+          }
+        ],
+        "messages": [
+          {
+            "id": "d9d42712-fa45-4054-a0ef-249bc71a2425",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-miller-02-message-01",
+            "body": "busco un truck, tengo 1000 de enganche y compro esta semana",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_after": {
+        "phone": "+12405553002",
+        "documents": "",
+        "real_name": "Ana Rivera",
+        "bank_account": "",
+        "down_payment": "1000",
+        "vehicle_type": "truck",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "this week",
+        "assigned_dealer_id": "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+        "qualification_memory": "real_name: Ana Rivera; vehicle: truck; down payment: 1000; timeline: this week",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+      ],
+      "routing_reason": [
+        "GHL easterns-millersville source dealer"
+      ],
+      "message_ids": [
+        "d9d42712-fa45-4054-a0ef-249bc71a2425"
+      ],
+      "expected_dealers": [
+        "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+      ],
+      "result": "PASS",
+      "assertions": {
+        "no_tacoma_false_positive": true,
+        "expected_dealer": true,
+        "progress_present_after_poll": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    },
+    {
+      "case_id": "qa-millersville-easterns-elkton-20260912-miller-03",
+      "source": "easterns-millersville",
+      "locationId": "113zMWQlhKKBUu5wOYtR",
+      "phone": "+12405553003",
+      "contactName": "Ana Rivera",
+      "conversationId": "qa-millersville-easterns-elkton-20260912-miller-03-conversation",
+      "steps": [
+        {
+          "event_id": "qa-millersville-easterns-elkton-20260912-miller-03-event-01",
+          "message_id": "qa-millersville-easterns-elkton-20260912-miller-03-message-01",
+          "payload_hash": "73b99192e791520fbede215286650a3a36323fade44fb59e150b807cdeefc417",
+          "body": "busco un SUV, tengo 2000 de enganche y compro esta semana",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-millersville-easterns-elkton-20260912-miller-03-event-01",
+              "conversationId": "9e8f25da-765d-42d3-becc-eae3e8319389",
+              "source": "easterns-millersville",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "9e8f25da-765d-42d3-becc-eae3e8319389",
+                "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-03-conversation",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405553003",
+                  "documents": "",
+                  "real_name": "Ana Rivera",
+                  "bank_account": "",
+                  "down_payment": "2000",
+                  "vehicle_type": "SUV",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                  "qualification_memory": "real_name: Ana Rivera; vehicle: SUV; down payment: 2000; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T15:00:15.000Z",
+                "lead_id": "4edcdcb2-30ab-497e-97bf-a357609ae541",
+                "canonical_phone": "+12405553003",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "d6ea1d90-8f93-4198-93ea-4e26f94593dc",
+                "ghl_message_id": "qa-millersville-easterns-elkton-20260912-miller-03-message-01",
+                "body": "busco un SUV, tengo 2000 de enganche y compro esta semana",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-millersville-easterns-elkton-20260912-miller-03-event-01",
+                "status": "processed",
+                "payload_hash": "73b99192e791520fbede215286650a3a36323fade44fb59e150b807cdeefc417",
+                "error_code": null,
+                "ghl_location_id": "113zMWQlhKKBUu5wOYtR"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        }
+      ],
+      "before": {
+        "state": [],
+        "messages": [],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "poll_after": {
+        "state": [
+          {
+            "conversation_db_id": "9e8f25da-765d-42d3-becc-eae3e8319389",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-03-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405553003",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "2000",
+              "vehicle_type": "SUV",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: SUV; down payment: 2000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "4edcdcb2-30ab-497e-97bf-a357609ae541",
+            "canonical_phone": "+12405553003",
+            "dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL easterns-millersville source dealer"
+          }
+        ],
+        "messages": [
+          {
+            "id": "d6ea1d90-8f93-4198-93ea-4e26f94593dc",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-miller-03-message-01",
+            "body": "busco un SUV, tengo 2000 de enganche y compro esta semana",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "after": {
+        "state": [
+          {
+            "conversation_db_id": "9e8f25da-765d-42d3-becc-eae3e8319389",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-03-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405553003",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "2000",
+              "vehicle_type": "SUV",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: SUV; down payment: 2000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "4edcdcb2-30ab-497e-97bf-a357609ae541",
+            "canonical_phone": "+12405553003",
+            "dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL easterns-millersville source dealer"
+          }
+        ],
+        "messages": [
+          {
+            "id": "d6ea1d90-8f93-4198-93ea-4e26f94593dc",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-miller-03-message-01",
+            "body": "busco un SUV, tengo 2000 de enganche y compro esta semana",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_after": {
+        "phone": "+12405553003",
+        "documents": "",
+        "real_name": "Ana Rivera",
+        "bank_account": "",
+        "down_payment": "2000",
+        "vehicle_type": "SUV",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "this week",
+        "assigned_dealer_id": "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "qualification_memory": "real_name: Ana Rivera; vehicle: SUV; down payment: 2000; timeline: this week",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+      ],
+      "routing_reason": [
+        "GHL easterns-millersville source dealer"
+      ],
+      "message_ids": [
+        "d6ea1d90-8f93-4198-93ea-4e26f94593dc"
+      ],
+      "expected_dealers": [
+        "eaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+      ],
+      "result": "PASS",
+      "assertions": {
+        "no_tacoma_false_positive": true,
+        "expected_dealer": true,
+        "progress_present_after_poll": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    },
+    {
+      "case_id": "qa-millersville-easterns-elkton-20260912-miller-04",
+      "source": "easterns-millersville",
+      "locationId": "113zMWQlhKKBUu5wOYtR",
+      "phone": "+12405553004",
+      "contactName": "Ana Rivera",
+      "conversationId": "qa-millersville-easterns-elkton-20260912-miller-04-conversation",
+      "steps": [
+        {
+          "event_id": "qa-millersville-easterns-elkton-20260912-miller-04-event-01",
+          "message_id": "qa-millersville-easterns-elkton-20260912-miller-04-message-01",
+          "payload_hash": "e1186cd22415826b1d2c62178cb5a72efed0ae266f66a7356918056de5331d2c",
+          "body": "busco un Mustang, tengo 3000 de enganche y compro esta semana",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-millersville-easterns-elkton-20260912-miller-04-event-01",
+              "conversationId": "2f78c479-296c-4691-bb3b-4325d2d76823",
+              "source": "easterns-millersville",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "2f78c479-296c-4691-bb3b-4325d2d76823",
+                "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-04-conversation",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405553004",
+                  "documents": "",
+                  "real_name": "Ana Rivera",
+                  "bank_account": "",
+                  "down_payment": "3000",
+                  "vehicle_type": "Mustang",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                  "qualification_memory": "real_name: Ana Rivera; vehicle: Mustang; down payment: 3000; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": null,
+                  "state": null,
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T15:00:15.000Z",
+                "lead_id": "287af97a-ee8c-4313-b0c2-a05728a2296d",
+                "canonical_phone": "+12405553004",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "3e035cd4-3345-41a1-bab4-693042337078",
+                "ghl_message_id": "qa-millersville-easterns-elkton-20260912-miller-04-message-01",
+                "body": "busco un Mustang, tengo 3000 de enganche y compro esta semana",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-millersville-easterns-elkton-20260912-miller-04-event-01",
+                "status": "processed",
+                "payload_hash": "e1186cd22415826b1d2c62178cb5a72efed0ae266f66a7356918056de5331d2c",
+                "error_code": null,
+                "ghl_location_id": "113zMWQlhKKBUu5wOYtR"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        }
+      ],
+      "before": {
+        "state": [],
+        "messages": [],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "poll_after": {
+        "state": [
+          {
+            "conversation_db_id": "2f78c479-296c-4691-bb3b-4325d2d76823",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-04-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405553004",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "3000",
+              "vehicle_type": "Mustang",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: Mustang; down payment: 3000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "287af97a-ee8c-4313-b0c2-a05728a2296d",
+            "canonical_phone": "+12405553004",
+            "dealer_id": "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            "assigned_dealer_id": "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL easterns-millersville source dealer"
+          }
+        ],
+        "messages": [
+          {
+            "id": "3e035cd4-3345-41a1-bab4-693042337078",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-miller-04-message-01",
+            "body": "busco un Mustang, tengo 3000 de enganche y compro esta semana",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "after": {
+        "state": [
+          {
+            "conversation_db_id": "2f78c479-296c-4691-bb3b-4325d2d76823",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-miller-04-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405553004",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "3000",
+              "vehicle_type": "Mustang",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: Mustang; down payment: 3000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": null,
+              "state": null,
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "287af97a-ee8c-4313-b0c2-a05728a2296d",
+            "canonical_phone": "+12405553004",
+            "dealer_id": "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            "assigned_dealer_id": "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            "lead_dealer_status": "pending",
+            "routing_reason": "GHL easterns-millersville source dealer"
+          }
+        ],
+        "messages": [
+          {
+            "id": "3e035cd4-3345-41a1-bab4-693042337078",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-miller-04-message-01",
+            "body": "busco un Mustang, tengo 3000 de enganche y compro esta semana",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_after": {
+        "phone": "+12405553004",
+        "documents": "",
+        "real_name": "Ana Rivera",
+        "bank_account": "",
+        "down_payment": "3000",
+        "vehicle_type": "Mustang",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "this week",
+        "assigned_dealer_id": "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+        "qualification_memory": "real_name: Ana Rivera; vehicle: Mustang; down payment: 3000; timeline: this week",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": null,
+        "state": null,
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+      ],
+      "routing_reason": [
+        "GHL easterns-millersville source dealer"
+      ],
+      "message_ids": [
+        "3e035cd4-3345-41a1-bab4-693042337078"
+      ],
+      "expected_dealers": [
+        "ebbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+      ],
+      "result": "PASS",
+      "assertions": {
+        "no_tacoma_false_positive": true,
+        "expected_dealer": true,
+        "progress_present_after_poll": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    },
+    {
+      "case_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-01",
+      "source": "easterns",
+      "locationId": "xN2LSSl62okzv9GnOJPU",
+      "phone": "+12405554005",
+      "contactName": "Ana Rivera",
+      "conversationId": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-01-conversation",
+      "steps": [
+        {
+          "event_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-01-event-01",
+          "message_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-01-message-01",
+          "payload_hash": "bbd136e0b7fbe1bcf635c6972ea9d6c97af05ffc9ced2930b0092e4ad7d92e34",
+          "body": "Busco un truck, tengo 1000 de enganche, compro esta semana. Vivo en Baltimore MD",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-01-event-01",
+              "conversationId": "9a6d07d5-1fa0-4539-8c0b-04df0bc993f3",
+              "source": "easterns",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "9a6d07d5-1fa0-4539-8c0b-04df0bc993f3",
+                "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-01-conversation",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405554005",
+                  "documents": "",
+                  "real_name": "Ana Rivera",
+                  "bank_account": "",
+                  "down_payment": "1000",
+                  "vehicle_type": "truck",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+                  "qualification_memory": "real_name: Ana Rivera; vehicle: truck; down payment: 1000; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": "Baltimore",
+                  "state": "MD",
+                  "zip_code": null,
+                  "easterns_zone": "baltimore"
+                },
+                "next_attempt_at": "2026-09-12T15:00:15.000Z",
+                "lead_id": "f5dd3390-1580-4f48-872f-838cb858db5f",
+                "canonical_phone": "+12405554005",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "20652210-bba8-4ad2-aeb3-f58210bc3250",
+                "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-01-message-01",
+                "body": "Busco un truck, tengo 1000 de enganche, compro esta semana. Vivo en Baltimore MD",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-01-event-01",
+                "status": "processed",
+                "payload_hash": "bbd136e0b7fbe1bcf635c6972ea9d6c97af05ffc9ced2930b0092e4ad7d92e34",
+                "error_code": null,
+                "ghl_location_id": "xN2LSSl62okzv9GnOJPU"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        }
+      ],
+      "before": {
+        "state": [],
+        "messages": [],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "poll_after": {
+        "state": [
+          {
+            "conversation_db_id": "9a6d07d5-1fa0-4539-8c0b-04df0bc993f3",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-01-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405554005",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "truck",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: truck; down payment: 1000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Baltimore",
+              "state": "MD",
+              "zip_code": null,
+              "easterns_zone": "baltimore"
+            },
+            "next_attempt_at": null,
+            "lead_id": "f5dd3390-1580-4f48-872f-838cb858db5f",
+            "canonical_phone": "+12405554005",
+            "dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "lead_dealer_status": "pending",
+            "routing_reason": "Baltimore Overlap: Round-Robin (Previous: Laurel/None)"
+          }
+        ],
+        "messages": [
+          {
+            "id": "20652210-bba8-4ad2-aeb3-f58210bc3250",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-01-message-01",
+            "body": "Busco un truck, tengo 1000 de enganche, compro esta semana. Vivo en Baltimore MD",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "after": {
+        "state": [
+          {
+            "conversation_db_id": "9a6d07d5-1fa0-4539-8c0b-04df0bc993f3",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-01-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405554005",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "truck",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: truck; down payment: 1000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Baltimore",
+              "state": "MD",
+              "zip_code": null,
+              "easterns_zone": "baltimore"
+            },
+            "next_attempt_at": null,
+            "lead_id": "f5dd3390-1580-4f48-872f-838cb858db5f",
+            "canonical_phone": "+12405554005",
+            "dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "lead_dealer_status": "pending",
+            "routing_reason": "Baltimore Overlap: Round-Robin (Previous: Laurel/None)"
+          }
+        ],
+        "messages": [
+          {
+            "id": "20652210-bba8-4ad2-aeb3-f58210bc3250",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-01-message-01",
+            "body": "Busco un truck, tengo 1000 de enganche, compro esta semana. Vivo en Baltimore MD",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_after": {
+        "phone": "+12405554005",
+        "documents": "",
+        "real_name": "Ana Rivera",
+        "bank_account": "",
+        "down_payment": "1000",
+        "vehicle_type": "truck",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "this week",
+        "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+        "qualification_memory": "real_name: Ana Rivera; vehicle: truck; down payment: 1000; timeline: this week",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": "Baltimore",
+        "state": "MD",
+        "zip_code": null,
+        "easterns_zone": "baltimore"
+      },
+      "dealer_assigned": [
+        "d1111111-1111-1111-1111-111111111111"
+      ],
+      "routing_reason": [
+        "Baltimore Overlap: Round-Robin (Previous: Laurel/None)"
+      ],
+      "message_ids": [
+        "20652210-bba8-4ad2-aeb3-f58210bc3250"
+      ],
+      "expected_dealers": [
+        "d1111111-1111-1111-1111-111111111111"
+      ],
+      "result": "PASS",
+      "assertions": {
+        "no_tacoma_false_positive": true,
+        "expected_dealer": true,
+        "progress_present_after_poll": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    },
+    {
+      "case_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-02",
+      "source": "easterns",
+      "locationId": "xN2LSSl62okzv9GnOJPU",
+      "phone": "+12405554006",
+      "contactName": "Ana Rivera",
+      "conversationId": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-02-conversation",
+      "steps": [
+        {
+          "event_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-02-event-01",
+          "message_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-02-message-01",
+          "payload_hash": "01b1a8fdd925064597d73d3b0de7b5e46568eba3ee5bcdf0d461c07666b19937",
+          "body": "Busco un truck, tengo 1000 de enganche, compro esta semana. Vivo en Baltimore MD",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-02-event-01",
+              "conversationId": "af68171a-49b7-4d4f-a40a-76804d3d0d5e",
+              "source": "easterns",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "af68171a-49b7-4d4f-a40a-76804d3d0d5e",
+                "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-02-conversation",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405554006",
+                  "documents": "",
+                  "real_name": "Ana Rivera",
+                  "bank_account": "",
+                  "down_payment": "1000",
+                  "vehicle_type": "truck",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+                  "qualification_memory": "real_name: Ana Rivera; vehicle: truck; down payment: 1000; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": "Baltimore",
+                  "state": "MD",
+                  "zip_code": null,
+                  "easterns_zone": "baltimore"
+                },
+                "next_attempt_at": "2026-09-12T15:00:15.000Z",
+                "lead_id": "b0b36147-25db-4c6c-b8bc-103f3f450daf",
+                "canonical_phone": "+12405554006",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "38c08b41-d928-437a-b4ef-cfad634498db",
+                "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-02-message-01",
+                "body": "Busco un truck, tengo 1000 de enganche, compro esta semana. Vivo en Baltimore MD",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-02-event-01",
+                "status": "processed",
+                "payload_hash": "01b1a8fdd925064597d73d3b0de7b5e46568eba3ee5bcdf0d461c07666b19937",
+                "error_code": null,
+                "ghl_location_id": "xN2LSSl62okzv9GnOJPU"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        }
+      ],
+      "before": {
+        "state": [],
+        "messages": [],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "poll_after": {
+        "state": [
+          {
+            "conversation_db_id": "af68171a-49b7-4d4f-a40a-76804d3d0d5e",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-02-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405554006",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "truck",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: truck; down payment: 1000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Baltimore",
+              "state": "MD",
+              "zip_code": null,
+              "easterns_zone": "baltimore"
+            },
+            "next_attempt_at": null,
+            "lead_id": "b0b36147-25db-4c6c-b8bc-103f3f450daf",
+            "canonical_phone": "+12405554006",
+            "dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "assigned_dealer_id": "d2222222-2222-2222-2222-222222222222",
+            "lead_dealer_status": "pending",
+            "routing_reason": "Baltimore Overlap: Round-Robin (Previous: Rosedale)"
+          }
+        ],
+        "messages": [
+          {
+            "id": "38c08b41-d928-437a-b4ef-cfad634498db",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-02-message-01",
+            "body": "Busco un truck, tengo 1000 de enganche, compro esta semana. Vivo en Baltimore MD",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "after": {
+        "state": [
+          {
+            "conversation_db_id": "af68171a-49b7-4d4f-a40a-76804d3d0d5e",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-02-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405554006",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "truck",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: truck; down payment: 1000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Baltimore",
+              "state": "MD",
+              "zip_code": null,
+              "easterns_zone": "baltimore"
+            },
+            "next_attempt_at": null,
+            "lead_id": "b0b36147-25db-4c6c-b8bc-103f3f450daf",
+            "canonical_phone": "+12405554006",
+            "dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "assigned_dealer_id": "d2222222-2222-2222-2222-222222222222",
+            "lead_dealer_status": "pending",
+            "routing_reason": "Baltimore Overlap: Round-Robin (Previous: Rosedale)"
+          }
+        ],
+        "messages": [
+          {
+            "id": "38c08b41-d928-437a-b4ef-cfad634498db",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-baltimore-02-message-01",
+            "body": "Busco un truck, tengo 1000 de enganche, compro esta semana. Vivo en Baltimore MD",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_after": {
+        "phone": "+12405554006",
+        "documents": "",
+        "real_name": "Ana Rivera",
+        "bank_account": "",
+        "down_payment": "1000",
+        "vehicle_type": "truck",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "this week",
+        "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+        "qualification_memory": "real_name: Ana Rivera; vehicle: truck; down payment: 1000; timeline: this week",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": "Baltimore",
+        "state": "MD",
+        "zip_code": null,
+        "easterns_zone": "baltimore"
+      },
+      "dealer_assigned": [
+        "d2222222-2222-2222-2222-222222222222"
+      ],
+      "routing_reason": [
+        "Baltimore Overlap: Round-Robin (Previous: Rosedale)"
+      ],
+      "message_ids": [
+        "38c08b41-d928-437a-b4ef-cfad634498db"
+      ],
+      "expected_dealers": [
+        "d2222222-2222-2222-2222-222222222222"
+      ],
+      "result": "PASS",
+      "assertions": {
+        "no_tacoma_false_positive": true,
+        "expected_dealer": true,
+        "progress_present_after_poll": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    },
+    {
+      "case_id": "qa-millersville-easterns-elkton-20260912-easterns-new-jersey",
+      "source": "easterns",
+      "locationId": "xN2LSSl62okzv9GnOJPU",
+      "phone": "+12405554007",
+      "contactName": "Ana Rivera",
+      "conversationId": "qa-millersville-easterns-elkton-20260912-easterns-new-jersey-conversation",
+      "steps": [
+        {
+          "event_id": "qa-millersville-easterns-elkton-20260912-easterns-new-jersey-event-01",
+          "message_id": "qa-millersville-easterns-elkton-20260912-easterns-new-jersey-message-01",
+          "payload_hash": "8dd8bcda8a61b3be54c79226073f6f20422165776a77d22291fa95fd859b624f",
+          "body": "Busco un Mustang, tengo 1000 de enganche, compro esta semana. Vivo en Newark NJ",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-millersville-easterns-elkton-20260912-easterns-new-jersey-event-01",
+              "conversationId": "4782e6dc-3592-4269-b9af-2791c6aaf2a2",
+              "source": "easterns",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "4782e6dc-3592-4269-b9af-2791c6aaf2a2",
+                "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-new-jersey-conversation",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405554007",
+                  "documents": "",
+                  "real_name": "Ana Rivera",
+                  "bank_account": "",
+                  "down_payment": "1000",
+                  "vehicle_type": "Mustang",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+                  "qualification_memory": "real_name: Ana Rivera; vehicle: Mustang; down payment: 1000; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": "Newark",
+                  "state": "NJ",
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T15:00:15.000Z",
+                "lead_id": "fdead53a-71fe-4619-b80c-dac1afd70b46",
+                "canonical_phone": "+12405554007",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "6042d735-5f39-4fdc-bfb7-505bd0a269d1",
+                "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-new-jersey-message-01",
+                "body": "Busco un Mustang, tengo 1000 de enganche, compro esta semana. Vivo en Newark NJ",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-millersville-easterns-elkton-20260912-easterns-new-jersey-event-01",
+                "status": "processed",
+                "payload_hash": "8dd8bcda8a61b3be54c79226073f6f20422165776a77d22291fa95fd859b624f",
+                "error_code": null,
+                "ghl_location_id": "xN2LSSl62okzv9GnOJPU"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        }
+      ],
+      "before": {
+        "state": [],
+        "messages": [],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "poll_after": {
+        "state": [
+          {
+            "conversation_db_id": "4782e6dc-3592-4269-b9af-2791c6aaf2a2",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-new-jersey-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405554007",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "Mustang",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: Mustang; down payment: 1000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Newark",
+              "state": "NJ",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "fdead53a-71fe-4619-b80c-dac1afd70b46",
+            "canonical_phone": "+12405554007",
+            "dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "lead_dealer_status": "pending",
+            "routing_reason": "Exclusive Zone: State NJ"
+          }
+        ],
+        "messages": [
+          {
+            "id": "6042d735-5f39-4fdc-bfb7-505bd0a269d1",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-new-jersey-message-01",
+            "body": "Busco un Mustang, tengo 1000 de enganche, compro esta semana. Vivo en Newark NJ",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "after": {
+        "state": [
+          {
+            "conversation_db_id": "4782e6dc-3592-4269-b9af-2791c6aaf2a2",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-new-jersey-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405554007",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "Mustang",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: Mustang; down payment: 1000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Newark",
+              "state": "NJ",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "fdead53a-71fe-4619-b80c-dac1afd70b46",
+            "canonical_phone": "+12405554007",
+            "dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "lead_dealer_status": "pending",
+            "routing_reason": "Exclusive Zone: State NJ"
+          }
+        ],
+        "messages": [
+          {
+            "id": "6042d735-5f39-4fdc-bfb7-505bd0a269d1",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-new-jersey-message-01",
+            "body": "Busco un Mustang, tengo 1000 de enganche, compro esta semana. Vivo en Newark NJ",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_after": {
+        "phone": "+12405554007",
+        "documents": "",
+        "real_name": "Ana Rivera",
+        "bank_account": "",
+        "down_payment": "1000",
+        "vehicle_type": "Mustang",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "this week",
+        "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+        "qualification_memory": "real_name: Ana Rivera; vehicle: Mustang; down payment: 1000; timeline: this week",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": "Newark",
+        "state": "NJ",
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "d1111111-1111-1111-1111-111111111111"
+      ],
+      "routing_reason": [
+        "Exclusive Zone: State NJ"
+      ],
+      "message_ids": [
+        "6042d735-5f39-4fdc-bfb7-505bd0a269d1"
+      ],
+      "expected_dealers": [
+        "d1111111-1111-1111-1111-111111111111"
+      ],
+      "result": "PASS",
+      "assertions": {
+        "no_tacoma_false_positive": true,
+        "expected_dealer": true,
+        "progress_present_after_poll": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    },
+    {
+      "case_id": "qa-millersville-easterns-elkton-20260912-easterns-silver-spring",
+      "source": "easterns",
+      "locationId": "xN2LSSl62okzv9GnOJPU",
+      "phone": "+12405554008",
+      "contactName": "Ana Rivera",
+      "conversationId": "qa-millersville-easterns-elkton-20260912-easterns-silver-spring-conversation",
+      "steps": [
+        {
+          "event_id": "qa-millersville-easterns-elkton-20260912-easterns-silver-spring-event-01",
+          "message_id": "qa-millersville-easterns-elkton-20260912-easterns-silver-spring-message-01",
+          "payload_hash": "487ae1631aa1992c680f9b2ba302246b7548ecb14c02f030a8d8d4cffc313bf4",
+          "body": "Busco un SUV, tengo 1000 de enganche, compro esta semana. Vivo en Silver Spring MD",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-millersville-easterns-elkton-20260912-easterns-silver-spring-event-01",
+              "conversationId": "097adf0c-a4ca-4897-a9a6-680d27786324",
+              "source": "easterns",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "097adf0c-a4ca-4897-a9a6-680d27786324",
+                "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-silver-spring-conversation",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405554008",
+                  "documents": "",
+                  "real_name": "Ana Rivera",
+                  "bank_account": "",
+                  "down_payment": "1000",
+                  "vehicle_type": "SUV",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+                  "qualification_memory": "real_name: Ana Rivera; vehicle: SUV; down payment: 1000; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": "Silver Spring",
+                  "state": "MD",
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T15:00:15.000Z",
+                "lead_id": "881bbe54-c607-4da3-a99d-ade6cfd78fad",
+                "canonical_phone": "+12405554008",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "f52ca328-25db-4769-8624-28e21275997c",
+                "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-silver-spring-message-01",
+                "body": "Busco un SUV, tengo 1000 de enganche, compro esta semana. Vivo en Silver Spring MD",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-millersville-easterns-elkton-20260912-easterns-silver-spring-event-01",
+                "status": "processed",
+                "payload_hash": "487ae1631aa1992c680f9b2ba302246b7548ecb14c02f030a8d8d4cffc313bf4",
+                "error_code": null,
+                "ghl_location_id": "xN2LSSl62okzv9GnOJPU"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        }
+      ],
+      "before": {
+        "state": [],
+        "messages": [],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "poll_after": {
+        "state": [
+          {
+            "conversation_db_id": "097adf0c-a4ca-4897-a9a6-680d27786324",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-silver-spring-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405554008",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "SUV",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: SUV; down payment: 1000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Silver Spring",
+              "state": "MD",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "881bbe54-c607-4da3-a99d-ade6cfd78fad",
+            "canonical_phone": "+12405554008",
+            "dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "assigned_dealer_id": "d2222222-2222-2222-2222-222222222222",
+            "lead_dealer_status": "pending",
+            "routing_reason": "Exclusive Zone: Maryland catalog → Laurel"
+          }
+        ],
+        "messages": [
+          {
+            "id": "f52ca328-25db-4769-8624-28e21275997c",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-silver-spring-message-01",
+            "body": "Busco un SUV, tengo 1000 de enganche, compro esta semana. Vivo en Silver Spring MD",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "after": {
+        "state": [
+          {
+            "conversation_db_id": "097adf0c-a4ca-4897-a9a6-680d27786324",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-silver-spring-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405554008",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "SUV",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: SUV; down payment: 1000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Silver Spring",
+              "state": "MD",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "881bbe54-c607-4da3-a99d-ade6cfd78fad",
+            "canonical_phone": "+12405554008",
+            "dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "assigned_dealer_id": "d2222222-2222-2222-2222-222222222222",
+            "lead_dealer_status": "pending",
+            "routing_reason": "Exclusive Zone: Maryland catalog → Laurel"
+          }
+        ],
+        "messages": [
+          {
+            "id": "f52ca328-25db-4769-8624-28e21275997c",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-silver-spring-message-01",
+            "body": "Busco un SUV, tengo 1000 de enganche, compro esta semana. Vivo en Silver Spring MD",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_after": {
+        "phone": "+12405554008",
+        "documents": "",
+        "real_name": "Ana Rivera",
+        "bank_account": "",
+        "down_payment": "1000",
+        "vehicle_type": "SUV",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "this week",
+        "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+        "qualification_memory": "real_name: Ana Rivera; vehicle: SUV; down payment: 1000; timeline: this week",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": "Silver Spring",
+        "state": "MD",
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "d2222222-2222-2222-2222-222222222222"
+      ],
+      "routing_reason": [
+        "Exclusive Zone: Maryland catalog → Laurel"
+      ],
+      "message_ids": [
+        "f52ca328-25db-4769-8624-28e21275997c"
+      ],
+      "expected_dealers": [
+        "d2222222-2222-2222-2222-222222222222"
+      ],
+      "result": "PASS",
+      "assertions": {
+        "no_tacoma_false_positive": true,
+        "expected_dealer": true,
+        "progress_present_after_poll": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    },
+    {
+      "case_id": "qa-millersville-easterns-elkton-20260912-easterns-washington",
+      "source": "easterns",
+      "locationId": "xN2LSSl62okzv9GnOJPU",
+      "phone": "+12405554009",
+      "contactName": "Ana Rivera",
+      "conversationId": "qa-millersville-easterns-elkton-20260912-easterns-washington-conversation",
+      "steps": [
+        {
+          "event_id": "qa-millersville-easterns-elkton-20260912-easterns-washington-event-01",
+          "message_id": "qa-millersville-easterns-elkton-20260912-easterns-washington-message-01",
+          "payload_hash": "41b8e5be2e52177872ec57ba828e1449111d0d91f560f0577b2b6f13375ee0f7",
+          "body": "Busco un truck, tengo 1000 de enganche, compro esta semana. Vivo en Washington DC",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-millersville-easterns-elkton-20260912-easterns-washington-event-01",
+              "conversationId": "d2406f26-4213-45a3-841d-772bbbb92d27",
+              "source": "easterns",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "d2406f26-4213-45a3-841d-772bbbb92d27",
+                "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-washington-conversation",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405554009",
+                  "documents": "",
+                  "real_name": "Ana Rivera",
+                  "bank_account": "",
+                  "down_payment": "1000",
+                  "vehicle_type": "truck",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+                  "qualification_memory": "real_name: Ana Rivera; vehicle: truck; down payment: 1000; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": "Washington",
+                  "state": "DC",
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T15:00:15.000Z",
+                "lead_id": "b4112d5c-ecbc-4bfc-909b-ad3b3101a5aa",
+                "canonical_phone": "+12405554009",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "b6fdb29b-35cd-4aee-bfb1-e959c3ea76ec",
+                "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-washington-message-01",
+                "body": "Busco un truck, tengo 1000 de enganche, compro esta semana. Vivo en Washington DC",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-millersville-easterns-elkton-20260912-easterns-washington-event-01",
+                "status": "processed",
+                "payload_hash": "41b8e5be2e52177872ec57ba828e1449111d0d91f560f0577b2b6f13375ee0f7",
+                "error_code": null,
+                "ghl_location_id": "xN2LSSl62okzv9GnOJPU"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        }
+      ],
+      "before": {
+        "state": [],
+        "messages": [],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "poll_after": {
+        "state": [
+          {
+            "conversation_db_id": "d2406f26-4213-45a3-841d-772bbbb92d27",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-washington-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405554009",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "truck",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: truck; down payment: 1000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Washington",
+              "state": "DC",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "b4112d5c-ecbc-4bfc-909b-ad3b3101a5aa",
+            "canonical_phone": "+12405554009",
+            "dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "assigned_dealer_id": "d3333333-3333-3333-3333-333333333333",
+            "lead_dealer_status": "pending",
+            "routing_reason": "Exclusive Zone: State District of Columbia"
+          }
+        ],
+        "messages": [
+          {
+            "id": "b6fdb29b-35cd-4aee-bfb1-e959c3ea76ec",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-washington-message-01",
+            "body": "Busco un truck, tengo 1000 de enganche, compro esta semana. Vivo en Washington DC",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "after": {
+        "state": [
+          {
+            "conversation_db_id": "d2406f26-4213-45a3-841d-772bbbb92d27",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-washington-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405554009",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "truck",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: truck; down payment: 1000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Washington",
+              "state": "DC",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "b4112d5c-ecbc-4bfc-909b-ad3b3101a5aa",
+            "canonical_phone": "+12405554009",
+            "dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "assigned_dealer_id": "d3333333-3333-3333-3333-333333333333",
+            "lead_dealer_status": "pending",
+            "routing_reason": "Exclusive Zone: State District of Columbia"
+          }
+        ],
+        "messages": [
+          {
+            "id": "b6fdb29b-35cd-4aee-bfb1-e959c3ea76ec",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-washington-message-01",
+            "body": "Busco un truck, tengo 1000 de enganche, compro esta semana. Vivo en Washington DC",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_after": {
+        "phone": "+12405554009",
+        "documents": "",
+        "real_name": "Ana Rivera",
+        "bank_account": "",
+        "down_payment": "1000",
+        "vehicle_type": "truck",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "this week",
+        "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+        "qualification_memory": "real_name: Ana Rivera; vehicle: truck; down payment: 1000; timeline: this week",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": "Washington",
+        "state": "DC",
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "d3333333-3333-3333-3333-333333333333"
+      ],
+      "routing_reason": [
+        "Exclusive Zone: State District of Columbia"
+      ],
+      "message_ids": [
+        "b6fdb29b-35cd-4aee-bfb1-e959c3ea76ec"
+      ],
+      "expected_dealers": [
+        "d3333333-3333-3333-3333-333333333333"
+      ],
+      "result": "PASS",
+      "assertions": {
+        "no_tacoma_false_positive": true,
+        "expected_dealer": true,
+        "progress_present_after_poll": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    },
+    {
+      "case_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-01",
+      "source": "easterns",
+      "locationId": "xN2LSSl62okzv9GnOJPU",
+      "phone": "+12405554010",
+      "contactName": "Ana Rivera",
+      "conversationId": "qa-millersville-easterns-elkton-20260912-easterns-southern-01-conversation",
+      "steps": [
+        {
+          "event_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-01-event-01",
+          "message_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-01-message-01",
+          "payload_hash": "ad39329b2387787e1e8d566c1f6f661bd51bd254c7a196be813dcf8cb562f52a",
+          "body": "Busco un SUV, tengo 1000 de enganche, compro esta semana. Vivo en Waldorf MD",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-millersville-easterns-elkton-20260912-easterns-southern-01-event-01",
+              "conversationId": "75b8b30a-ce9f-4faa-9ad6-f835ad55b5b1",
+              "source": "easterns",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "75b8b30a-ce9f-4faa-9ad6-f835ad55b5b1",
+                "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-01-conversation",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405554010",
+                  "documents": "",
+                  "real_name": "Ana Rivera",
+                  "bank_account": "",
+                  "down_payment": "1000",
+                  "vehicle_type": "SUV",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+                  "qualification_memory": "real_name: Ana Rivera; vehicle: SUV; down payment: 1000; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": "Waldorf",
+                  "state": "MD",
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T15:00:15.000Z",
+                "lead_id": "fbc0bd29-7b13-4807-9bc4-332211f24c1a",
+                "canonical_phone": "+12405554010",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "76cda6b3-dc6b-4724-b40e-c9cb51965990",
+                "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-01-message-01",
+                "body": "Busco un SUV, tengo 1000 de enganche, compro esta semana. Vivo en Waldorf MD",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-01-event-01",
+                "status": "processed",
+                "payload_hash": "ad39329b2387787e1e8d566c1f6f661bd51bd254c7a196be813dcf8cb562f52a",
+                "error_code": null,
+                "ghl_location_id": "xN2LSSl62okzv9GnOJPU"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        }
+      ],
+      "before": {
+        "state": [],
+        "messages": [],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "poll_after": {
+        "state": [
+          {
+            "conversation_db_id": "75b8b30a-ce9f-4faa-9ad6-f835ad55b5b1",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-01-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405554010",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "SUV",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: SUV; down payment: 1000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Waldorf",
+              "state": "MD",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "fbc0bd29-7b13-4807-9bc4-332211f24c1a",
+            "canonical_phone": "+12405554010",
+            "dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "assigned_dealer_id": "d2222222-2222-2222-2222-222222222222",
+            "lead_dealer_status": "pending",
+            "routing_reason": "Southern MD/DC Overlap: Round-Robin (Previous: Sterling/None)"
+          }
+        ],
+        "messages": [
+          {
+            "id": "76cda6b3-dc6b-4724-b40e-c9cb51965990",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-01-message-01",
+            "body": "Busco un SUV, tengo 1000 de enganche, compro esta semana. Vivo en Waldorf MD",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "after": {
+        "state": [
+          {
+            "conversation_db_id": "75b8b30a-ce9f-4faa-9ad6-f835ad55b5b1",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-01-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405554010",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "SUV",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: SUV; down payment: 1000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Waldorf",
+              "state": "MD",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "fbc0bd29-7b13-4807-9bc4-332211f24c1a",
+            "canonical_phone": "+12405554010",
+            "dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "assigned_dealer_id": "d2222222-2222-2222-2222-222222222222",
+            "lead_dealer_status": "pending",
+            "routing_reason": "Southern MD/DC Overlap: Round-Robin (Previous: Sterling/None)"
+          }
+        ],
+        "messages": [
+          {
+            "id": "76cda6b3-dc6b-4724-b40e-c9cb51965990",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-01-message-01",
+            "body": "Busco un SUV, tengo 1000 de enganche, compro esta semana. Vivo en Waldorf MD",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_after": {
+        "phone": "+12405554010",
+        "documents": "",
+        "real_name": "Ana Rivera",
+        "bank_account": "",
+        "down_payment": "1000",
+        "vehicle_type": "SUV",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "this week",
+        "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+        "qualification_memory": "real_name: Ana Rivera; vehicle: SUV; down payment: 1000; timeline: this week",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": "Waldorf",
+        "state": "MD",
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "d2222222-2222-2222-2222-222222222222"
+      ],
+      "routing_reason": [
+        "Southern MD/DC Overlap: Round-Robin (Previous: Sterling/None)"
+      ],
+      "message_ids": [
+        "76cda6b3-dc6b-4724-b40e-c9cb51965990"
+      ],
+      "expected_dealers": [
+        "d2222222-2222-2222-2222-222222222222"
+      ],
+      "result": "PASS",
+      "assertions": {
+        "no_tacoma_false_positive": true,
+        "expected_dealer": true,
+        "progress_present_after_poll": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    },
+    {
+      "case_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-02",
+      "source": "easterns",
+      "locationId": "xN2LSSl62okzv9GnOJPU",
+      "phone": "+12405554011",
+      "contactName": "Ana Rivera",
+      "conversationId": "qa-millersville-easterns-elkton-20260912-easterns-southern-02-conversation",
+      "steps": [
+        {
+          "event_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-02-event-01",
+          "message_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-02-message-01",
+          "payload_hash": "339efa8f0b90aa856c1c3b41926b2bf010b43175d7a1ebb0341647fb95b9b008",
+          "body": "Busco un SUV, tengo 1000 de enganche, compro esta semana. Vivo en Waldorf MD",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-millersville-easterns-elkton-20260912-easterns-southern-02-event-01",
+              "conversationId": "98bd28bb-d828-4093-95ee-bd6321a2ab69",
+              "source": "easterns",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "98bd28bb-d828-4093-95ee-bd6321a2ab69",
+                "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-02-conversation",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405554011",
+                  "documents": "",
+                  "real_name": "Ana Rivera",
+                  "bank_account": "",
+                  "down_payment": "1000",
+                  "vehicle_type": "SUV",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+                  "qualification_memory": "real_name: Ana Rivera; vehicle: SUV; down payment: 1000; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": "Waldorf",
+                  "state": "MD",
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T15:00:15.000Z",
+                "lead_id": "93eab724-229d-4374-96de-fa957a50c814",
+                "canonical_phone": "+12405554011",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "a3054f9e-a1e7-4ce0-9f79-d0b6059633c1",
+                "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-02-message-01",
+                "body": "Busco un SUV, tengo 1000 de enganche, compro esta semana. Vivo en Waldorf MD",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-02-event-01",
+                "status": "processed",
+                "payload_hash": "339efa8f0b90aa856c1c3b41926b2bf010b43175d7a1ebb0341647fb95b9b008",
+                "error_code": null,
+                "ghl_location_id": "xN2LSSl62okzv9GnOJPU"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        }
+      ],
+      "before": {
+        "state": [],
+        "messages": [],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "poll_after": {
+        "state": [
+          {
+            "conversation_db_id": "98bd28bb-d828-4093-95ee-bd6321a2ab69",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-02-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405554011",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "SUV",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: SUV; down payment: 1000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Waldorf",
+              "state": "MD",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "93eab724-229d-4374-96de-fa957a50c814",
+            "canonical_phone": "+12405554011",
+            "dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "assigned_dealer_id": "d3333333-3333-3333-3333-333333333333",
+            "lead_dealer_status": "pending",
+            "routing_reason": "Southern MD/DC Overlap: Round-Robin (Previous: Laurel)"
+          }
+        ],
+        "messages": [
+          {
+            "id": "a3054f9e-a1e7-4ce0-9f79-d0b6059633c1",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-02-message-01",
+            "body": "Busco un SUV, tengo 1000 de enganche, compro esta semana. Vivo en Waldorf MD",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "after": {
+        "state": [
+          {
+            "conversation_db_id": "98bd28bb-d828-4093-95ee-bd6321a2ab69",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-02-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405554011",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "SUV",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: SUV; down payment: 1000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Waldorf",
+              "state": "MD",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "93eab724-229d-4374-96de-fa957a50c814",
+            "canonical_phone": "+12405554011",
+            "dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "assigned_dealer_id": "d3333333-3333-3333-3333-333333333333",
+            "lead_dealer_status": "pending",
+            "routing_reason": "Southern MD/DC Overlap: Round-Robin (Previous: Laurel)"
+          }
+        ],
+        "messages": [
+          {
+            "id": "a3054f9e-a1e7-4ce0-9f79-d0b6059633c1",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-southern-02-message-01",
+            "body": "Busco un SUV, tengo 1000 de enganche, compro esta semana. Vivo en Waldorf MD",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_after": {
+        "phone": "+12405554011",
+        "documents": "",
+        "real_name": "Ana Rivera",
+        "bank_account": "",
+        "down_payment": "1000",
+        "vehicle_type": "SUV",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "this week",
+        "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+        "qualification_memory": "real_name: Ana Rivera; vehicle: SUV; down payment: 1000; timeline: this week",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": "Waldorf",
+        "state": "MD",
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "d3333333-3333-3333-3333-333333333333"
+      ],
+      "routing_reason": [
+        "Southern MD/DC Overlap: Round-Robin (Previous: Laurel)"
+      ],
+      "message_ids": [
+        "a3054f9e-a1e7-4ce0-9f79-d0b6059633c1"
+      ],
+      "expected_dealers": [
+        "d3333333-3333-3333-3333-333333333333"
+      ],
+      "result": "PASS",
+      "assertions": {
+        "no_tacoma_false_positive": true,
+        "expected_dealer": true,
+        "progress_present_after_poll": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    },
+    {
+      "case_id": "qa-millersville-easterns-elkton-20260912-easterns-virginia",
+      "source": "easterns",
+      "locationId": "xN2LSSl62okzv9GnOJPU",
+      "phone": "+12405554012",
+      "contactName": "Ana Rivera",
+      "conversationId": "qa-millersville-easterns-elkton-20260912-easterns-virginia-conversation",
+      "steps": [
+        {
+          "event_id": "qa-millersville-easterns-elkton-20260912-easterns-virginia-event-01",
+          "message_id": "qa-millersville-easterns-elkton-20260912-easterns-virginia-message-01",
+          "payload_hash": "2d0f727fbe6bd5499f28f269bb6e2b27e54586b8b0c2560f7ad166fef782629e",
+          "body": "Busco un Mustang, tengo 1000 de enganche, compro esta semana. Vivo en Richmond VA",
+          "response": {
+            "http_status": 201,
+            "body": {
+              "accepted": true,
+              "eventId": "qa-millersville-easterns-elkton-20260912-easterns-virginia-event-01",
+              "conversationId": "b14001d9-c3ba-4b98-be3c-93e6dc22e34c",
+              "source": "easterns",
+              "status": "processed"
+            }
+          },
+          "after": {
+            "state": [
+              {
+                "conversation_db_id": "b14001d9-c3ba-4b98-be3c-93e6dc22e34c",
+                "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-virginia-conversation",
+                "status": "waiting_window",
+                "qualification_snapshot": {
+                  "phone": "+12405554012",
+                  "documents": "",
+                  "real_name": "Ana Rivera",
+                  "bank_account": "",
+                  "down_payment": "1000",
+                  "vehicle_type": "Mustang",
+                  "message_count": 1,
+                  "identification": "",
+                  "purchase_timeline": "this week",
+                  "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+                  "qualification_memory": "real_name: Ana Rivera; vehicle: Mustang; down payment: 1000; timeline: this week",
+                  "missing_qualification": [
+                    "identification",
+                    "proof_of_income",
+                    "bank_account"
+                  ],
+                  "qualification_complete": true,
+                  "qualification_progress": {
+                    "step": "documents",
+                    "evidence": "normalized_fields",
+                    "language": "es",
+                    "confidence": 0.95,
+                    "last_answered_field": "purchase_timeline",
+                    "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+                  }
+                },
+                "location_snapshot": {
+                  "city": "Richmond",
+                  "state": "VA",
+                  "zip_code": null,
+                  "easterns_zone": null
+                },
+                "next_attempt_at": "2026-09-12T15:00:15.000Z",
+                "lead_id": "c2705ce2-d336-4671-99c6-7bb4bae4530c",
+                "canonical_phone": "+12405554012",
+                "dealer_id": null,
+                "assigned_dealer_id": null,
+                "lead_dealer_status": null,
+                "routing_reason": null
+              }
+            ],
+            "messages": [
+              {
+                "id": "599fcca4-36ac-4106-8e70-cfab534ee13a",
+                "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-virginia-message-01",
+                "body": "Busco un Mustang, tengo 1000 de enganche, compro esta semana. Vivo en Richmond VA",
+                "direction": "inbound",
+                "occurred_at": "2026-09-12T15:00:00.000Z"
+              }
+            ],
+            "events": [
+              {
+                "event_id": "qa-millersville-easterns-elkton-20260912-easterns-virginia-event-01",
+                "status": "processed",
+                "payload_hash": "2d0f727fbe6bd5499f28f269bb6e2b27e54586b8b0c2560f7ad166fef782629e",
+                "error_code": null,
+                "ghl_location_id": "xN2LSSl62okzv9GnOJPU"
+              }
+            ],
+            "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+          }
+        }
+      ],
+      "before": {
+        "state": [],
+        "messages": [],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "poll_after": {
+        "state": [
+          {
+            "conversation_db_id": "b14001d9-c3ba-4b98-be3c-93e6dc22e34c",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-virginia-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405554012",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "Mustang",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: Mustang; down payment: 1000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Richmond",
+              "state": "VA",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "c2705ce2-d336-4671-99c6-7bb4bae4530c",
+            "canonical_phone": "+12405554012",
+            "dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "assigned_dealer_id": "d3333333-3333-3333-3333-333333333333",
+            "lead_dealer_status": "pending",
+            "routing_reason": "Exclusive Zone: State Virginia"
+          }
+        ],
+        "messages": [
+          {
+            "id": "599fcca4-36ac-4106-8e70-cfab534ee13a",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-virginia-message-01",
+            "body": "Busco un Mustang, tengo 1000 de enganche, compro esta semana. Vivo en Richmond VA",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "after": {
+        "state": [
+          {
+            "conversation_db_id": "b14001d9-c3ba-4b98-be3c-93e6dc22e34c",
+            "ghl_conversation_id": "qa-millersville-easterns-elkton-20260912-easterns-virginia-conversation",
+            "status": "queued",
+            "qualification_snapshot": {
+              "phone": "+12405554012",
+              "documents": "",
+              "real_name": "Ana Rivera",
+              "bank_account": "",
+              "down_payment": "1000",
+              "vehicle_type": "Mustang",
+              "message_count": 1,
+              "identification": "",
+              "purchase_timeline": "this week",
+              "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+              "qualification_memory": "real_name: Ana Rivera; vehicle: Mustang; down payment: 1000; timeline: this week",
+              "missing_qualification": [
+                "identification",
+                "proof_of_income",
+                "bank_account"
+              ],
+              "qualification_complete": true,
+              "qualification_progress": {
+                "step": "documents",
+                "evidence": "normalized_fields",
+                "language": "es",
+                "confidence": 0.95,
+                "last_answered_field": "purchase_timeline",
+                "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+              }
+            },
+            "location_snapshot": {
+              "city": "Richmond",
+              "state": "VA",
+              "zip_code": null,
+              "easterns_zone": null
+            },
+            "next_attempt_at": null,
+            "lead_id": "c2705ce2-d336-4671-99c6-7bb4bae4530c",
+            "canonical_phone": "+12405554012",
+            "dealer_id": "d1111111-1111-1111-1111-111111111111",
+            "assigned_dealer_id": "d3333333-3333-3333-3333-333333333333",
+            "lead_dealer_status": "pending",
+            "routing_reason": "Exclusive Zone: State Virginia"
+          }
+        ],
+        "messages": [
+          {
+            "id": "599fcca4-36ac-4106-8e70-cfab534ee13a",
+            "ghl_message_id": "qa-millersville-easterns-elkton-20260912-easterns-virginia-message-01",
+            "body": "Busco un Mustang, tengo 1000 de enganche, compro esta semana. Vivo en Richmond VA",
+            "direction": "inbound",
+            "occurred_at": "2026-09-12T15:00:00.000Z"
+          }
+        ],
+        "events": [],
+        "sql": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+      },
+      "status_before": null,
+      "status_after": "queued",
+      "snapshot_after": {
+        "phone": "+12405554012",
+        "documents": "",
+        "real_name": "Ana Rivera",
+        "bank_account": "",
+        "down_payment": "1000",
+        "vehicle_type": "Mustang",
+        "message_count": 1,
+        "identification": "",
+        "purchase_timeline": "this week",
+        "assigned_dealer_id": "d1111111-1111-1111-1111-111111111111",
+        "qualification_memory": "real_name: Ana Rivera; vehicle: Mustang; down payment: 1000; timeline: this week",
+        "missing_qualification": [
+          "identification",
+          "proof_of_income",
+          "bank_account"
+        ],
+        "qualification_complete": true,
+        "qualification_progress": {
+          "step": "documents",
+          "evidence": "normalized_fields",
+          "language": "es",
+          "confidence": 0.95,
+          "last_answered_field": "purchase_timeline",
+          "predicted_bot_question": "¿Tienes identificación y comprobante de ingresos?"
+        }
+      },
+      "location_snapshot": {
+        "city": "Richmond",
+        "state": "VA",
+        "zip_code": null,
+        "easterns_zone": null
+      },
+      "dealer_assigned": [
+        "d3333333-3333-3333-3333-333333333333"
+      ],
+      "routing_reason": [
+        "Exclusive Zone: State Virginia"
+      ],
+      "message_ids": [
+        "599fcca4-36ac-4106-8e70-cfab534ee13a"
+      ],
+      "expected_dealers": [
+        "d3333333-3333-3333-3333-333333333333"
+      ],
+      "result": "PASS",
+      "assertions": {
+        "no_tacoma_false_positive": true,
+        "expected_dealer": true,
+        "progress_present_after_poll": true
+      },
+      "sql_verification": "SELECT c.id AS conversation_db_id, c.ghl_conversation_id, c.status,\n       c.qualification_snapshot, c.location_snapshot, c.next_attempt_at,\n       l.id AS lead_id, l.canonical_phone, ld.dealer_id, ld.assigned_dealer_id,\n       ld.status AS lead_dealer_status, ld.routing_reason\n     FROM conversations c JOIN leads l ON l.id = c.lead_id\n     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n     WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    }
+  ],
+  "checks": [
+    {
+      "check": "process_due_2026-09-12T15:00:15.000Z",
+      "response": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    },
+    {
+      "check": "process_due_2026-09-12T15:00:15.000Z",
+      "response": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    },
+    {
+      "check": "process_due_2026-09-12T15:00:15.000Z",
+      "response": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    },
+    {
+      "check": "process_due_2026-09-12T15:00:15.000Z",
+      "response": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    },
+    {
+      "check": "process_due_2026-09-12T15:00:15.000Z",
+      "response": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    },
+    {
+      "check": "process_due_2026-09-12T15:00:15.000Z",
+      "response": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    },
+    {
+      "check": "process_due_2026-09-12T15:00:15.000Z",
+      "response": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    },
+    {
+      "check": "process_due_2026-09-12T15:00:15.000Z",
+      "response": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    },
+    {
+      "check": "process_due_2026-09-12T15:00:15.000Z",
+      "response": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    },
+    {
+      "check": "process_due_2026-09-12T15:00:15.000Z",
+      "response": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    },
+    {
+      "check": "process_due_2026-09-12T15:00:15.000Z",
+      "response": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    },
+    {
+      "check": "process_due_2026-09-12T15:00:15.000Z",
+      "response": {
+        "http_status": 201,
+        "body": {
+          "accepted": true,
+          "processed": 0
+        }
+      }
+    }
+  ],
+  "summary": {
+    "pass": 12,
+    "fail": 0,
+    "blocked": 0,
+    "total_cases": 12,
+    "all_pass": true
+  }
+}

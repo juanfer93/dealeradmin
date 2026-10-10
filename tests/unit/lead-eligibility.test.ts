@@ -13,4 +13,15 @@ describe('evaluateLeadEligibility', () => {
   it('rejects inactive or incomplete routing targets', () => {
     expect(evaluateLeadEligibility({ phone: '555', dealerActive: false })).toEqual({ eligible: false, reasons: ['DEALER_REQUIRED', 'GHL_LOCATION_REQUIRED', 'DEALER_INACTIVE'] });
   });
+
+  it('allows Stafford to use both WhatsApp and Messenger', () => {
+    const base = { phone: '+15551234567', dealerId: 'dealer-stafford', dealerCode: 'STAFFORD', ghlLocationId: 'LiaoSID3nvAhad49ZpNJ', dealerActive: true };
+    expect(evaluateLeadEligibility({ ...base, channel: 'whatsapp' })).toEqual({ eligible: true, reasons: [] });
+    expect(evaluateLeadEligibility({ ...base, channel: 'messenger' })).toEqual({ eligible: true, reasons: [] });
+  });
+
+  it('keeps unsupported channels rejected for Stafford', () => {
+    const result = evaluateLeadEligibility({ phone: '+15551234567', dealerId: 'dealer-stafford', dealerCode: 'STAFFORD', ghlLocationId: 'LiaoSID3nvAhad49ZpNJ', dealerActive: true, channel: 'instagram' });
+    expect(result).toEqual({ eligible: false, reasons: ['CHANNEL_NOT_SUPPORTED'] });
+  });
 });

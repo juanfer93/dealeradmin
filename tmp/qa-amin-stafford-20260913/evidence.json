@@ -1,0 +1,1041 @@
+{
+  "run_id": "qa-amin-stafford-20260913",
+  "generated_at": "2026-09-13T04:15:12.870Z",
+  "environment": {
+    "api_url": "http://127.0.0.1:3021",
+    "database": "local PostgreSQL in user-provided Docker container",
+    "timezone": "America/Bogota",
+    "secret_printed": false
+  },
+  "case": {
+    "source": "stafford",
+    "channel": "whatsapp",
+    "conversation_id": "qa-amin-stafford-20260913-conversation",
+    "before": {
+      "rows": [],
+      "messages": [],
+      "events": [],
+      "sql": "SELECT c.id AS conversation_db_id, c.status, c.qualification_snapshot,\n    c.location_snapshot, c.ready_at, c.next_attempt_at,\n    l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n    ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n    ld.routing_reason\n  FROM conversations c JOIN leads l ON l.id = c.lead_id\n  LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n  WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    },
+    "steps": [
+      {
+        "body": "Saludos",
+        "at": "2026-09-14T18:26:50.220Z",
+        "response": {
+          "payload": {
+            "event_id": "qa-amin-stafford-20260913-event-01",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-amin-stafford-20260913-message-01",
+            "ghl_contact_id": "qa-amin-stafford-20260913-contact",
+            "ghl_conversation_id": "qa-amin-stafford-20260913-conversation",
+            "message_body": "Saludos",
+            "contact_phone": "(929) 756-3553",
+            "contact_name": "~",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-14T18:26:50.220Z"
+          },
+          "payload_hash": "2c4ff854b8eaffe7001b42d73d37b11d36721f20a63c27c8301909fb969208b3",
+          "http_status": 201,
+          "body": {
+            "accepted": true,
+            "eventId": "qa-amin-stafford-20260913-event-01",
+            "conversationId": "5b087022-0784-48ef-99a7-e0a2568af99f",
+            "source": "stafford",
+            "status": "processed"
+          }
+        },
+        "after": {
+          "rows": [
+            {
+              "conversation_db_id": "5b087022-0784-48ef-99a7-e0a2568af99f",
+              "status": "partial",
+              "qualification_snapshot": {
+                "phone": "+19297563553",
+                "documents": "",
+                "real_name": "",
+                "bank_account": "",
+                "down_payment": "",
+                "vehicle_type": "",
+                "message_count": 1,
+                "identification": "",
+                "purchase_timeline": "",
+                "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                "qualification_memory": "",
+                "missing_qualification": [
+                  "real_name",
+                  "vehicle_type",
+                  "down_payment",
+                  "purchase_timeline",
+                  "identification",
+                  "proof_of_income",
+                  "bank_account"
+                ],
+                "qualification_complete": false,
+                "qualification_progress": {
+                  "step": "real_name",
+                  "evidence": "normalized_fields",
+                  "language": "es",
+                  "confidence": 0.95,
+                  "last_answered_field": "phone",
+                  "predicted_bot_question": "¿Cuál es tu nombre completo?"
+                }
+              },
+              "location_snapshot": {
+                "city": null,
+                "state": null,
+                "zip_code": null,
+                "easterns_zone": null
+              },
+              "ready_at": null,
+              "next_attempt_at": null,
+              "lead_id": "8127793a-c686-4e88-9eb5-4f825d91e339",
+              "canonical_phone": "+19297563553",
+              "first_name": "~",
+              "last_name": "",
+              "dealer_id": null,
+              "assigned_dealer_id": null,
+              "lead_dealer_status": null,
+              "routing_reason": null
+            }
+          ],
+          "messages": [
+            {
+              "id": "3adddda0-eff8-4285-8e8b-e5a4ce114cb7",
+              "ghl_message_id": "qa-amin-stafford-20260913-message-01",
+              "direction": "inbound",
+              "body": "Saludos",
+              "occurred_at": "2026-09-14T18:26:50.220Z"
+            }
+          ],
+          "events": [
+            {
+              "event_id": "qa-amin-stafford-20260913-event-01",
+              "status": "processed",
+              "payload_hash": "2c4ff854b8eaffe7001b42d73d37b11d36721f20a63c27c8301909fb969208b3",
+              "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+            }
+          ],
+          "sql": "SELECT c.id AS conversation_db_id, c.status, c.qualification_snapshot,\n    c.location_snapshot, c.ready_at, c.next_attempt_at,\n    l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n    ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n    ld.routing_reason\n  FROM conversations c JOIN leads l ON l.id = c.lead_id\n  LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n  WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+        }
+      },
+      {
+        "body": "Amin",
+        "at": "2026-09-14T18:27:21.795Z",
+        "response": {
+          "payload": {
+            "event_id": "qa-amin-stafford-20260913-event-02",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-amin-stafford-20260913-message-02",
+            "ghl_contact_id": "qa-amin-stafford-20260913-contact",
+            "ghl_conversation_id": "qa-amin-stafford-20260913-conversation",
+            "message_body": "Amin",
+            "contact_phone": "(929) 756-3553",
+            "contact_name": "~",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-14T18:27:21.795Z"
+          },
+          "payload_hash": "1563f4281d7001f8d8f7511d4547541267c48e20726edcdf91906d6e954dc41c",
+          "http_status": 201,
+          "body": {
+            "accepted": true,
+            "eventId": "qa-amin-stafford-20260913-event-02",
+            "conversationId": "5b087022-0784-48ef-99a7-e0a2568af99f",
+            "source": "stafford",
+            "status": "processed"
+          }
+        },
+        "after": {
+          "rows": [
+            {
+              "conversation_db_id": "5b087022-0784-48ef-99a7-e0a2568af99f",
+              "status": "partial",
+              "qualification_snapshot": {
+                "phone": "+19297563553",
+                "documents": "",
+                "real_name": "Amin",
+                "bank_account": "",
+                "down_payment": "",
+                "vehicle_type": "",
+                "message_count": 2,
+                "identification": "",
+                "purchase_timeline": "",
+                "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                "qualification_memory": "real_name: Amin",
+                "missing_qualification": [
+                  "vehicle_type",
+                  "down_payment",
+                  "purchase_timeline",
+                  "identification",
+                  "proof_of_income",
+                  "bank_account"
+                ],
+                "qualification_complete": false,
+                "qualification_progress": {
+                  "step": "vehicle_type",
+                  "evidence": "normalized_fields",
+                  "language": "es",
+                  "confidence": 0.95,
+                  "last_answered_field": "phone",
+                  "predicted_bot_question": "¿Qué vehículo estás buscando?"
+                }
+              },
+              "location_snapshot": {
+                "city": null,
+                "state": null,
+                "zip_code": null,
+                "easterns_zone": null
+              },
+              "ready_at": null,
+              "next_attempt_at": null,
+              "lead_id": "8127793a-c686-4e88-9eb5-4f825d91e339",
+              "canonical_phone": "+19297563553",
+              "first_name": "Amin",
+              "last_name": "",
+              "dealer_id": null,
+              "assigned_dealer_id": null,
+              "lead_dealer_status": null,
+              "routing_reason": null
+            }
+          ],
+          "messages": [
+            {
+              "id": "3adddda0-eff8-4285-8e8b-e5a4ce114cb7",
+              "ghl_message_id": "qa-amin-stafford-20260913-message-01",
+              "direction": "inbound",
+              "body": "Saludos",
+              "occurred_at": "2026-09-14T18:26:50.220Z"
+            },
+            {
+              "id": "6be85b68-a7fb-4bea-a9e1-7739b52cb75a",
+              "ghl_message_id": "qa-amin-stafford-20260913-message-02",
+              "direction": "inbound",
+              "body": "Amin",
+              "occurred_at": "2026-09-14T18:27:21.795Z"
+            }
+          ],
+          "events": [
+            {
+              "event_id": "qa-amin-stafford-20260913-event-01",
+              "status": "processed",
+              "payload_hash": "2c4ff854b8eaffe7001b42d73d37b11d36721f20a63c27c8301909fb969208b3",
+              "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+            },
+            {
+              "event_id": "qa-amin-stafford-20260913-event-02",
+              "status": "processed",
+              "payload_hash": "1563f4281d7001f8d8f7511d4547541267c48e20726edcdf91906d6e954dc41c",
+              "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+            }
+          ],
+          "sql": "SELECT c.id AS conversation_db_id, c.status, c.qualification_snapshot,\n    c.location_snapshot, c.ready_at, c.next_attempt_at,\n    l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n    ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n    ld.routing_reason\n  FROM conversations c JOIN leads l ON l.id = c.lead_id\n  LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n  WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+        }
+      },
+      {
+        "body": "Busco carro del 2019 en adelante",
+        "at": "2026-09-14T18:27:26.460Z",
+        "response": {
+          "payload": {
+            "event_id": "qa-amin-stafford-20260913-event-03",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-amin-stafford-20260913-message-03",
+            "ghl_contact_id": "qa-amin-stafford-20260913-contact",
+            "ghl_conversation_id": "qa-amin-stafford-20260913-conversation",
+            "message_body": "Busco carro del 2019 en adelante",
+            "contact_phone": "(929) 756-3553",
+            "contact_name": "~",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-14T18:27:26.460Z"
+          },
+          "payload_hash": "f4190ee3231b4d97c096ed171b4cfbfea8ade0a0fafa2b556b7c7186a964f839",
+          "http_status": 201,
+          "body": {
+            "accepted": true,
+            "eventId": "qa-amin-stafford-20260913-event-03",
+            "conversationId": "5b087022-0784-48ef-99a7-e0a2568af99f",
+            "source": "stafford",
+            "status": "processed"
+          }
+        },
+        "after": {
+          "rows": [
+            {
+              "conversation_db_id": "5b087022-0784-48ef-99a7-e0a2568af99f",
+              "status": "partial",
+              "qualification_snapshot": {
+                "phone": "+19297563553",
+                "documents": "",
+                "real_name": "Amin",
+                "bank_account": "",
+                "down_payment": "",
+                "vehicle_type": "",
+                "message_count": 3,
+                "identification": "",
+                "purchase_timeline": "",
+                "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                "qualification_memory": "real_name: Amin",
+                "missing_qualification": [
+                  "vehicle_type",
+                  "down_payment",
+                  "purchase_timeline",
+                  "identification",
+                  "proof_of_income",
+                  "bank_account"
+                ],
+                "qualification_complete": false,
+                "qualification_progress": {
+                  "step": "vehicle_type",
+                  "evidence": "normalized_fields",
+                  "language": "es",
+                  "confidence": 0.95,
+                  "last_answered_field": "phone",
+                  "predicted_bot_question": "¿Qué vehículo estás buscando?"
+                }
+              },
+              "location_snapshot": {
+                "city": null,
+                "state": null,
+                "zip_code": null,
+                "easterns_zone": null
+              },
+              "ready_at": null,
+              "next_attempt_at": null,
+              "lead_id": "8127793a-c686-4e88-9eb5-4f825d91e339",
+              "canonical_phone": "+19297563553",
+              "first_name": "Amin",
+              "last_name": "",
+              "dealer_id": null,
+              "assigned_dealer_id": null,
+              "lead_dealer_status": null,
+              "routing_reason": null
+            }
+          ],
+          "messages": [
+            {
+              "id": "3adddda0-eff8-4285-8e8b-e5a4ce114cb7",
+              "ghl_message_id": "qa-amin-stafford-20260913-message-01",
+              "direction": "inbound",
+              "body": "Saludos",
+              "occurred_at": "2026-09-14T18:26:50.220Z"
+            },
+            {
+              "id": "6be85b68-a7fb-4bea-a9e1-7739b52cb75a",
+              "ghl_message_id": "qa-amin-stafford-20260913-message-02",
+              "direction": "inbound",
+              "body": "Amin",
+              "occurred_at": "2026-09-14T18:27:21.795Z"
+            },
+            {
+              "id": "fce27bd5-987d-4397-b171-cd32156466f3",
+              "ghl_message_id": "qa-amin-stafford-20260913-message-03",
+              "direction": "inbound",
+              "body": "Busco carro del 2019 en adelante",
+              "occurred_at": "2026-09-14T18:27:26.460Z"
+            }
+          ],
+          "events": [
+            {
+              "event_id": "qa-amin-stafford-20260913-event-01",
+              "status": "processed",
+              "payload_hash": "2c4ff854b8eaffe7001b42d73d37b11d36721f20a63c27c8301909fb969208b3",
+              "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+            },
+            {
+              "event_id": "qa-amin-stafford-20260913-event-02",
+              "status": "processed",
+              "payload_hash": "1563f4281d7001f8d8f7511d4547541267c48e20726edcdf91906d6e954dc41c",
+              "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+            },
+            {
+              "event_id": "qa-amin-stafford-20260913-event-03",
+              "status": "processed",
+              "payload_hash": "f4190ee3231b4d97c096ed171b4cfbfea8ade0a0fafa2b556b7c7186a964f839",
+              "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+            }
+          ],
+          "sql": "SELECT c.id AS conversation_db_id, c.status, c.qualification_snapshot,\n    c.location_snapshot, c.ready_at, c.next_attempt_at,\n    l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n    ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n    ld.routing_reason\n  FROM conversations c JOIN leads l ON l.id = c.lead_id\n  LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n  WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+        }
+      },
+      {
+        "body": "Sedan",
+        "at": "2026-09-14T18:28:47.036Z",
+        "response": {
+          "payload": {
+            "event_id": "qa-amin-stafford-20260913-event-04",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-amin-stafford-20260913-message-04",
+            "ghl_contact_id": "qa-amin-stafford-20260913-contact",
+            "ghl_conversation_id": "qa-amin-stafford-20260913-conversation",
+            "message_body": "Sedan",
+            "contact_phone": "(929) 756-3553",
+            "contact_name": "~",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-14T18:28:47.036Z"
+          },
+          "payload_hash": "95681ba47e501ef19e607e0c0f329d81d1e4c5060b6033632a368e00d4a49b78",
+          "http_status": 201,
+          "body": {
+            "accepted": true,
+            "eventId": "qa-amin-stafford-20260913-event-04",
+            "conversationId": "5b087022-0784-48ef-99a7-e0a2568af99f",
+            "source": "stafford",
+            "status": "processed"
+          }
+        },
+        "after": {
+          "rows": [
+            {
+              "conversation_db_id": "5b087022-0784-48ef-99a7-e0a2568af99f",
+              "status": "partial",
+              "qualification_snapshot": {
+                "phone": "+19297563553",
+                "documents": "",
+                "real_name": "Amin",
+                "bank_account": "",
+                "down_payment": "",
+                "vehicle_type": "Sedan",
+                "message_count": 4,
+                "identification": "",
+                "purchase_timeline": "",
+                "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                "qualification_memory": "real_name: Amin; vehicle: Sedan",
+                "missing_qualification": [
+                  "down_payment",
+                  "purchase_timeline",
+                  "identification",
+                  "proof_of_income",
+                  "bank_account"
+                ],
+                "qualification_complete": false,
+                "qualification_progress": {
+                  "step": "down_payment",
+                  "evidence": "normalized_fields",
+                  "language": "es",
+                  "confidence": 0.95,
+                  "last_answered_field": "vehicle_type",
+                  "predicted_bot_question": "¿Cuánto tienes para el enganche?"
+                }
+              },
+              "location_snapshot": {
+                "city": null,
+                "state": null,
+                "zip_code": null,
+                "easterns_zone": null
+              },
+              "ready_at": null,
+              "next_attempt_at": null,
+              "lead_id": "8127793a-c686-4e88-9eb5-4f825d91e339",
+              "canonical_phone": "+19297563553",
+              "first_name": "Amin",
+              "last_name": "",
+              "dealer_id": null,
+              "assigned_dealer_id": null,
+              "lead_dealer_status": null,
+              "routing_reason": null
+            }
+          ],
+          "messages": [
+            {
+              "id": "3adddda0-eff8-4285-8e8b-e5a4ce114cb7",
+              "ghl_message_id": "qa-amin-stafford-20260913-message-01",
+              "direction": "inbound",
+              "body": "Saludos",
+              "occurred_at": "2026-09-14T18:26:50.220Z"
+            },
+            {
+              "id": "6be85b68-a7fb-4bea-a9e1-7739b52cb75a",
+              "ghl_message_id": "qa-amin-stafford-20260913-message-02",
+              "direction": "inbound",
+              "body": "Amin",
+              "occurred_at": "2026-09-14T18:27:21.795Z"
+            },
+            {
+              "id": "fce27bd5-987d-4397-b171-cd32156466f3",
+              "ghl_message_id": "qa-amin-stafford-20260913-message-03",
+              "direction": "inbound",
+              "body": "Busco carro del 2019 en adelante",
+              "occurred_at": "2026-09-14T18:27:26.460Z"
+            },
+            {
+              "id": "fe6c7e30-c383-4f46-bee6-e190c56858d0",
+              "ghl_message_id": "qa-amin-stafford-20260913-message-04",
+              "direction": "inbound",
+              "body": "Sedan",
+              "occurred_at": "2026-09-14T18:28:47.036Z"
+            }
+          ],
+          "events": [
+            {
+              "event_id": "qa-amin-stafford-20260913-event-01",
+              "status": "processed",
+              "payload_hash": "2c4ff854b8eaffe7001b42d73d37b11d36721f20a63c27c8301909fb969208b3",
+              "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+            },
+            {
+              "event_id": "qa-amin-stafford-20260913-event-02",
+              "status": "processed",
+              "payload_hash": "1563f4281d7001f8d8f7511d4547541267c48e20726edcdf91906d6e954dc41c",
+              "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+            },
+            {
+              "event_id": "qa-amin-stafford-20260913-event-03",
+              "status": "processed",
+              "payload_hash": "f4190ee3231b4d97c096ed171b4cfbfea8ade0a0fafa2b556b7c7186a964f839",
+              "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+            },
+            {
+              "event_id": "qa-amin-stafford-20260913-event-04",
+              "status": "processed",
+              "payload_hash": "95681ba47e501ef19e607e0c0f329d81d1e4c5060b6033632a368e00d4a49b78",
+              "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+            }
+          ],
+          "sql": "SELECT c.id AS conversation_db_id, c.status, c.qualification_snapshot,\n    c.location_snapshot, c.ready_at, c.next_attempt_at,\n    l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n    ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n    ld.routing_reason\n  FROM conversations c JOIN leads l ON l.id = c.lead_id\n  LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n  WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+        }
+      },
+      {
+        "body": "500$",
+        "at": "2026-09-14T18:29:36.302Z",
+        "response": {
+          "payload": {
+            "event_id": "qa-amin-stafford-20260913-event-05",
+            "event_type": "customer.replied",
+            "ghl_message_id": "qa-amin-stafford-20260913-message-05",
+            "ghl_contact_id": "qa-amin-stafford-20260913-contact",
+            "ghl_conversation_id": "qa-amin-stafford-20260913-conversation",
+            "message_body": "500$",
+            "contact_phone": "(929) 756-3553",
+            "contact_name": "~",
+            "channel": "whatsapp",
+            "occurred_at": "2026-09-14T18:29:36.302Z"
+          },
+          "payload_hash": "828769035fd16795fa8a59a0ff615d32ab062c22e372db745059249fee43675d",
+          "http_status": 201,
+          "body": {
+            "accepted": true,
+            "eventId": "qa-amin-stafford-20260913-event-05",
+            "conversationId": "5b087022-0784-48ef-99a7-e0a2568af99f",
+            "source": "stafford",
+            "status": "processed"
+          }
+        },
+        "after": {
+          "rows": [
+            {
+              "conversation_db_id": "5b087022-0784-48ef-99a7-e0a2568af99f",
+              "status": "waiting_window",
+              "qualification_snapshot": {
+                "phone": "+19297563553",
+                "documents": "",
+                "real_name": "Amin",
+                "bank_account": "",
+                "down_payment": "500",
+                "vehicle_type": "Sedan",
+                "message_count": 5,
+                "identification": "",
+                "purchase_timeline": "",
+                "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+                "qualification_memory": "real_name: Amin; vehicle: Sedan; down payment: 500",
+                "missing_qualification": [
+                  "purchase_timeline",
+                  "identification",
+                  "proof_of_income",
+                  "bank_account"
+                ],
+                "qualification_complete": false,
+                "qualification_progress": {
+                  "step": "purchase_timeline",
+                  "evidence": "normalized_fields",
+                  "language": "es",
+                  "confidence": 0.95,
+                  "last_answered_field": "down_payment",
+                  "predicted_bot_question": "¿Cuándo planeas comprar?"
+                }
+              },
+              "location_snapshot": {
+                "city": null,
+                "state": null,
+                "zip_code": null,
+                "easterns_zone": null
+              },
+              "ready_at": "2026-09-14T18:29:36.302Z",
+              "next_attempt_at": "2026-09-14T18:29:51.302Z",
+              "lead_id": "8127793a-c686-4e88-9eb5-4f825d91e339",
+              "canonical_phone": "+19297563553",
+              "first_name": "Amin",
+              "last_name": "",
+              "dealer_id": null,
+              "assigned_dealer_id": null,
+              "lead_dealer_status": null,
+              "routing_reason": null
+            }
+          ],
+          "messages": [
+            {
+              "id": "3adddda0-eff8-4285-8e8b-e5a4ce114cb7",
+              "ghl_message_id": "qa-amin-stafford-20260913-message-01",
+              "direction": "inbound",
+              "body": "Saludos",
+              "occurred_at": "2026-09-14T18:26:50.220Z"
+            },
+            {
+              "id": "6be85b68-a7fb-4bea-a9e1-7739b52cb75a",
+              "ghl_message_id": "qa-amin-stafford-20260913-message-02",
+              "direction": "inbound",
+              "body": "Amin",
+              "occurred_at": "2026-09-14T18:27:21.795Z"
+            },
+            {
+              "id": "fce27bd5-987d-4397-b171-cd32156466f3",
+              "ghl_message_id": "qa-amin-stafford-20260913-message-03",
+              "direction": "inbound",
+              "body": "Busco carro del 2019 en adelante",
+              "occurred_at": "2026-09-14T18:27:26.460Z"
+            },
+            {
+              "id": "fe6c7e30-c383-4f46-bee6-e190c56858d0",
+              "ghl_message_id": "qa-amin-stafford-20260913-message-04",
+              "direction": "inbound",
+              "body": "Sedan",
+              "occurred_at": "2026-09-14T18:28:47.036Z"
+            },
+            {
+              "id": "89fc0d8d-6add-494f-bec5-bdc3d159e9e6",
+              "ghl_message_id": "qa-amin-stafford-20260913-message-05",
+              "direction": "inbound",
+              "body": "500$",
+              "occurred_at": "2026-09-14T18:29:36.302Z"
+            }
+          ],
+          "events": [
+            {
+              "event_id": "qa-amin-stafford-20260913-event-01",
+              "status": "processed",
+              "payload_hash": "2c4ff854b8eaffe7001b42d73d37b11d36721f20a63c27c8301909fb969208b3",
+              "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+            },
+            {
+              "event_id": "qa-amin-stafford-20260913-event-02",
+              "status": "processed",
+              "payload_hash": "1563f4281d7001f8d8f7511d4547541267c48e20726edcdf91906d6e954dc41c",
+              "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+            },
+            {
+              "event_id": "qa-amin-stafford-20260913-event-03",
+              "status": "processed",
+              "payload_hash": "f4190ee3231b4d97c096ed171b4cfbfea8ade0a0fafa2b556b7c7186a964f839",
+              "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+            },
+            {
+              "event_id": "qa-amin-stafford-20260913-event-04",
+              "status": "processed",
+              "payload_hash": "95681ba47e501ef19e607e0c0f329d81d1e4c5060b6033632a368e00d4a49b78",
+              "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+            },
+            {
+              "event_id": "qa-amin-stafford-20260913-event-05",
+              "status": "processed",
+              "payload_hash": "828769035fd16795fa8a59a0ff615d32ab062c22e372db745059249fee43675d",
+              "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+            }
+          ],
+          "sql": "SELECT c.id AS conversation_db_id, c.status, c.qualification_snapshot,\n    c.location_snapshot, c.ready_at, c.next_attempt_at,\n    l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n    ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n    ld.routing_reason\n  FROM conversations c JOIN leads l ON l.id = c.lead_id\n  LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n  WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+        }
+      }
+    ],
+    "after_capture": {
+      "rows": [
+        {
+          "conversation_db_id": "5b087022-0784-48ef-99a7-e0a2568af99f",
+          "status": "waiting_window",
+          "qualification_snapshot": {
+            "phone": "+19297563553",
+            "documents": "",
+            "real_name": "Amin",
+            "bank_account": "",
+            "down_payment": "500",
+            "vehicle_type": "Sedan",
+            "message_count": 5,
+            "identification": "",
+            "purchase_timeline": "",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "qualification_memory": "real_name: Amin; vehicle: Sedan; down payment: 500",
+            "missing_qualification": [
+              "purchase_timeline",
+              "identification",
+              "proof_of_income",
+              "bank_account"
+            ],
+            "qualification_complete": false,
+            "qualification_progress": {
+              "step": "purchase_timeline",
+              "evidence": "normalized_fields",
+              "language": "es",
+              "confidence": 0.95,
+              "last_answered_field": "down_payment",
+              "predicted_bot_question": "¿Cuándo planeas comprar?"
+            }
+          },
+          "location_snapshot": {
+            "city": null,
+            "state": null,
+            "zip_code": null,
+            "easterns_zone": null
+          },
+          "ready_at": "2026-09-14T18:29:36.302Z",
+          "next_attempt_at": "2026-09-14T18:29:51.302Z",
+          "lead_id": "8127793a-c686-4e88-9eb5-4f825d91e339",
+          "canonical_phone": "+19297563553",
+          "first_name": "Amin",
+          "last_name": "",
+          "dealer_id": null,
+          "assigned_dealer_id": null,
+          "lead_dealer_status": null,
+          "routing_reason": null
+        }
+      ],
+      "messages": [
+        {
+          "id": "3adddda0-eff8-4285-8e8b-e5a4ce114cb7",
+          "ghl_message_id": "qa-amin-stafford-20260913-message-01",
+          "direction": "inbound",
+          "body": "Saludos",
+          "occurred_at": "2026-09-14T18:26:50.220Z"
+        },
+        {
+          "id": "6be85b68-a7fb-4bea-a9e1-7739b52cb75a",
+          "ghl_message_id": "qa-amin-stafford-20260913-message-02",
+          "direction": "inbound",
+          "body": "Amin",
+          "occurred_at": "2026-09-14T18:27:21.795Z"
+        },
+        {
+          "id": "fce27bd5-987d-4397-b171-cd32156466f3",
+          "ghl_message_id": "qa-amin-stafford-20260913-message-03",
+          "direction": "inbound",
+          "body": "Busco carro del 2019 en adelante",
+          "occurred_at": "2026-09-14T18:27:26.460Z"
+        },
+        {
+          "id": "fe6c7e30-c383-4f46-bee6-e190c56858d0",
+          "ghl_message_id": "qa-amin-stafford-20260913-message-04",
+          "direction": "inbound",
+          "body": "Sedan",
+          "occurred_at": "2026-09-14T18:28:47.036Z"
+        },
+        {
+          "id": "89fc0d8d-6add-494f-bec5-bdc3d159e9e6",
+          "ghl_message_id": "qa-amin-stafford-20260913-message-05",
+          "direction": "inbound",
+          "body": "500$",
+          "occurred_at": "2026-09-14T18:29:36.302Z"
+        }
+      ],
+      "events": [
+        {
+          "event_id": "qa-amin-stafford-20260913-event-01",
+          "status": "processed",
+          "payload_hash": "2c4ff854b8eaffe7001b42d73d37b11d36721f20a63c27c8301909fb969208b3",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-amin-stafford-20260913-event-02",
+          "status": "processed",
+          "payload_hash": "1563f4281d7001f8d8f7511d4547541267c48e20726edcdf91906d6e954dc41c",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-amin-stafford-20260913-event-03",
+          "status": "processed",
+          "payload_hash": "f4190ee3231b4d97c096ed171b4cfbfea8ade0a0fafa2b556b7c7186a964f839",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-amin-stafford-20260913-event-04",
+          "status": "processed",
+          "payload_hash": "95681ba47e501ef19e607e0c0f329d81d1e4c5060b6033632a368e00d4a49b78",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-amin-stafford-20260913-event-05",
+          "status": "processed",
+          "payload_hash": "828769035fd16795fa8a59a0ff615d32ab062c22e372db745059249fee43675d",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        }
+      ],
+      "sql": "SELECT c.id AS conversation_db_id, c.status, c.qualification_snapshot,\n    c.location_snapshot, c.ready_at, c.next_attempt_at,\n    l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n    ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n    ld.routing_reason\n  FROM conversations c JOIN leads l ON l.id = c.lead_id\n  LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n  WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    },
+    "stabilization": {
+      "at": "2026-09-14T18:30:00.000Z",
+      "http_status": 201,
+      "body": {
+        "accepted": true,
+        "processed": 0
+      }
+    },
+    "before_release": {
+      "rows": [
+        {
+          "conversation_db_id": "5b087022-0784-48ef-99a7-e0a2568af99f",
+          "status": "waiting_window",
+          "qualification_snapshot": {
+            "phone": "+19297563553",
+            "documents": "",
+            "real_name": "Amin",
+            "bank_account": "",
+            "down_payment": "500",
+            "vehicle_type": "Sedan",
+            "message_count": 5,
+            "identification": "",
+            "purchase_timeline": "",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "qualification_memory": "real_name: Amin; vehicle: Sedan; down payment: 500",
+            "missing_qualification": [
+              "purchase_timeline",
+              "identification",
+              "proof_of_income",
+              "bank_account"
+            ],
+            "qualification_complete": false,
+            "qualification_progress": {
+              "step": "purchase_timeline",
+              "evidence": "normalized_fields",
+              "language": "es",
+              "confidence": 0.95,
+              "last_answered_field": "down_payment",
+              "predicted_bot_question": "¿Cuándo planeas comprar?"
+            }
+          },
+          "location_snapshot": {
+            "city": null,
+            "state": null,
+            "zip_code": null,
+            "easterns_zone": null
+          },
+          "ready_at": "2026-09-14T18:29:36.302Z",
+          "next_attempt_at": "2026-09-14T18:59:36.302Z",
+          "lead_id": "8127793a-c686-4e88-9eb5-4f825d91e339",
+          "canonical_phone": "+19297563553",
+          "first_name": "Amin",
+          "last_name": "",
+          "dealer_id": null,
+          "assigned_dealer_id": null,
+          "lead_dealer_status": null,
+          "routing_reason": null
+        }
+      ],
+      "messages": [
+        {
+          "id": "3adddda0-eff8-4285-8e8b-e5a4ce114cb7",
+          "ghl_message_id": "qa-amin-stafford-20260913-message-01",
+          "direction": "inbound",
+          "body": "Saludos",
+          "occurred_at": "2026-09-14T18:26:50.220Z"
+        },
+        {
+          "id": "6be85b68-a7fb-4bea-a9e1-7739b52cb75a",
+          "ghl_message_id": "qa-amin-stafford-20260913-message-02",
+          "direction": "inbound",
+          "body": "Amin",
+          "occurred_at": "2026-09-14T18:27:21.795Z"
+        },
+        {
+          "id": "fce27bd5-987d-4397-b171-cd32156466f3",
+          "ghl_message_id": "qa-amin-stafford-20260913-message-03",
+          "direction": "inbound",
+          "body": "Busco carro del 2019 en adelante",
+          "occurred_at": "2026-09-14T18:27:26.460Z"
+        },
+        {
+          "id": "fe6c7e30-c383-4f46-bee6-e190c56858d0",
+          "ghl_message_id": "qa-amin-stafford-20260913-message-04",
+          "direction": "inbound",
+          "body": "Sedan",
+          "occurred_at": "2026-09-14T18:28:47.036Z"
+        },
+        {
+          "id": "89fc0d8d-6add-494f-bec5-bdc3d159e9e6",
+          "ghl_message_id": "qa-amin-stafford-20260913-message-05",
+          "direction": "inbound",
+          "body": "500$",
+          "occurred_at": "2026-09-14T18:29:36.302Z"
+        }
+      ],
+      "events": [
+        {
+          "event_id": "qa-amin-stafford-20260913-event-01",
+          "status": "processed",
+          "payload_hash": "2c4ff854b8eaffe7001b42d73d37b11d36721f20a63c27c8301909fb969208b3",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-amin-stafford-20260913-event-02",
+          "status": "processed",
+          "payload_hash": "1563f4281d7001f8d8f7511d4547541267c48e20726edcdf91906d6e954dc41c",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-amin-stafford-20260913-event-03",
+          "status": "processed",
+          "payload_hash": "f4190ee3231b4d97c096ed171b4cfbfea8ade0a0fafa2b556b7c7186a964f839",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-amin-stafford-20260913-event-04",
+          "status": "processed",
+          "payload_hash": "95681ba47e501ef19e607e0c0f329d81d1e4c5060b6033632a368e00d4a49b78",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-amin-stafford-20260913-event-05",
+          "status": "processed",
+          "payload_hash": "828769035fd16795fa8a59a0ff615d32ab062c22e372db745059249fee43675d",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        }
+      ],
+      "sql": "SELECT c.id AS conversation_db_id, c.status, c.qualification_snapshot,\n    c.location_snapshot, c.ready_at, c.next_attempt_at,\n    l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n    ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n    ld.routing_reason\n  FROM conversations c JOIN leads l ON l.id = c.lead_id\n  LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n  WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    },
+    "release": {
+      "at": "2026-09-14T18:59:36.302Z",
+      "http_status": 201,
+      "body": {
+        "accepted": true,
+        "processed": 0
+      }
+    },
+    "after_release": {
+      "rows": [
+        {
+          "conversation_db_id": "5b087022-0784-48ef-99a7-e0a2568af99f",
+          "status": "queued",
+          "qualification_snapshot": {
+            "phone": "+19297563553",
+            "documents": "",
+            "real_name": "Amin",
+            "bank_account": "",
+            "down_payment": "500",
+            "vehicle_type": "Sedan",
+            "message_count": 5,
+            "identification": "",
+            "purchase_timeline": "",
+            "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+            "qualification_memory": "real_name: Amin; vehicle: Sedan; down payment: 500",
+            "missing_qualification": [
+              "purchase_timeline",
+              "identification",
+              "proof_of_income",
+              "bank_account"
+            ],
+            "qualification_complete": false,
+            "qualification_progress": {
+              "step": "purchase_timeline",
+              "evidence": "normalized_fields",
+              "language": "es",
+              "confidence": 0.95,
+              "last_answered_field": "down_payment",
+              "predicted_bot_question": "¿Cuándo planeas comprar?"
+            }
+          },
+          "location_snapshot": {
+            "city": null,
+            "state": null,
+            "zip_code": null,
+            "easterns_zone": null
+          },
+          "ready_at": "2026-09-14T18:29:36.302Z",
+          "next_attempt_at": null,
+          "lead_id": "8127793a-c686-4e88-9eb5-4f825d91e339",
+          "canonical_phone": "+19297563553",
+          "first_name": "Amin",
+          "last_name": "",
+          "dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+          "assigned_dealer_id": "3bf48365-6833-4fb7-b401-1d6ea04ba975",
+          "lead_dealer_status": "pending",
+          "routing_reason": "GHL stafford source dealer"
+        }
+      ],
+      "messages": [
+        {
+          "id": "3adddda0-eff8-4285-8e8b-e5a4ce114cb7",
+          "ghl_message_id": "qa-amin-stafford-20260913-message-01",
+          "direction": "inbound",
+          "body": "Saludos",
+          "occurred_at": "2026-09-14T18:26:50.220Z"
+        },
+        {
+          "id": "6be85b68-a7fb-4bea-a9e1-7739b52cb75a",
+          "ghl_message_id": "qa-amin-stafford-20260913-message-02",
+          "direction": "inbound",
+          "body": "Amin",
+          "occurred_at": "2026-09-14T18:27:21.795Z"
+        },
+        {
+          "id": "fce27bd5-987d-4397-b171-cd32156466f3",
+          "ghl_message_id": "qa-amin-stafford-20260913-message-03",
+          "direction": "inbound",
+          "body": "Busco carro del 2019 en adelante",
+          "occurred_at": "2026-09-14T18:27:26.460Z"
+        },
+        {
+          "id": "fe6c7e30-c383-4f46-bee6-e190c56858d0",
+          "ghl_message_id": "qa-amin-stafford-20260913-message-04",
+          "direction": "inbound",
+          "body": "Sedan",
+          "occurred_at": "2026-09-14T18:28:47.036Z"
+        },
+        {
+          "id": "89fc0d8d-6add-494f-bec5-bdc3d159e9e6",
+          "ghl_message_id": "qa-amin-stafford-20260913-message-05",
+          "direction": "inbound",
+          "body": "500$",
+          "occurred_at": "2026-09-14T18:29:36.302Z"
+        }
+      ],
+      "events": [
+        {
+          "event_id": "qa-amin-stafford-20260913-event-01",
+          "status": "processed",
+          "payload_hash": "2c4ff854b8eaffe7001b42d73d37b11d36721f20a63c27c8301909fb969208b3",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-amin-stafford-20260913-event-02",
+          "status": "processed",
+          "payload_hash": "1563f4281d7001f8d8f7511d4547541267c48e20726edcdf91906d6e954dc41c",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-amin-stafford-20260913-event-03",
+          "status": "processed",
+          "payload_hash": "f4190ee3231b4d97c096ed171b4cfbfea8ade0a0fafa2b556b7c7186a964f839",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-amin-stafford-20260913-event-04",
+          "status": "processed",
+          "payload_hash": "95681ba47e501ef19e607e0c0f329d81d1e4c5060b6033632a368e00d4a49b78",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        },
+        {
+          "event_id": "qa-amin-stafford-20260913-event-05",
+          "status": "processed",
+          "payload_hash": "828769035fd16795fa8a59a0ff615d32ab062c22e372db745059249fee43675d",
+          "ghl_location_id": "LiaoSID3nvAhad49ZpNJ"
+        }
+      ],
+      "sql": "SELECT c.id AS conversation_db_id, c.status, c.qualification_snapshot,\n    c.location_snapshot, c.ready_at, c.next_attempt_at,\n    l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n    ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n    ld.routing_reason\n  FROM conversations c JOIN leads l ON l.id = c.lead_id\n  LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n  WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST"
+    },
+    "verification_sql": "SELECT c.id AS conversation_db_id, c.status, c.qualification_snapshot,\n    c.location_snapshot, c.ready_at, c.next_attempt_at,\n    l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name,\n    ld.dealer_id, ld.assigned_dealer_id, ld.status AS lead_dealer_status,\n    ld.routing_reason\n  FROM conversations c JOIN leads l ON l.id = c.lead_id\n  LEFT JOIN lead_dealers ld ON ld.lead_id = l.id\n  WHERE c.ghl_conversation_id = $1 ORDER BY ld.created_at NULLS LAST",
+    "assertions": {
+      "normalized_name": true,
+      "normalized_vehicle": true,
+      "normalized_down": true,
+      "next_question_uses_remaining_fact": true,
+      "capture_waits": true,
+      "release_queues": true,
+      "linked_messages": true,
+      "linked_events": true,
+      "dealer_assignment": true
+    },
+    "result": "PASS"
+  }
+}

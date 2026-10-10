@@ -1,0 +1,157 @@
+{
+  "run_id": "qa-marie-flanagan-20260913",
+  "source": "user-pasted JSON used only as synthetic local fixture",
+  "lead": {
+    "id": "c4f55fad-3ebe-4e20-8bec-e4ae312d148d",
+    "first_name": "Morningstar",
+    "last_name": "Marie Flanagan",
+    "canonical_phone": "+14438626592"
+  },
+  "conversation": {
+    "id": "fe9893af-90a5-4fc0-ac71-1967a5df6b35",
+    "ghl_conversation_id": "contact:AEsDMAFXN6g5XeIcmo8t:messenger",
+    "channel": "messenger"
+  },
+  "messages": [
+    {
+      "id": "298f7e0e-46b0-4190-8526-868b607df6b0",
+      "body": "What vehicles are eligible?",
+      "direction": "inbound",
+      "occurred_at": "2026-09-12T23:12:55.285+00:00",
+      "ghl_message_id": "ghl:action-cars:b0cae9aae4001854a79501c698b3be6898d9f1d7d3cc631926a745dfd9c00c4c"
+    },
+    {
+      "id": "76c4c776-aed6-4104-a83d-23852cb80c85",
+      "body": "I am in Maryland",
+      "direction": "inbound",
+      "occurred_at": "2026-09-12T23:13:43.245+00:00",
+      "ghl_message_id": "ghl:action-cars:7e887c2ad00f47d86174d95a5d75e5136015e3a04fe9644deecb3741381747c9"
+    },
+    {
+      "id": "0ea77357-8ee9-4c70-afa0-6e3924dae56f",
+      "body": "But I desperately need a car",
+      "direction": "inbound",
+      "occurred_at": "2026-09-12T23:13:59.488+00:00",
+      "ghl_message_id": "ghl:action-cars:30d2e024369f154cfbd2eb3f9f66c1c7bd67fc1b12cc98dcb75e51bb6a204e50"
+    },
+    {
+      "id": "678ad0dd-175e-482d-9dc9-dcb59a5fb7d3",
+      "body": "A small SUV",
+      "direction": "inbound",
+      "occurred_at": "2026-09-12T23:14:16.827+00:00",
+      "ghl_message_id": "ghl:action-cars:e4549502b5a92c01bf95790baa1473eba6fa3e674e9f7afa4f991473558bb45a"
+    },
+    {
+      "id": "a8c4c34e-4467-40c0-ac4a-a19d69c011fc",
+      "body": "But I have down payment",
+      "direction": "inbound",
+      "occurred_at": "2026-09-12T23:14:31.252+00:00",
+      "ghl_message_id": "ghl:action-cars:c634a65a10b542697039ccb2bf5d8ca58b4114de117b71934c27c828fc3d4486"
+    },
+    {
+      "id": "28ffeba5-8fb3-4b57-a281-c906201c811e",
+      "body": "443 862-6592",
+      "direction": "inbound",
+      "occurred_at": "2026-09-12T23:14:48.366+00:00",
+      "ghl_message_id": "ghl:action-cars:f6f47d8cbc15997001539973d48b667c9c0b851126476a9179b356351d1a91a6"
+    },
+    {
+      "id": "7db02dd9-da52-4bcd-8a01-d7d4ada8c0a6",
+      "body": "Could you do 700?",
+      "direction": "inbound",
+      "occurred_at": "2026-09-12T23:16:35.964+00:00",
+      "ghl_message_id": "ghl:action-cars:d856e85a038b4136944d47ee140014cf88820e23c784e054f7a08acbc7764079"
+    },
+    {
+      "id": "bf2bb5f0-52cd-4446-942a-0022c8aa7943",
+      "body": "Yes I can",
+      "direction": "inbound",
+      "occurred_at": "2026-09-12T23:17:09.861+00:00",
+      "ghl_message_id": "ghl:action-cars:14e2494a63aa17a36ad7263208f82cf698fe2556cdec153dbd07d7b87f87a2e8"
+    },
+    {
+      "id": "70d6ab7a-c2f2-42ac-9c7a-7d68225fa317",
+      "body": "No I need a car like yesterday!!",
+      "direction": "inbound",
+      "occurred_at": "2026-09-12T23:17:47.277+00:00",
+      "ghl_message_id": "ghl:action-cars:99d760e4cc3efb6ca439d9107948da4e9053bf522c036aafa9739b4ca75491d6"
+    }
+  ],
+  "current_normalizer_without_stale_down": {
+    "channel": "messenger",
+    "real_name": "Morningstar Marie Flanagan",
+    "vehicle_type": "SUV",
+    "down_payment": "",
+    "purchase_timeline": "",
+    "documents": "",
+    "identification": "",
+    "bank_account": "",
+    "qualification_memory": "real_name: Morningstar Marie Flanagan; vehicle: SUV",
+    "phone": "+14438626592",
+    "chat_history_log": "What vehicles are eligible? I am in Maryland But I desperately need a car A small SUV But I have down payment 443 862-6592 Could you do 700? Yes I can No I need a car like yesterday!!\nNo I need a car like yesterday!!",
+    "dealeradmin_send_now": false,
+    "has_identification": "",
+    "has_income_proof": "",
+    "next_question": "How much do you have for the down payment?",
+    "qualification_step": "down_payment",
+    "qualification_progress": {
+      "step": "down_payment",
+      "last_answered_field": "vehicle_type",
+      "predicted_bot_question": "How much do you have for the down payment?",
+      "language": "en",
+      "confidence": 0.95,
+      "evidence": "normalized_fields"
+    },
+    "qualification_complete": false,
+    "missing_qualification": [
+      "down_payment",
+      "purchase_timeline",
+      "identification",
+      "proof_of_income",
+      "bank_account"
+    ],
+    "qualification_source": "custom_fields"
+  },
+  "current_normalizer_with_stale_down": {
+    "channel": "messenger",
+    "real_name": "Morningstar Marie Flanagan",
+    "vehicle_type": "SUV",
+    "down_payment": "",
+    "purchase_timeline": "",
+    "documents": "",
+    "identification": "",
+    "bank_account": "",
+    "qualification_memory": "real_name: Morningstar Marie Flanagan; vehicle: SUV",
+    "phone": "+14438626592",
+    "chat_history_log": "What vehicles are eligible? I am in Maryland But I desperately need a car A small SUV But I have down payment 443 862-6592 Could you do 700? Yes I can No I need a car like yesterday!!\nNo I need a car like yesterday!!",
+    "dealeradmin_send_now": false,
+    "has_identification": "",
+    "has_income_proof": "",
+    "next_question": "How much do you have for the down payment?",
+    "qualification_step": "down_payment",
+    "qualification_progress": {
+      "step": "down_payment",
+      "last_answered_field": "vehicle_type",
+      "predicted_bot_question": "How much do you have for the down payment?",
+      "language": "en",
+      "confidence": 0.95,
+      "evidence": "normalized_fields"
+    },
+    "qualification_complete": false,
+    "missing_qualification": [
+      "down_payment",
+      "purchase_timeline",
+      "identification",
+      "proof_of_income",
+      "bank_account"
+    ],
+    "qualification_source": "custom_fields"
+  },
+  "assertions": {
+    "phone_normalized": true,
+    "vehicle_preserved": true,
+    "no_down_from_phone_only": true,
+    "stale_443_is_not_accepted_as_evidence": true
+  },
+  "result": "PASS"
+}

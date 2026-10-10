@@ -1,0 +1,63 @@
+diff --git a/artifacts/api-server/src/routes/conversations.ts b/artifacts/api-server/src/routes/conversations.ts
+--- a/artifacts/api-server/src/routes/conversations.ts
++++ b/artifacts/api-server/src/routes/conversations.ts
+@@
+-4. A buyer phone number triggers the final handoff: thank the buyer, say a sales agent will contact them, close with a brief goodbye, and stop automated messages. A down-payment amount advances to the buyer-phone step; do not close the conversation yet. A concrete cash offer may be handed to the sales team without repeating a qualification question.
++4. A buyer phone number triggers the BDC handoff, but it does not end the qualification flow: acknowledge the number and continue with the next unanswered qualification question. A down-payment amount advances to the buyer-phone step; do not close the conversation yet. A concrete cash offer may be handed to the sales team without repeating a qualification question.
+@@
+-  if (hasPhoneNumber(latest)) return "phone_received";
++  if (hasPhoneNumber(latest) && !buyerPhoneAlreadyKnown) return "phone_received";
+@@
+-    phone_received: "The buyer provided a phone number. Thank them, say a sales agent will reach out shortly, add a brief goodbye, and do not ask another question or continue qualification in the reply.",
++    phone_received: "The buyer provided a phone number. Thank them briefly, say a sales agent will reach out shortly, then continue with the next unanswered qualification question from the funnel. This is a BDC handoff, not the end of the conversation; do not close the thread.",
+@@
+-  const closeAfterDelivery = immediateHandoffReason === "buyer_phone_received" || [
++  const closeAfterDelivery = [
+@@
+-    "phone_received",
+  ].includes(currentStage);
+diff --git a/artifacts/api-server/src/routes/conversations-stalled-phone.contract.test.mjs b/artifacts/api-server/src/routes/conversations-stalled-phone.contract.test.mjs
+--- a/artifacts/api-server/src/routes/conversations-stalled-phone.contract.test.mjs
++++ b/artifacts/api-server/src/routes/conversations-stalled-phone.contract.test.mjs
+@@
+   assert.doesNotMatch(
+     source,
+     /latestExistingAssistant\?\.content\.trim\(\) !== inbound\.trim\(\) &&\s*!immediateHandoffReason/,
+     "receiving the buyer phone must still generate the next qualification question",
+   );
++  assert.match(
++    source,
++    /if \(hasPhoneNumber\(latest\) && !buyerPhoneAlreadyKnown\) return "phone_received";/,
++    "a new phone capture may be recognized, but a repeated/current history phone must continue the funnel",
++  );
++  assert.match(
++    source,
++    /phone_received: "The buyer provided a phone number[\s\S]*next unanswered qualification question/,
++    "phone capture must acknowledge the handoff without ending qualification",
++  );
+ });
+diff --git a/artifacts/api-server/src/routes/conversations-marketplace-regression.contract.test.mjs b/artifacts/api-server/src/routes/conversations-marketplace-regression.contract.test.mjs
+--- a/artifacts/api-server/src/routes/conversations-marketplace-regression.contract.test.mjs
++++ b/artifacts/api-server/src/routes/conversations-marketplace-regression.contract.test.mjs
+@@
+-test("phone capture closes with a neutral handoff and no follow-up question", () => {
+-  const stageStart = source.indexOf('if (hasPhoneNumber(latest)) return "phone_received";');
++test("phone capture hands off without closing and continues qualification", () => {
++  const stageStart = source.indexOf('if (hasPhoneNumber(latest) && !buyerPhoneAlreadyKnown) return "phone_received";');
+   assert.ok(stageStart >= 0);
+-  assert.doesNotMatch(
+-    source.slice(stageStart, stageStart + 120),
+-    /!buyerPhoneAlreadyKnown/,
+-    "the current phone turn must not be treated as already known",
+-  );
+-  assert.match(source, /phone_received: "The buyer provided a phone number[\s\S]*brief goodbye/);
+-  assert.match(source, /Thanks for your number\. A sales agent will reach out to you shortly\. We remain available\./);
+-  assert.match(source, /Gracias por tu número\. Un agente de ventas te contactará en breve\. Quedamos atentos\./);
+-  assert.match(source, /closeConversationAfterDelivery: retryStage === "store_phone_requested" \|\| retryStage === "phone_received"/);
+-  assert.match(source, /const closeAfterDelivery = immediateHandoffReason === "buyer_phone_received" \|\| \[/);
++  assert.match(source, /phone_received: "The buyer provided a phone number[\s\S]*next unanswered qualification question/);
++  assert.doesNotMatch(source, /closeConversationAfterDelivery: retryStage === "store_phone_requested" \|\| retryStage === "phone_received"/);
++  assert.doesNotMatch(source, /const closeAfterDelivery = immediateHandoffReason === "buyer_phone_received"/);
++  assert.doesNotMatch(source, /closeAfterDelivery[\s\S]{0,180}"phone_received"/);
+   assert.doesNotMatch(source, /closeConversationAfterDelivery: [^\n]*qualified_exit/);
+ });

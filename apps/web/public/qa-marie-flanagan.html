@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QA local — corrección 443</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #f4f7f6; color: #14302f; }
+    body { margin: 0; padding: 40px; }
+    main { max-width: 980px; margin: auto; }
+    .eyebrow { color: #087f79; font-size: 12px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+    h1 { margin: 8px 0 6px; font-size: 32px; letter-spacing: -.03em; }
+    .sub { color: #56706e; margin: 0 0 28px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .card { background: white; border: 1px solid #d8e5e2; border-radius: 14px; padding: 22px; box-shadow: 0 8px 24px #163c3810; }
+    .before { border-top: 5px solid #c95d49; } .after { border-top: 5px solid #087f79; }
+    h2 { margin: 0 0 15px; font-size: 17px; } dl { display: grid; grid-template-columns: 150px 1fr; gap: 11px 14px; margin: 0; } dt { color: #6b817f; } dd { margin: 0; font-weight: 700; } .bad { color: #b14836; } .good { color: #087f79; }
+    .checks { margin-top: 18px; display: grid; gap: 10px; } .check { background: #e9f5f2; color: #17645f; border-radius: 9px; padding: 12px 14px; font-weight: 650; }
+    code { background: #eef3f2; padding: 2px 5px; border-radius: 4px; font-size: .92em; } footer { color: #6b817f; font-size: 12px; margin-top: 18px; }
+    @media (max-width: 720px) { body { padding: 20px; } .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">dealerADMIN · evidencia local</div>
+    <h1>Corrección del falso positivo de down payment</h1>
+    <p class="sub">Reproducción sintética de Morningstar Marie Flanagan · Action Pre Owned Cars English · 2026-09-13</p>
+    <section class="grid">
+      <article class="card before"><h2>Antes de la corrección · FAIL</h2><dl>
+        <dt>Teléfono</dt><dd>+1 443 862-6592</dd>
+        <dt>Vehículo</dt><dd>SUV</dd>
+        <dt>Down payment</dt><dd class="bad">443 ← falso positivo</dd>
+        <dt>Causa</dt><dd>El extractor cruzaba la línea del teléfono desde “I have down payment”.</dd>
+      </dl></article>
+      <article class="card after"><h2>Después de la corrección · PASS</h2><dl>
+        <dt>Teléfono</dt><dd>+1 443 862-6592</dd>
+        <dt>Vehículo</dt><dd>SUV</dd>
+        <dt>Down payment</dt><dd class="good">vacío · correcto</dd>
+        <dt>Regla</dt><dd>El área de teléfono no se acepta sin evidencia explícita.</dd>
+      </dl></article>
+    </section>
+    <section class="checks">
+      <div class="check">✓ “But I have down payment” + “443 862-6592” no produce monto.</div>
+      <div class="check">✓ Un valor obsoleto <code>down_payment=443</code> también se descarta.</div>
+      <div class="check">✓ “I have 443 down” explícito sí produce <code>443</code>.</div>
+      <div class="check">✓ TypeScript backend y Custom Code: 178 pruebas unitarias PASS.</div>
+    </section>
+    <footer>Fixture local; no se consultó ni modificó producción. Secretos: no expuestos.</footer>
+  </main>
+</body>
+</html>

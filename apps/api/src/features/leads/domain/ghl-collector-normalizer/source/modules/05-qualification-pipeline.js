@@ -254,7 +254,11 @@ const phone = phoneFrom(message, history, inputData.phone);
 const vehicle = extractedVehicle || (existingAdvisorMarker || phoneFromConversation || (isWhatsAppChannel(inputData.channel) && phone)
   ? advisorHandoffVehicle
   : '');
-const vehicleYear = vehicleYearFrom(vehicleSource);
+const vehicleYear = [
+  vehicleYearFrom(vehicleSource),
+  vehicleYearFrom(inputData.vehicle_type),
+  vehicleYearFrom(memoryValue(['vehicle', 'vehicle_type'])),
+].find((value) => value !== null) ?? null;
 // Prefer a phone found in the conversation before accepting custom/memory down values.
 // This prevents a stale area-code-only value (e.g. 443) from becoming a down payment.
 const memoryDown = memoryValue(['down payment', 'down_payment', 'downpayment']);

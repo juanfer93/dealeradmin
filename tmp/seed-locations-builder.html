@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>DealerAdmin location seed builder</title>
+<label>Locations JSON <input id="file" type="file" accept="application/json"></label>
+<button id="build" disabled>Build SQL</button>
+<output id="status"></output>
+<textarea id="sql" style="width:100%;height:30rem"></textarea>
+<script>
+  const fileInput = document.querySelector('#file');
+  const build = document.querySelector('#build');
+  const status = document.querySelector('#status');
+  const output = document.querySelector('#sql');
+  let rows = [];
+  fileInput.addEventListener('change', async () => {
+    rows = JSON.parse(await fileInput.files[0].text());
+    status.textContent = `Loaded ${rows.length} rows`;
+    build.disabled = rows.length === 0;
+  });
+  build.addEventListener('click', () => {
+    const byState = new Map();
+    for (const row of rows) {
+      if (!byState.has(row.state_code)) byState.set(row.state_code, []);
+      byState.get(row.state_code).push(row);
+    }
+    const statements = [...byState.entries()].map(([state, stateRows]) => {
+      const json = JSON.stringify(stateRows).replaceAll('$', '\\u0024');
+      return `INSERT INTO locations (state_code,state_name,name,normalized_name,place_type,latitude,longitude,source)\nSELECT state_code,state_name,name,normalized_name,place_type,latitude,longitude,'US Census Gazetteer 2024' FROM jsonb_to_recordset($$${json}$$::jsonb) AS x(state_code text,state_name text,name text,normalized_name text,place_type text,latitude numeric,longitude numeric)\nON CONFLICT (state_code, normalized_name, place_type, latitude, longitude) DO UPDATE SET state_name=EXCLUDED.state_name,name=EXCLUDED.name,source=EXCLUDED.source,updated_at=CURRENT_TIMESTAMP;`;
+    });
+    output.value = 'BEGIN;\n' + statements.join('\n') + '\nCOMMIT;';
+    status.textContent = `Built ${statements.length} statements / ${output.value.length} chars`;
+  });
+</script>

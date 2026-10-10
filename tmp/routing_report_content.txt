@@ -1,0 +1,59 @@
+CAMBIO AGRESIVO: CUSTOM FIELDS + QUALIFICATION MEMORY
+dealerADMIN | Stafford, Fredericksburg, Fredericksburg 2 y Easterns
+Fecha: 10 de septiembre de 2026
+
+1. PROBLEMA ENCONTRADO
+
+Durante la auditoria live se comprobo que los errores no pertenecen a un solo lead ni a un solo dealer. Los cuatro workflows recolectores/routing tienen configuraciones horarias incompletas o contradictorias. La rama llamada "3 AM - 3 PM + telefono" no siempre contiene los dos limites del intervalo. Ademas, la rama de fuera de horario puede tener solamente "Phone is not empty" o combinar "despues de 3 PM" y "antes de 3 AM" con AND, una condicion imposible.
+
+Esto hace que un lead con telefono valido pueda entrar a la rama equivocada, esperar tres horas durante el horario operativo o no recibir el webhook en el momento esperado. El problema es de configuracion comun y debe corregirse en todos los workflows, no solo en el caso de Viviana. El cambio anterior no fue suficiente porque la memoria y los custom fields no tenian una evaluacion independiente y el routing dependia de ramas horarias mal construidas.
+
+2. EVIDENCIA DE VIVIANA
+
+Viviana llego correctamente a Stafford con nombre real, telefono +19109980682 y vehiculo SUV. Los datos de down payment, identificacion, documentos, cuenta bancaria y tiempo de compra quedaron no indicados porque ella no los proporciono. Eso es correcto: el lead parcial debe conservarse y entrar a dealerADMIN sin inventar informacion.
+
+La ejecucion tambien demostro que el telefono del contacto era valido, aunque el output del Custom Code mostraba phone vacio por un mapeo de salida invalido. El routing pudo usar el Phone guardado en el contacto y el webhook respondio 201/processed.
+
+3. NUEVA LOGICA OBLIGATORIA
+
+El recolector seguira llenando los custom fields y, al mismo tiempo, debe completar qualification_memory con toda la informacion disponible. Cada fuente tendra su propia evaluacion booleana: custom_fields_complete y qualification_memory_complete. No se deben mezclar ni sobrescribir entre si.
+
+Regla de envio: qualification_memory_complete = true OR custom_fields_complete = true. Si cualquiera de las dos fuentes esta completa, el lead pasa inmediatamente a dealerADMIN. Si ambas son false, el lead no se bloquea: se programa segun el horario y se envian los datos faltantes visibles.
+
+Si ambas fuentes son false dentro del horario operativo: telefono valido no vacio AND despues de 03:00 AM AND antes de 03:00 PM. Accion: esperar 30 minutos, enviar webhook, confirmar processed y marcar enviado.
+
+Si ambas fuentes son false fuera de horario: telefono valido no vacio AND (antes de 03:00 AM OR despues de 03:00 PM). Accion: conservar dealeradmin_status = pending y esperar 3 horas antes de enviar el webhook. Si durante la espera una fuente pasa a true, se envia inmediatamente y no se duplica el lead.
+
+Sin Phone: no enviar. Conservar la evidencia y esperar que el recolector obtenga un telefono valido.
+
+Si GHL no permite agrupar OR y AND de forma segura, se deben crear dos ramas: "Antes de 3 AM + telefono" y "Despues de 3 PM + telefono". Ambas usan la espera de 3 horas.
+
+4. EVALUACION INDEPENDIENTE DE LAS DOS FUENTES
+
+qualification_memory debe completarse con la informacion disponible del transcript y conservar lo que falte como null, faltante o no indicado; nunca inventar respuestas. Una memoria como "real_name: Viviana; vehicle: SUV" es util, pero parcial y debe producir qualification_memory_complete = false.
+
+Los custom fields se evaluan con la misma lista de requisitos y producen custom_fields_complete = false si falta cualquiera. Si todos los campos de una fuente estan llenos y validos, su valor es true. La salida final puede conservar qualification_complete como OR de las dos fuentes.
+
+La condicion final qualification_complete = custom_fields_complete OR qualification_memory_complete debe usarse para el bypass inmediato. Si es false, el lead sigue el horario de 30 minutos o 3 horas. No se deben inventar down payment, documentos, identificacion, banco o tiempo cuando no aparecen en la conversacion. La memoria se conserva como evidencia auditable y no se debe contaminar con concatenaciones repetidas de Custom Code y AI Extract Data.
+
+Telefono por dealer: en Stafford el telefono ya llega guardado por defecto; no se modifica la normalizacion del telefono dentro de ese workflow. En los demas dealers el workflow debe detectar el numero del chat, normalizarlo y escribirlo en contact.phone antes de evaluar el routing. Un numero local de diez digitos recibe +1; un numero con indicativo conserva ese indicativo. Si no se puede validar, no se envia y se conserva la evidencia.
+
+5. TRABAJO OBLIGATORIO HOY
+
+1) Corregir la rama diurna en los cuatro workflows: despues de 03:00 AM AND antes de 03:00 PM AND Phone no vacio.
+2) Corregir las ramas nocturnas: antes de 03:00 AM + Phone y despues de 03:00 PM + Phone.
+3) Revisar que cada rama apunte a la espera y webhook correctos.
+4) Mantener el llenado de custom fields y producir custom_fields_complete.
+5) Completar qualification_memory y producir qualification_memory_complete.
+6) Conectar la condicion final como OR: cualquiera true envia inmediatamente.
+7) Si ambas son false, aplicar horario: 30 minutos dentro de horario y 3 horas fuera de horario.
+8) En todos excepto Stafford, normalizar el telefono y escribirlo en contact.phone antes del routing; en Stafford conservar el telefono nativo sin modificar ese paso.
+9) Revisar el mapeo de Phone en rama principal y fallback; no usar tokens de Custom Code invalidos.
+10) Guardar cada workflow y confirmar Publish activo.
+11) Probar memoria completa, custom fields completos, una fuente completa con la otra false, ambas false de dia y ambas false de noche; revisar execution log, webhook procesado, Neon y una sola fila en dealerADMIN.
+
+6. CRITERIO DE CIERRE
+
+No basta con que el workflow aparezca Published. Cada dealer debe demostrar telefono normalizado, memoria/transcript conservado, qualification_complete correcto, rama horaria correcta, webhook processed, dealer correcto en Neon y una sola fila en la cola de dealerADMIN.
+
+Este documento plantea una correccion de configuracion y prueba. No sustituye la verificacion live de cada workflow.
