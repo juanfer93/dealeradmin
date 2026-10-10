@@ -12,6 +12,14 @@
 
 El registro se realiza en `WebhookIngressAuditMiddleware`, antes de los guards. El body crudo, su SHA-256 y los metadatos se guardan antes de llamar al controlador. Después se actualizan los hitos de autenticación, handler y respuesta HTTP.
 
+## Convención de Fredericksburg
+
+`FRED` y `FRED-2` son dealers distintos, pero ambos llegan intencionalmente a la ubicación de Fredericksburg. Esta relación es permanente y no debe clasificarse como una anomalía de routing o de entrega.
+
+- Para operación, permisos y métricas por dealer, conservar `FRED` y `FRED-2` separados.
+- Para auditorías por ubicación, agrupar ambos bajo el mismo `ghl_location_id` de Fredericksburg.
+- No corregir ni eliminar el alias solo porque el `ghl_location_id` aparezca asociado a ambos dealers; verificar primero si la consulta está midiendo dealer o ubicación.
+
 ## Estados y lectura operacional
 
 | Campo | Significado |
@@ -75,4 +83,4 @@ Interpretación rápida:
 
 El logging es best-effort: si PostgreSQL está caído, no debe convertir el webhook en un segundo fallo. Por eso el endpoint continúa y el error de logging no reemplaza el resultado del negocio. Una indisponibilidad simultánea de la base y del backend requiere una cola o almacenamiento externo para tener garantía fuera de PostgreSQL.
 
-La migración `1710000030000-WebhookIngressLogs` se aplica junto con las demás migraciones de API. La validación local cubre peticiones aceptadas y rechazadas, pero la existencia de la tabla en producción debe confirmarse después del siguiente despliegue.
+La migración `1710000030000-WebhookIngressLogs` se aplica junto con las demás migraciones de API. La validación local cubre peticiones aceptadas y rechazadas. La tabla también fue confirmada en producción y contiene entradas reales de los webhooks de customer-replied; las consultas de auditoría deben respetar la convención de Fredericksburg descrita arriba.
