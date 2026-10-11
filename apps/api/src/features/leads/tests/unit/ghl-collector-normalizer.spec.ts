@@ -37,6 +37,45 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
   });
 
+  it('normalizes the Action Messenger midsize answer from Marcus Snell', () => {
+    const result = execute({
+      source: 'action-cars',
+      channel: 'messenger',
+      real_name: 'Marcus Snell',
+      phone: '(240) 266-6377',
+      message: '240-266-6377',
+      chat_history_log: 'Do you guys work with all credit or programs?\nDo you offer financing options?\nMidsize\n240-266-6377',
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'midsize',
+      vehicle_category: 'sedan',
+      qualification_complete: true,
+      dealeradmin_send_now: true,
+      missing_qualification: [],
+    });
+  });
+
+  it('preserves Toi/Moisés Stafford WhatsApp qualification memory', () => {
+    const result = execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Toi',
+      phone: '+15715550123',
+      message: 'Esta semana',
+      chat_history_log: 'Quiero financiar un auto!\nMoisés\nBuenos días. Quería ver los modelos que tiene Andas Yvis SI, si me puedo montar por favor, algunas fotos para lograr verlos.\n1500\nEsta semana',
+      qualification_memory: 'real_name: Moisés; vehicle: Quiere hablar con un asesor; down payment: 1500',
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'Honda Civic',
+      vehicle_category: 'sedan',
+      qualification_complete: true,
+      dealeradmin_send_now: true,
+      missing_qualification: [],
+    });
+  });
+
   it('uses memory to repair stale custom fields and reports both sources', () => {
     const result = execute({
       real_name: 'QA Customer',

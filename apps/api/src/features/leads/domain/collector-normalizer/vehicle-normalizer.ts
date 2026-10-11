@@ -4,7 +4,7 @@ import { clean } from './text-cleaner';
 
 export const VEHICLE_BRANDS = /\b(?:toyotas?|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subarus?|suvarus?|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i;
 export const VEHICLE_MODELS = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacomas?|tacomos?|tacmas?|tecomas?|sti|rav\s*4|civic|civc|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|for\s+runner|for\s+runer|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|odisea|paila|sierra|silverado|tahoe|tajo|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|rlx|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
-export const VEHICLE_CATEGORIES = /\b(?:suv|sedan|truck|truk|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i;
+export const VEHICLE_CATEGORIES = /\b(?:suv|sedan|midsize|mid[- ]?size|medium[- ]?size|mediano|mediana|truck|truk|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i;
 export const VEHICLE_TRIMS = /\b(?:\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i;
 export const VEHICLE_CONTEXT = /\b(?:tengo|tiene|tienen|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i;
 export const VEHICLE_YEAR_PATTERN = /\b(19\d{2}|20(?:0\d|1\d|2[0-6]))\b/g;
@@ -13,8 +13,17 @@ export const FINANCIAL_AMOUNT_PREFIX = /(?:\$|doy|dar(?:é|as|emos)?|pongo|poner
 export const FINANCIAL_AMOUNT_SUFFIX = /^\s*(?:down|payment|enganche|inicial|pago\s+inicial|cuota\s+inicial|deposit|dep[oó]sito)\b/i;
 export const FINANCIAL_CONTEXT_BEFORE_AMOUNT = /\b(?:down|payment|enganche|inicial|pago\s+inicial|cuota\s+inicial|deposit|dep[oó]sito)\b[^\d]{0,40}$/i;
 
+// Whisper can render "Honda Civic" from Stafford voice notes as "Andas Yvis
+// SI". Keep this narrow alias so the audio evidence becomes a real model
+// instead of falling back to the advisor handoff marker.
+export function normalizeWhisperVehicleAliases(value: string): string {
+  return clean(value)
+    .replace(/\b(?:andas|onda|ondas|honda)\s+y\s*vis\s+si\b/gi, 'Honda Civic')
+    .replace(/\b(?:andas|onda|ondas)\s+civ(?:ic|is)\b/gi, 'Honda Civic');
+}
+
 export function canonicalVehicleLabel(value: string): string {
-  const normalized = clean(value)
+  const normalized = normalizeWhisperVehicleAliases(value)
     .replace(/-{2,}/g, '-')
     .replace(/\btoyotas?\b/gi, 'Toyota')
     .replace(/\bsuvarus?\b/gi, 'Subaru')
@@ -51,11 +60,13 @@ export function canonicalVehicleLabel(value: string): string {
 }
 
 export function canonicalVehicleCategory(value: string): string {
-  return clean(value).replace(/\b(?:truk|troca|trokita|troquita|troque|trokas|camioneta|camionetq|camion|camión)\b/gi, 'truck');
+  return clean(value)
+    .replace(/\b(?:mid[- ]?size|medium[- ]?size|mediano|mediana)\b/gi, 'midsize')
+    .replace(/\b(?:truk|troca|trokita|troquita|troque|trokas|camioneta|camionetq|camion|camión)\b/gi, 'truck');
 }
 
 export function extractVehicleLabel(value: string | null | undefined): string {
-  const source = clean(value)
+  const source = normalizeWhisperVehicleAliases(String(value ?? ''))
     .replace(/\b(?:19|20)\d{2}\b/g, ' ')
     .replace(/\b(?:tengo|tiene|tienen|have|has|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/gi, ' ')
     .replace(/\b(?:a|an|un|una|my|mi|the|carro|auto|car|vehicle|veh[ií]culo)\b/gi, ' ')
@@ -136,7 +147,7 @@ export function extractVehicleYear(value: string | null | undefined): number | n
 }
 
 export function normalizeVehicle(value: string, isCampaignButton: (candidate: string) => boolean, isNonVehicleIntent: (candidate: string) => boolean): string {
-  let source = clean(value).replace(/-{2,}/g, '-').replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
+  let source = normalizeWhisperVehicleAliases(value).replace(/-{2,}/g, '-').replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
   if (isAdvisorHandoffVehicle(source)) return ADVISOR_HANDOFF_VEHICLE;
   if (isCampaignButton(source) || isNonVehicleIntent(source)) return EMPTY;
   const labeled = source.match(/^(.+?)\s*vehicle(?:_type)?\s*:\s*(.+)$/i);
@@ -148,7 +159,7 @@ export function normalizeVehicle(value: string, isCampaignButton: (candidate: st
   const extractedLabel = extractVehicleLabel(source);
   if (extractedLabel) return extractedLabel;
   const lower = source.toLowerCase();
-  const category = lower.match(/\b(suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión|carro|auto|coche)\b/i)?.[1];
+  const category = lower.match(/\b(suv|sedan|midsize|mid[- ]?size|medium[- ]?size|mediano|mediana|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión|carro|auto|coche)\b/i)?.[1];
   const brand = source.match(/\b(toyotas?|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subarus?|suvarus?|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i)?.[1];
   if (category && brand) return `${category.replace('troca', 'truck')} — ${source}`;
   if (category && clean(source).toLocaleLowerCase() === category.toLocaleLowerCase()) return category.replace(/^troca$/i, 'truck').replace(/^camion(?:eta|etq)?$/i, 'truck').replace(/^camión(?:eta)?$/i, 'truck');

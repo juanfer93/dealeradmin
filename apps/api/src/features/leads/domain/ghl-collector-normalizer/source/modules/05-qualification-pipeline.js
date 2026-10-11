@@ -94,7 +94,7 @@ const vehicleFrom = (text) => {
   const candidates = [];
   const lines = source.split(/\n+/).map(clean).filter(Boolean);
   for (const [lineIndex, line] of lines.entries()) {
-    const candidate = stripCampaignButtonPhrases(line);
+    const candidate = normalizeWhisperVehicleAliases(stripCampaignButtonPhrases(line));
     if (!candidate || isCampaignButton(candidate) || isNonVehicleIntent(candidate)) continue;
     // Internal structured fields can appear beside the buyer's evidence. They
     // describe a field, not a new vehicle answer, and must not override the
@@ -320,7 +320,7 @@ const vehicleCategory = /\b(?:truck|troca|trokita|troquita|troque|trokas|pickup|
     ? 'suv_or_van'
     : /\b(?:camaro|challenger|charger|mercedes(?:[- ]?benz)?|bmw|audi|lexus|acura|infiniti|genesis|cadillac|lincoln|volvo|tesla|porsche|jaguar)\b/i.test(vehicle)
       ? 'luxury_sedan'
-      : /\b(?:sedan|civic|corolla|camry|accord|altima|sentra|versa|maxima|malibu|jetta|passat|sonata|elantra|optima|forte|rio|impala|avalon|prius|mustang|coupe|hatchback)\b/i.test(vehicle)
+      : /\b(?:sedan|midsize|mid[- ]?size|medium[- ]?size|mediano|mediana|civic|corolla|camry|accord|altima|sentra|versa|maxima|malibu|jetta|passat|sonata|elantra|optima|forte|rio|impala|avalon|prius|mustang|coupe|hatchback)\b/i.test(vehicle)
         ? 'sedan'
         : '';
 const requiredDownPayment = ({ sedan: 1500, luxury_sedan: 2000, suv_or_van: 2000, truck: 3000 }[vehicleCategory] || null);

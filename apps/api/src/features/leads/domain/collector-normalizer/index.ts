@@ -5,7 +5,7 @@ import { detectLeadLanguage } from './language-normalizer';
 import { collectorFlowPolicy, effectiveChannel, extractCustomerLocation, isAdvisorHandoffVehicle, isMessengerChannel, isWhatsAppChannel } from './flow-policy';
 import { clean, conversationalEvidence, firstNonEmpty, isEmptyMarker, lastMeaningfulLine, memoryText, memoryValue } from './text-cleaner';
 import type { CollectorFlowPolicy, CollectorInput, CollectorLanguage, CollectorOutput, QualificationProgress, QualificationStep } from './types';
-import { VEHICLE_BRANDS, VEHICLE_CATEGORIES, VEHICLE_CONTEXT, VEHICLE_MODELS, extractExplicitVehicleTrim, extractVehicleLabel, extractVehicleYear, normalizeVehicle } from './vehicle-normalizer';
+import { VEHICLE_BRANDS, VEHICLE_CATEGORIES, VEHICLE_CONTEXT, VEHICLE_MODELS, extractExplicitVehicleTrim, extractVehicleLabel, extractVehicleYear, normalizeVehicle, normalizeWhisperVehicleAliases } from './vehicle-normalizer';
 import { extractTimeline, mergeDocuments, normalizeTimeline, yesNo } from './qualification-normalizer';
 import { mergeMemory, normalizeMemoryDownPayment } from './qualification-memory';
 import { resolveVehicleCandidate, type VehicleCandidate } from './candidate-resolver';
@@ -202,7 +202,7 @@ function extractVehicle(message: string): string {
   const candidates: VehicleCandidate[] = [];
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
     const line = lines[lineIndex];
-    const candidate = stripCampaignButtonPhrases(line);
+    const candidate = normalizeWhisperVehicleAliases(stripCampaignButtonPhrases(line));
     if (!candidate || isCampaignButton(candidate) || isNonVehicleIntent(candidate)) continue;
     // Internal structured fields can appear beside the buyer's evidence. They
     // describe a field, not a new vehicle answer, and must not override the

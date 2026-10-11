@@ -36,6 +36,65 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ phone: '(240) 681-5028', message: 'Ok' }).phone).toBe('+12406815028');
   });
 
+  it('normalizes Marcus Snell\'s Action Messenger midsize answer as a qualified vehicle', () => {
+    const transcript = [
+      'Do you guys work with all credit or programs?',
+      'Do you offer financing options?',
+      'Midsize',
+      '240-266-6377',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'action-cars',
+      channel: 'messenger',
+      real_name: 'Marcus Snell',
+      phone: '(240) 266-6377',
+      message: '240-266-6377',
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Marcus Snell',
+      phone: '+12402666377',
+      vehicle_type: 'midsize',
+      vehicle_category: 'sedan',
+      qualification_complete: true,
+      dealeradmin_send_now: true,
+      missing_qualification: [],
+    });
+    expect(result.qualification_memory).toContain('vehicle: midsize');
+  });
+
+  it('keeps Toi/Moisés Stafford WhatsApp qualification memory across the inbound transcript', () => {
+    const transcript = [
+      'Quiero financiar un auto!',
+      'Moisés',
+      'Buenos días. Quería ver los modelos que tiene Andas Yvis SI, si me puedo montar por favor, algunas fotos para lograr verlos.',
+      '1500',
+      'Esta semana',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Toi',
+      phone: '+15715550123',
+      message: 'Esta semana',
+      chat_history_log: transcript,
+      qualification_memory: 'real_name: Moisés; vehicle: Quiere hablar con un asesor; down payment: 1500',
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Moisés',
+      phone: '+15715550123',
+      vehicle_type: 'Honda Civic',
+      vehicle_category: 'sedan',
+      down_payment: '1500',
+      qualification_complete: true,
+      dealeradmin_send_now: true,
+      missing_qualification: [],
+    });
+    expect(result.qualification_memory).toContain('vehicle: Honda Civic');
+  });
+
   it('normalizes Manuel Stafford\'s misspelled Camionetq answer as a truck', () => {
     const transcript = [
       '*Headline:* Financiamiento interno! Source URL: x Quiero financiar un auto!',

@@ -1,5 +1,68 @@
 import { test, expect } from '../../../../e2e/test';
 
+test('normaliza los casos reales de Action Midsize y Stafford Toi', async ({ request }) => {
+  const suffix = `ghl-e2e-regressions-${Date.now()}`;
+  const scenarios = [
+    {
+      source: 'action-cars',
+      channel: 'messenger',
+      contactName: 'Marcus Snell',
+      contactPhone: '+12402666377',
+      messages: [
+        'Do you guys work with all credit or programs?',
+        'Do you offer financing options?',
+        'Midsize',
+        '240-266-6377',
+      ],
+    },
+    {
+      source: 'stafford',
+      channel: 'whatsapp',
+      contactName: 'Toi',
+      contactPhone: '+15715558005',
+      messages: [
+        'Quiero financiar un auto!',
+        'Moisés',
+        'Buenos días. Quería ver los modelos que tiene Andas Yvis SI, si me puedo montar por favor, algunas fotos para lograr verlos.',
+        '1500',
+        'Esta semana',
+      ],
+    },
+  ] as const;
+
+  for (const scenario of scenarios) {
+    const contactId = `${suffix}-${scenario.source}-contact`;
+    const conversationId = `${suffix}-${scenario.source}-conversation`;
+
+    for (const [index, message] of scenario.messages.entries()) {
+      const eventId = `${suffix}-${scenario.source}-${index + 1}`;
+      const response = await request.post(`http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/${scenario.source}`, {
+        data: JSON.stringify({
+          message_body: message,
+          contact_phone: scenario.contactPhone,
+          contact_name: scenario.contactName,
+          channel: scenario.channel,
+          event_id: eventId,
+        }),
+        headers: {
+          'content-type': 'application/json',
+          'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
+          'X-DealerADMIN-Contact-ID': contactId,
+          'X-DealerADMIN-Conversation-ID': conversationId,
+          'X-DealerADMIN-Message-ID': `${eventId}-message`,
+        },
+      });
+
+      expect(response.status(), `${scenario.source} message ${index + 1}`).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({
+        accepted: true,
+        source: scenario.source,
+        status: 'processed',
+      });
+    }
+  }
+});
+
 test('recibe cada Customer Replied con el contact id y conversation id sin depender de custom fields', async ({ request }) => {
   const suffix = `ghl-e2e-single-${Date.now()}`;
   const response = await request.post('http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/stafford', {
