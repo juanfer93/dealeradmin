@@ -169,6 +169,82 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
   });
 
+  it('keeps a Stafford lead with an emoji or missing GHL name', () => {
+    const result = execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: '🤷🏻‍♂️',
+      phone: '(703) 229-7352',
+      message: 'Ahorasi',
+      chat_history_log: 'Quiero financiar un auto\n🤷🏻‍♂️\nAhorasi',
+    });
+
+    expect(result).toMatchObject({
+      phone: '+17032297352',
+      vehicle_type: 'Quiere hablar con un asesor',
+      qualification_complete: false,
+    });
+    // The collector may use the only inbound text as a temporary identity;
+    // the service still persists the lead with its neutral fallback when GHL
+    // supplies only an emoji/blank contact name.
+    expect(result.real_name).toBe('Ahorasi');
+  });
+
+  it('does not discard an Easterns lead when GHL marks it stop bot', () => {
+    const result = execute({
+      source: 'easterns',
+      channel: 'messenger',
+      real_name: 'Jose Barahona',
+      phone: '(571) 421-4544',
+      tags: 'stop bot',
+      message: 'no gracias',
+      chat_history_log: 'Jose Barahona\nsedan\nno gracias\n5714214544',
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Jose Barahona',
+      phone: '+15714214544',
+      qualification_complete: false,
+    });
+  });
+
+  it('repairs the Culpeper Toyota Tundra transcription before advisor fallback', () => {
+    const result = execute({
+      source: 'koons-culpeper',
+      channel: 'messenger',
+      real_name: 'Lucas Benavides',
+      phone: '(703) 434-2184',
+      message: 'esta semana',
+      chat_history_log: [
+        'hola busco una toyata tandra',
+        '703 434 2184',
+        'yo ya ando el cheke de banco del neyvi',
+        'de 30mil',
+        'esta semana',
+      ].join('\n'),
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Lucas Benavides',
+      phone: '+17034342184',
+      vehicle_type: 'Toyota Tundra',
+    });
+    expect(result.vehicle_type).not.toBe('Quiere hablar con un asesor');
+  });
+
+  it('normalizes Stafford "For 250" as a Ford F-250 instead of a down payment', () => {
+    const result = execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      phone: '(703) 229-7352',
+      message: 'For 250',
+      chat_history_log: 'For 250',
+    });
+
+    expect(result).toMatchObject({ vehicle_type: 'F-250', phone: '+17032297352', down_payment: '' });
+    expect(result.vehicle_type).not.toBe('Quiere hablar con un asesor');
+  });
+
   it.each([
     ['U coche 🚗 pequeño', 'Sedan'],
     ['un coche pekeno', 'Sedan'],

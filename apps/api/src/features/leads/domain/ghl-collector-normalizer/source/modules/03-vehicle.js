@@ -21,7 +21,16 @@ const familyPassengerVanIntent = /\b(?:algo\s+)?familiar\b[\s\S]{0,80}\bpasajero
 const noDownPaymentResponse = /\b(?:no(?:\s+\w+){0,3}\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)?)\b/i;
 const normalizeWhisperVehicleAliases = (value) => clean(value)
   .replace(/\b(?:andas|onda|ondas|honda)\s+y\s*vis\s+si\b/gi, 'Honda Civic')
-  .replace(/\b(?:andas|onda|ondas)\s+civ(?:ic|is)\b/gi, 'Honda Civic');
+  .replace(/\b(?:andas|onda|ondas)\s+civ(?:ic|is)\b/gi, 'Honda Civic')
+  // GHL/Messenger transcription in the Culpeper replay rendered
+  // "Toyota Tundra" as "toyata tandra". Keep these bounded to vehicle
+  // tokens so a misspelling cannot alter names or free-form notes.
+  .replace(/\btoyata\b/gi, 'Toyota')
+  .replace(/\btandra\b/gi, 'Tundra')
+  // GHL transcribed the Ford model answer as "For 250". This alias is
+  // applied only to vehicle extraction; payment extraction still sees the
+  // original text and therefore cannot turn the answer into $250.
+  .replace(/\bfor\s+(150|250|350)\b/gi, 'F-$1');
 const canonicalVehicleLabel = (value) => normalizeWhisperVehicleAliases(value)
   .replace(/\btoyotas?\b/gi, 'Toyota')
   .replace(/\bsuvarus?\b/gi, 'Subaru')
@@ -49,7 +58,7 @@ const canonicalVehicleLabel = (value) => normalizeWhisperVehicleAliases(value)
     if (lower === '4runner') return '4Runner';
     if (lower === 'rlx') return 'RLX';
     if (lower === 'cr-v' || lower === 'hr-v') return lower.toLocaleUpperCase();
-    if (/^f-?\d+$/.test(lower)) return lower.replace(/^f/, 'F-');
+    if (/^f-?\d+$/.test(lower)) return `F-${lower.replace(/^f-?/, '')}`;
     return `${lower[0].toLocaleUpperCase()}${lower.slice(1)}`;
   }).join(' '));
 const canonicalVehicleCategory = (value) => clean(value)

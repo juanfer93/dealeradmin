@@ -19,7 +19,16 @@ export const FINANCIAL_CONTEXT_BEFORE_AMOUNT = /\b(?:down|payment|enganche|inici
 export function normalizeWhisperVehicleAliases(value: string): string {
   return clean(value)
     .replace(/\b(?:andas|onda|ondas|honda)\s+y\s*vis\s+si\b/gi, 'Honda Civic')
-    .replace(/\b(?:andas|onda|ondas)\s+civ(?:ic|is)\b/gi, 'Honda Civic');
+    .replace(/\b(?:andas|onda|ondas)\s+civ(?:ic|is)\b/gi, 'Honda Civic')
+    // GHL/Messenger transcription in the Culpeper replay rendered
+    // "Toyota Tundra" as "toyata tandra". Keep these bounded to vehicle
+    // tokens so a misspelling cannot alter names or free-form notes.
+    .replace(/\btoyata\b/gi, 'Toyota')
+    .replace(/\btandra\b/gi, 'Tundra')
+    // GHL transcribed the Ford model answer as "For 250". This alias is
+    // applied only to vehicle extraction; payment extraction still sees the
+    // original text and therefore cannot turn the answer into $250.
+    .replace(/\bfor\s+(150|250|350)\b/gi, 'F-$1');
 }
 
 export function canonicalVehicleLabel(value: string): string {
@@ -51,7 +60,7 @@ export function canonicalVehicleLabel(value: string): string {
     if (lower === '4runner') return '4Runner';
     if (lower === 'rlx') return 'RLX';
     if (lower === 'cr-v' || lower === 'hr-v') return lower.toLocaleUpperCase();
-    if (/^f-?\d+$/.test(lower)) return lower.replace(/^f-?/, 'F-');
+    if (/^f-?\d+$/.test(lower)) return `F-${lower.replace(/^f-?/, '')}`;
     return `${lower[0].toLocaleUpperCase()}${lower.slice(1)}`;
   };
   return normalized
