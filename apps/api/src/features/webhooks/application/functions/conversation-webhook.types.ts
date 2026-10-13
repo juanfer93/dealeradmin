@@ -13,7 +13,16 @@ export type SourceConfigMap = Record<SourceKey, SourceConfig>;
 
 export type LeadRow = { id: string; canonical_phone: string | null; first_name: string | null; last_name: string | null };
 export type DealerRow = { id: string; code: string; name: string; timezone: string; routing_config: { group?: string; language?: CollectorLanguage; allocation_key?: string; allocation_order?: number } | null };
-export type ConversationRow = { id: string; status: string; qualification_snapshot: Record<string, unknown>; location_snapshot: Record<string, unknown>; ready_at?: string | null; next_attempt_at?: string | null; isExisting?: boolean };
+export type ConversationRow = {
+  id: string;
+  status: string;
+  qualification_snapshot: Record<string, unknown>;
+  location_snapshot: Record<string, unknown>;
+  ready_at?: string | null;
+  next_attempt_at?: string | null;
+  isExisting?: boolean;
+  hasPreviousMessage?: boolean;
+};
 export type ConversationMessageRow = {
   body: string;
   direction: string;

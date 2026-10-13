@@ -128,7 +128,13 @@ export class ConversationQualificationFunctions {
 
   async upsertConversation(runner: QueryRunner, input: { leadId: string; locationId: string; contactId: string; conversationId: string; channel: string; occurredAt: string }): Promise<ConversationRow> {
     const existing = await runner.query(
-      `SELECT id, status, qualification_snapshot, location_snapshot, ready_at FROM conversations
+      `SELECT id, status, qualification_snapshot, location_snapshot, ready_at,
+              EXISTS (
+                SELECT 1
+                FROM conversation_messages cm
+                WHERE cm.conversation_id = conversations.id
+              ) AS has_previous_message
+       FROM conversations
        WHERE ghl_location_id = $1 AND ghl_contact_id = $2 AND ghl_conversation_id = $3 FOR UPDATE`,
       [input.locationId, input.contactId, input.conversationId],
     ) as ConversationRow[];

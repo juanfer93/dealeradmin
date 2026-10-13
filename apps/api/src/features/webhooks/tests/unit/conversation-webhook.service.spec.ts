@@ -288,6 +288,43 @@ describe('ConversationWebhookService', () => {
     expect(leadDealerUpsert?.[1]?.[0]).toBe('lead-sarah-saints');
   });
 
+  it('does not classify a queued conversation without previous messages as reengagement', async () => {
+    const queryRunner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [{ event_id: 'evt-new-alex' }];
+        if (sql.includes('FROM dealers')) return [{ id: 'dealer-stafford', code: 'STAFFORD', name: 'Offlease Motors Stafford', timezone: 'America/New_York', routing_config: {} }];
+        if (sql.includes('FROM leads WHERE ghl_location_id')) return [{ id: 'lead-alex', canonical_phone: '+17712024963', first_name: 'Alex', last_name: 'Rivas' }];
+        if (sql.includes('EXISTS (') && sql.includes('FROM conversation_messages cm')) return [{
+          id: 'conversation-alex', status: 'queued', qualification_snapshot: {}, location_snapshot: {}, has_previous_message: false,
+        }];
+        if (sql.includes('INSERT INTO conversation_messages')) return [{ id: 'message-alex' }];
+        if (sql.includes('SELECT id FROM conversation_messages')) return [{ id: 'message-alex' }];
+        if (sql.includes('FROM conversation_messages cm')) return [{ body: 'I am looking for an Explorer', direction: 'inbound', occurred_at: '2026-10-13T18:00:00.000Z' }];
+        if (sql.includes('FROM conversations c')) return [];
+        if (sql.includes('FROM lead_dealers')) return [];
+        return [];
+      }),
+    };
+    const service = new ConversationWebhookService({ createQueryRunner: () => queryRunner } as never);
+
+    await service.acceptCustomerReplied(
+      { message_body: 'I am looking for an Explorer', contact_phone: '+1 (771) 202-4963', contact_name: 'Alex Rivas', channel: 'whatsapp' },
+      'stafford',
+      { contactId: 'ghl-alex-rivas', conversationId: 'ghl-alex-rivas-conversation', testNow: new Date('2026-10-13T18:00:15.000Z') },
+    );
+
+    const normalUpdate = queryRunner.query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('next_attempt_at = $6')) as [string, unknown[]] | undefined;
+    expect(normalUpdate?.[1]?.[1]).toBe('waiting_window');
+    expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes("SET status = 'queued', qualification_snapshot"))).toBe(false);
+    expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO lead_dealers'))).toBe(false);
+  });
+
   it('reactiva automáticamente una relación rechazada cuando la conversación completa la calificación', async () => {
     const queryRunner = {
       query: vi.fn(async (sql: string) => {

@@ -125,7 +125,9 @@ export class ConversationEventFunctions {
       const normalizedGhlPhone = isStaffordWhatsApp(source, event.channel) ? null : safePhone(event.contact_phone);
       const verifiedMessengerPhone = recentPhone && (!normalizedGhlPhone || recentPhone === normalizedGhlPhone) ? recentPhone : null;
       const eligiblePhone = isStaffordWhatsApp(source, event.channel) ? recentPhone || nativeWhatsappPhone || '' : verifiedMessengerPhone || '';
-      const isExistingQueuedContact = conversation.isExisting && (conversation.status === 'queued' || conversation.status === 'sent');
+      const isExistingQueuedContact = conversation.isExisting
+        && conversation.hasPreviousMessage
+        && (conversation.status === 'queued' || conversation.status === 'sent');
       const previousSnapshot = conversation.qualification_snapshot ?? {};
       const normalized = normalizeCollectorInput({
         source,
