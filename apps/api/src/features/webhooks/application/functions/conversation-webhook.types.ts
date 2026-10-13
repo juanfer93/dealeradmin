@@ -44,6 +44,7 @@ export type ExistingDealerLead = {
   purchase_timeline: string | null;
   documents: string | null;
   has_unhandled_reengagement?: boolean;
+  reengagement_count?: number;
 };
 
 export type ConversationSnapshot = {

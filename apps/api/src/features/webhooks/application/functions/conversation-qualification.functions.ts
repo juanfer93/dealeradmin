@@ -3,6 +3,7 @@ import type { QueryRunner } from 'typeorm';
 import { buildWhatsAppMessage } from '../../../leads/domain/message-builder';
 import { hasMinimumRoutingQualification, type CollectorLanguage } from '../../../leads/domain/collector-normalizer';
 import { normalizeDownPayment } from '../../../leads/domain/down-payment';
+import { normalizeLeadName } from '../../../leads/domain/lead-duplicate';
 import { extractConversationLocation, extractLocationCandidates } from '../conversation-location';
 import type { GeoroutingService } from '../../../routing/domain/services/georouting.service';
 import {
@@ -42,11 +43,73 @@ export class ConversationQualificationFunctions {
          AND ld.status = 'sent'
          AND ld.sent_at IS NOT NULL
          AND ld.sent_at <= $2::timestamptz
-       ORDER BY ld.sent_at ASC
+       ORDER BY ld.sent_at DESC
        LIMIT 1`,
       [phone, cutoff, dealerId],
     ) as Array<{ sent_at: string }>;
     return rows[0] ?? null;
+  }
+
+  async findExistingLeadReengagement(
+    runner: QueryRunner,
+    phone: string,
+    name: string,
+    dealerId: string,
+  ): Promise<LeadRow | null> {
+    const normalizedName = normalizeLeadName(name);
+    if (!phone || !normalizedName || normalizedName === 'lead') return null;
+    const rows = await runner.query(
+      `SELECT l.id, l.canonical_phone, l.first_name, l.last_name
+       FROM leads l
+       INNER JOIN lead_dealers ld ON ld.lead_id = l.id
+       WHERE l.canonical_phone = $1
+         AND LOWER(REGEXP_REPLACE(TRIM(CONCAT_WS(' ', l.first_name, l.last_name)), '\\s+', ' ', 'g')) = $2
+         AND (ld.dealer_id = $3 OR COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $3)
+         AND ld.status IN ('pending', 'queued', 'sent')
+         AND (ld.status <> 'sent' OR ld.sent_at IS NOT NULL)
+       ORDER BY ld.sent_at DESC, l.updated_at DESC, l.created_at DESC
+       LIMIT 1
+       FOR UPDATE OF l`,
+      [phone, normalizedName, dealerId],
+    ) as LeadRow[];
+    return rows[0] ?? null;
+  }
+
+  async reassignConversationToLead(
+    runner: QueryRunner,
+    conversationId: string,
+    duplicateLeadId: string,
+    existingLeadId: string,
+  ): Promise<void> {
+    const duplicateRows = await runner.query(
+      `SELECT ghl_contact_id, ghl_location_id FROM leads WHERE id = $1 FOR UPDATE`,
+      [duplicateLeadId],
+    ) as Array<{ ghl_contact_id: string; ghl_location_id: string }>;
+    const duplicate = duplicateRows[0];
+    if (!duplicate) return;
+    await runner.query(
+      `UPDATE conversations
+       SET lead_id = $2, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3 AND lead_id = $1`,
+      [duplicateLeadId, existingLeadId, conversationId],
+    );
+    await runner.query(
+      `UPDATE leads SET ghl_contact_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [duplicateLeadId, `merged-${duplicateLeadId}`],
+    );
+    await runner.query(
+      `UPDATE leads
+       SET ghl_contact_id = $2, ghl_location_id = $3, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [existingLeadId, duplicate.ghl_contact_id, duplicate.ghl_location_id],
+    );
+    await runner.query(
+      `DELETE FROM leads
+       WHERE id = $1
+         AND NOT EXISTS (SELECT 1 FROM conversations WHERE lead_id = $1)
+         AND NOT EXISTS (SELECT 1 FROM lead_dealers WHERE lead_id = $1)`,
+      [duplicateLeadId],
+    );
   }
 
   async findSourceDealer(runner: QueryRunner, locationId: string, source?: SourceKey, language?: CollectorLanguage, assignedDealerId?: string): Promise<DealerRow> {
@@ -208,7 +271,7 @@ export class ConversationQualificationFunctions {
   async syncLeadDealer(runner: QueryRunner, sourceDealer: DealerRow, leadId: string, snapshot: ConversationSnapshot, location: LocationSnapshot, source: SourceKey, reengagement = false): Promise<void> {
     const existing = await runner.query(
       `SELECT status, routing_status, assigned_dealer_id, routing_override, routing_reason, vehicle_type, down_payment,
-              identification, bank_account, purchase_timeline, documents, has_unhandled_reengagement
+              identification, bank_account, purchase_timeline, documents, has_unhandled_reengagement, reengagement_count
        FROM lead_dealers WHERE lead_id = $1 AND dealer_id = $2 FOR UPDATE`,
       [leadId, sourceDealer.id],
     ) as ExistingDealerLead[];
@@ -233,8 +296,8 @@ export class ConversationQualificationFunctions {
     await runner.query(
       `INSERT INTO lead_dealers
         (lead_id, dealer_id, vehicle_type, down_payment, identification, bank_account, purchase_timeline, documents,
-         easterns_zone, assigned_dealer_id, routing_override, routing_reason, routing_status, status, message_text, has_unhandled_reengagement, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'resolved', $13, $14, $15, CURRENT_TIMESTAMP)
+        easterns_zone, assigned_dealer_id, routing_override, routing_reason, routing_status, status, message_text, has_unhandled_reengagement, reengagement_count, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'resolved', $13, $14, $15, $17::int, CURRENT_TIMESTAMP)
        ON CONFLICT (lead_id, dealer_id) DO UPDATE SET
          vehicle_type = COALESCE(NULLIF(EXCLUDED.vehicle_type, ''), lead_dealers.vehicle_type),
          down_payment = COALESCE(NULLIF(EXCLUDED.down_payment, ''), lead_dealers.down_payment),
@@ -249,11 +312,12 @@ export class ConversationQualificationFunctions {
          status = CASE WHEN $16::boolean THEN 'pending' WHEN lead_dealers.status = 'sent' THEN 'sent' ELSE 'pending' END,
          message_text = EXCLUDED.message_text,
          has_unhandled_reengagement = CASE WHEN EXCLUDED.has_unhandled_reengagement THEN true ELSE lead_dealers.has_unhandled_reengagement END,
+         reengagement_count = lead_dealers.reengagement_count + EXCLUDED.reengagement_count,
          updated_at = CURRENT_TIMESTAMP`,
       [
         leadId, sourceDealer.id, snapshot.vehicle_type, normalizeDownPayment(snapshot.down_payment), snapshot.identification,
         snapshot.bank_account, snapshot.purchase_timeline, snapshot.documents, location.easterns_zone || '', assignedDealerId,
-        current?.routing_override ?? false, routingReason, reengagement || current?.status !== 'sent' ? 'pending' : 'sent', messageText, hasUnhandledReengagement, reengagement,
+        current?.routing_override ?? false, routingReason, reengagement || current?.status !== 'sent' ? 'pending' : 'sent', messageText, hasUnhandledReengagement, reengagement, reengagement ? 1 : 0,
       ],
     );
   }

@@ -34,10 +34,13 @@ describeDatabaseCase('new contact versus reengagement classification with local 
   afterAll(async () => {
     if (!dataSource?.isInitialized) return;
     for (const conversationId of createdConversationIds) {
+      await dataSource.query('DELETE FROM conversation_bot_pause_events WHERE conversation_id = $1', [conversationId]);
+      await dataSource.query('DELETE FROM conversation_messages WHERE conversation_id = $1', [conversationId]);
       await dataSource.query('DELETE FROM conversations WHERE id = $1', [conversationId]);
     }
     for (const leadId of createdLeadIds) {
       await dataSource.query('DELETE FROM lead_dealers WHERE lead_id = $1', [leadId]);
+      await dataSource.query('DELETE FROM conversations WHERE lead_id = $1', [leadId]);
       await dataSource.query('DELETE FROM leads WHERE id = $1', [leadId]);
     }
     await dataSource.destroy();
@@ -68,6 +71,23 @@ describeDatabaseCase('new contact versus reengagement classification with local 
       );
     }
     return { contactId, conversationKey, leadId, conversationId, phone: input.phone };
+  }
+
+  async function createSentLead(input: { name: string; phone: string; status?: string }) {
+    const contactId = `sent-lead-contact-${randomUUID()}`;
+    const leadRows = await dataSource.query(
+      `INSERT INTO leads (canonical_phone, first_name, last_name, ghl_contact_id, ghl_location_id, source)
+       VALUES ($1, $2, $3, $4, $5, 'reengagement-classification-sent-test') RETURNING id`,
+      [input.phone, input.name.split(' ')[0], input.name.split(' ').slice(1).join(' '), contactId, locationId],
+    ) as Array<{ id: string }>;
+    const leadId = leadRows[0].id;
+    createdLeadIds.push(leadId);
+    await dataSource.query(
+      `INSERT INTO lead_dealers (lead_id, dealer_id, vehicle_type, routing_status, status, sent_at, message_text)
+       VALUES ($1, $2, 'SUV', 'resolved', $3, $4, $5)`,
+      [leadId, dealerId, input.status || 'sent', input.status === 'sent' || !input.status ? '2026-10-13T17:00:00.000Z' : null, input.name],
+    );
+    return { leadId, phone: input.phone };
   }
 
   it('routes a queued conversation with no old messages through the new-contact flow', async () => {
@@ -123,5 +143,107 @@ describeDatabaseCase('new contact versus reengagement classification with local 
     ) as Array<{ status: string; lead_count: number; conversation_count: number; dealer_status: string; has_unhandled_reengagement: boolean }>;
 
     expect(rows).toEqual([{ status: 'queued', lead_count: 1, conversation_count: 1, dealer_status: 'pending', has_unhandled_reengagement: true }]);
+  });
+
+  it('reuses a sent lead when a new GHL contact returns with the same name and phone', async () => {
+    const phoneSuffix = String(Date.now() % 10_000).padStart(4, '0');
+    const testPhone = `+1771202${phoneSuffix}`;
+    const sentLead = await createSentLead({ name: 'Daniel Morales', phone: testPhone });
+    const existingGhl = await createLeadAndConversation({ name: 'Daniel Morales', phone: testPhone, status: 'partial', priorMessage: 'Estoy buscando una SUV' });
+    const result = await service.acceptCustomerReplied(
+      {
+        event_id: `evt-sent-reengagement-${randomUUID()}`,
+        occurred_at: '2026-10-13T18:00:00.000Z',
+        message_body: `Mi número es 771-202-${phoneSuffix} y busco una SUV`,
+        contact_phone: sentLead.phone,
+        contact_name: 'Daniel Morales',
+        channel: 'messenger',
+      },
+      source,
+      { contactId: existingGhl.contactId, conversationId: existingGhl.conversationKey, testNow: new Date('2026-10-13T18:00:15.000Z') },
+    );
+    expect(result.status).toBe('processed');
+
+    for (const attempt of [2, 3]) {
+      const repeatedResult = await service.acceptCustomerReplied(
+        {
+          event_id: `evt-sent-reengagement-${attempt}-${randomUUID()}`,
+          occurred_at: `2026-10-13T18:0${attempt}:00.000Z`,
+          message_body: attempt === 3 ? 'Sigo interesado, por favor escríbeme' : 'Sigo interesado',
+          contact_phone: sentLead.phone,
+          contact_name: 'Daniel Morales',
+          channel: 'messenger',
+        },
+        source,
+        { contactId: existingGhl.contactId, conversationId: existingGhl.conversationKey, testNow: new Date(`2026-10-13T18:0${attempt}:15.000Z`) },
+      );
+      expect(repeatedResult.status).toBe('processed');
+    }
+
+    const rows = await dataSource.query(
+      `SELECT c.lead_id, c.status, ld.status AS dealer_status, ld.has_unhandled_reengagement, ld.reengagement_count,
+              (SELECT COUNT(*)::int FROM leads WHERE canonical_phone = $1 AND first_name = 'Daniel') AS lead_count,
+              (SELECT COUNT(*)::int FROM conversations WHERE lead_id = $2) AS conversation_count,
+              (SELECT COUNT(*)::int FROM conversation_bot_pause_events WHERE conversation_id = c.id) AS pause_event_count
+       FROM conversations c
+       INNER JOIN lead_dealers ld ON ld.lead_id = c.lead_id AND ld.dealer_id = $3
+       WHERE c.lead_id = $2`,
+      [sentLead.phone, sentLead.leadId, dealerId],
+    ) as Array<{ lead_id: string; status: string; dealer_status: string; has_unhandled_reengagement: boolean; reengagement_count: number; lead_count: number; conversation_count: number; pause_event_count: number }>;
+
+    expect(rows).toEqual([{
+      lead_id: sentLead.leadId,
+      status: 'queued',
+      dealer_status: 'pending',
+      has_unhandled_reengagement: true,
+      reengagement_count: 3,
+      lead_count: 1,
+      conversation_count: 1,
+      pause_event_count: 1,
+    }]);
+  });
+
+  it('reuses a manually created lead even when it has no previous conversation', async () => {
+    const phoneSuffix = String((Date.now() + 1) % 10_000).padStart(4, '0');
+    const testPhone = `+1771202${phoneSuffix}`;
+    const sentLead = await createSentLead({ name: 'Manual Buyer', phone: testPhone, status: 'pending' });
+    const contactId = `manual-reengagement-contact-${randomUUID()}`;
+    const conversationId = `manual-reengagement-conversation-${randomUUID()}`;
+
+    const result = await service.acceptCustomerReplied(
+      {
+        event_id: `evt-manual-sent-reengagement-${randomUUID()}`,
+        occurred_at: '2026-10-13T18:30:00.000Z',
+        message_body: `My number is 771-202-${phoneSuffix} and I am still interested`,
+        contact_phone: sentLead.phone,
+        contact_name: 'Manual Buyer',
+        channel: 'messenger',
+      },
+      source,
+      { contactId, conversationId, testNow: new Date('2026-10-13T18:30:15.000Z') },
+    );
+    expect(result.status).toBe('processed');
+
+    const rows = await dataSource.query(
+      `SELECT c.lead_id, c.status, ld.status AS dealer_status, ld.has_unhandled_reengagement, ld.reengagement_count,
+              (SELECT COUNT(*)::int FROM leads WHERE canonical_phone = $1 AND first_name = 'Manual') AS lead_count,
+              (SELECT COUNT(*)::int FROM conversations WHERE lead_id = $2) AS conversation_count,
+              (SELECT COUNT(*)::int FROM conversation_bot_pause_events WHERE conversation_id = c.id) AS pause_event_count
+       FROM conversations c
+       INNER JOIN lead_dealers ld ON ld.lead_id = c.lead_id AND ld.dealer_id = $3
+       WHERE c.ghl_conversation_id = $4`,
+      [sentLead.phone, sentLead.leadId, dealerId, conversationId],
+    ) as Array<{ lead_id: string; status: string; dealer_status: string; has_unhandled_reengagement: boolean; reengagement_count: number; lead_count: number; conversation_count: number; pause_event_count: number }>;
+
+    expect(rows).toEqual([{
+      lead_id: sentLead.leadId,
+      status: 'queued',
+      dealer_status: 'pending',
+      has_unhandled_reengagement: true,
+      reengagement_count: 1,
+      lead_count: 1,
+      conversation_count: 1,
+      pause_event_count: 1,
+    }]);
   });
 });

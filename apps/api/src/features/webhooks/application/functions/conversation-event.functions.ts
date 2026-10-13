@@ -203,6 +203,37 @@ export class ConversationEventFunctions {
       const assignedDealerId = clean(conversation.qualification_snapshot?.assigned_dealer_id);
       const resolvedDealer = sourceDealer ?? await this.qualification.findSourceDealer(runner, this.sourceConfig[source].locationId, source, language, assignedDealerId || undefined);
       snapshot.assigned_dealer_id = resolvedDealer.id;
+      const existingLeadReengagement = snapshot.phone && snapshot.real_name
+        ? await this.qualification.findExistingLeadReengagement(runner, snapshot.phone, snapshot.real_name, resolvedDealer.id)
+        : null;
+      if (existingLeadReengagement) {
+        if (existingLeadReengagement.id !== lead.id) {
+          await this.qualification.reassignConversationToLead(runner, conversation.id, lead.id, existingLeadReengagement.id);
+        }
+        lead = existingLeadReengagement;
+        await this.qualification.syncLeadDealer(runner, resolvedDealer, lead.id, snapshot, location, source, true);
+        await runner.query(
+          `UPDATE conversations
+           SET status = 'queued', qualification_snapshot = $2::jsonb, location_snapshot = $3::jsonb,
+               last_message_at = GREATEST(COALESCE(last_message_at, $4::timestamptz), $4::timestamptz),
+               next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [conversation.id, JSON.stringify(snapshot), JSON.stringify(location), occurredAt],
+        );
+        queuedPauseEvent = await this.queueService.createQueuedPauseEvent(runner, conversation.status, 'queued', {
+          conversationId: conversation.id,
+          ghlConversationId: event.ghl_conversation_id,
+          contactId: event.ghl_contact_id,
+          locationId: this.sourceConfig[source].locationId,
+          leadId: lead.id,
+          source,
+          emittedAt: now,
+        });
+        await runner.query(`UPDATE webhook_events SET status = 'processed', processed_at = CURRENT_TIMESTAMP, error_code = NULL WHERE event_id = $1`, [event.event_id]);
+        await runner.commitTransaction();
+        if (queuedPauseEvent) await this.queueService.dispatchQueuedPauseEvent(queuedPauseEvent);
+        return { accepted: true, eventId: event.event_id, conversationId: conversation.id, source, status: 'processed' };
+      }
       if (isExistingQueuedContact) {
         await this.qualification.syncLeadDealer(runner, resolvedDealer, lead.id, snapshot, location, source, true);
         await runner.query(
@@ -213,8 +244,18 @@ export class ConversationEventFunctions {
            WHERE id = $1`,
           [conversation.id, JSON.stringify(snapshot), JSON.stringify(location), occurredAt],
         );
+        queuedPauseEvent = await this.queueService.createQueuedPauseEvent(runner, conversation.status, 'queued', {
+          conversationId: conversation.id,
+          ghlConversationId: event.ghl_conversation_id,
+          contactId: event.ghl_contact_id,
+          locationId: this.sourceConfig[source].locationId,
+          leadId: lead.id,
+          source,
+          emittedAt: now,
+        });
         await runner.query(`UPDATE webhook_events SET status = 'processed', processed_at = CURRENT_TIMESTAMP, error_code = NULL WHERE event_id = $1`, [event.event_id]);
         await runner.commitTransaction();
+        if (queuedPauseEvent) await this.queueService.dispatchQueuedPauseEvent(queuedPauseEvent);
         return { accepted: true, eventId: event.event_id, conversationId: conversation.id, source, status: 'processed' };
       }
       const stalePhone = snapshot.phone ? await this.qualification.findStalePhoneReentry(runner, snapshot.phone, resolvedDealer.id, now) : null;

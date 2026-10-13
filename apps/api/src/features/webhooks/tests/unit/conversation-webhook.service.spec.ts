@@ -736,6 +736,7 @@ describe('ConversationWebhookService', () => {
 
     const [sql, params] = runner.query.mock.calls[0] as unknown as [string, unknown[]];
     expect(sql).toContain("COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $3");
+    expect(sql).toContain('ORDER BY ld.sent_at DESC');
     expect(params).toEqual(['+19198840000', '2026-09-17T12:00:00.000Z', 'dealer-fredericksburg']);
   });
 

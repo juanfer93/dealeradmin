@@ -18,8 +18,9 @@ type CopyLeadDropdownProps = {
   onCopyContact?: () => void;
 };
 
-export function formatReengagedContact(phone: string): string {
-  return `Contacto ${phone} volvio a escribir`;
+export function formatReengagedContact(phone: string, reengagementCount = 1): string {
+  const label = reengagementCount >= 3 ? 'escribe de forma insistente' : 'volvio a escribir';
+  return `*Contacto ${phone} ${label}*`;
 }
 
 export function CopyLeadDropdown({

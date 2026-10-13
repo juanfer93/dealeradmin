@@ -109,6 +109,7 @@ export class LeadsController {
          ELSE NULL END AS "downPaymentSufficient",
          latest_conversation.qualification_snapshot->'qualification_progress'->>'step' AS "qualificationStep",
          ld.status,
+         ld.reengagement_count AS "reengagementCount",
          ld.message_text AS "messageText",
          ld.created_at AS "createdAt",
          ld.routing_override AS "routingOverride",

@@ -26,7 +26,8 @@ describe('CopyLeadDropdown', () => {
   });
 
   it('formats the exact contact text for the reengagement queue', () => {
-    expect(formatReengagedContact('+13212343212')).toBe('Contacto +13212343212 volvio a escribir');
+    expect(formatReengagedContact('+13212343212')).toBe('*Contacto +13212343212 volvio a escribir*');
+    expect(formatReengagedContact('+13212343212', 3)).toBe('*Contacto +13212343212 escribe de forma insistente*');
   });
 
   it('exposes a dedicated copy-contact action for reengagement rows', () => {

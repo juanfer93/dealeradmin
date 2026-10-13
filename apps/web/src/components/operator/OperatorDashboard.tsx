@@ -15,7 +15,7 @@ import { selectInitialQueueLeads } from './queue-selection';
 
 type LeadStatus = QueueStatus;
 type Dealer = { id: string; code: string; name: string; pendingCount: number };
-type Lead = { id: string; dealerId: string; dealerName: string; name: string; phone: string; vehicleType: string | null; downPayment: string | null; vehicleCategory?: string | null; requiredDownPayment?: number | null; downPaymentAmount?: number | null; previousFinancing?: 'yes' | 'no' | '' | null; downPaymentSufficient?: boolean | null; qualificationStep?: string | null; identification: string | null; bankAccount: string | null; documents: string | null; purchaseTimeline: string | null; status: LeadStatus; messageText: string; createdAt: string };
+type Lead = { id: string; dealerId: string; dealerName: string; name: string; phone: string; vehicleType: string | null; downPayment: string | null; vehicleCategory?: string | null; requiredDownPayment?: number | null; downPaymentAmount?: number | null; previousFinancing?: 'yes' | 'no' | '' | null; downPaymentSufficient?: boolean | null; qualificationStep?: string | null; identification: string | null; bankAccount: string | null; documents: string | null; purchaseTimeline: string | null; reengagementCount?: number | null; status: LeadStatus; messageText: string; createdAt: string };
 type LeadResponse = { dealers: Dealer[]; leads: Lead[]; wroteAgainCount?: number };
 
 function clean(value: string | null | undefined) { return value?.trim() ?? ''; }
@@ -284,7 +284,7 @@ export default function OperatorDashboard() {
   async function toggleDealer(dealerId: string) { const next = selectedDealerIds.includes(dealerId) ? selectedDealerIds.filter((id) => id !== dealerId) : [...selectedDealerIds, dealerId]; setSelectedDealerIds(next); setSelectedDealerId(next[0] || ''); await loadLeads(status, undefined, next); }
   async function selectStatus(nextStatus: LeadStatus) { setStatus(nextStatus); await loadLeads(nextStatus, selectedDealerId || undefined); }
   async function refreshQueue() { await loadLeads(status, selectedDealerIds.length > 1 ? undefined : selectedDealerId || undefined, selectedDealerIds.length > 1 ? selectedDealerIds : undefined); }
-  function copyTextForLead(lead: Lead) { return status === 'wrote_again' ? formatReengagedContact(lead.phone) : lead.messageText || formatLeadMessage(lead); }
+  function copyTextForLead(lead: Lead) { return status === 'wrote_again' ? formatReengagedContact(lead.phone, lead.reengagementCount ?? 1) : lead.messageText || formatLeadMessage(lead); }
   async function copyMessage(lead: Lead) { await navigator.clipboard.writeText(copyTextForLead(lead)); setCopiedLeadId(lead.id); window.setTimeout(() => setCopiedLeadId((current) => current === lead.id ? null : current), 1600); }
   async function copyAllSelected() { if (!leads.length) return; await navigator.clipboard.writeText(leads.map(copyTextForLead).join('\n')); setCopiedLeadId('__all__'); window.setTimeout(() => setCopiedLeadId((current) => current === '__all__' ? null : current), 1600); }
   async function copySelectedLeads() { const selected = leads.filter((lead) => selectedLeadIds.includes(lead.id)); if (!selected.length) return; await navigator.clipboard.writeText(selected.map(copyTextForLead).join('\n')); setCopiedLeadId('__selected__'); window.setTimeout(() => setCopiedLeadId((current) => current === '__selected__' ? null : current), 1600); }
