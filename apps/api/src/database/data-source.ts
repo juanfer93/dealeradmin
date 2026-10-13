@@ -30,6 +30,7 @@ import { DropProblemTickets1710000028000 } from './migrations/1710000028000-Drop
 import { EnableStaffordMessenger1710000029000 } from './migrations/1710000029000-EnableStaffordMessenger';
 import { WebhookIngressLogs1710000030000 } from './migrations/1710000030000-WebhookIngressLogs';
 import { WebhookProcessingAttempts1710000031000 } from './migrations/1710000031000-WebhookProcessingAttempts';
+import { LeadReengagementQueue1710000032000 } from './migrations/1710000032000-LeadReengagementQueue';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -73,6 +74,7 @@ export const AppDataSource = new DataSource({
     EnableStaffordMessenger1710000029000,
     WebhookIngressLogs1710000030000,
     WebhookProcessingAttempts1710000031000,
+    LeadReengagementQueue1710000032000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,

@@ -116,7 +116,7 @@ export function sanitizeMonthlyReportError(error: unknown): string {
 export class MonthlyReportService {
   constructor(
     @Optional() @InjectDataSource() private readonly dataSource?: DataSource,
-    private readonly exportReportService?: ExportReportService,
+    @Optional() @Inject(ExportReportService) private readonly exportReportService?: ExportReportService,
     @Optional() @Inject(MONTHLY_REPORT_MAILER) private readonly mailer?: ReportMailer,
   ) {}
 

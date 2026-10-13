@@ -1,5 +1,5 @@
 import { BulkLeadImportSchema, CreateManualLeadSchema } from '@dealeradmin/contracts';
-import { BadRequestException, Body, Controller, Get, Param, Post, Req, UnauthorizedException, Optional } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Inject, Param, Post, Req, UnauthorizedException, Optional } from '@nestjs/common';
 import type { Request } from 'express';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -12,9 +12,9 @@ import { BulkLeadImportRequestDto, CreateManualLeadRequestDto } from './lead-req
 @Controller('dealers')
 export class DealerLeadsController {
   constructor(
-    private readonly manualLeadService: ManualLeadService,
-    private readonly bulkLeadService: BulkLeadService,
-    private readonly authService: AuthService,
+    @Inject(ManualLeadService) private readonly manualLeadService: ManualLeadService,
+    @Inject(BulkLeadService) private readonly bulkLeadService: BulkLeadService,
+    @Inject(AuthService) private readonly authService: AuthService,
     @Optional() @InjectDataSource() private readonly dataSource?: DataSource,
   ) {}
 
@@ -23,7 +23,7 @@ export class DealerLeadsController {
     if (!this.authService.verifySession(request.cookies?.dealeradmin_session)) {
       throw new UnauthorizedException('Authentication required');
     }
-    if (process.env.NODE_ENV === 'test') return testDealers;
+    if (process.env.NODE_ENV === 'test' && process.env.E2E_USE_DATABASE !== 'true') return testDealers;
     if (!this.dataSource) throw new UnauthorizedException('Dealer data is unavailable');
 
     return this.dataSource.query(

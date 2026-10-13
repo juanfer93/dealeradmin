@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   Optional,
   ServiceUnavailableException,
@@ -8,6 +9,7 @@ import {
 import { LeadWebhookDto, LeadWebhookSchema } from '@dealeradmin/contracts';
 import { createHash } from 'node:crypto';
 import { DataSource } from 'typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
 import { buildWhatsAppMessage, normalizePurchaseTimeline } from '../../leads/domain/message-builder';
 import { normalizePhone } from '../../leads/domain/phone-normalizer';
 import { normalizeLeadName } from '../../leads/domain/lead-duplicate';
@@ -49,13 +51,14 @@ type LeadDealerRow = {
   assigned_dealer_id: string | null;
   routing_override: boolean;
   routing_reason: string | null;
+  has_unhandled_reengagement?: boolean;
 };
 
 @Injectable()
 export class WebhookService {
   constructor(
-    @Optional() private readonly dataSource?: DataSource,
-    @Optional() private readonly georoutingService?: GeoroutingService,
+    @Optional() @InjectDataSource() private readonly dataSource?: DataSource,
+    @Optional() @Inject(GeoroutingService) private readonly georoutingService?: GeoroutingService,
   ) {}
 
   async acceptLead(payload: unknown, rawBody?: string): Promise<WebhookResponse> {
@@ -329,12 +332,13 @@ export class WebhookService {
       const targetRoutingReason = preservesAssignment
         ? currentLeadDealer?.routing_reason || routing.reason
         : routing.reason;
+      const hasUnhandledReengagement = Boolean(currentLeadDealer && currentLeadDealer.status === 'pending');
 
       await queryRunner.query(
         `INSERT INTO lead_dealers
           (lead_id, dealer_id, vehicle_type, down_payment, identification, bank_account, purchase_timeline, documents,
-           easterns_zone, assigned_dealer_id, routing_override, routing_reason, routing_status, status, message_text, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, CURRENT_TIMESTAMP)
+           easterns_zone, assigned_dealer_id, routing_override, routing_reason, routing_status, status, message_text, has_unhandled_reengagement, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, CURRENT_TIMESTAMP)
          ON CONFLICT (lead_id, dealer_id) DO UPDATE SET
            vehicle_type = COALESCE(NULLIF(EXCLUDED.vehicle_type, ''), lead_dealers.vehicle_type),
            down_payment = COALESCE(NULLIF(EXCLUDED.down_payment, ''), lead_dealers.down_payment),
@@ -353,6 +357,7 @@ export class WebhookService {
            routing_status = CASE WHEN lead_dealers.status = 'sent' THEN lead_dealers.routing_status ELSE EXCLUDED.routing_status END,
            status = CASE WHEN lead_dealers.status = 'sent' THEN 'sent' ELSE EXCLUDED.status END,
            message_text = EXCLUDED.message_text,
+           has_unhandled_reengagement = CASE WHEN EXCLUDED.has_unhandled_reengagement THEN true ELSE lead_dealers.has_unhandled_reengagement END,
            updated_at = CURRENT_TIMESTAMP`,
         [
           leadId,
@@ -370,6 +375,7 @@ export class WebhookService {
           targetRoutingStatus,
           targetStatus,
           messageText,
+          hasUnhandledReengagement,
         ],
       );
 

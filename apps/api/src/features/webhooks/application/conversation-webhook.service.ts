@@ -1,8 +1,9 @@
 import { BadRequestException, Inject, Injectable, OnModuleDestroy, OnModuleInit, Optional, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
 import type { GhlCustomerRepliedDto } from '@dealeradmin/contracts';
 import { GhlCustomerRepliedSchema } from '@dealeradmin/contracts';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { DataSource, QueryRunner } from 'typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
 import { buildWhatsAppMessage } from '../../leads/domain/message-builder';
 import { detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isAdvisorHandoffVehicle, isQualificationComplete, normalizeCollectorInput, normalizeRealName, type CollectorLanguage, type QualificationProgress } from '../../leads/domain/collector-normalizer';
 import { evaluateDownPayment, normalizeDownPayment } from '../../leads/domain/down-payment';
@@ -12,8 +13,9 @@ import { extractConversationLocation, extractLocationCandidates } from './conver
 import { recordTestConversationEvent } from './test-conversation-store';
 import { findQueuedConversationDuplicate } from '../../leads/domain/lead-duplicate';
 import { normalizeGhlAttachments } from '../domain/ghl-attachment-normalizer';
-import { isQueuedPauseSourceEnabled, isQueuedTransition, QUEUED_PAUSE_HOURS, type QueuedPauseNotifier, type QueuedPausePayload } from './conversation-bot-pause';
+import { type QueuedPauseNotifier } from './conversation-bot-pause';
 import { QUEUED_PAUSE_NOTIFIER } from '../presentation/queued-pause.tokens';
+import { ConversationQueueService, type QueuedPauseDispatch } from './functions/conversation-queue.service';
 
 type SourceKey = 'stafford' | 'fredericksburg' | 'fredericksburg-2' | 'easterns' | 'arlington' | 'koons-fred' | 'koons-fred-eng' | 'koons-culpeper' | 'action-cars' | 'easterns-millersville' | 'easterns-frederick';
 type SourceConfig = { locationId: string; defaultChannel: 'whatsapp' | 'messenger'; supportedChannels?: readonly ('whatsapp' | 'messenger')[]; splitByLanguage?: boolean; alternatingGroup?: string };
@@ -126,6 +128,7 @@ type ExistingDealerLead = {
   bank_account: string | null;
   purchase_timeline: string | null;
   documents: string | null;
+  has_unhandled_reengagement?: boolean;
 };
 
 type ConversationSnapshot = {
@@ -159,8 +162,6 @@ type LocationSnapshot = {
   zip_code: string | null;
   easterns_zone: string | null;
 };
-
-type QueuedPauseDispatch = { source: SourceKey; payload: QueuedPausePayload };
 
 export type ConversationWebhookResponse = {
   accepted: true;
@@ -233,12 +234,15 @@ function currentLocalNow(): Date {
 export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy {
   private duePollTimer?: ReturnType<typeof setInterval>;
   private duePollInFlight = false;
+  private readonly queueService: ConversationQueueService;
 
   constructor(
-    @Optional() private readonly dataSource?: DataSource,
-    @Optional() private readonly georoutingService?: GeoroutingService,
-    @Optional() @Inject(QUEUED_PAUSE_NOTIFIER) private readonly queuedPauseNotifier?: QueuedPauseNotifier,
-  ) {}
+    @Optional() @InjectDataSource() private readonly dataSource?: DataSource,
+    @Optional() @Inject(GeoroutingService) private readonly georoutingService?: GeoroutingService,
+    @Optional() @Inject(QUEUED_PAUSE_NOTIFIER) queuedPauseNotifier?: QueuedPauseNotifier,
+  ) {
+    this.queueService = new ConversationQueueService(dataSource, queuedPauseNotifier, GHL_SOURCE_CONFIG);
+  }
 
   onModuleInit(): void {
     if (process.env.NODE_ENV === 'test') return;
@@ -252,6 +256,10 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
   onModuleDestroy(): void {
     if (this.duePollTimer) clearInterval(this.duePollTimer);
     this.duePollTimer = undefined;
+  }
+
+  async queueLeadForBotSilence(leadId: string, emittedAt = new Date()): Promise<{ queued: boolean; eventId?: string }> {
+    return this.queueService.queueLeadForBotSilence(leadId, emittedAt);
   }
 
   private async pollDueConversations(): Promise<void> {
@@ -823,17 +831,12 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       const eligiblePhone = isStaffordWhatsApp(source, event.channel)
         ? recentPhone || nativeWhatsappPhone || ''
         : verifiedMessengerPhone || '';
-      if (conversation.isExisting && conversation.status === 'sent') {
-        await runner.query(
-          `UPDATE conversations
-           SET last_message_at = GREATEST(COALESCE(last_message_at, $2::timestamptz), $2::timestamptz), updated_at = CURRENT_TIMESTAMP
-           WHERE id = $1`,
-          [conversation.id, occurredAt],
-        );
-        await runner.query(`UPDATE webhook_events SET status = 'processed', processed_at = CURRENT_TIMESTAMP, error_code = NULL WHERE event_id = $1`, [event.event_id]);
-        await runner.commitTransaction();
-        return { accepted: true, eventId: event.event_id, conversationId: conversation.id, source, status: 'processed' };
-      }
+      // A copied lead is deliberately left with a queued conversation so the
+      // existing GHL bot-silence webhook can run. When that same Contact ID
+      // writes again, use the conversation identity as the source of truth;
+      // names and phone formatting may be absent or changed on a later turn.
+      const isExistingQueuedContact = conversation.isExisting
+        && (conversation.status === 'queued' || conversation.status === 'sent');
       const previousSnapshot = conversation.qualification_snapshot ?? {};
       const previousRealName = clean(previousSnapshot.real_name);
       const normalized = normalizeCollectorInput({
@@ -930,6 +933,20 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       const assignedDealerId = clean(conversation.qualification_snapshot?.assigned_dealer_id);
       const dealer = sourceDealer ?? await this.findSourceDealer(runner, GHL_SOURCE_CONFIG[source].locationId, source, language, assignedDealerId || undefined);
       snapshot.assigned_dealer_id = dealer.id;
+      if (isExistingQueuedContact) {
+        await this.syncLeadDealer(runner, dealer, lead.id, snapshot, location, source, true);
+        await runner.query(
+          `UPDATE conversations
+           SET status = 'queued', qualification_snapshot = $2::jsonb, location_snapshot = $3::jsonb,
+               last_message_at = GREATEST(COALESCE(last_message_at, $4::timestamptz), $4::timestamptz),
+               next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [conversation.id, JSON.stringify(snapshot), JSON.stringify(location), occurredAt],
+        );
+        await runner.query(`UPDATE webhook_events SET status = 'processed', processed_at = CURRENT_TIMESTAMP, error_code = NULL WHERE event_id = $1`, [event.event_id]);
+        await runner.commitTransaction();
+        return { accepted: true, eventId: event.event_id, conversationId: conversation.id, source, status: 'processed' };
+      }
       const stalePhone = snapshot.phone
         ? await this.findStalePhoneReentry(runner, snapshot.phone, dealer.id, now)
         : null;
@@ -971,7 +988,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         // Preserve the normalized snapshot; the next audit/reprocessing pass
         // can enrich any additive qualification fields.
         if (isSameQueuedConversation) {
-          await this.syncLeadDealer(runner, dealer, lead.id, snapshot, location, source);
+          await this.syncLeadDealer(runner, dealer, lead.id, snapshot, location, source, true);
         }
         await runner.query(
           `UPDATE conversations
@@ -1035,128 +1052,15 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       emittedAt: Date;
     },
   ): Promise<QueuedPauseDispatch | null> {
-    if (!isQueuedTransition(previousStatus, nextStatus) || !isQueuedPauseSourceEnabled(input.source)) return null;
-    if (GHL_SOURCE_CONFIG[input.source].locationId !== input.locationId) {
-      throw new BadRequestException(`Location ID no coincide con la fuente GHL ${input.source}`);
-    }
-
-    // The conversation row is locked by the surrounding transaction. The
-    // counter gives each future queued re-entry its own durable identity.
-    const sequenceRows = await runner.query(
-      `SELECT COALESCE(MAX(transition_number), 0) + 1 AS transition_number
-       FROM conversation_bot_pause_events
-       WHERE conversation_id = $1`,
-      [input.conversationId],
-    ) as Array<{ transition_number: number | string }>;
-    const transitionNumber = Math.max(1, Number(sequenceRows[0]?.transition_number) || 1);
-    const emittedAt = input.emittedAt.toISOString();
-    const pauseUntil = new Date(input.emittedAt.getTime() + QUEUED_PAUSE_HOURS * 60 * 60 * 1000).toISOString();
-    const payload: QueuedPausePayload = {
-      event: 'dealeradmin.conversation_queued',
-      eventId: randomUUID(),
-      queued: true,
-      status: 'queued',
-      conversationId: input.ghlConversationId,
-      contactId: input.contactId,
-      locationId: input.locationId,
-      leadId: input.leadId,
-      pauseHours: QUEUED_PAUSE_HOURS,
-      emittedAt,
-    };
-
-    await runner.query(
-      `INSERT INTO conversation_bot_pause_events
-        (event_id, conversation_id, transition_number, ghl_conversation_id, ghl_contact_id,
-         ghl_location_id, lead_id, queued, status, pause_hours, emitted_at, pause_until)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11)`,
-      [payload.eventId, input.conversationId, transitionNumber, payload.conversationId, payload.contactId,
-        payload.locationId, payload.leadId, payload.queued, payload.pauseHours, payload.emittedAt, pauseUntil],
-    );
-    return { source: input.source, payload };
+    return this.queueService.createQueuedPauseEvent(runner, previousStatus, nextStatus, input);
   }
 
   private async dispatchQueuedPauseEvent(event: QueuedPauseDispatch): Promise<void> {
-    if (!this.dataSource || !this.queuedPauseNotifier) return;
-    try {
-      const result = await this.queuedPauseNotifier.send(event.source, event.payload);
-      if (!result.delivered) {
-        await this.dataSource.query(
-          `UPDATE conversation_bot_pause_events
-           SET status = 'pending', last_error = $2, updated_at = CURRENT_TIMESTAMP
-           WHERE event_id = $1 AND status <> 'sent'`,
-          [event.payload.eventId, result.reason || 'webhook_not_configured'],
-        );
-        return;
-      }
-      await this.dataSource.query(
-        `UPDATE conversation_bot_pause_events
-         SET status = 'sent', sent_at = CURRENT_TIMESTAMP, attempt_count = attempt_count + 1,
-             last_error = NULL, updated_at = CURRENT_TIMESTAMP
-         WHERE event_id = $1 AND status <> 'sent'`,
-        [event.payload.eventId],
-      );
-    } catch (error) {
-      const safeError = error instanceof Error && error.name === 'QueuedPauseDeliveryError'
-        ? error.message.slice(0, 250)
-        : 'Queued pause webhook delivery failed';
-      await this.dataSource.query(
-        `UPDATE conversation_bot_pause_events
-         SET status = 'failed', attempt_count = attempt_count + 1, last_error = $2,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE event_id = $1 AND status <> 'sent'`,
-        [event.payload.eventId, safeError],
-      );
-    }
+    return this.queueService.dispatchQueuedPauseEvent(event);
   }
 
   async dispatchPendingQueuedPauseEvents(): Promise<number> {
-    if (!this.dataSource || !this.queuedPauseNotifier) return 0;
-    const rows = await this.dataSource.query(
-      `SELECT event_id, ghl_conversation_id, ghl_contact_id, ghl_location_id, lead_id, emitted_at
-       FROM conversation_bot_pause_events
-       WHERE status IN ('pending', 'failed')
-       ORDER BY created_at ASC
-       LIMIT 25`,
-    ) as Array<{
-      event_id: string;
-      ghl_conversation_id: string;
-      ghl_contact_id: string;
-      ghl_location_id: string;
-      lead_id: string;
-      emitted_at: string | Date;
-    }>;
-    let processed = 0;
-    for (const row of rows) {
-      const configured = Object.entries(GHL_SOURCE_CONFIG).find(([, config]) => config.locationId === row.ghl_location_id);
-      if (!configured) {
-        await this.dataSource.query(
-          `UPDATE conversation_bot_pause_events
-           SET status = 'failed', attempt_count = attempt_count + 1,
-               last_error = 'GHL source is not configured', updated_at = CURRENT_TIMESTAMP
-           WHERE event_id = $1 AND status <> 'sent'`,
-          [row.event_id],
-        );
-        continue;
-      }
-      if (!isQueuedPauseSourceEnabled(configured[0])) continue;
-      await this.dispatchQueuedPauseEvent({
-        source: configured[0] as SourceKey,
-        payload: {
-          event: 'dealeradmin.conversation_queued',
-          eventId: row.event_id,
-          queued: true,
-          status: 'queued',
-          conversationId: row.ghl_conversation_id,
-          contactId: row.ghl_contact_id,
-          locationId: row.ghl_location_id,
-          leadId: row.lead_id,
-          pauseHours: QUEUED_PAUSE_HOURS,
-          emittedAt: new Date(row.emitted_at).toISOString(),
-        },
-      });
-      processed += 1;
-    }
-    return processed;
+    return this.queueService.dispatchPendingQueuedPauseEvents();
   }
 
   private safePhone(value: string | null | undefined): string | null {
@@ -1394,10 +1298,10 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     return { city: city || null, state: state || null, zip_code: hints.zip_code, easterns_zone: hints.easterns_zone };
   }
 
-  private async syncLeadDealer(runner: QueryRunner, sourceDealer: DealerRow, leadId: string, snapshot: ConversationSnapshot, location: LocationSnapshot, source: SourceKey): Promise<void> {
+  private async syncLeadDealer(runner: QueryRunner, sourceDealer: DealerRow, leadId: string, snapshot: ConversationSnapshot, location: LocationSnapshot, source: SourceKey, reengagement = false): Promise<void> {
     const existing = await runner.query(
       `SELECT status, routing_status, assigned_dealer_id, routing_override, routing_reason, vehicle_type, down_payment,
-              identification, bank_account, purchase_timeline, documents
+              identification, bank_account, purchase_timeline, documents, has_unhandled_reengagement
        FROM lead_dealers WHERE lead_id = $1 AND dealer_id = $2 FOR UPDATE`,
       [leadId, sourceDealer.id],
     ) as ExistingDealerLead[];
@@ -1424,11 +1328,12 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       ? current?.routing_reason || routing.reason
       : routing.reason;
     const messageText = buildWhatsAppMessage(snapshot.real_name || 'Lead', snapshot.phone, snapshot);
+    const hasUnhandledReengagement = reengagement || Boolean(current?.has_unhandled_reengagement);
     await runner.query(
       `INSERT INTO lead_dealers
         (lead_id, dealer_id, vehicle_type, down_payment, identification, bank_account, purchase_timeline, documents,
-         easterns_zone, assigned_dealer_id, routing_override, routing_reason, routing_status, status, message_text, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'resolved', $13, $14, CURRENT_TIMESTAMP)
+         easterns_zone, assigned_dealer_id, routing_override, routing_reason, routing_status, status, message_text, has_unhandled_reengagement, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'resolved', $13, $14, $15, CURRENT_TIMESTAMP)
        ON CONFLICT (lead_id, dealer_id) DO UPDATE SET
          vehicle_type = COALESCE(NULLIF(EXCLUDED.vehicle_type, ''), lead_dealers.vehicle_type),
          down_payment = COALESCE(NULLIF(EXCLUDED.down_payment, ''), lead_dealers.down_payment),
@@ -1440,13 +1345,14 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
          assigned_dealer_id = CASE WHEN lead_dealers.status = 'sent' OR lead_dealers.routing_override THEN lead_dealers.assigned_dealer_id ELSE EXCLUDED.assigned_dealer_id END,
          routing_status = CASE WHEN lead_dealers.status = 'sent' OR lead_dealers.routing_override THEN lead_dealers.routing_status ELSE EXCLUDED.routing_status END,
          routing_reason = CASE WHEN lead_dealers.status = 'sent' OR lead_dealers.routing_override THEN lead_dealers.routing_reason ELSE EXCLUDED.routing_reason END,
-         status = CASE WHEN lead_dealers.status = 'sent' THEN 'sent' ELSE 'pending' END,
+         status = CASE WHEN $16::boolean THEN 'pending' WHEN lead_dealers.status = 'sent' THEN 'sent' ELSE 'pending' END,
          message_text = EXCLUDED.message_text,
+         has_unhandled_reengagement = CASE WHEN EXCLUDED.has_unhandled_reengagement THEN true ELSE lead_dealers.has_unhandled_reengagement END,
          updated_at = CURRENT_TIMESTAMP`,
       [
         leadId, sourceDealer.id, snapshot.vehicle_type, normalizeDownPayment(snapshot.down_payment), snapshot.identification,
         snapshot.bank_account, snapshot.purchase_timeline, snapshot.documents, location.easterns_zone || '', assignedDealerId,
-        current?.routing_override ?? false, routingReason, current?.status === 'sent' ? 'sent' : 'pending', messageText,
+        current?.routing_override ?? false, routingReason, reengagement || current?.status !== 'sent' ? 'pending' : 'sent', messageText, hasUnhandledReengagement, reengagement,
       ],
     );
   }

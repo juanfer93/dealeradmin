@@ -82,7 +82,13 @@ export class WebhooksController {
   @UseGuards(HmacSignatureGuard)
   processDueConversations(@Req() request: Request) {
     const requestedNow = request.header('X-DealerADMIN-Test-Now');
-    return this.conversationWebhookService.processDueConversations(this.controlledTestNow(requestedNow));
+    return this.conversationWebhookService.processDueConversations(this.controlledTestNow(requestedNow), {
+      // HTTP E2E runs against the real database but must only release the
+      // explicit due-window rows; bounded historical reconciliation is covered
+      // by the service integration tests and would make this endpoint race the
+      // test fixture's own webhook sequence.
+      reconcileActive: process.env.NODE_ENV !== 'test',
+    });
   }
 
   @Get('ghl/conversations/process-due')

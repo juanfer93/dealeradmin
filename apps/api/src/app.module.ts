@@ -39,6 +39,7 @@ import { DropProblemTickets1710000028000 } from './database/migrations/171000002
 import { EnableStaffordMessenger1710000029000 } from './database/migrations/1710000029000-EnableStaffordMessenger';
 import { WebhookIngressLogs1710000030000 } from './database/migrations/1710000030000-WebhookIngressLogs';
 import { WebhookProcessingAttempts1710000031000 } from './database/migrations/1710000031000-WebhookProcessingAttempts';
+import { LeadReengagementQueue1710000032000 } from './database/migrations/1710000032000-LeadReengagementQueue';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -79,6 +80,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             EnableStaffordMessenger1710000029000,
             WebhookIngressLogs1710000030000,
             WebhookProcessingAttempts1710000031000,
+            LeadReengagementQueue1710000032000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,

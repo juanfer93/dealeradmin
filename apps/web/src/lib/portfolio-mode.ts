@@ -22,7 +22,7 @@ export type PortfolioLead = {
   bankAccount: string;
   documents: string;
   purchaseTimeline: string;
-  status: 'pending' | 'sent';
+  status: 'pending' | 'wrote_again' | 'sent';
   messageText: string;
   createdAt: string;
 };
@@ -98,17 +98,33 @@ const portfolioLeads: PortfolioLead[] = [
     messageText: 'Morgan Test +15550101004 Hatchback, $2,000 de down, ID Demo ID, quiere comprar this month.',
     createdAt: '2026-08-28T16:42:00.000Z',
   },
+  {
+    id: 'portfolio-lead-05',
+    dealerId: 'portfolio-stafford',
+    dealerName: 'Stafford demo queue',
+    name: 'Reengagement Sample',
+    phone: '+15550101005',
+    vehicleType: 'SUV',
+    downPayment: '$2,500',
+    identification: 'Demo ID',
+    bankAccount: '',
+    documents: 'Proof of income',
+    purchaseTimeline: 'today',
+    status: 'wrote_again',
+    messageText: 'Reengagement Sample +15550101005 SUV, $2,500 de down, volvió a escribir para continuar.',
+    createdAt: '2026-08-29T12:30:00.000Z',
+  },
 ];
 
 export function getPortfolioLeadResponse(
-  status: 'pending' | 'sent',
+  status: 'pending' | 'wrote_again' | 'sent',
   dealerId?: string,
   dealerIds?: string[],
-): { dealers: PortfolioDealer[]; leads: PortfolioLead[] } {
+): { dealers: PortfolioDealer[]; leads: PortfolioLead[]; wroteAgainCount: number } {
   const selectedDealerIds = dealerIds?.length ? dealerIds : dealerId ? [dealerId] : undefined;
   const leads = portfolioLeads.filter((lead) =>
     lead.status === status && (!selectedDealerIds || selectedDealerIds.includes(lead.dealerId)),
   );
 
-  return { dealers: portfolioDealers, leads };
+  return { dealers: portfolioDealers, leads, wroteAgainCount: portfolioLeads.filter((lead) => lead.status === 'wrote_again').length };
 }

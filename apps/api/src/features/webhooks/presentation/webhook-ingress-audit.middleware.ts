@@ -1,4 +1,4 @@
-import { Injectable, NestMiddleware } from '@nestjs/common';
+import { Inject, Injectable, NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
 import { WebhookIngressAuditService } from '../application/webhook-ingress-audit.service';
 
@@ -6,7 +6,7 @@ type RawBodyRequest = Request & { rawBody?: Buffer; webhookIngressRequestId?: st
 
 @Injectable()
 export class WebhookIngressAuditMiddleware implements NestMiddleware {
-  constructor(private readonly audit: WebhookIngressAuditService) {}
+  constructor(@Inject(WebhookIngressAuditService) private readonly audit: WebhookIngressAuditService) {}
 
   async use(request: RawBodyRequest, response: Response, next: NextFunction): Promise<void> {
     const requestId = await this.audit.begin(request, request.body);

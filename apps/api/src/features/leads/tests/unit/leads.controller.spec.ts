@@ -21,7 +21,8 @@ function createController(runner: ReturnType<typeof createRunner>) {
   const dataSource = { createQueryRunner: vi.fn(() => runner) };
   const authService = { verifySession: vi.fn(() => true) };
   const copyLeadService = { execute: vi.fn() };
-  return new LeadsController(dataSource as never, authService as never, copyLeadService as never);
+  const conversationWebhookService = { queueLeadForBotSilence: vi.fn(async () => ({ queued: true })) };
+  return new LeadsController(dataSource as never, authService as never, copyLeadService as never, conversationWebhookService as never);
 }
 
 describe('LeadsController deletion', () => {
@@ -117,7 +118,8 @@ describe('LeadsController queue read', () => {
     const dataSource = {
       query: vi.fn()
         .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]),
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ count: 0 }]),
     };
     const authService = { verifySession: vi.fn(() => true) };
     const copyLeadService = { execute: vi.fn() };
@@ -125,12 +127,14 @@ describe('LeadsController queue read', () => {
       dataSource as never,
       authService as never,
       copyLeadService as never,
+      { queueLeadForBotSilence: vi.fn(async () => ({ queued: true })) } as never,
     );
 
-    await expect(controller.list({ cookies: {} } as never, 'pending')).resolves.toEqual({ dealers: [], leads: [] });
-    expect(dataSource.query).toHaveBeenCalledTimes(2);
+    await expect(controller.list({ cookies: {} } as never, 'pending')).resolves.toEqual({ dealers: [], leads: [], wroteAgainCount: 0 });
+    expect(dataSource.query).toHaveBeenCalledTimes(3);
     expect(dataSource.query.mock.calls[0]?.[0]).toContain("$1 <> 'pending' OR COALESCE(ld.routing_status, 'resolved') <> 'not_qualified'");
     expect(dataSource.query.mock.calls[1]?.[0]).toContain("ld.status = 'pending' AND COALESCE(ld.routing_status, 'resolved') <> 'not_qualified'");
+    expect(dataSource.query.mock.calls[2]?.[0]).toContain('has_unhandled_reengagement');
   });
 
   it('keeps the sent view clean after monthly report archival without deleting rows', async () => {
@@ -138,11 +142,12 @@ describe('LeadsController queue read', () => {
     const dataSource = {
       query: vi.fn()
         .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]),
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ count: 0 }]),
     };
     const authService = { verifySession: vi.fn(() => true) };
     const copyLeadService = { execute: vi.fn() };
-    const controller = new LeadsController(dataSource as never, authService as never, copyLeadService as never);
+    const controller = new LeadsController(dataSource as never, authService as never, copyLeadService as never, { queueLeadForBotSilence: vi.fn(async () => ({ queued: true })) } as never);
 
     await controller.list({ cookies: {} } as never, 'sent');
     expect(dataSource.query.mock.calls[0]?.[0]).toContain("$1 <> 'sent' OR ld.queue_archived_at IS NULL");
@@ -206,15 +211,15 @@ describe('LeadsController queue status synchronization', () => {
     };
     const authService = { verifySession: vi.fn(() => true) };
     const copyLeadService = { execute: vi.fn() };
-    const controller = new LeadsController(dataSource as never, authService as never, copyLeadService as never);
+    const conversationWebhookService = { queueLeadForBotSilence: vi.fn(async () => ({ queued: true })) };
+    const controller = new LeadsController(dataSource as never, authService as never, copyLeadService as never, conversationWebhookService as never);
 
     await expect(controller.updateStatus({ cookies: {} } as never, 'lead-1', {
       status: 'sent',
       dealerId: 'dealer-1',
     })).resolves.toEqual({ success: true });
 
-    expect(dataSource.query).toHaveBeenCalledTimes(2);
-    expect(dataSource.query.mock.calls[1]?.[0]).toContain("SET status = 'sent'");
-    expect(dataSource.query.mock.calls[1]?.[0]).toContain("other.status = 'pending'");
+    expect(dataSource.query).toHaveBeenCalledTimes(1);
+    expect(conversationWebhookService.queueLeadForBotSilence).toHaveBeenCalledWith('lead-1');
   });
 });

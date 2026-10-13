@@ -5,6 +5,7 @@ import {
   Controller,
   Delete,
   Get,
+  Inject,
   Param,
   Patch,
   Post,
@@ -20,6 +21,7 @@ import { UpdateLeadSchema, type UpdateLeadDto } from '@dealeradmin/contracts';
 import { AuthService } from '../../auth/application/auth.service';
 import { copyTestLead, deleteTestLead, getTestManualLeads, isTestLeadDeleted, testDealers, testLead, smartMergeTestLead, easternsTestLead, updateTestLeadStatus, reassignTestLead, updateTestLead } from '../application/test-lead-store';
 import { CopyLeadService } from '../application/copy-lead.service';
+import { ConversationWebhookService } from '../../webhooks/application/conversation-webhook.service';
 import { EASTERN_DEALER_IDS } from '../../routing/domain/services/georouting.service';
 import { buildManualLeadMessage } from '../domain/manual-message-builder';
 import { normalizeDownPayment } from '../domain/down-payment';
@@ -33,7 +35,7 @@ import {
   UpdateLeadRequestDto,
 } from './lead-request.dto';
 
-type LeadStatus = 'pending' | 'sent';
+type LeadStatus = 'pending' | 'sent' | 'wrote_again';
 
 type EditLeadBody = UpdateLeadDto & { dealerId?: unknown };
 type BulkDeleteItem = { leadId?: unknown; dealerId?: unknown };
@@ -42,8 +44,9 @@ type BulkDeleteItem = { leadId?: unknown; dealerId?: unknown };
 export class LeadsController {
   constructor(
     @Optional() @InjectDataSource() private readonly dataSource: DataSource | undefined,
-    private readonly authService: AuthService,
-    private readonly copyLeadService: CopyLeadService,
+    @Inject(AuthService) private readonly authService: AuthService,
+    @Inject(CopyLeadService) private readonly copyLeadService: CopyLeadService,
+    @Inject(ConversationWebhookService) private readonly conversationWebhookService: ConversationWebhookService,
   ) {}
 
   @Get()
@@ -56,17 +59,21 @@ export class LeadsController {
     this.requireSession(request);
     const status = this.parseStatus(statusQuery);
 
-    if (process.env.NODE_ENV === 'test') {
+    if (process.env.NODE_ENV === 'test' && process.env.E2E_USE_DATABASE !== 'true') {
       const selectedDealerIds = dealerIdsQuery?.split(',').filter(Boolean) ?? (dealerId ? [dealerId] : undefined);
       const matchesDealer = (leadDealerId: string) => !selectedDealerIds || selectedDealerIds.includes(leadDealerId);
       const manualLeads = getTestManualLeads().filter((lead) =>
-        !isTestLeadDeleted(lead.id) && status === lead.status && matchesDealer(lead.dealerId),
+        !isTestLeadDeleted(lead.id)
+        && (status === 'wrote_again' ? lead.hasUnhandledReengagement && lead.status === 'pending' : status === lead.status)
+        && matchesDealer(lead.dealerId),
       );
       const fixedLeads = [testLead, smartMergeTestLead, easternsTestLead].filter((lead) =>
-        !isTestLeadDeleted(lead.id) && status === lead.status && matchesDealer(lead.dealerId),
+        !isTestLeadDeleted(lead.id)
+        && (status === 'wrote_again' ? lead.hasUnhandledReengagement && lead.status === 'pending' : status === lead.status)
+        && matchesDealer(lead.dealerId),
       );
       const leads = [...fixedLeads, ...manualLeads];
-      return { dealers: testDealers, leads };
+      return { dealers: testDealers, leads, wroteAgainCount: [testLead, smartMergeTestLead, easternsTestLead, ...getTestManualLeads()].filter((lead) => !isTestLeadDeleted(lead.id) && lead.status === 'pending' && lead.hasUnhandledReengagement && matchesDealer(lead.dealerId)).length };
     }
 
     if (!this.dataSource) {
@@ -116,7 +123,11 @@ export class LeadsController {
          ORDER BY c.last_message_at DESC NULLS LAST, c.created_at DESC
          LIMIT 1
        ) latest_conversation ON true
-       WHERE ld.status = $1
+       WHERE (
+           ($1 = 'pending' AND ld.status = 'pending' AND NOT COALESCE(ld.has_unhandled_reengagement, false))
+           OR ($1 = 'wrote_again' AND ld.status = 'pending' AND COALESCE(ld.has_unhandled_reengagement, false))
+           OR ($1 = 'sent' AND ld.status = 'sent')
+         )
          AND ($1 <> 'sent' OR ld.queue_archived_at IS NULL)
          AND ($1 <> 'pending' OR COALESCE(ld.routing_status, 'resolved') <> 'not_qualified')
          ${dealerFilter}
@@ -129,7 +140,7 @@ export class LeadsController {
          d.id,
          d.code,
          d.name,
-         COUNT(ld.lead_id) FILTER (WHERE ld.status = 'pending' AND COALESCE(ld.routing_status, 'resolved') <> 'not_qualified')::int AS "pendingCount"
+         COUNT(ld.lead_id) FILTER (WHERE ld.status = 'pending' AND COALESCE(ld.routing_status, 'resolved') <> 'not_qualified' AND NOT COALESCE(ld.has_unhandled_reengagement, false))::int AS "pendingCount"
        FROM dealers d
        LEFT JOIN lead_dealers ld ON COALESCE(ld.assigned_dealer_id, ld.dealer_id) = d.id
        WHERE d.active = true
@@ -137,7 +148,19 @@ export class LeadsController {
        ORDER BY d.name ASC`,
     );
 
-    return { dealers, leads };
+    const countParams = selectedDealerIds?.length ? [selectedDealerIds] : [];
+    const wroteAgainCountRows = await this.dataSource.query(
+      `SELECT COUNT(*)::int AS count
+       FROM lead_dealers ld
+       INNER JOIN dealers d ON d.id = COALESCE(ld.assigned_dealer_id, ld.dealer_id)
+       WHERE ld.status = 'pending'
+         AND COALESCE(ld.has_unhandled_reengagement, false)
+         AND d.active = true
+         ${selectedDealerIds?.length ? 'AND d.id = ANY($1::uuid[])' : ''}`,
+      countParams,
+    ) as Array<{ count: number }>;
+
+    return { dealers, leads, wroteAgainCount: Number(wroteAgainCountRows[0]?.count ?? 0) };
   }
 
   @Patch(':id/status')
@@ -154,7 +177,7 @@ export class LeadsController {
       throw new BadRequestException('Dealer is required to update the lead relationship');
     }
 
-    if (process.env.NODE_ENV === 'test') {
+    if (process.env.NODE_ENV === 'test' && process.env.E2E_USE_DATABASE !== 'true') {
       updateTestLeadStatus(leadId, 'sent');
       return { success: true };
     }
@@ -165,26 +188,14 @@ export class LeadsController {
 
     const result = await this.dataSource.query(
       `UPDATE lead_dealers
-       SET status = 'sent', sent_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       SET status = 'sent', has_unhandled_reengagement = false, sent_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
        WHERE lead_id = $1 AND COALESCE(assigned_dealer_id, dealer_id) = $2 AND status = 'pending'`,
       [leadId, body.dealerId],
     );
     if (result.length === 0) {
       throw new BadRequestException('Lead not found or already sent');
     }
-    await this.dataSource.query(
-      `UPDATE conversations c
-       SET status = 'sent', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP
-       WHERE c.lead_id = $1
-         AND c.status = 'queued'
-         AND NOT EXISTS (
-           SELECT 1
-           FROM lead_dealers other
-           WHERE other.lead_id = c.lead_id
-             AND other.status = 'pending'
-         )`,
-      [leadId],
-    );
+    await this.conversationWebhookService.queueLeadForBotSilence(leadId);
     return { success: true };
   }
 
@@ -213,7 +224,7 @@ export class LeadsController {
     }
     const messageText = buildManualLeadMessage(name, canonicalPhone, parsed.data);
 
-    if (process.env.NODE_ENV === 'test') {
+    if (process.env.NODE_ENV === 'test' && process.env.E2E_USE_DATABASE !== 'true') {
       const result = updateTestLead(leadId, input.dealerId, parsed.data);
       if (!result.ok) {
         if (result.reason === 'duplicate') {
@@ -339,7 +350,7 @@ export class LeadsController {
     });
     const uniqueItems = Array.from(new Map(items.map((item) => [`${item.leadId}:${item.dealerId}`, item])).values());
 
-    if (process.env.NODE_ENV === 'test') {
+    if (process.env.NODE_ENV === 'test' && process.env.E2E_USE_DATABASE !== 'true') {
       let deletedLeadCount = 0;
       let deletedRelationshipCount = 0;
       for (const item of uniqueItems) {
@@ -410,7 +421,7 @@ export class LeadsController {
       throw new BadRequestException('Dealer is required to delete the lead relationship');
     }
 
-    if (process.env.NODE_ENV === 'test') {
+    if (process.env.NODE_ENV === 'test' && process.env.E2E_USE_DATABASE !== 'true') {
       const result = deleteTestLead(leadId, dealerIdQuery);
       if (!result.ok) {
         throw new BadRequestException('Lead not found or cannot be deleted');
@@ -480,7 +491,7 @@ export class LeadsController {
       throw new BadRequestException('Only Easterns dealers can be reassigned from this queue');
     }
 
-    if (process.env.NODE_ENV === 'test') {
+    if (process.env.NODE_ENV === 'test' && process.env.E2E_USE_DATABASE !== 'true') {
       if (!reassignTestLead(leadId, body.currentDealerId, body.targetDealerId)) {
         throw new BadRequestException('Lead not found or cannot be reassigned');
       }
@@ -528,7 +539,7 @@ export class LeadsController {
       throw new BadRequestException('El dealer destino debe ser diferente al dealer origen');
     }
 
-    if (process.env.NODE_ENV === 'test') {
+    if (process.env.NODE_ENV === 'test' && process.env.E2E_USE_DATABASE !== 'true') {
       const result = copyTestLead(leadId, body.sourceDealerId, body.targetDealerId);
       if (!result.ok) {
         if (result.reason === 'duplicate') {
@@ -548,7 +559,8 @@ export class LeadsController {
   private parseStatus(status?: string): LeadStatus {
     if (!status || status === 'pending') return 'pending';
     if (status === 'sent') return 'sent';
-    throw new BadRequestException('Status must be pending or sent');
+    if (status === 'wrote_again') return 'wrote_again';
+    throw new BadRequestException('Status must be pending, sent, or wrote_again');
   }
 
   private requireSession(request: Request): void {

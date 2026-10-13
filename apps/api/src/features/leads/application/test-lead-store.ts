@@ -28,6 +28,7 @@ export type TestLead = {
   documents: string;
   purchaseTimeline: string;
   status: 'pending' | 'sent';
+  hasUnhandledReengagement?: boolean;
   messageText: string;
   createdAt: string;
 };
@@ -79,6 +80,7 @@ export const testLead: TestLead = {
   documents: '',
   purchaseTimeline: '',
   status: 'pending',
+  hasUnhandledReengagement: false,
   messageText: 'Maria Lopez +15559876543 Sedan.',
   createdAt: '2026-08-21T12:00:00.000Z',
 };
@@ -96,6 +98,7 @@ export const smartMergeTestLead: TestLead = {
   documents: '',
   purchaseTimeline: '',
   status: 'pending',
+  hasUnhandledReengagement: false,
   messageText: 'Carlos Mendoza +15551234567 Sedan.',
   createdAt: '2026-08-21T12:05:00.000Z',
 };
@@ -113,6 +116,7 @@ export const easternsTestLead: TestLead = {
   documents: '',
   purchaseTimeline: '',
   status: 'pending',
+  hasUnhandledReengagement: false,
   messageText: 'Andres Felipe +15550001111 SUV, Pagara en cash / de contado.',
   createdAt: '2026-08-24T15:00:00.000Z',
 };
@@ -187,6 +191,7 @@ export function updateTestLeadStatus(leadId: string, status: 'sent'): boolean {
   const lead = [testLead, smartMergeTestLead, easternsTestLead, ...manualTestLeads].find((item) => item.id === leadId && !isTestLeadDeleted(item.id));
   if (!lead || lead.status === status) return false;
   lead.status = status;
+  lead.hasUnhandledReengagement = false;
   const dealer = getTestDealer(lead.dealerId);
   if (dealer) dealer.pendingCount = Math.max(0, dealer.pendingCount - 1);
   return true;
@@ -329,5 +334,6 @@ export function applyTestWebhookLead(payload: LeadWebhookDto): boolean {
   lead.purchaseTimeline = normalizePurchaseTimeline(payload.lead.purchase_timeline) || '';
   lead.documents = payload.lead.documents?.trim() || '';
   lead.messageText = buildWhatsAppMessage(payload.lead.name, canonicalPhone, { ...payload.lead, identification });
+  lead.hasUnhandledReengagement = true;
   return true;
 }

@@ -67,6 +67,7 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
       'resolved',
       'sent',
       'Carlos Mendoza +15551234567 truck, 3500 down, ID, Pasaporte e ID, wants to see options.',
+      false,
     ]);
   });
 
