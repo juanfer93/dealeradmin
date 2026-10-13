@@ -1,0 +1,254 @@
+import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
+import type { DataSource } from 'typeorm';
+import { detectLeadLanguage, extractRecentMessagePhone, isAdvisorHandoffVehicle, isQualificationComplete, normalizeCollectorInput } from '../../../leads/domain/collector-normalizer';
+import { evaluateDownPayment, normalizeDownPayment } from '../../../leads/domain/down-payment';
+import { findQueuedConversationDuplicate } from '../../../leads/domain/lead-duplicate';
+import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
+import { ConversationQualificationFunctions } from './conversation-qualification.functions';
+import { ACTIVE_RECONCILIATION_BATCH_SIZE, GHL_SOURCE_CONFIG, RECONCILIATION_LOCATION_IDS, CONVERSATION_STABILIZATION_MS } from './conversation-webhook.config';
+import { addProcessedImageEvidence, clean, extractNativeWhatsappPhone, inputIndicatesWhatsApp, isAttachmentEvidenceMessage, safePhone, splitName } from './conversation-webhook.helpers';
+import type { ConversationMessageRow, ConversationSnapshot, LocationSnapshot, MediaReconciliationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
+
+export class ConversationReconciliationFunctions {
+  constructor(
+    private readonly dataSource: DataSource | undefined,
+    private readonly qualification: ConversationQualificationFunctions,
+    private readonly queueService: ConversationQueueService,
+    private readonly sourceConfig: SourceConfigMap = GHL_SOURCE_CONFIG,
+  ) {}
+
+  async reconcileMediaConversation(id: string, now: Date): Promise<MediaReconciliationResponse> {
+    if (!this.dataSource) throw new ServiceUnavailableException('Base de datos no disponible');
+    await this.reconcileConversation(id, now, true);
+    const rows = await this.dataSource.query(
+      `SELECT status, qualification_snapshot FROM conversations WHERE id = $1`,
+      [id],
+    ) as Array<{ status: string; qualification_snapshot: ConversationSnapshot | null }>;
+    if (!rows[0]) throw new BadRequestException('Conversación no encontrada');
+    return { accepted: true, conversationId: id, status: rows[0].status, qualificationSnapshot: rows[0].qualification_snapshot };
+  }
+
+  async reconcileActiveConversations(now: Date): Promise<void> {
+    if (!this.dataSource) return;
+    const rows = await this.dataSource.query(
+      `SELECT id
+       FROM conversations
+       WHERE status IN ('partial', 'waiting_window', 'stale_phone_ignored')
+          OR (
+            status <> 'queued'
+            AND (
+              ghl_location_id = ANY($2::text[])
+              AND NOT EXISTS (SELECT 1 FROM lead_dealers orphan_ld WHERE orphan_ld.lead_id = conversations.lead_id)
+            )
+          )
+       ORDER BY updated_at DESC
+       LIMIT $1`,
+      [ACTIVE_RECONCILIATION_BATCH_SIZE, RECONCILIATION_LOCATION_IDS],
+    ) as Array<{ id: string }>;
+    for (const row of rows) await this.reconcileConversation(row.id, now);
+  }
+
+  async reconcileConversation(id: string, now: Date, propagateErrors = false): Promise<void> {
+    const runner = this.dataSource!.createQueryRunner();
+    let queuedPauseEvent: QueuedPauseDispatch | null = null;
+    await runner.connect();
+    await runner.startTransaction();
+    try {
+      const rows = await runner.query(
+        `SELECT c.id, c.channel, c.ghl_location_id, c.ghl_contact_id, c.ghl_conversation_id, c.status,
+                c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at, c.last_message_at,
+                l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name
+         FROM conversations c
+         JOIN leads l ON l.id = c.lead_id
+         WHERE c.id = $1 AND (c.status IN ('partial', 'waiting_window', 'stale_phone_ignored')
+           OR (c.status <> 'queued' AND c.ghl_location_id = ANY($2::text[])
+               AND NOT EXISTS (SELECT 1 FROM lead_dealers orphan_ld WHERE orphan_ld.lead_id = c.lead_id)))
+         FOR UPDATE`,
+        [id, RECONCILIATION_LOCATION_IDS],
+      ) as Array<{
+        id: string;
+        channel: string;
+        ghl_location_id: string;
+        ghl_contact_id: string;
+        ghl_conversation_id: string;
+        status: string;
+        qualification_snapshot: ConversationSnapshot;
+        location_snapshot: LocationSnapshot;
+        ready_at: string | null;
+        next_attempt_at: string | null;
+        last_message_at: string | null;
+        lead_id: string;
+        canonical_phone: string | null;
+        first_name: string | null;
+        last_name: string | null;
+      }>;
+      if (!rows[0]) {
+        await runner.rollbackTransaction();
+        return;
+      }
+      const row = rows[0];
+      const configured = Object.entries(this.sourceConfig).find(([, config]) => config.locationId === row.ghl_location_id);
+      if (!configured) {
+        await runner.rollbackTransaction();
+        return;
+      }
+      const source = configured[0] as SourceKey;
+      const current = row.qualification_snapshot ?? {} as ConversationSnapshot;
+      const messages = await runner.query(
+        `SELECT cm.body, cm.direction, cm.occurred_at, cm.raw_payload,
+                ca.extracted_text AS attachment_extracted_text
+         FROM conversation_messages cm
+         LEFT JOIN conversation_attachments ca
+           ON ca.conversation_message_id = cm.id
+          AND ca.processing_status = 'done'
+          AND ca.media_kind = 'image'
+          AND ca.extracted_text IS NOT NULL
+         WHERE cm.conversation_id = $1
+         ORDER BY cm.occurred_at ASC, cm.created_at ASC`,
+        [id],
+      ) as ConversationMessageRow[];
+      if (source === 'fredericksburg-2' && messages.some((message) => inputIndicatesWhatsApp(message.raw_payload, row.channel))) {
+        await runner.query(`UPDATE conversations SET status = 'ignored_channel', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
+        await runner.commitTransaction();
+        return;
+      }
+      const evidenceMessages = addProcessedImageEvidence(messages);
+      const transcript = evidenceMessages.map((item) => clean(item.body)).filter(Boolean).join('\n');
+      if (!transcript) {
+        await runner.rollbackTransaction();
+        return;
+      }
+      const contactName = clean(`${row.first_name || ''} ${row.last_name || ''}`) || 'Lead';
+      const recentPhone = safePhone(extractRecentMessagePhone(evidenceMessages.map((message) => ({ ...message, is_attachment_evidence: isAttachmentEvidenceMessage(message) })), now));
+      const nativeWhatsappPhone = this.isStaffordWhatsApp(source, row.channel)
+        ? safePhone(row.canonical_phone) || extractNativeWhatsappPhone(messages)
+        : null;
+      const normalized = normalizeCollectorInput({
+        source,
+        channel: row.channel,
+        message: transcript,
+        chat_history_log: transcript,
+        phone: recentPhone || nativeWhatsappPhone || '',
+        real_name: clean(current.real_name),
+        contact_name: contactName,
+        vehicle_type: clean(current.vehicle_type),
+        down_payment: clean(current.down_payment),
+        purchase_timeline: clean(current.purchase_timeline),
+        documents: clean(current.documents),
+        identification: clean(current.identification),
+        bank_account: clean(current.bank_account),
+        qualification_memory: clean(current.qualification_memory),
+        customer_location: clean(current.customer_location),
+        previous_predicted_bot_question: clean(current.qualification_progress?.predicted_bot_question),
+      });
+      const effectivePhone = recentPhone || nativeWhatsappPhone || '';
+      const realName = normalized.real_name || clean(current.real_name);
+      const vehicle = normalized.vehicle_type || clean(current.vehicle_type);
+      const vehicleYear = normalized.vehicle_year ?? (typeof current.vehicle_year === 'number' ? current.vehicle_year : null);
+      const downPayment = normalizeDownPayment(normalized.down_payment || clean(current.down_payment));
+      const purchaseTimeline = normalized.purchase_timeline || clean(current.purchase_timeline);
+      const documents = normalized.documents || clean(current.documents);
+      const identification = normalized.identification || clean(current.identification);
+      const bankAccount = normalized.bank_account || clean(current.bank_account);
+      const previousFinancing = normalized.previous_financing || (current.previous_financing === 'yes' || current.previous_financing === 'no' ? current.previous_financing : '');
+      const downPaymentRule = evaluateDownPayment(vehicle, downPayment);
+      const qualificationComplete = isQualificationComplete({
+        real_name: realName,
+        phone: effectivePhone,
+        vehicle_type: vehicle,
+        down_payment: downPayment,
+        purchase_timeline: purchaseTimeline,
+        has_identification: identification,
+        has_income_proof: documents,
+        bank_account: bankAccount,
+      });
+      const missingQualification = [!realName ? 'real_name' : '', !effectivePhone ? 'phone' : '', !vehicle || isAdvisorHandoffVehicle(vehicle) ? 'vehicle_type' : ''].filter(Boolean);
+      const resolvedLocation = await this.qualification.resolveLocation(runner, transcript);
+      const hasResolvedLocation = Boolean(resolvedLocation.city || resolvedLocation.state || resolvedLocation.zip_code || resolvedLocation.easterns_zone);
+      const location = hasResolvedLocation ? resolvedLocation : (row.location_snapshot ?? { city: null, state: null, zip_code: null, easterns_zone: null });
+      const language = this.sourceConfig[source].splitByLanguage ? detectLeadLanguage(transcript) : current.language;
+      const snapshot: ConversationSnapshot = {
+        real_name: realName,
+        phone: effectivePhone,
+        vehicle_type: vehicle,
+        vehicle_year: vehicleYear,
+        customer_location: normalized.customer_location || clean(current.customer_location),
+        vehicle_category: downPaymentRule.category,
+        required_down_payment: downPaymentRule.minimum,
+        down_payment_amount: downPaymentRule.amount,
+        down_payment_sufficient: downPaymentRule.meetsMinimum,
+        down_payment: downPayment,
+        previous_financing: previousFinancing,
+        purchase_timeline: purchaseTimeline,
+        documents,
+        identification,
+        bank_account: bankAccount,
+        qualification_memory: normalized.qualification_memory || clean(current.qualification_memory),
+        qualification_complete: qualificationComplete,
+        missing_qualification: missingQualification,
+        message_count: messages.length,
+        language,
+        qualification_progress: normalized.qualification_progress,
+        assigned_dealer_id: clean(current.assigned_dealer_id) || undefined,
+      };
+      const dealer = await this.qualification.findSourceDealer(runner, row.ghl_location_id, source, language, clean(current.assigned_dealer_id) || undefined);
+      snapshot.assigned_dealer_id = dealer.id;
+      if (snapshot.real_name) {
+        const { firstName, lastName } = splitName(snapshot.real_name);
+        await runner.query(`UPDATE leads SET first_name = $2, last_name = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [row.lead_id, firstName, lastName]);
+      }
+      if (effectivePhone && effectivePhone !== row.canonical_phone) {
+        await runner.query(
+          `UPDATE leads SET canonical_phone = $2, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1 AND NOT EXISTS (SELECT 1 FROM leads other WHERE other.canonical_phone = $2 AND other.id <> $1)`,
+          [row.lead_id, effectivePhone],
+        );
+      }
+      const lastMessageAt = row.last_message_at ? new Date(row.last_message_at).getTime() : Number.NaN;
+      const recentlyCaptured = Number.isFinite(lastMessageAt) && now.getTime() - lastMessageAt < CONVERSATION_STABILIZATION_MS;
+      const phase = row.status === 'partial' && snapshot.qualification_complete && recentlyCaptured ? 'capture' : 'due';
+      const activeWindow = row.status === 'waiting_window' && row.next_attempt_at && new Date(row.next_attempt_at).getTime() > now.getTime();
+      const status = activeWindow
+        ? { status: 'waiting_window' as const, nextAttemptAt: row.next_attempt_at }
+        : this.qualification.statusForConversation(snapshot, location, dealer, source, now, phase, row.ready_at || row.last_message_at);
+      await runner.query(
+        `UPDATE conversations
+         SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
+             next_attempt_at = $5,
+             ready_at = CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued') THEN COALESCE(ready_at, $6::timestamptz) ELSE ready_at END,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [id, status.status, JSON.stringify(snapshot), JSON.stringify(location), status.nextAttemptAt, now.toISOString()],
+      );
+      if (status.status === 'ready') {
+        const duplicate = await findQueuedConversationDuplicate(runner, dealer.id, snapshot.real_name || contactName, snapshot.phone, id);
+        if (!duplicate) {
+          await this.qualification.syncLeadDealer(runner, dealer, row.lead_id, snapshot, location, source);
+          await runner.query(`UPDATE conversations SET status = 'queued', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
+          queuedPauseEvent = await this.queueService.createQueuedPauseEvent(runner, row.status, 'queued', {
+            conversationId: row.id,
+            ghlConversationId: row.ghl_conversation_id,
+            contactId: row.ghl_contact_id,
+            locationId: row.ghl_location_id,
+            leadId: row.lead_id,
+            source,
+            emittedAt: now,
+          });
+        } else {
+          await runner.query(`UPDATE conversations SET status = 'duplicate_ignored', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
+        }
+      }
+      await runner.commitTransaction();
+      if (queuedPauseEvent) await this.queueService.dispatchQueuedPauseEvent(queuedPauseEvent);
+    } catch (error) {
+      if (runner.isTransactionActive) await runner.rollbackTransaction();
+      if (propagateErrors) throw error;
+    } finally {
+      await runner.release();
+    }
+  }
+
+  private isStaffordWhatsApp(source: SourceKey, channel: string): boolean {
+    return source === 'stafford' && channel.trim().toLowerCase() === 'whatsapp';
+  }
+}
