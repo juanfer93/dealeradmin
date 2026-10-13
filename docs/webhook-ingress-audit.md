@@ -12,6 +12,38 @@
 
 El registro se realiza en `WebhookIngressAuditMiddleware`, antes de los guards. El body crudo, su SHA-256 y los metadatos se guardan antes de llamar al controlador. Después se actualizan los hitos de autenticación, handler y respuesta HTTP.
 
+## Latencia de procesamiento
+
+`webhook_processing_attempts` registra una fila por intento de procesamiento después de que el controlador termina. No guarda el texto del mensaje: conserva los IDs de correlación, el estado, los timestamps y un `duration_ms` calculado desde `handler_started_at` (o `received_at`) de `webhook_ingress_logs` hasta la finalización del intento.
+
+La combinación de ambas tablas permite separar la latencia de transporte de la latencia de negocio:
+
+```sql
+SELECT i.received_at,
+       i.handler_started_at,
+       p.completed_at,
+       p.persisted_at,
+       p.duration_ms,
+       p.processing_status,
+       p.error_code,
+       i.ghl_location_id,
+       i.ghl_contact_id,
+       i.ghl_conversation_id,
+       p.event_id
+FROM webhook_ingress_logs i
+LEFT JOIN webhook_processing_attempts p ON p.request_id = i.request_id
+WHERE i.ghl_contact_id = 'GHL_CONTACT_ID'
+ORDER BY i.received_at, p.completed_at;
+```
+
+Lectura operacional:
+
+- `webhook_ingress_logs` sin fila: el webhook no alcanzó la aplicación.
+- Ingress presente y `webhook_processing_attempts` ausente: el request llegó, pero el handler no terminó o la telemetría falló.
+- `processing_status=failed`: el procesamiento terminó con error; `error_code` conserva la causa.
+- `persisted_at` no nulo: la transacción de negocio terminó antes de responder.
+- `duration_ms` alto: hay que comparar `received_at`, `handler_started_at` y `completed_at` para ubicar la latencia.
+
 ## Convención de Fredericksburg
 
 `FRED` y `FRED-2` son dealers distintos, pero ambos llegan intencionalmente a la ubicación de Fredericksburg. Esta relación es permanente y no debe clasificarse como una anomalía de routing o de entrega.
@@ -83,4 +115,4 @@ Interpretación rápida:
 
 El logging es best-effort: si PostgreSQL está caído, no debe convertir el webhook en un segundo fallo. Por eso el endpoint continúa y el error de logging no reemplaza el resultado del negocio. Una indisponibilidad simultánea de la base y del backend requiere una cola o almacenamiento externo para tener garantía fuera de PostgreSQL.
 
-La migración `1710000030000-WebhookIngressLogs` se aplica junto con las demás migraciones de API. La validación local cubre peticiones aceptadas y rechazadas. La tabla también fue confirmada en producción y contiene entradas reales de los webhooks de customer-replied; las consultas de auditoría deben respetar la convención de Fredericksburg descrita arriba.
+Las migraciones `1710000030000-WebhookIngressLogs` y `1710000031000-WebhookProcessingAttempts` se aplican junto con las demás migraciones de API. La validación local cubre peticiones aceptadas y rechazadas, además de la persistencia de la traza de procesamiento.

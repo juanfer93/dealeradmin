@@ -8,6 +8,7 @@ import { GhlQueuedPauseNotifier } from '../application/conversation-bot-pause';
 import { QUEUED_PAUSE_NOTIFIER } from './queued-pause.tokens';
 import { WebhookIngressAuditMiddleware } from './webhook-ingress-audit.middleware';
 import { WebhookIngressAuditService } from '../application/webhook-ingress-audit.service';
+import { WebhookProcessingAuditService } from '../application/webhook-processing-audit.service';
 
 @Module({
   imports: [RoutingModule],
@@ -16,6 +17,7 @@ import { WebhookIngressAuditService } from '../application/webhook-ingress-audit
     WebhookService,
     ConversationWebhookService,
     WebhookIngressAuditService,
+    WebhookProcessingAuditService,
     HmacSignatureGuard,
     { provide: QUEUED_PAUSE_NOTIFIER, useClass: GhlQueuedPauseNotifier },
   ],

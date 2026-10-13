@@ -13,7 +13,10 @@ const normalizeNameSuffixPunctuation = (value) => clean(value).replace(nameSuffi
 for (const technicalName of ['location', 'información', 'informacion', 'más información', 'mas informacion', 'más info', 'mas info', 'more information', 'more info', 'details', 'detalles']) invalidRealNames.add(technicalName);
 const isValidRealName = (value) => {
   const candidate = normalizeNameSuffixPunctuation(value);
-  return Boolean(candidate && realNamePattern.test(candidate) && candidate.split(/\s+/).every((token) => token.toLocaleLowerCase() === 'y' || token.replace(/[-']/g, '').length >= 2));
+  const tokens = candidate ? candidate.split(/\s+/) : [];
+  return Boolean(candidate && realNamePattern.test(candidate) && tokens.some((token) => token.replace(/[-']/g, '').length >= 2) && tokens.every((token) => token.toLocaleLowerCase() === 'y'
+    || token.replace(/[-']/g, '').length >= 2
+    || /^[A-ZÁÉÍÓÚÜÑ]\.?$/u.test(token)));
 };
 const normalizeRealName = (value) => {
   const candidate = normalizeNameSuffixPunctuation(value);

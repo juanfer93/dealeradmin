@@ -54,7 +54,11 @@ const tradeIn = (text) => {
   return value ? `${value} + trade-in` : tradeInLanguage.test(source) ? 'trade-in' : '';
 };
 const downFrom = (text) => {
-  const source = String(text ?? '').replace(/\r\n?/g, '\n').trim();
+  const source = String(text ?? '')
+    .replace(/\r\n?/g, '\n')
+    // Dates such as "the 23rd" are not down-payment amounts.
+    .replace(/\b\d+(?:st|nd|rd|th)\b/gi, ' ')
+    .trim();
   if (!source || campaign) return '';
   if (noDownPaymentResponse.test(source)) return 'No down payment';
   if (/\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b/i.test(source)) return cashDownPayment;
@@ -103,7 +107,7 @@ const vehicleFrom = (text) => {
     if (tradeInLanguage.test(candidate)
       && /\b(?:tengo|tiene|have|has|my|mi)\b/i.test(candidate)
       && !/\b(?:looking for|busco|quiero|want|interested in|interesado en)\b/i.test(candidate)) continue;
-    const candidateForVehicle = /\b(?:looking for|busco|quiero|want|interested in|interesado en)\b/i.test(candidate)
+    const candidateForVehicle = /\b(?:need|needs|looking for|busco|quiero|want|interested in|interesado en)\b/i.test(candidate)
       ? candidate
       : candidate.split(/[;,]/, 1)[0];
     const cleaned = candidateForVehicle
@@ -119,7 +123,7 @@ const vehicleFrom = (text) => {
       const requestedLabel = vehicleLabel(requested);
       if (requestedLabel) candidates.push({ label: requestedLabel, score: 100 + (vehicleModels.test(requested) ? 25 : 0) + lineIndex / 1000, lineIndex, hasModel: vehicleModels.test(requested), brand: requested.match(vehicleBrands)?.[0] || '', isColloquialTruck: false });
     }
-    const category = cleaned.match(/\b(?:suv|sedan|truck|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i);
+    const category = cleaned.match(/\b(?:suv|sedan|truck|troka|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i);
     const hasModel = vehicleModels.test(cleaned);
     const brand = cleaned.match(vehicleBrands)?.[0] || '';
     const label = vehicleLabel(cleaned);
@@ -131,7 +135,7 @@ const vehicleFrom = (text) => {
         + (followsVehicleQuestion ? 10 : 0)
         - (lowQualityNarrative && !hasModel ? 30 : 0)
         + lineIndex / 1000;
-      candidates.push({ label, score, lineIndex, hasModel, brand, isColloquialTruck: /\b(?:troca|trokita|troquita|troque|trokas)\b/i.test(candidate) });
+      candidates.push({ label, score, lineIndex, hasModel, brand, isColloquialTruck: /\b(?:troka|troca|trokita|troquita|troque|trokas)\b/i.test(candidate) });
     }
   }
   // A buyer can change the vehicle during the same conversation. The last
@@ -160,8 +164,8 @@ const cleanVehicleValue = (value) => {
   // Do not allow arbitrary Custom Code/memory text to become vehicle_type.
   // Keep exact categories and recognized make/model labels only.
   const label = vehicleLabel(candidate);
-  const categoryOnly = /^(?:suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión|carro|auto|coche)$/i.test(candidate);
-  return label || categoryOnly ? (label || candidate.replace(/^troca$/i, 'truck').replace(/^camion(?:eta|etq)?$/i, 'truck').replace(/^camión(?:eta)?$/i, 'truck')) : '';
+  const categoryOnly = /^(?:suv|sedan|truck|troka|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión|carro|auto|coche)$/i.test(candidate);
+  return label || categoryOnly ? (label || candidate.replace(/^(?:troka|troca)$/i, 'truck').replace(/^camion(?:eta|etq)?$/i, 'truck').replace(/^camión(?:eta)?$/i, 'truck')) : '';
 };
 const vehicleYearFrom = (value) => {
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter(Boolean);
@@ -314,7 +318,7 @@ const stafford = source === 'stafford';
 const requiresLocation = ['easterns', 'easterns-millersville'].includes(source);
 const phoneSatisfiedByNative = stafford && isWhatsAppChannel(inputData.channel);
 const customerLocation = first(inputData.customer_location, `${history}; ${message}`.match(/\b(?:Baltimore|Laurel|Sterling|Millersville|Frederick|Fredericksburg|Woodbridge|Alexandria|Culpeper|Stafford)\b/i)?.[0] || '');
-const vehicleCategory = /\b(?:truck|troca|trokita|troquita|troque|trokas|pickup|pick[- ]?up|camioneta|camion|camión|tacoma|tundra|f[- ]?150|f[- ]?250|f[- ]?350|maverick|ranger|silverado|sierra|colorado|frontier|titan|ridgeline|gladiator|ram)\b/i.test(vehicle)
+const vehicleCategory = /\b(?:truck|troka|troca|trokita|troquita|troque|trokas|pickup|pick[- ]?up|camioneta|camion|camión|tacoma|tundra|f[- ]?150|f[- ]?250|f[- ]?350|maverick|ranger|silverado|sierra|colorado|frontier|titan|ridgeline|gladiator|ram)\b/i.test(vehicle)
   ? 'truck'
   : /\b(?:suv|van|minivan|crossover|highlander|rav\s*4|4\s*runner|sienna|grand caravan|caravan|pacifica|odyssey|transit|promaster|pilot|passport|cr[- ]?v|hr[- ]?v|tahoe|suburban|traverse|equinox|blazer|yukon|acadia|terrain|wrangler|cherokee|compass|renegade|durango|explorer|expedition|escape|edge|armada|rogue|pathfinder|sportage|telluride|sorento|palisade|santa fe|tucson|forester|outback|ascent|atlas|tiguan|cayenne|range rover|defender)\b/i.test(vehicle)
     ? 'suv_or_van'

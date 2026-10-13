@@ -208,6 +208,66 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
   });
 
+  it('normalizes Kathy Warren from Easterns Frederick when the vehicle is in narrative text', () => {
+    const result = execute({
+      source: 'easterns-frederick',
+      channel: 'messenger',
+      real_name: 'Kathy Warren',
+      phone: '(717) 404-1201',
+      message: 'Dobyou have any locations in W Va??',
+      chat_history_log: [
+        'Can someone with a repo on their credit report get a vehicle??',
+        'It’s my daughter who’s vehicle may not last much longer, it has over 250,000 miles on it & costs alot to repair right now. She’s the 1 with a repo from about 3 1/2 - 4 yrs ago.',
+        'She has 3 kids, so she needs an SUV',
+        'Do you have your job is your credit They both work full time',
+        'They also have NO down payment available',
+        'I guess just send it to me, & I’ll inform her',
+        'Please, no phone calls, I work f/t with Uber Eats.',
+        'Dobyou have any locations in W Va??',
+      ].join('\n'),
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Kathy Warren',
+      phone: '+17174041201',
+      vehicle_type: 'SUV',
+      down_payment: 'No down payment',
+      qualification_complete: true,
+      missing_qualification: [],
+    });
+  });
+
+  it('normalizes Sharon Yates from Easterns Frederick without filtering the stop bot tag', () => {
+    const result = execute({
+      source: 'easterns-frederick',
+      channel: 'messenger',
+      real_name: 'Sharon Yates',
+      phone: '(240) 458-8934',
+      tags: 'stop bot',
+      message: 'Thanks',
+      chat_history_log: [
+        "Hello. I'm sorry. I don't understand spanish.",
+        'An suv',
+        'Preferably an Armada or infinity qx55',
+        '$3000',
+        'My credit falls into the bad category. I am looking to buy in a month once I have some pay stubs.',
+        'I have an id but not proof of income. Thats the only reason I want to wait a month. I get my 1st check from my new job on the 23rd.',
+        'Thanks',
+      ].join('\n'),
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Sharon Yates',
+      phone: '+12404588934',
+      vehicle_type: 'Armada',
+      down_payment: '3000',
+      identification: 'yes',
+      has_income_proof: 'no',
+      qualification_complete: true,
+      missing_qualification: [],
+    });
+  });
+
   it('repairs the Culpeper Toyota Tundra transcription before advisor fallback', () => {
     const result = execute({
       source: 'koons-culpeper',
@@ -230,6 +290,25 @@ describe('HighLevel collector custom-code normalizer', () => {
       vehicle_type: 'Toyota Tundra',
     });
     expect(result.vehicle_type).not.toBe('Quiere hablar con un asesor');
+  });
+
+  it('normalizes the Culpeper colloquial truck answer Troka', () => {
+    const result = execute({
+      source: 'koons-culpeper',
+      channel: 'messenger',
+      contact_name: 'Osman Ali P Guillén',
+      phone: '8049250909',
+      message: '8049250909',
+      chat_history_log: 'Puedo ver el inventario\nTroka\n8049250909',
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Osman Ali P Guillén',
+      phone: '+18049250909',
+      vehicle_type: 'truck',
+      qualification_complete: true,
+      missing_qualification: [],
+    });
   });
 
   it('normalizes Stafford "For 250" as a Ford F-250 instead of a down payment', () => {

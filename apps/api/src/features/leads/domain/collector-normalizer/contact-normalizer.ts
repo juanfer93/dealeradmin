@@ -105,7 +105,11 @@ function normalizeNameSuffixPunctuation(value: string): string {
 export function isValidRealName(value: string | null | undefined): boolean {
   const candidate = normalizeNameSuffixPunctuation(clean(value));
   if (!candidate || !REAL_NAME_PATTERN.test(candidate)) return false;
-  return candidate.split(/\s+/).every((token) => token.toLocaleLowerCase() === 'y' || token.replace(/[-']/g, '').length >= 2);
+  const tokens = candidate.split(/\s+/);
+  return tokens.some((token) => token.replace(/[-']/g, '').length >= 2)
+    && tokens.every((token) => token.toLocaleLowerCase() === 'y'
+    || token.replace(/[-']/g, '').length >= 2
+    || /^[A-ZÁÉÍÓÚÜÑ]\.?$/u.test(token));
 }
 
 export function isLikelyBusinessName(value: string | null | undefined): boolean {

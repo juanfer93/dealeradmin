@@ -5,6 +5,9 @@ import { normalizeGhlOutboundPayload } from '../application/ghl-outbound-payload
 import { HmacSignatureGuard } from './hmac-signature.guard';
 import { ConversationWebhookService } from '../application/conversation-webhook.service';
 import { WebhookIngressAuditService } from '../application/webhook-ingress-audit.service';
+import { WebhookProcessingAuditService } from '../application/webhook-processing-audit.service';
+
+type WebhookRequest = Request & { rawBody?: Buffer; webhookIngressRequestId?: string };
 
 @Controller('webhooks')
 export class WebhooksController {
@@ -12,6 +15,7 @@ export class WebhooksController {
     private readonly webhookService: WebhookService,
     private readonly conversationWebhookService: ConversationWebhookService,
     private readonly ingressAudit: WebhookIngressAuditService,
+    private readonly processingAudit: WebhookProcessingAuditService,
   ) {}
 
   @Post()
@@ -32,7 +36,7 @@ export class WebhooksController {
   @UseGuards(HmacSignatureGuard)
   async receiveCustomerReplied(
     @Param('source') source: string,
-    @Req() request: Request & { rawBody?: Buffer },
+    @Req() request: WebhookRequest,
     @Body() body: unknown,
   ) {
     void this.ingressAudit.markHandlerStarted(request);
@@ -48,9 +52,28 @@ export class WebhooksController {
         },
         request.rawBody?.toString('utf8'),
       );
+      await this.processingAudit.recordFromPayload({
+        requestId: request.webhookIngressRequestId,
+        source,
+        eventId: response.eventId,
+        status: response.status,
+        body,
+        headers: {
+          contactId: request.header('X-DealerADMIN-Contact-ID') ?? undefined,
+          conversationId: request.header('X-DealerADMIN-Conversation-ID') ?? undefined,
+          messageId: request.header('X-DealerADMIN-Message-ID') ?? undefined,
+        },
+      });
       return response.status === 'ignored_channel' ? undefined : response;
     } catch (error) {
       await this.ingressAudit.markError(request, error);
+      await this.processingAudit.recordFromPayload({
+        requestId: request.webhookIngressRequestId,
+        source,
+        status: 'failed',
+        errorCode: error instanceof Error ? error.message.slice(0, 500) : 'UNKNOWN_ERROR',
+        body,
+      });
       throw error;
     }
   }

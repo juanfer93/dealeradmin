@@ -214,7 +214,7 @@ function extractVehicle(message: string): string {
     if (TRADE_IN_INTENT.test(candidate)
       && /\b(?:tengo|tiene|have|has|my|mi)\b/i.test(candidate)
       && !/\b(?:looking for|busco|quiero|want|interested in|interesado en)\b/i.test(candidate)) continue;
-    const candidateForVehicle = /\b(?:looking for|busco|quiero|want|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i.test(candidate)
+    const candidateForVehicle = /\b(?:need|needs|looking for|busco|quiero|want|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i.test(candidate)
       ? candidate
       : candidate.split(/[;,]/, 1)[0];
     const withoutOtherFacts = candidateForVehicle
@@ -241,7 +241,7 @@ function extractVehicle(message: string): string {
     }
     // A transcript can contain several facts (for example "Sedan" followed by
     // a Subaru trade-in). Return the vehicle token, never the complete transcript.
-    const category = withoutOtherFacts.match(/\b(suv|sedan|truck|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i)?.[1];
+    const category = withoutOtherFacts.match(/\b(suv|sedan|truck|troka|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i)?.[1];
     const transcriptionModelAlias = /\b(?:odisea|paila|tajo)\b/i.test(candidate);
     const hasModel = VEHICLE_MODELS.test(withoutOtherFacts) || transcriptionModelAlias;
     const brand = withoutOtherFacts.match(VEHICLE_BRANDS)?.[0] ?? EMPTY;
@@ -264,7 +264,7 @@ function extractVehicle(message: string): string {
         lineIndex,
         hasModel,
         brand,
-        isColloquialTruck: /\b(?:troca|trokita|troquita|troque|trokas|camionetq)\b/i.test(candidate),
+        isColloquialTruck: /\b(?:troka|troca|trokita|troquita|troque|trokas|camionetq)\b/i.test(candidate),
       });
     }
   }
@@ -294,7 +294,11 @@ function extractVehicle(message: string): string {
 function extractDownPayment(message: string): string {
   // Keep message boundaries intact: a down-payment phrase must not borrow the
   // first three digits from a phone on the next inbound line.
-  const source = String(message ?? '').replace(/\r\n?/g, '\n').trim();
+  const source = String(message ?? '')
+    .replace(/\r\n?/g, '\n')
+    // Dates such as "the 23rd" are not down-payment amounts.
+    .replace(/\b\d+(?:st|nd|rd|th)\b/gi, ' ')
+    .trim();
   if (!source || isCampaignButton(source)) return EMPTY;
   if (NO_DOWN_PAYMENT_RESPONSE.test(source)) return 'No down payment';
   if (/\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b/i.test(source)) return CASH_DOWN_PAYMENT;
@@ -390,7 +394,7 @@ function extractLatestDownPayment(message: string): string {
   const lines = String(message ?? '')
     .replace(/\r\n?/g, '\n')
     .split(/\n+/)
-    .map(clean)
+    .map((line) => clean(line).replace(/\b\d+(?:st|nd|rd|th)\b/gi, ' '))
     .filter(Boolean)
     .reverse();
   for (const line of lines) {
