@@ -208,6 +208,7 @@ export class ConversationEventFunctions {
           resolvedDealer.id,
           conversation.id,
           conversation.created_at || occurredAt,
+          occurredAt,
           this.sourceConfig[source].locationId,
         )
         : null;

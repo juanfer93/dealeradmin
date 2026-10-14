@@ -69,6 +69,12 @@ describeDatabaseCase('new contact versus reengagement classification with local 
          VALUES ($1, $2, $3, $4, $5)`,
         [conversationId, `prior-${conversationKey}`, `prior-message-${conversationKey}`, input.priorMessage, '2026-10-12T18:00:00.000Z'],
       );
+      await dataSource.query(
+        `UPDATE conversations
+         SET first_message_at = '2026-10-12T18:00:00.000Z', last_message_at = '2026-10-12T18:00:00.000Z'
+         WHERE id = $1`,
+        [conversationId],
+      );
     }
     return { contactId, conversationKey, leadId, conversationId, phone: input.phone };
   }
@@ -127,7 +133,7 @@ describeDatabaseCase('new contact versus reengagement classification with local 
     expect(await dataSource.query('SELECT COUNT(*)::int AS count FROM leads WHERE id = $1', [fixture.leadId])).toEqual([{ count: 1 }]);
   });
 
-  it('does not classify a new queued conversation with messages accumulated in that same conversation', async () => {
+  it('does not classify a same-conversation reply before 24 hours', async () => {
     const testPhone = `+1771202${String(Date.now() % 10000).padStart(4, '0')}`;
     const fixture = await createLeadAndConversation({
       name: 'Agustin Galicia',
@@ -144,14 +150,14 @@ describeDatabaseCase('new contact versus reengagement classification with local 
     const result = await service.acceptCustomerReplied(
       {
         event_id: `evt-new-same-conversation-${randomUUID()}`,
-        occurred_at: '2026-10-13T18:20:00.000Z',
+        occurred_at: '2026-10-12T18:20:00.000Z',
         message_body: `My number is ${fixture.phone} and I want a truck`,
         contact_phone: fixture.phone,
         contact_name: 'Agustin Galicia',
         channel: 'whatsapp',
       },
       source,
-      { contactId: fixture.contactId, conversationId: fixture.conversationKey, testNow: new Date('2026-10-13T18:27:00.000Z') },
+      { contactId: fixture.contactId, conversationId: fixture.conversationKey, testNow: new Date('2026-10-12T18:27:00.000Z') },
     );
     expect(result.status).toBe('processed');
 
@@ -165,6 +171,56 @@ describeDatabaseCase('new contact versus reengagement classification with local 
     ) as Array<{ status: string; has_unhandled_reengagement: boolean; reengagement_count: number; lead_count: number }>;
 
     expect(rows).toEqual([{ status: 'queued', has_unhandled_reengagement: false, reengagement_count: 0, lead_count: 1 }]);
+  });
+
+  it('classifies a same-conversation reply after 24 hours without creating another lead', async () => {
+    const testPhone = `+1771202${String((Date.now() + 3) % 10000).padStart(4, '0')}`;
+    const fixture = await createLeadAndConversation({
+      name: 'Same Conversation Buyer',
+      phone: testPhone,
+      status: 'queued',
+      priorMessage: `My number is ${testPhone} and I am looking for an SUV`,
+    });
+    await dataSource.query(
+      `INSERT INTO lead_dealers (lead_id, dealer_id, vehicle_type, routing_status, status, message_text)
+       VALUES ($1, $2, 'SUV', 'resolved', 'pending', 'Same Conversation Buyer')`,
+      [fixture.leadId, dealerId],
+    );
+
+    const result = await service.acceptCustomerReplied(
+      {
+        event_id: `evt-same-conversation-reengagement-${randomUUID()}`,
+        occurred_at: '2026-10-13T18:00:00.000Z',
+        message_body: `My number is ${testPhone} and I still want an SUV`,
+        contact_phone: testPhone,
+        contact_name: 'Same Conversation Buyer',
+        channel: 'messenger',
+      },
+      source,
+      { contactId: fixture.contactId, conversationId: fixture.conversationKey, testNow: new Date('2026-10-13T18:00:15.000Z') },
+    );
+    expect(result.status).toBe('processed');
+
+    const rows = await dataSource.query(
+      `SELECT c.status, ld.status AS dealer_status, ld.has_unhandled_reengagement, ld.reengagement_count,
+              (SELECT COUNT(*)::int FROM leads WHERE canonical_phone = $1) AS lead_count,
+              (SELECT COUNT(*)::int FROM conversations WHERE lead_id = $2) AS conversation_count,
+              (SELECT COUNT(*)::int FROM conversation_bot_pause_events WHERE conversation_id = c.id) AS pause_event_count
+       FROM conversations c
+       INNER JOIN lead_dealers ld ON ld.lead_id = c.lead_id AND ld.dealer_id = $3
+       WHERE c.id = $4`,
+      [testPhone, fixture.leadId, dealerId, fixture.conversationId],
+    ) as Array<{ status: string; dealer_status: string; has_unhandled_reengagement: boolean; reengagement_count: number; lead_count: number; conversation_count: number; pause_event_count: number }>;
+
+    expect(rows).toEqual([{
+      status: 'queued',
+      dealer_status: 'pending',
+      has_unhandled_reengagement: true,
+      reengagement_count: 1,
+      lead_count: 1,
+      conversation_count: 1,
+      pause_event_count: 1,
+    }]);
   });
 
   it('marks only a conversation with old messages as reengagement without creating another lead', async () => {
@@ -338,6 +394,66 @@ describeDatabaseCase('new contact versus reengagement classification with local 
        INNER JOIN lead_dealers ld ON ld.lead_id = c.lead_id AND ld.dealer_id = $3
        WHERE c.ghl_conversation_id = $4`,
       [sentLead.phone, sentLead.leadId, dealerId, conversationId],
+    ) as Array<{ lead_id: string; status: string; dealer_status: string; has_unhandled_reengagement: boolean; reengagement_count: number; lead_count: number; conversation_count: number; pause_event_count: number }>;
+
+    expect(rows).toEqual([{
+      lead_id: sentLead.leadId,
+      status: 'queued',
+      dealer_status: 'pending',
+      has_unhandled_reengagement: true,
+      reengagement_count: 1,
+      lead_count: 1,
+      conversation_count: 1,
+      pause_event_count: 1,
+    }]);
+  });
+
+  it('keeps a manually entered lead when the same conversation returns after 24 hours', async () => {
+    const phoneSuffix = String((Date.now() + 4) % 10_000).padStart(4, '0');
+    const testPhone = `+1771202${phoneSuffix}`;
+    const sentLead = await createSentLead({ name: 'Manual Same Conversation', phone: testPhone });
+    const conversation = await createConversationForLead({
+      leadId: sentLead.leadId,
+      contactId: sentLead.contactId,
+      conversationKey: `manual-same-conversation-${randomUUID()}`,
+      createdAt: '2026-10-12T18:00:00.000Z',
+      status: 'queued',
+    });
+    await dataSource.query(
+      `INSERT INTO conversation_messages (conversation_id, dedupe_key, ghl_message_id, body, occurred_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [conversation.conversationId, `manual-prior-${conversation.conversationKey}`, `manual-prior-message-${conversation.conversationKey}`, `My number is ${testPhone} and I am looking for an SUV`, '2026-10-12T18:00:00.000Z'],
+    );
+    await dataSource.query(
+      `UPDATE lead_dealers
+       SET created_at = '2026-10-12T17:59:00.000Z'
+       WHERE lead_id = $1 AND dealer_id = $2`,
+      [sentLead.leadId, dealerId],
+    );
+
+    const result = await service.acceptCustomerReplied(
+      {
+        event_id: `evt-manual-same-conversation-${randomUUID()}`,
+        occurred_at: '2026-10-13T18:00:00.000Z',
+        message_body: `My number is ${testPhone} and I still want an SUV`,
+        contact_phone: testPhone,
+        contact_name: 'Manual Same Conversation',
+        channel: 'messenger',
+      },
+      source,
+      { contactId: sentLead.contactId, conversationId: conversation.conversationKey, testNow: new Date('2026-10-13T18:00:15.000Z') },
+    );
+    expect(result.status).toBe('processed');
+
+    const rows = await dataSource.query(
+      `SELECT c.lead_id, c.status, ld.status AS dealer_status, ld.has_unhandled_reengagement, ld.reengagement_count,
+              (SELECT COUNT(*)::int FROM leads WHERE canonical_phone = $1 AND first_name = 'Manual') AS lead_count,
+              (SELECT COUNT(*)::int FROM conversations WHERE lead_id = $2) AS conversation_count,
+              (SELECT COUNT(*)::int FROM conversation_bot_pause_events WHERE conversation_id = c.id) AS pause_event_count
+       FROM conversations c
+       INNER JOIN lead_dealers ld ON ld.lead_id = c.lead_id AND ld.dealer_id = $3
+       WHERE c.id = $4`,
+      [testPhone, sentLead.leadId, dealerId, conversation.conversationId],
     ) as Array<{ lead_id: string; status: string; dealer_status: string; has_unhandled_reengagement: boolean; reengagement_count: number; lead_count: number; conversation_count: number; pause_event_count: number }>;
 
     expect(rows).toEqual([{

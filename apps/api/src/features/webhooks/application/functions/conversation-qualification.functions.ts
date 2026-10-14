@@ -57,6 +57,7 @@ export class ConversationQualificationFunctions {
     dealerId: string,
     currentConversationId: string,
     currentConversationCreatedAt: string | Date,
+    currentMessageOccurredAt: string | Date,
     locationId: string,
   ): Promise<LeadRow | null> {
     const normalizedName = normalizeLeadName(name);
@@ -98,11 +99,26 @@ export class ConversationQualificationFunctions {
                  WHERE old_lead_message.conversation_id = old_lead_conversation.id
                )
            )
+           OR EXISTS (
+             SELECT 1
+             FROM conversations current_lead_conversation
+             WHERE current_lead_conversation.id = $5
+               AND current_lead_conversation.lead_id = l.id
+               AND current_lead_conversation.ghl_location_id = $6
+               AND current_lead_conversation.status IN ('queued', 'sent')
+               AND current_lead_conversation.last_message_at <= $7::timestamptz - INTERVAL '24 hours'
+               AND EXISTS (
+                 SELECT 1
+                 FROM conversation_messages current_lead_message
+                 WHERE current_lead_message.conversation_id = current_lead_conversation.id
+                   AND current_lead_message.occurred_at <= $7::timestamptz - INTERVAL '24 hours'
+               )
+           )
          )
        ORDER BY ld.sent_at DESC NULLS LAST, l.updated_at DESC, l.created_at DESC
        LIMIT 1
        FOR UPDATE OF l`,
-      [phone, normalizedName, dealerId, currentConversationCreatedAt, currentConversationId, locationId],
+      [phone, normalizedName, dealerId, currentConversationCreatedAt, currentConversationId, locationId, currentMessageOccurredAt],
     ) as LeadRow[];
     return rows[0] ?? null;
   }

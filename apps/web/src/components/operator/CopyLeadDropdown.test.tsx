@@ -29,6 +29,8 @@ describe('CopyLeadDropdown', () => {
     expect(formatReengagedContact('Jose Romero', '+13212343212')).toBe('*Jose Romero +13212343212 volvio a escribir*');
     expect(formatReengagedContact('Jose Romero', '+13212343212', 3)).toBe('*Jose Romero +13212343212 escribe de forma insistente*');
     expect(formatReengagedContact('', '+13212343212')).toBe('*Contacto +13212343212 volvio a escribir*');
+    expect(formatReengagedContact('Jose Romero', '+13212343212', 1, 'en')).toBe('*Jose Romero +13212343212 writes again*');
+    expect(formatReengagedContact('Jose Romero', '+13212343212', 3, 'en')).toBe('*Jose Romero +13212343212 writes insistently*');
   });
 
   it('exposes a dedicated copy-contact action for reengagement rows', () => {

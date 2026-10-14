@@ -3,6 +3,7 @@
 import React from 'react';
 
 type CopyDealer = { id: string; name: string };
+type ReengagementLanguage = 'es' | 'en';
 
 type CopyLeadDropdownProps = {
   leadId: string;
@@ -19,8 +20,10 @@ type CopyLeadDropdownProps = {
   onCopyContact?: () => void;
 };
 
-export function formatReengagedContact(name: string, phone: string, reengagementCount = 1): string {
-  const label = reengagementCount >= 3 ? 'escribe de forma insistente' : 'volvio a escribir';
+export function formatReengagedContact(name: string, phone: string, reengagementCount = 1, language: ReengagementLanguage = 'es'): string {
+  const label = language === 'en'
+    ? (reengagementCount >= 3 ? 'writes insistently' : 'writes again')
+    : (reengagementCount >= 3 ? 'escribe de forma insistente' : 'volvio a escribir');
   const contactName = name.trim() || 'Contacto';
   return `*${contactName} ${phone} ${label}*`;
 }
