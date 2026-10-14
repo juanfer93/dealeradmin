@@ -811,7 +811,7 @@ describe('ConversationWebhookService', () => {
         if (sql.includes('FROM dealers')) return [{ id: 'dealer-stafford', code: 'STAFFORD', name: 'Stafford', timezone: 'America/New_York', routing_config: {} }];
         if (sql.includes('FROM leads WHERE ghl_location_id')) return [];
         if (sql.includes('INSERT INTO leads')) return [{ id: 'lead-new', canonical_phone: '+13015550123', first_name: 'Ana', last_name: 'Torres' }];
-        if (sql.includes('FROM conversations c')) return [{
+        if (sql.includes('FROM conversations c\n')) return [{
           id: 'lead-queued',
           first_name: 'Ana',
           last_name: 'Torres',

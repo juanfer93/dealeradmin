@@ -18,6 +18,8 @@ export type ConversationRow = {
   status: string;
   qualification_snapshot: Record<string, unknown>;
   location_snapshot: Record<string, unknown>;
+  created_at?: string | Date;
+  first_message_at?: string | Date;
   ready_at?: string | null;
   next_attempt_at?: string | null;
   isExisting?: boolean;

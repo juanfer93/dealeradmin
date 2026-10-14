@@ -26,8 +26,9 @@ describe('CopyLeadDropdown', () => {
   });
 
   it('formats the exact contact text for the reengagement queue', () => {
-    expect(formatReengagedContact('+13212343212')).toBe('*Contacto +13212343212 volvio a escribir*');
-    expect(formatReengagedContact('+13212343212', 3)).toBe('*Contacto +13212343212 escribe de forma insistente*');
+    expect(formatReengagedContact('Jose Romero', '+13212343212')).toBe('*Jose Romero +13212343212 volvio a escribir*');
+    expect(formatReengagedContact('Jose Romero', '+13212343212', 3)).toBe('*Jose Romero +13212343212 escribe de forma insistente*');
+    expect(formatReengagedContact('', '+13212343212')).toBe('*Contacto +13212343212 volvio a escribir*');
   });
 
   it('exposes a dedicated copy-contact action for reengagement rows', () => {
@@ -40,6 +41,7 @@ describe('CopyLeadDropdown', () => {
         label="Copy lead to another dealer"
         chooseLabel="Copy to…"
         reengagementPhone="+13212343212"
+        reengagementName="Jose Romero"
         copyContactLabel="Copiar contacto"
         onCopyContact={onCopyContact}
         onRequestCopy={vi.fn()}

@@ -55,6 +55,9 @@ export class ConversationQualificationFunctions {
     phone: string,
     name: string,
     dealerId: string,
+    currentConversationId: string,
+    currentConversationCreatedAt: string | Date,
+    locationId: string,
   ): Promise<LeadRow | null> {
     const normalizedName = normalizeLeadName(name);
     if (!phone || !normalizedName || normalizedName === 'lead') return null;
@@ -67,10 +70,39 @@ export class ConversationQualificationFunctions {
          AND (ld.dealer_id = $3 OR COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $3)
          AND ld.status IN ('pending', 'queued', 'sent')
          AND (ld.status <> 'sent' OR ld.sent_at IS NOT NULL)
-       ORDER BY ld.sent_at DESC, l.updated_at DESC, l.created_at DESC
+         AND (
+           ld.created_at < $4::timestamptz
+           OR NOT EXISTS (
+             SELECT 1
+             FROM conversations current_lead_conversation
+             WHERE current_lead_conversation.lead_id = l.id
+           )
+         )
+         AND (
+           NOT EXISTS (
+             SELECT 1
+             FROM conversations any_lead_conversation
+             WHERE any_lead_conversation.lead_id = l.id
+           )
+           OR EXISTS (
+             SELECT 1
+             FROM conversations old_lead_conversation
+             WHERE old_lead_conversation.lead_id = l.id
+               AND old_lead_conversation.id <> $5
+               AND old_lead_conversation.ghl_location_id = $6
+               AND old_lead_conversation.status IN ('queued', 'sent')
+               AND old_lead_conversation.last_message_at <= $4::timestamptz - INTERVAL '24 hours'
+               AND EXISTS (
+                 SELECT 1
+                 FROM conversation_messages old_lead_message
+                 WHERE old_lead_message.conversation_id = old_lead_conversation.id
+               )
+           )
+         )
+       ORDER BY ld.sent_at DESC NULLS LAST, l.updated_at DESC, l.created_at DESC
        LIMIT 1
        FOR UPDATE OF l`,
-      [phone, normalizedName, dealerId],
+      [phone, normalizedName, dealerId, currentConversationCreatedAt, currentConversationId, locationId],
     ) as LeadRow[];
     return rows[0] ?? null;
   }
@@ -192,6 +224,7 @@ export class ConversationQualificationFunctions {
   async upsertConversation(runner: QueryRunner, input: { leadId: string; locationId: string; contactId: string; conversationId: string; channel: string; occurredAt: string }): Promise<ConversationRow> {
     const existing = await runner.query(
       `SELECT id, status, qualification_snapshot, location_snapshot, ready_at,
+              created_at, first_message_at,
               EXISTS (
                 SELECT 1
                 FROM conversation_messages cm
@@ -204,7 +237,7 @@ export class ConversationQualificationFunctions {
     if (existing[0]) return { ...existing[0], isExisting: true };
     const inserted = await runner.query(
       `INSERT INTO conversations (lead_id, ghl_location_id, ghl_contact_id, ghl_conversation_id, channel, first_message_at, last_message_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $6) RETURNING id, status, qualification_snapshot, location_snapshot, ready_at`,
+       VALUES ($1, $2, $3, $4, $5, $6, $6) RETURNING id, status, qualification_snapshot, location_snapshot, ready_at, created_at, first_message_at`,
       [input.leadId, input.locationId, input.contactId, input.conversationId, input.channel, input.occurredAt],
     ) as ConversationRow[];
     return { ...inserted[0], isExisting: false };

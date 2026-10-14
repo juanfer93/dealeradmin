@@ -13,14 +13,16 @@ type CopyLeadDropdownProps = {
   chooseLabel: string;
   onRequestCopy: (targetDealerId: string) => void;
   reengagementPhone?: string;
+  reengagementName?: string;
   copyContactLabel?: string;
   contactCopied?: boolean;
   onCopyContact?: () => void;
 };
 
-export function formatReengagedContact(phone: string, reengagementCount = 1): string {
+export function formatReengagedContact(name: string, phone: string, reengagementCount = 1): string {
   const label = reengagementCount >= 3 ? 'escribe de forma insistente' : 'volvio a escribir';
-  return `*Contacto ${phone} ${label}*`;
+  const contactName = name.trim() || 'Contacto';
+  return `*${contactName} ${phone} ${label}*`;
 }
 
 export function CopyLeadDropdown({
@@ -32,6 +34,7 @@ export function CopyLeadDropdown({
   chooseLabel,
   onRequestCopy,
   reengagementPhone,
+  reengagementName,
   copyContactLabel,
   contactCopied = false,
   onCopyContact,
@@ -40,7 +43,7 @@ export function CopyLeadDropdown({
 
   return (
     <div className="flex min-w-[150px] flex-wrap gap-2">
-      {reengagementPhone && onCopyContact && <button type="button" onClick={onCopyContact} className="min-h-11 rounded border border-[#F97316]/45 bg-[#FFF7ED] px-3 py-2 text-xs font-semibold text-[#C2410C] hover:bg-[#FFEDD5]">{contactCopied ? 'Copiado' : copyContactLabel ?? 'Copiar contacto'}</button>}
+      {reengagementPhone && reengagementName && onCopyContact && <button type="button" onClick={onCopyContact} className="min-h-11 rounded border border-[#F97316]/45 bg-[#FFF7ED] px-3 py-2 text-xs font-semibold text-[#C2410C] hover:bg-[#FFEDD5]">{contactCopied ? 'Copiado' : copyContactLabel ?? 'Copiar contacto'}</button>}
       <label htmlFor={`copy-lead-${leadId}`} className="sr-only">{label}</label>
       <select
         id={`copy-lead-${leadId}`}

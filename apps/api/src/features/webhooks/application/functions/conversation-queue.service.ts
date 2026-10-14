@@ -21,6 +21,7 @@ type QueuedPauseEventInput = {
   leadId: string;
   source: string;
   emittedAt: Date;
+  force?: boolean;
 };
 
 type PendingQueuedPauseRow = {
@@ -103,7 +104,7 @@ export class ConversationQueueService {
     nextStatus: string,
     input: QueuedPauseEventInput,
   ): Promise<QueuedPauseDispatch | null> {
-    if (!isQueuedTransition(previousStatus, nextStatus) || !isQueuedPauseSourceEnabled(input.source)) return null;
+    if ((!input.force && !isQueuedTransition(previousStatus, nextStatus)) || !isQueuedPauseSourceEnabled(input.source)) return null;
     if (this.sourceConfig[input.source]?.locationId !== input.locationId) {
       throw new BadRequestException(`Location ID no coincide con la fuente GHL ${input.source}`);
     }

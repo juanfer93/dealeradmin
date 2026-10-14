@@ -125,9 +125,6 @@ export class ConversationEventFunctions {
       const normalizedGhlPhone = isStaffordWhatsApp(source, event.channel) ? null : safePhone(event.contact_phone);
       const verifiedMessengerPhone = recentPhone && (!normalizedGhlPhone || recentPhone === normalizedGhlPhone) ? recentPhone : null;
       const eligiblePhone = isStaffordWhatsApp(source, event.channel) ? recentPhone || nativeWhatsappPhone || '' : verifiedMessengerPhone || '';
-      const isExistingQueuedContact = conversation.isExisting
-        && conversation.hasPreviousMessage
-        && (conversation.status === 'queued' || conversation.status === 'sent');
       const previousSnapshot = conversation.qualification_snapshot ?? {};
       const normalized = normalizeCollectorInput({
         source,
@@ -203,8 +200,16 @@ export class ConversationEventFunctions {
       const assignedDealerId = clean(conversation.qualification_snapshot?.assigned_dealer_id);
       const resolvedDealer = sourceDealer ?? await this.qualification.findSourceDealer(runner, this.sourceConfig[source].locationId, source, language, assignedDealerId || undefined);
       snapshot.assigned_dealer_id = resolvedDealer.id;
-      const existingLeadReengagement = snapshot.phone && snapshot.real_name
-        ? await this.qualification.findExistingLeadReengagement(runner, snapshot.phone, snapshot.real_name, resolvedDealer.id)
+      const existingLeadReengagement = snapshot.phone && snapshot.real_name && snapshot.vehicle_type
+        ? await this.qualification.findExistingLeadReengagement(
+          runner,
+          snapshot.phone,
+          snapshot.real_name,
+          resolvedDealer.id,
+          conversation.id,
+          conversation.created_at || occurredAt,
+          this.sourceConfig[source].locationId,
+        )
         : null;
       if (existingLeadReengagement) {
         if (existingLeadReengagement.id !== lead.id) {
@@ -228,30 +233,7 @@ export class ConversationEventFunctions {
           leadId: lead.id,
           source,
           emittedAt: now,
-        });
-        await runner.query(`UPDATE webhook_events SET status = 'processed', processed_at = CURRENT_TIMESTAMP, error_code = NULL WHERE event_id = $1`, [event.event_id]);
-        await runner.commitTransaction();
-        if (queuedPauseEvent) await this.queueService.dispatchQueuedPauseEvent(queuedPauseEvent);
-        return { accepted: true, eventId: event.event_id, conversationId: conversation.id, source, status: 'processed' };
-      }
-      if (isExistingQueuedContact) {
-        await this.qualification.syncLeadDealer(runner, resolvedDealer, lead.id, snapshot, location, source, true);
-        await runner.query(
-          `UPDATE conversations
-           SET status = 'queued', qualification_snapshot = $2::jsonb, location_snapshot = $3::jsonb,
-               last_message_at = GREATEST(COALESCE(last_message_at, $4::timestamptz), $4::timestamptz),
-               next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP
-           WHERE id = $1`,
-          [conversation.id, JSON.stringify(snapshot), JSON.stringify(location), occurredAt],
-        );
-        queuedPauseEvent = await this.queueService.createQueuedPauseEvent(runner, conversation.status, 'queued', {
-          conversationId: conversation.id,
-          ghlConversationId: event.ghl_conversation_id,
-          contactId: event.ghl_contact_id,
-          locationId: this.sourceConfig[source].locationId,
-          leadId: lead.id,
-          source,
-          emittedAt: now,
+          force: true,
         });
         await runner.query(`UPDATE webhook_events SET status = 'processed', processed_at = CURRENT_TIMESTAMP, error_code = NULL WHERE event_id = $1`, [event.event_id]);
         await runner.commitTransaction();
@@ -279,7 +261,7 @@ export class ConversationEventFunctions {
       const queuedDuplicate = await findQueuedConversationDuplicate(runner, resolvedDealer.id, snapshot.real_name || normalizedName, snapshot.phone);
       if (queuedDuplicate) {
         const isSameQueuedConversation = conversation.isExisting && queuedDuplicate.conversation_id === conversation.id;
-        if (isSameQueuedConversation) await this.qualification.syncLeadDealer(runner, resolvedDealer, lead.id, snapshot, location, source, true);
+        if (isSameQueuedConversation) await this.qualification.syncLeadDealer(runner, resolvedDealer, lead.id, snapshot, location, source);
         await runner.query(
           `UPDATE conversations
            SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
