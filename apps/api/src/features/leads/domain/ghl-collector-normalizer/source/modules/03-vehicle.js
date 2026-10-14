@@ -27,6 +27,9 @@ const normalizeWhisperVehicleAliases = (value) => clean(value)
   // tokens so a misspelling cannot alter names or free-form notes.
   .replace(/\btoyata\b/gi, 'Toyota')
   .replace(/\btandra\b/gi, 'Tundra')
+  // GHL/Messenger can transcribe 4Runner with spaces, hyphens, a missing
+  // "n", a homophone, or a plural suffix. Keep all variants canonical.
+  .replace(/\b(?:4|four|for)\s*-?\s*run(?:ner|er)s?\b/gi, '4Runner')
   // GHL transcribed the Ford model answer as "For 250". This alias is
   // applied only to vehicle extraction; payment extraction still sees the
   // original text and therefore cannot turn the answer into $250.

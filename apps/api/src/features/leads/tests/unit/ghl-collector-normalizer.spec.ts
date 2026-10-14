@@ -292,6 +292,67 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.vehicle_type).not.toBe('Quiere hablar con un asesor');
   });
 
+  it.each([
+    '4Runner',
+    '4runner',
+    '4 Runner',
+    '4-runner',
+    '4-Runner',
+    '4runer',
+    '4 runer',
+    '4-runer',
+    '4Runners',
+    '4 runners',
+    'four runner',
+    'four-runner',
+    'for runner',
+    'for-runner',
+    'for runer',
+    'for-runer',
+  ])('repairs the Culpeper 4Runner transcription variant "%s" before advisor fallback', (vehicleReply) => {
+    const result = execute({
+      source: 'koons-culpeper',
+      channel: 'messenger',
+      real_name: 'Roberto Huertas',
+      phone: '7577357377',
+      message: '7577357377',
+      chat_history_log: `¿Qué documentos necesito?\n${vehicleReply}\n7577357377`,
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Roberto Huertas',
+      phone: '+17577357377',
+      vehicle_type: '4Runner',
+    });
+    expect(result.vehicle_type).not.toBe('Quiere hablar con un asesor');
+    expect(result.missing_qualification).not.toContain('vehicle_type');
+  });
+
+  it.each([
+    ['Alicia Torres', '4runer', '7577357001'],
+    ['Brandon Reed', '4 Runner', '7577357002'],
+    ['Carla Nguyen', '4-runner', '7577357003'],
+    ['Diego Morales', 'four runner', '7577357004'],
+    ['Fatima Khan', 'for runer', '7577357005'],
+    ['Jorge Miller', '4Runners', '7577357006'],
+  ])('normalizes 4Runner variants for independent contact %s', (name, vehicleReply, phone) => {
+    const result = execute({
+      source: 'koons-culpeper',
+      channel: 'messenger',
+      real_name: name,
+      phone,
+      message: phone,
+      chat_history_log: `I need vehicle information\n${vehicleReply}\n${phone}`,
+    });
+
+    expect(result).toMatchObject({
+      real_name: name,
+      phone: `+1${phone}`,
+      vehicle_type: '4Runner',
+    });
+    expect(result.vehicle_type).not.toBe('Quiere hablar con un asesor');
+  });
+
   it('normalizes the Culpeper colloquial truck answer Troka', () => {
     const result = execute({
       source: 'koons-culpeper',

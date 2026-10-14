@@ -469,3 +469,56 @@ test('cubre down regular y promoción Offlease en rutas positivas y negativas', 
     }
   }
 });
+
+test('procesa todas las variantes de 4Runner con contactos independientes', async ({ request }) => {
+  const suffix = `ghl-e2e-4runner-variants-${Date.now()}`;
+  const variants = [
+    '4Runner',
+    '4runner',
+    '4 Runner',
+    '4-runner',
+    '4-Runner',
+    '4runer',
+    '4 runer',
+    '4-runer',
+    '4Runners',
+    '4 runners',
+    'four runner',
+    'four-runner',
+    'for runner',
+    'for-runner',
+    'for runer',
+    'for-runer',
+  ] as const;
+
+  for (const [index, variant] of variants.entries()) {
+    const contactId = `${suffix}-contact-${index + 1}`;
+    const conversationId = `${suffix}-conversation-${index + 1}`;
+    const phone = `+1757555${String(8100 + index).padStart(4, '0')}`;
+    const name = `4Runner E2E Buyer ${index + 1}`;
+    const eventId = `${suffix}-event-${index + 1}`;
+    const response = await request.post('http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/action-cars', {
+      data: JSON.stringify({
+        message_body: `${name} busca una ${variant}`,
+        contact_phone: phone,
+        contact_name: name,
+        channel: 'messenger',
+        event_id: eventId,
+      }),
+      headers: {
+        'content-type': 'application/json',
+        'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
+        'X-DealerADMIN-Contact-ID': contactId,
+        'X-DealerADMIN-Conversation-ID': conversationId,
+        'X-DealerADMIN-Message-ID': `${eventId}-message`,
+      },
+    });
+
+    expect(response.status(), variant).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      accepted: true,
+      source: 'action-cars',
+      status: 'processed',
+    });
+  }
+});
