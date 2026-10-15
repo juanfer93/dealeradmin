@@ -636,6 +636,7 @@ describe('ConversationWebhookService', () => {
         if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [{ event_id: 'evt-existing-name' }];
         if (sql.includes('FROM dealers')) return [{ id: 'dealer-stafford', code: 'STAFFORD', name: 'Offlease Motors Stafford', timezone: 'America/New_York', routing_config: {} }];
         if (sql.includes('FROM leads WHERE ghl_location_id')) return [{ id: 'lead-existing', canonical_phone: '+13015550123', first_name: 'Ana', last_name: 'Torres' }];
+        if (sql.includes('FROM leads l')) return [];
         if (sql.includes('FROM conversations')) return [{ id: 'conversation-existing', status: 'partial', qualification_snapshot: {}, location_snapshot: {} }];
         if (sql.includes('FROM conversation_messages')) return [{ body: 'I am looking for an SUV.', direction: 'inbound', occurred_at: new Date().toISOString() }];
         return [];
@@ -650,8 +651,8 @@ describe('ConversationWebhookService', () => {
     );
 
     const leadUpdate = queryRunner.query.mock.calls.find(([sql]) => sql.includes('UPDATE leads')) as [string, unknown[]] | undefined;
-    expect(leadUpdate?.[0]).toContain("LOWER($2) = 'lead'");
-    expect(leadUpdate?.[1]).toEqual(['+13015550123', 'Lead', '', 'lead-existing']);
+    expect(leadUpdate?.[0]).not.toContain('first_name =');
+    expect(leadUpdate?.[1]).toEqual(['+13015550123', 'lead-existing']);
     const conversationUpdate = queryRunner.query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
     expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ real_name: '', phone: '+13015550123' });
   });
@@ -780,6 +781,7 @@ describe('ConversationWebhookService', () => {
         if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [{ event_id: 'evt-status-cast' }];
         if (sql.includes('FROM dealers')) return [{ id: 'dealer-stafford', code: 'STAFFORD', name: 'Stafford', timezone: 'America/New_York', routing_config: {} }];
         if (sql.includes('FROM leads WHERE ghl_location_id')) return [{ id: 'lead-status-cast', canonical_phone: '+13015550123', first_name: 'Ana', last_name: 'Torres' }];
+        if (sql.includes('FROM leads l')) return [];
         if (sql.includes('FROM conversations')) return [{ id: 'conversation-status-cast', status: 'partial', qualification_snapshot: {}, location_snapshot: {} }];
         if (sql.includes('FROM conversation_messages')) return [{ body: 'I need an SUV.', direction: 'inbound', occurred_at: new Date().toISOString() }];
         return [];

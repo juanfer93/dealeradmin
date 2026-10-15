@@ -200,11 +200,10 @@ export class ConversationEventFunctions {
       const assignedDealerId = clean(conversation.qualification_snapshot?.assigned_dealer_id);
       const resolvedDealer = sourceDealer ?? await this.qualification.findSourceDealer(runner, this.sourceConfig[source].locationId, source, language, assignedDealerId || undefined);
       snapshot.assigned_dealer_id = resolvedDealer.id;
-      const existingLeadReengagement = snapshot.phone && snapshot.real_name && snapshot.vehicle_type
+      const existingLeadReengagement = snapshot.phone
         ? await this.qualification.findExistingLeadReengagement(
           runner,
           snapshot.phone,
-          snapshot.real_name,
           resolvedDealer.id,
           conversation.id,
           conversation.created_at || occurredAt,
@@ -217,6 +216,8 @@ export class ConversationEventFunctions {
           await this.qualification.reassignConversationToLead(runner, conversation.id, lead.id, existingLeadReengagement.id);
         }
         lead = existingLeadReengagement;
+        const storedLeadName = [existingLeadReengagement.first_name, existingLeadReengagement.last_name].filter(Boolean).join(' ').trim();
+        if (storedLeadName) snapshot.real_name = storedLeadName;
         await this.qualification.syncLeadDealer(runner, resolvedDealer, lead.id, snapshot, location, source, true);
         await runner.query(
           `UPDATE conversations

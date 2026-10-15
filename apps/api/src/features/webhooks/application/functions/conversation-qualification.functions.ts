@@ -3,7 +3,6 @@ import type { QueryRunner } from 'typeorm';
 import { buildWhatsAppMessage } from '../../../leads/domain/message-builder';
 import { hasMinimumRoutingQualification, type CollectorLanguage } from '../../../leads/domain/collector-normalizer';
 import { normalizeDownPayment } from '../../../leads/domain/down-payment';
-import { normalizeLeadName } from '../../../leads/domain/lead-duplicate';
 import { extractConversationLocation, extractLocationCandidates } from '../conversation-location';
 import type { GeoroutingService } from '../../../routing/domain/services/georouting.service';
 import {
@@ -53,26 +52,23 @@ export class ConversationQualificationFunctions {
   async findExistingLeadReengagement(
     runner: QueryRunner,
     phone: string,
-    name: string,
     dealerId: string,
     currentConversationId: string,
     currentConversationCreatedAt: string | Date,
     currentMessageOccurredAt: string | Date,
     locationId: string,
   ): Promise<LeadRow | null> {
-    const normalizedName = normalizeLeadName(name);
-    if (!phone || !normalizedName || normalizedName === 'lead') return null;
+    if (!phone) return null;
     const rows = await runner.query(
       `SELECT l.id, l.canonical_phone, l.first_name, l.last_name
        FROM leads l
        INNER JOIN lead_dealers ld ON ld.lead_id = l.id
        WHERE l.canonical_phone = $1
-         AND LOWER(REGEXP_REPLACE(TRIM(CONCAT_WS(' ', l.first_name, l.last_name)), '\\s+', ' ', 'g')) = $2
-         AND (ld.dealer_id = $3 OR COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $3)
+         AND (ld.dealer_id = $2 OR COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $2)
          AND ld.status IN ('pending', 'queued', 'sent')
          AND (ld.status <> 'sent' OR ld.sent_at IS NOT NULL)
          AND (
-           ld.created_at < $4::timestamptz
+           ld.created_at < $3::timestamptz
            OR NOT EXISTS (
              SELECT 1
              FROM conversations current_lead_conversation
@@ -89,10 +85,10 @@ export class ConversationQualificationFunctions {
              SELECT 1
              FROM conversations old_lead_conversation
              WHERE old_lead_conversation.lead_id = l.id
-               AND old_lead_conversation.id <> $5
-               AND old_lead_conversation.ghl_location_id = $6
+               AND old_lead_conversation.id <> $4
+               AND old_lead_conversation.ghl_location_id = $5
                AND old_lead_conversation.status IN ('queued', 'sent')
-               AND old_lead_conversation.last_message_at <= $4::timestamptz - INTERVAL '24 hours'
+               AND old_lead_conversation.last_message_at <= $3::timestamptz - INTERVAL '24 hours'
                AND EXISTS (
                  SELECT 1
                  FROM conversation_messages old_lead_message
@@ -102,23 +98,23 @@ export class ConversationQualificationFunctions {
            OR EXISTS (
              SELECT 1
              FROM conversations current_lead_conversation
-             WHERE current_lead_conversation.id = $5
+             WHERE current_lead_conversation.id = $4
                AND current_lead_conversation.lead_id = l.id
-               AND current_lead_conversation.ghl_location_id = $6
+               AND current_lead_conversation.ghl_location_id = $5
                AND current_lead_conversation.status IN ('queued', 'sent')
-               AND current_lead_conversation.last_message_at <= $7::timestamptz - INTERVAL '24 hours'
+               AND current_lead_conversation.last_message_at <= $6::timestamptz - INTERVAL '24 hours'
                AND EXISTS (
                  SELECT 1
                  FROM conversation_messages current_lead_message
                  WHERE current_lead_message.conversation_id = current_lead_conversation.id
-                   AND current_lead_message.occurred_at <= $7::timestamptz - INTERVAL '24 hours'
+                   AND current_lead_message.occurred_at <= $6::timestamptz - INTERVAL '24 hours'
                )
            )
          )
        ORDER BY ld.sent_at DESC NULLS LAST, l.updated_at DESC, l.created_at DESC
        LIMIT 1
        FOR UPDATE OF l`,
-      [phone, normalizedName, dealerId, currentConversationCreatedAt, currentConversationId, locationId, currentMessageOccurredAt],
+      [phone, dealerId, currentConversationCreatedAt, currentConversationId, locationId, currentMessageOccurredAt],
     ) as LeadRow[];
     return rows[0] ?? null;
   }
@@ -215,18 +211,13 @@ export class ConversationQualificationFunctions {
       await runner.query(
         `UPDATE leads
          SET canonical_phone = COALESCE($1, canonical_phone),
-             first_name = CASE WHEN NULLIF($2, '') IS NULL OR LOWER($2) = 'lead' THEN first_name ELSE $2 END,
-             last_name = CASE WHEN NULLIF($3, '') IS NULL OR LOWER($2) = 'lead' THEN last_name ELSE $3 END,
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $4`,
-        [canonicalPhone, input.firstName, input.lastName, lead.id],
+         WHERE id = $2`,
+        [canonicalPhone, lead.id],
       );
-      const hasRealName = Boolean(input.firstName && input.firstName.toLowerCase() !== 'lead');
       return {
         ...lead,
         canonical_phone: canonicalPhone || lead.canonical_phone,
-        first_name: hasRealName ? input.firstName : lead.first_name,
-        last_name: hasRealName ? input.lastName : lead.last_name,
       };
     }
     const inserted = await runner.query(
