@@ -6,7 +6,7 @@ export const VEHICLE_BRANDS = /\b(?:toyotas?|hummer|honda|ford|nissan|chevrolet|
 export const VEHICLE_MODELS = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacomas?|tacomos?|tacmas?|tecomas?|sti|rav\s*4|civic|civc|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|for\s+runner|for\s+runer|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|odisea|paila|sierra|silverado|tahoe|tajo|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|rlx|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
 export const VEHICLE_CATEGORIES = /\b(?:suv|sedan|midsize|mid[- ]?size|medium[- ]?size|mediano|mediana|truck|truk|troka|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i;
 export const VEHICLE_TRIMS = /\b(?:\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i;
-export const VEHICLE_CONTEXT = /\b(?:tengo|tiene|tienen|have|has|need|needs|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i;
+export const VEHICLE_CONTEXT = /\b(?:tengo|tiene|tienen|ten[ií]an|have|has|got|carry|available|need|needs|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i;
 export const VEHICLE_YEAR_PATTERN = /\b(19\d{2}|20(?:0\d|1\d|2[0-6]))\b/g;
 export const VEHICLE_YEAR_CONTEXT = /\b(?:vehicle|car|auto|carro|coche|veh[ií]culo|model|modelo|year|año|ano|f[- ]?\d{3})\b/i;
 export const FINANCIAL_AMOUNT_PREFIX = /(?:\$|doy|dar(?:é|as|emos)?|pongo|poner|tengo|have|i have|i can put|puedo poner|down|payment|enganche|inicial|pago\s+inicial|cuota\s+inicial|deposit|dep[oó]sito)\s*(?:de|para|as|is|es|:)?\s*$/i;
@@ -25,9 +25,14 @@ export function normalizeWhisperVehicleAliases(value: string): string {
     // tokens so a misspelling cannot alter names or free-form notes.
     .replace(/\btoyata\b/gi, 'Toyota')
     .replace(/\btandra\b/gi, 'Tundra')
+    // GHL can omit the leading "4" when a buyer asks for a Toyota 4Runner.
+    // Keep this scoped to Toyota so a generic "runner" is never promoted.
+    .replace(/\btoyota\s+runner\b/gi, 'Toyota 4Runner')
     // GHL/Messenger can transcribe 4Runner with spaces, hyphens, a missing
     // "n", a homophone, or a plural suffix. Keep all variants canonical.
     .replace(/\b(?:4|four|for)\s*-?\s*run(?:ner|er)s?\b/gi, '4Runner')
+    // Messenger/Whisper commonly renders RAV4 as "raw4".
+    .replace(/\braw\s*4\b/gi, 'RAV4')
     // GHL transcribed the Ford model answer as "For 250". This alias is
     // applied only to vehicle extraction; payment extraction still sees the
     // original text and therefore cannot turn the answer into $250.

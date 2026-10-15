@@ -13,23 +13,23 @@ test('el operador puede crear un lead manual y verlo en la cola del dealer activ
 
   const modal = page.getByRole('dialog', { name: 'Agregar lead manual' });
   await expect(modal).toBeVisible();
-  await modal.getByLabel(/Nombre completo/).fill('Pedro Infante');
-  await modal.getByLabel(/Teléfono móvil/).fill('3019876543');
+  await modal.getByLabel(/Nombre completo/).fill('Pedro E2E');
+  await modal.getByLabel(/Teléfono móvil/).fill('3019876545');
   await modal.getByLabel(/Tipo de vehículo/).fill('Troca');
   await modal.getByLabel(/Identificación/).fill('LIC-9900');
   await modal.getByRole('button', { name: 'Agregar lead' }).click();
 
   await expect(modal).not.toBeVisible();
-  const leadRow = page.locator('tr').filter({ hasText: 'Pedro Infante' });
+  const leadRow = page.locator('tr').filter({ hasText: 'Pedro E2E' });
   await expect(leadRow).toBeVisible();
-  await expect(leadRow).toContainText('+13019876543');
+  await expect(leadRow).toContainText('+13019876545');
   await expect(leadRow).toContainText('down no indicado');
   await expect(leadRow).toContainText('documentos no indicados');
   await expect(leadRow).toContainText('ID: LIC-9900');
 
   await leadRow.getByRole('button', { name: 'Copiar' }).click();
   await expect(page.getByRole('button', { name: '¡Copiado!' })).toBeVisible();
-  await expect(page.evaluate(() => navigator.clipboard.readText())).resolves.toBe('Pedro Infante +13019876543, Troca, ID: LIC-9900.');
+  await expect(page.evaluate(() => navigator.clipboard.readText())).resolves.toBe('Pedro E2E +13019876545, Troca, ID: LIC-9900.');
 });
 
 test('la copia E2E omite el no down payment y limpia el prefijo de compra al explorar opciones', async ({ page, context }) => {

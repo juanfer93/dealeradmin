@@ -17,6 +17,8 @@ type IngressCase = {
   contactId: string;
   conversationId: string;
   expectedPhone: string | null;
+  expectedVehicle?: string;
+  expectedVehicleYear?: number;
   messages: Array<{ body: string; phone?: string; name: string; rawPayload?: Record<string, unknown> }>;
 };
 
@@ -84,6 +86,33 @@ describeDatabase('GHL webhook ingress regression for the three reported leads', 
         { body: 'I guess just send it to me, & I’ll inform her', phone: '(717) 404-1201', name: 'Kathy Warren' },
         { body: 'Please, no phone calls, I work f/t with Uber Eats.', phone: '(717) 404-1201', name: 'Kathy Warren' },
         { body: 'Dobyou have any locations in W Va??', phone: '(717) 404-1201', name: 'Kathy Warren' },
+      ],
+    },
+    {
+      source: 'easterns-frederick',
+      contactId: `${suffix}-jose-salcedo-contact`,
+      conversationId: `${suffix}-jose-salcedo-conversation`,
+      expectedPhone: '+18435311632',
+      expectedVehicle: 'Toyota 4Runner',
+      expectedVehicleYear: 2016,
+      messages: [
+        { body: 'Buenos días, bueno quería que me diera una información para ver si tenían Toyota Runner del 2016 o 217-1819 20 alguno de esos modelos', name: 'Jose Luis Salcedo' },
+        { body: '8435311632', phone: '(843) 531-1632', name: 'Jose Luis Salcedo' },
+      ],
+    },
+    {
+      source: 'easterns',
+      contactId: `${suffix}-rosali-saravia-contact`,
+      conversationId: `${suffix}-rosali-saravia-conversation`,
+      expectedPhone: '+12025092809',
+      expectedVehicle: 'RAV4',
+      messages: [
+        { body: 'Estoy buscando un raw4', name: 'Rosalí D Saravia' },
+        { body: '202 5092809', phone: '(202) 509-2809', name: 'Rosalí D Saravia' },
+        { body: 'Es mi número de cell', phone: '(202) 509-2809', name: 'Rosalí D Saravia' },
+        { body: 'Hablo español', phone: '(202) 509-2809', name: 'Rosalí D Saravia' },
+        { body: 'En laurel, Maryland', phone: '(202) 509-2809', name: 'Rosalí D Saravia' },
+        { body: '1,500', phone: '(202) 509-2809', name: 'Rosalí D Saravia' },
       ],
     },
     {
@@ -160,7 +189,7 @@ describeDatabase('GHL webhook ingress regression for the three reported leads', 
     await dataSource.destroy();
   });
 
-  it.each(cases)('$source accepts the reported partial lead and persists it', async (testCase) => {
+  it.each(cases)('$source $contactId accepts the reported partial lead and persists it', async (testCase) => {
     for (const [index, message] of testCase.messages.entries()) {
       const eventKey = testCase.contactId.includes('kathy')
         ? 'kathy'
@@ -210,12 +239,14 @@ describeDatabase('GHL webhook ingress regression for the three reported leads', 
     expect(processingRows.every((row) => row.processing_status === 'processed' && row.persisted_at && row.completed_at && Number(row.duration_ms) >= 0)).toBe(true);
     expect(rows[0].canonical_phone).toBe(testCase.expectedPhone);
     expect(rows[0].qualification_snapshot).toMatchObject({ phone: testCase.expectedPhone ?? '' });
-    if (testCase.source === 'easterns') expect(rows[0].qualification_snapshot).toMatchObject({ real_name: 'Jose Barahona' });
+    if (testCase.source === 'easterns' && !testCase.contactId.includes('rosali')) expect(rows[0].qualification_snapshot).toMatchObject({ real_name: 'Jose Barahona' });
     if (testCase.source === 'stafford') expect(rows[0].qualification_snapshot).toMatchObject({ vehicle_type: 'F-250' });
     if (testCase.source === 'koons-culpeper' && !testCase.contactId.includes('osman')) expect(rows[0].qualification_snapshot).toMatchObject({ real_name: 'Lucas Benavides', vehicle_type: 'Toyota Tundra' });
     if (testCase.contactId.includes('osman')) expect(rows[0].qualification_snapshot).toMatchObject({ real_name: 'Osman Ali P Guillén', vehicle_type: 'truck' });
     if (testCase.contactId.includes('kathy')) expect(rows[0].qualification_snapshot).toMatchObject({ real_name: 'Kathy Warren', vehicle_type: 'SUV', down_payment: 'No down payment' });
     if (testCase.contactId.includes('sharon')) expect(rows[0].qualification_snapshot).toMatchObject({ real_name: 'Sharon Yates', vehicle_type: 'Armada', down_payment: '3000' });
+    if (testCase.expectedVehicle) expect(rows[0].qualification_snapshot).toMatchObject({ vehicle_type: testCase.expectedVehicle });
+    if (testCase.expectedVehicleYear) expect(rows[0].qualification_snapshot).toMatchObject({ vehicle_year: testCase.expectedVehicleYear });
     expect(['partial', 'waiting_window', 'queued', 'sent']).toContain(rows[0].status);
   }, 30_000);
 });

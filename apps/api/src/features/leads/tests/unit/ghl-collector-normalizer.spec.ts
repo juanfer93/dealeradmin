@@ -292,6 +292,51 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.vehicle_type).not.toBe('Quiere hablar con un asesor');
   });
 
+  it('replays Jose Luis Salcedo Toyota Runner wording as a 4Runner in Custom Code', () => {
+    const transcript = [
+      'Buenos días, bueno quería que me diera una información para ver si tenían Toyota Runner del 2016 o 217-1819 20 alguno de esos modelos',
+      '8435311632',
+    ].join('\n');
+
+    expect(execute({
+      source: 'easterns-frederick',
+      channel: 'messenger',
+      real_name: 'Jose Luis Salcedo',
+      phone: '+18435311632',
+      chat_history_log: transcript,
+      message: '8435311632',
+    })).toMatchObject({
+      real_name: 'Jose Luis Salcedo',
+      phone: '+18435311632',
+      vehicle_type: 'Toyota 4Runner',
+      vehicle_year: 2016,
+    });
+  });
+
+  it('replays Rosali Saravia raw4 wording as RAV4 in Custom Code', () => {
+    const transcript = [
+      'Estoy buscando un raw4',
+      '202 5092809',
+      'Es mi número de cell',
+      'Hablo español',
+      'En laurel, Maryland',
+    ].join('\n');
+
+    expect(execute({
+      source: 'easterns-millersville',
+      channel: 'messenger',
+      real_name: 'Rosalí D Saravia',
+      phone: '+12025092809',
+      chat_history_log: transcript,
+      message: '1,500',
+    })).toMatchObject({
+      real_name: 'Rosalí D Saravia',
+      phone: '+12025092809',
+      vehicle_type: 'RAV4',
+      customer_location: 'laurel',
+    });
+  });
+
   it.each([
     '4Runner',
     '4runner',

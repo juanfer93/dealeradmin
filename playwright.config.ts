@@ -16,7 +16,10 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: 'node_modules\\.bin\\cross-env.CMD API_URL=http://127.0.0.1:3010 pnpm --filter web build && node e2e/start-web.mjs',
+      // The proxy rewrites are compiled into the Next build. Keep the build
+      // and server on the same API URL so browser tests never hit Next's 404
+      // page at /api/* instead of the E2E API.
+      command: 'pnpm --filter web build && node e2e/start-web.mjs',
       url: 'http://127.0.0.1:3000/login',
       reuseExistingServer: true,
       timeout: 120_000,

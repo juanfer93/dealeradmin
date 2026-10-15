@@ -101,7 +101,7 @@ export class ManualLeadService {
       const insertedLeads = (await queryRunner.query(
         `INSERT INTO leads
           (canonical_phone, first_name, last_name, ghl_contact_id, ghl_location_id, source)
-         VALUES ($1, $2, $3, $4, $5, 'Manual Console')
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id`,
         [
           canonicalPhone,
@@ -109,6 +109,7 @@ export class ManualLeadService {
           lastName,
           `manual_${randomBytes(4).toString('hex')}`,
           dealer.ghl_location_id,
+          process.env.NODE_ENV === 'test' && process.env.E2E_USE_DATABASE === 'true' ? 'E2E Manual Console' : 'Manual Console',
         ],
       )) as LeadRow[];
       leadId = insertedLeads[0].id;

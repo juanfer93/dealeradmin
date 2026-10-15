@@ -214,7 +214,9 @@ function extractVehicle(message: string): string {
     if (TRADE_IN_INTENT.test(candidate)
       && /\b(?:tengo|tiene|have|has|my|mi)\b/i.test(candidate)
       && !/\b(?:looking for|busco|quiero|want|interested in|interesado en)\b/i.test(candidate)) continue;
-    const candidateForVehicle = /\b(?:need|needs|looking for|busco|quiero|want|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i.test(candidate)
+    const hasVehicleEvidence = (VEHICLE_MODELS.test(candidate) || VEHICLE_BRANDS.test(candidate) || VEHICLE_CATEGORIES.test(candidate))
+      && !/\b(?:passport|pasaporte|license|licencia|bank\s+account|bank\s+statements?|income|document(?:s|os)?|identification|id)\b/i.test(candidate);
+    const candidateForVehicle = /\b(?:need|needs|looking for|busco|quiero|want|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i.test(candidate) || hasVehicleEvidence
       ? candidate
       : candidate.split(/[;,]/, 1)[0];
     const withoutOtherFacts = candidateForVehicle

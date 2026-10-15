@@ -1,4 +1,4 @@
-import { test, expect } from './test';
+import { getDealerId, test, expect } from './test';
 
 test.describe('Día 4 E2E Tests - Dashboard & Queue Operation', () => {
   test.beforeEach(async ({ context }) => {
@@ -15,7 +15,8 @@ test.describe('Día 4 E2E Tests - Dashboard & Queue Operation', () => {
     const sidebar = page.locator('aside, [role="navigation"]');
     await expect(sidebar).toBeVisible();
     await expect(sidebar).toContainText('Offlease Fredericksburg');
-    await page.getByRole('button', { name: /^Offlease Fredericksburg/ }).click();
+    await page.getByRole('button', { name: /^Offlease Fredericksburg\s+\d+$/ }).click();
+    const fredericksburgDealerId = await getDealerId(page, 'Offlease Fredericksburg');
 
     const mariaRow = page.locator('tr').filter({ hasText: 'Maria Lopez' });
     await expect(mariaRow).toBeVisible();
@@ -30,7 +31,7 @@ test.describe('Día 4 E2E Tests - Dashboard & Queue Operation', () => {
 
     await page.route('**/api/leads/**/status', async (route) => {
       expect(route.request().method()).toBe('PATCH');
-      expect(route.request().postDataJSON()).toEqual({ status: 'sent', dealerId: 'dealer-fredericksburg' });
+      expect(route.request().postDataJSON()).toEqual({ status: 'sent', dealerId: fredericksburgDealerId });
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
     });
     await mariaRow.getByRole('button', { name: 'Marcar enviado' }).click();
@@ -44,6 +45,7 @@ test.describe('Día 4 E2E Tests - Dashboard & Queue Operation', () => {
     await page.click('button[type="submit"]');
     await expect(page).toHaveURL(/\/app$/);
 
+    await page.getByRole('button', { name: /^Offlease Fredericksburg\s+\d+$/ }).click();
     const table = page.locator('table');
     await expect(page.getByRole('button', { name: /^Offlease Fredericksburg\s+\d+$/ })).toBeVisible();
     await expect(table).toContainText('Maria Lopez');
@@ -68,6 +70,7 @@ test.describe('Día 4 E2E Tests - Dashboard & Queue Operation', () => {
     await expect(page).toHaveURL(/\/app$/);
 
     await page.getByRole('button', { name: /Offlease Motors Stafford\s+\d+/ }).click();
+    const staffordDealerId = await getDealerId(page, 'Offlease Motors Stafford');
     await page.getByRole('button', { name: /Agregar lead manual/i }).click();
     const modal = page.getByRole('dialog', { name: 'Agregar lead manual' });
     await modal.getByLabel(/Nombre completo/).fill('Lead para borrar E2E');
@@ -83,7 +86,7 @@ test.describe('Día 4 E2E Tests - Dashboard & Queue Operation', () => {
     await expect(warning).toBeVisible();
     await warning.getByRole('button', { name: 'Eliminar de la BD' }).click();
     const request = await deleteRequest;
-    expect(new URL(request.url()).searchParams.get('dealerId')).toBe('dealer-stafford');
+    expect(new URL(request.url()).searchParams.get('dealerId')).toBe(staffordDealerId);
     await expect(row).not.toBeVisible();
   });
 
@@ -95,6 +98,7 @@ test.describe('Día 4 E2E Tests - Dashboard & Queue Operation', () => {
     await expect(page).toHaveURL(/\/app$/);
 
     await page.getByRole('button', { name: /Offlease Motors Stafford\s+\d+/ }).click();
+    const staffordDealerId = await getDealerId(page, 'Offlease Motors Stafford');
     for (const [name, phone] of [['Lead masivo uno E2E', '3019876502'], ['Lead masivo dos E2E', '3019876503']]) {
       await page.getByRole('button', { name: /Agregar lead manual/i }).click();
       const modal = page.getByRole('dialog', { name: 'Agregar lead manual' });
@@ -118,7 +122,7 @@ test.describe('Día 4 E2E Tests - Dashboard & Queue Operation', () => {
 
     const request = await deleteRequest;
     expect(request.postDataJSON().items).toHaveLength(2);
-    expect(request.postDataJSON().items.every((item: { dealerId: string }) => item.dealerId === 'dealer-stafford')).toBe(true);
+    expect(request.postDataJSON().items.every((item: { dealerId: string }) => item.dealerId === staffordDealerId)).toBe(true);
     await expect(firstRow).not.toBeVisible();
     await expect(secondRow).not.toBeVisible();
   });

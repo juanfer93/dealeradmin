@@ -81,7 +81,7 @@ const singleWordNameBlocklist = /^(?:ok(?:ay)?|si|s[ií]|yes|no|yeah|yep|correct
 const vehicleBrands = /\b(?:toyotas?|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subarus?|suvarus?|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i;
 const vehicleModels = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacomas?|tacomos?|tacmas?|tecomas?|sti|rav\s*4|civic|civc|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|for\s+runner|for\s+runer|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|rlx|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
 const vehicleCategories = /\b(?:suv|sedan|midsize|mid[- ]?size|medium[- ]?size|mediano|mediana|truck|truk|troka|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i;
-const vehicleContext = /\b(?:tengo|tiene|tienen|have|has|need|needs|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
+const vehicleContext = /\b(?:tengo|tiene|tienen|ten[ií]an|have|has|got|carry|available|need|needs|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/i;
 // Messenger may insert an emoji/punctuation into a compact-car answer, and
 // Spanish speech-to-text commonly produces phonetic spellings such as
 // "pek[e]no" or "chico". Keep these answers in the Sedan category.
@@ -101,9 +101,14 @@ const normalizeWhisperVehicleAliases = (value) => clean(value)
   // tokens so a misspelling cannot alter names or free-form notes.
   .replace(/\btoyata\b/gi, 'Toyota')
   .replace(/\btandra\b/gi, 'Tundra')
+  // GHL can omit the leading "4" when a buyer asks for a Toyota 4Runner.
+  // Keep this scoped to Toyota so a generic "runner" is never promoted.
+  .replace(/\btoyota\s+runner\b/gi, 'Toyota 4Runner')
   // GHL/Messenger can transcribe 4Runner with spaces, hyphens, a missing
   // "n", a homophone, or a plural suffix. Keep all variants canonical.
   .replace(/\b(?:4|four|for)\s*-?\s*run(?:ner|er)s?\b/gi, '4Runner')
+  // Messenger/Whisper commonly renders RAV4 as "raw4".
+  .replace(/\braw\s*4\b/gi, 'RAV4')
   // GHL transcribed the Ford model answer as "For 250". This alias is
   // applied only to vehicle extraction; payment extraction still sees the
   // original text and therefore cannot turn the answer into $250.
@@ -436,7 +441,9 @@ const vehicleFrom = (text) => {
     if (tradeInLanguage.test(candidate)
       && /\b(?:tengo|tiene|have|has|my|mi)\b/i.test(candidate)
       && !/\b(?:looking for|busco|quiero|want|interested in|interesado en)\b/i.test(candidate)) continue;
-    const candidateForVehicle = /\b(?:need|needs|looking for|busco|quiero|want|interested in|interesado en)\b/i.test(candidate)
+    const hasVehicleEvidence = (vehicleModels.test(candidate) || vehicleBrands.test(candidate) || vehicleCategories.test(candidate))
+      && !/\b(?:passport|pasaporte|license|licencia|bank\s+account|bank\s+statements?|income|document(?:s|os)?|identification|id)\b/i.test(candidate);
+    const candidateForVehicle = /\b(?:need|needs|looking for|busco|quiero|want|interested in|interesado en)\b/i.test(candidate) || hasVehicleEvidence
       ? candidate
       : candidate.split(/[;,]/, 1)[0];
     const cleaned = candidateForVehicle

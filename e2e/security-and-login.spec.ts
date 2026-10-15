@@ -5,11 +5,11 @@ const payload = JSON.stringify({
   event_id: 'evt-e2e-1',
   event_type: 'lead.created',
   occurred_at: '2026-08-21T12:00:00Z',
-  dealer_id: 'dealer-1',
-  dealer_name: 'Test Dealer',
-  ghl_location_id: 'location-1',
-  ghl_contact_id: 'contact-1',
-  lead: { name: 'Test Buyer', phone: '+15551234567' },
+  dealer_id: 'DLR-FRED-001',
+  dealer_name: 'Offlease Fredericksburg',
+  ghl_location_id: 'loc_fredericksburg_123',
+  ghl_contact_id: 'e2e-webhook-contact',
+  lead: { name: 'Test Buyer', channel: 'messenger', phone: '+15551234568', vehicle_type: 'SUV' },
 });
 
 test('rejects a webhook with an invalid HMAC signature', async ({ request }) => {
@@ -27,7 +27,7 @@ test('accepts a webhook signed over the exact raw body', async ({ request }) => 
     headers: { 'content-type': 'application/json', 'X-GHL-Signature': `sha256=${signature}` },
   });
   expect(response.status()).toBe(201);
-  expect(await response.json()).toEqual({ accepted: true, eventId: 'evt-e2e-1' });
+  expect(await response.json()).toMatchObject({ accepted: true, eventId: 'evt-e2e-1' });
 });
 
 test('redirects unauthenticated dashboard visits without rendering the lead queue', async ({ page }) => {

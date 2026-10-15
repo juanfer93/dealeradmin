@@ -107,7 +107,9 @@ const vehicleFrom = (text) => {
     if (tradeInLanguage.test(candidate)
       && /\b(?:tengo|tiene|have|has|my|mi)\b/i.test(candidate)
       && !/\b(?:looking for|busco|quiero|want|interested in|interesado en)\b/i.test(candidate)) continue;
-    const candidateForVehicle = /\b(?:need|needs|looking for|busco|quiero|want|interested in|interesado en)\b/i.test(candidate)
+    const hasVehicleEvidence = (vehicleModels.test(candidate) || vehicleBrands.test(candidate) || vehicleCategories.test(candidate))
+      && !/\b(?:passport|pasaporte|license|licencia|bank\s+account|bank\s+statements?|income|document(?:s|os)?|identification|id)\b/i.test(candidate);
+    const candidateForVehicle = /\b(?:need|needs|looking for|busco|quiero|want|interested in|interesado en)\b/i.test(candidate) || hasVehicleEvidence
       ? candidate
       : candidate.split(/[;,]/, 1)[0];
     const cleaned = candidateForVehicle

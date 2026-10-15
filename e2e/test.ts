@@ -1,4 +1,4 @@
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect, type Page } from '@playwright/test';
 
 export const test = base;
 
@@ -11,3 +11,14 @@ test.beforeEach(async ({ page, request }) => {
 });
 
 export { expect };
+
+export async function getDealerId(page: Page, name: string): Promise<string> {
+  const dealerId = await page.evaluate(async (dealerName) => {
+    const response = await fetch('/api/dealers', { credentials: 'include' });
+    if (!response.ok) throw new Error(`Unable to load dealers: ${response.status}`);
+    const dealers = await response.json() as Array<{ id: string; name: string }>;
+    return dealers.find((dealer) => dealer.name === dealerName)?.id ?? null;
+  }, name);
+  if (!dealerId) throw new Error(`Dealer not found in E2E fixture: ${name}`);
+  return dealerId;
+}
