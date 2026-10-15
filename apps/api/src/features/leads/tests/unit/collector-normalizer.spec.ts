@@ -1528,6 +1528,28 @@ describe('normalizeCollectorInput', () => {
     });
   });
 
+  it('does not interpret the final digits of a phone reply as a vehicle year', () => {
+    const result = normalizeCollectorInput({
+      source: 'koons-culpeper',
+      channel: 'messenger',
+      real_name: 'Benito Ruiz',
+      phone: '+17173981944',
+      message: 'camioneta',
+      chat_history_log: [
+        'cual es la direccion y que tipo de trocas tienen boy a ir mañana viernes por la tarde',
+        '717 398 1944',
+        'camioneta',
+      ].join('\n'),
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Benito Ruiz',
+      phone: '+17173981944',
+      vehicle_type: 'truck',
+      vehicle_year: null,
+    });
+  });
+
   it('extracts a declared personal name from a Stafford conversation', () => {
     expect(normalizeCollectorInput({ message: 'Elias alvarado' }).real_name).toBe('Elias Alvarado');
   });
