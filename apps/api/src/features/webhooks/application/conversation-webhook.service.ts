@@ -15,6 +15,7 @@ import { InvalidPhoneNumber, UnresolvedLocationException } from './functions/con
 import { DUE_CONVERSATION_POLL_MS, GHL_SOURCE_CONFIG } from './functions/conversation-webhook.config';
 import { currentLocalNow, hash, inputIndicatesWhatsApp, normalizedChannel, safePhone, sourceKey } from './functions/conversation-webhook.helpers';
 import { WebhookProcessingAuditService } from './webhook-processing-audit.service';
+import { GhlGuardService } from './ghl-guard.service';
 import type {
   ConversationSnapshot,
   ConversationWebhookResponse,
@@ -37,6 +38,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
   private readonly qualification: ConversationQualificationFunctions;
   private readonly eventFunctions: ConversationEventFunctions;
   private readonly reconciliation: ConversationReconciliationFunctions;
+  private readonly guard: GhlGuardService;
   private readonly dueFunctions: ConversationDueFunctions;
 
   constructor(
@@ -49,7 +51,8 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     this.qualification = new ConversationQualificationFunctions(georoutingService, GHL_SOURCE_CONFIG);
     this.eventFunctions = new ConversationEventFunctions(dataSource, this.qualification, this.queueService, GHL_SOURCE_CONFIG);
     this.reconciliation = new ConversationReconciliationFunctions(dataSource, this.qualification, this.queueService, GHL_SOURCE_CONFIG);
-    this.dueFunctions = new ConversationDueFunctions(dataSource, this.qualification, this.queueService, this.reconciliation, GHL_SOURCE_CONFIG);
+    this.guard = new GhlGuardService(dataSource, this.reconciliation, GHL_SOURCE_CONFIG);
+    this.dueFunctions = new ConversationDueFunctions(dataSource, this.qualification, this.queueService, this.reconciliation, GHL_SOURCE_CONFIG, this.guard);
   }
 
   onModuleInit(): void {
@@ -154,6 +157,14 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
 
   async processDueConversations(now = currentLocalNow(), options: { reconcileActive?: boolean } = {}): Promise<DueConversationResponse> {
     return this.dueFunctions.processDueConversations(now, options);
+  }
+
+  async runGhlGuard(now = currentLocalNow()) {
+    return this.guard.run(now);
+  }
+
+  async releaseDueConversation(id: string, now = currentLocalNow()): Promise<boolean> {
+    return (this.dueFunctions as unknown as { releaseDueConversation: (conversationId: string, emittedAt: Date) => Promise<boolean> }).releaseDueConversation(id, now);
   }
 
   async dispatchPendingQueuedPauseEvents(): Promise<number> {

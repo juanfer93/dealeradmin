@@ -48,7 +48,7 @@ export class ConversationReconciliationFunctions {
     for (const row of rows) await this.reconcileConversation(row.id, now);
   }
 
-  async reconcileConversation(id: string, now: Date, propagateErrors = false): Promise<void> {
+  async reconcileConversation(id: string, now: Date, propagateErrors = false, additiveOnly = false): Promise<void> {
     const runner = this.dataSource!.createQueryRunner();
     let queuedPauseEvent: QueuedPauseDispatch | null = null;
     await runner.connect();
@@ -103,7 +103,7 @@ export class ConversationReconciliationFunctions {
           AND ca.processing_status = 'done'
           AND ca.media_kind = 'image'
           AND ca.extracted_text IS NOT NULL
-         WHERE cm.conversation_id = $1
+         WHERE cm.conversation_id = $1 AND cm.direction = 'inbound'
          ORDER BY cm.occurred_at ASC, cm.created_at ASC`,
         [id],
       ) as ConversationMessageRow[];
@@ -123,12 +123,15 @@ export class ConversationReconciliationFunctions {
       const nativeWhatsappPhone = this.isStaffordWhatsApp(source, row.channel)
         ? safePhone(row.canonical_phone) || extractNativeWhatsappPhone(messages)
         : null;
+      const existingPhone = safePhone(current.phone) || safePhone(row.canonical_phone);
+      const candidatePhone = recentPhone || nativeWhatsappPhone || '';
+      const effectivePhone = additiveOnly ? existingPhone || candidatePhone : candidatePhone;
       const normalized = normalizeCollectorInput({
         source,
         channel: row.channel,
         message: transcript,
         chat_history_log: transcript,
-        phone: recentPhone || nativeWhatsappPhone || '',
+        phone: effectivePhone,
         real_name: clean(current.real_name),
         contact_name: contactName,
         vehicle_type: clean(current.vehicle_type),
@@ -141,18 +144,25 @@ export class ConversationReconciliationFunctions {
         customer_location: clean(current.customer_location),
         previous_predicted_bot_question: clean(current.qualification_progress?.predicted_bot_question),
       });
-      const effectivePhone = recentPhone || nativeWhatsappPhone || '';
-      const realName = normalized.real_name || clean(current.real_name);
-      const vehicle = normalized.vehicle_type || clean(current.vehicle_type);
-      const vehicleYear = normalized.vehicle_year ?? (typeof current.vehicle_year === 'number' ? current.vehicle_year : null);
-      const downPayment = normalizeDownPayment(normalized.down_payment || clean(current.down_payment));
-      const purchaseTimeline = normalized.purchase_timeline || clean(current.purchase_timeline);
-      const documents = normalized.documents || clean(current.documents);
-      const identification = normalized.identification || clean(current.identification);
-      const bankAccount = normalized.bank_account || clean(current.bank_account);
+      const preserveOrNormalize = (existing: unknown, incoming: unknown): string => {
+        const existingValue = clean(existing);
+        const incomingValue = clean(incoming);
+        return additiveOnly ? existingValue || incomingValue : incomingValue || existingValue;
+      };
+      const realName = preserveOrNormalize(current.real_name, normalized.real_name);
+      const vehicle = preserveOrNormalize(current.vehicle_type, normalized.vehicle_type);
+      const vehicleYear = additiveOnly && typeof current.vehicle_year === 'number'
+        ? current.vehicle_year
+        : normalized.vehicle_year ?? (typeof current.vehicle_year === 'number' ? current.vehicle_year : null);
+      const downPayment = normalizeDownPayment(preserveOrNormalize(current.down_payment, normalized.down_payment));
+      const purchaseTimeline = preserveOrNormalize(current.purchase_timeline, normalized.purchase_timeline);
+      const documents = preserveOrNormalize(current.documents, normalized.documents);
+      const identification = preserveOrNormalize(current.identification, normalized.identification);
+      const bankAccount = preserveOrNormalize(current.bank_account, normalized.bank_account);
+      const qualificationMemory = preserveOrNormalize(current.qualification_memory, normalized.qualification_memory);
       const previousFinancing = normalized.previous_financing || (current.previous_financing === 'yes' || current.previous_financing === 'no' ? current.previous_financing : '');
       const downPaymentRule = evaluateDownPayment(vehicle, downPayment);
-      const qualificationComplete = isQualificationComplete({
+      const qualificationComplete = Boolean(current.qualification_complete) || isQualificationComplete({
         real_name: realName,
         phone: effectivePhone,
         vehicle_type: vehicle,
@@ -165,30 +175,45 @@ export class ConversationReconciliationFunctions {
       const missingQualification = [!realName ? 'real_name' : '', !effectivePhone ? 'phone' : '', !vehicle || isAdvisorHandoffVehicle(vehicle) ? 'vehicle_type' : ''].filter(Boolean);
       const resolvedLocation = await this.qualification.resolveLocation(runner, transcript);
       const hasResolvedLocation = Boolean(resolvedLocation.city || resolvedLocation.state || resolvedLocation.zip_code || resolvedLocation.easterns_zone);
-      const location = hasResolvedLocation ? resolvedLocation : (row.location_snapshot ?? { city: null, state: null, zip_code: null, easterns_zone: null });
-      const language = this.sourceConfig[source].splitByLanguage ? detectLeadLanguage(transcript) : current.language;
+      const existingLocation = row.location_snapshot ?? { city: null, state: null, zip_code: null, easterns_zone: null };
+      const location = additiveOnly
+        ? {
+          city: existingLocation.city || resolvedLocation.city || null,
+          state: existingLocation.state || resolvedLocation.state || null,
+          zip_code: existingLocation.zip_code || resolvedLocation.zip_code || null,
+          easterns_zone: existingLocation.easterns_zone || resolvedLocation.easterns_zone || null,
+        }
+        : hasResolvedLocation ? resolvedLocation : existingLocation;
+      const language = additiveOnly
+        ? current.language || (this.sourceConfig[source].splitByLanguage ? detectLeadLanguage(transcript) : undefined)
+        : this.sourceConfig[source].splitByLanguage ? detectLeadLanguage(transcript) : current.language;
+      const qualificationProgress = additiveOnly
+        ? { ...normalized.qualification_progress, ...current.qualification_progress }
+        : normalized.qualification_progress;
       const snapshot: ConversationSnapshot = {
         real_name: realName,
         phone: effectivePhone,
         vehicle_type: vehicle,
         vehicle_year: vehicleYear,
-        customer_location: normalized.customer_location || clean(current.customer_location),
+        customer_location: preserveOrNormalize(current.customer_location, normalized.customer_location),
         vehicle_category: downPaymentRule.category,
         required_down_payment: downPaymentRule.minimum,
         down_payment_amount: downPaymentRule.amount,
         down_payment_sufficient: downPaymentRule.meetsMinimum,
         down_payment: downPayment,
-        previous_financing: previousFinancing,
+        previous_financing: additiveOnly && (current.previous_financing === 'yes' || current.previous_financing === 'no')
+          ? current.previous_financing
+          : previousFinancing,
         purchase_timeline: purchaseTimeline,
         documents,
         identification,
         bank_account: bankAccount,
-        qualification_memory: normalized.qualification_memory || clean(current.qualification_memory),
+        qualification_memory: qualificationMemory,
         qualification_complete: qualificationComplete,
         missing_qualification: missingQualification,
-        message_count: messages.length,
+        message_count: additiveOnly ? Math.max(Number(current.message_count || 0), messages.length) : messages.length,
         language,
-        qualification_progress: normalized.qualification_progress,
+        qualification_progress: qualificationProgress,
         assigned_dealer_id: clean(current.assigned_dealer_id) || undefined,
       };
       const dealer = await this.qualification.findSourceDealer(runner, row.ghl_location_id, source, language, clean(current.assigned_dealer_id) || undefined);

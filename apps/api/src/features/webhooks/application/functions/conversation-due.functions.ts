@@ -7,6 +7,7 @@ import { ConversationReconciliationFunctions } from './conversation-reconciliati
 import { DUE_CONVERSATION_BATCH_SIZE, GHL_SOURCE_CONFIG } from './conversation-webhook.config';
 import { clean } from './conversation-webhook.helpers';
 import type { ConversationSnapshot, LocationSnapshot, DueConversationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
+import type { GhlGuardService } from '../ghl-guard.service';
 
 export class ConversationDueFunctions {
   constructor(
@@ -15,6 +16,7 @@ export class ConversationDueFunctions {
     private readonly queueService: ConversationQueueService,
     private readonly reconciliation: ConversationReconciliationFunctions,
     private readonly sourceConfig: SourceConfigMap = GHL_SOURCE_CONFIG,
+    private readonly guard?: GhlGuardService,
   ) {}
 
   async processDueConversations(now: Date, options: { reconcileActive?: boolean } = {}): Promise<DueConversationResponse> {
@@ -38,6 +40,13 @@ export class ConversationDueFunctions {
       if (await this.releaseDueConversation(row.id, now)) processed += 1;
     }
     if (options.reconcileActive !== false) await this.reconciliation.reconcileActiveConversations(now);
+    if (options.reconcileActive !== false) {
+      try {
+        await this.guard?.run(now);
+      } catch {
+        // The GHL guard is a repair/audit layer; it must never block due releases.
+      }
+    }
     return { accepted: true, processed };
   }
 

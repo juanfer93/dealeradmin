@@ -41,6 +41,8 @@ import { WebhookIngressLogs1710000030000 } from './database/migrations/171000003
 import { WebhookProcessingAttempts1710000031000 } from './database/migrations/1710000031000-WebhookProcessingAttempts';
 import { LeadReengagementQueue1710000032000 } from './database/migrations/1710000032000-LeadReengagementQueue';
 import { ReengagementCount1710000033000 } from './database/migrations/1710000033000-ReengagementCount';
+import { GhlGuardLogs1710000034000 } from './database/migrations/1710000034000-GhlGuardLogs';
+import { GhlGuardLifecycle1710000035000 } from './database/migrations/1710000035000-GhlGuardLifecycle';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -83,6 +85,8 @@ const databaseModule = TypeOrmModule.forRootAsync({
             WebhookProcessingAttempts1710000031000,
             LeadReengagementQueue1710000032000,
             ReengagementCount1710000033000,
+            GhlGuardLogs1710000034000,
+            GhlGuardLifecycle1710000035000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,

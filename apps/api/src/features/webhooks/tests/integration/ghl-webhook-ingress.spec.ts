@@ -197,6 +197,8 @@ describeDatabase('GHL webhook ingress regression for the three reported leads', 
           ? 'sharon'
           : testCase.contactId.includes('osman')
             ? 'osman'
+            : testCase.contactId.includes('rosali')
+              ? 'rosali'
             : testCase.source;
       const eventId = `${suffix}-${testCase.source}-${eventKey}-${index}`;
       const response = await postJson(port, `/webhooks/ghl/customer-replied/${testCase.source}`, {
@@ -223,7 +225,7 @@ describeDatabase('GHL webhook ingress regression for the three reported leads', 
        FROM conversations c
        JOIN leads l ON l.id = c.lead_id
        WHERE c.ghl_contact_id = $1 AND c.ghl_conversation_id = $3`,
-      [testCase.contactId, `${suffix}-${testCase.source}-${testCase.contactId.includes('kathy') ? 'kathy' : testCase.contactId.includes('sharon') ? 'sharon' : testCase.contactId.includes('osman') ? 'osman' : testCase.source}-%`, testCase.conversationId],
+      [testCase.contactId, `${suffix}-${testCase.source}-${testCase.contactId.includes('kathy') ? 'kathy' : testCase.contactId.includes('sharon') ? 'sharon' : testCase.contactId.includes('osman') ? 'osman' : testCase.contactId.includes('rosali') ? 'rosali' : testCase.source}-%`, testCase.conversationId],
     ) as Array<{ canonical_phone: string; first_name: string; last_name: string; status: string; qualification_snapshot: Record<string, unknown>; event_count: string }>;
 
     expect(rows).toHaveLength(1);
@@ -236,7 +238,7 @@ describeDatabase('GHL webhook ingress regression for the three reported leads', 
       [testCase.contactId],
     ) as Array<{ processing_status: string; persisted_at: string | null; completed_at: string; duration_ms: number | null }>;
     expect(processingRows).toHaveLength(testCase.messages.length);
-    expect(processingRows.every((row) => row.processing_status === 'processed' && row.persisted_at && row.completed_at && Number(row.duration_ms) >= 0)).toBe(true);
+    expect(processingRows.every((row) => row.processing_status === 'processed' && row.persisted_at && row.completed_at && Number(row.duration_ms) >= 0), JSON.stringify(processingRows)).toBe(true);
     expect(rows[0].canonical_phone).toBe(testCase.expectedPhone);
     expect(rows[0].qualification_snapshot).toMatchObject({ phone: testCase.expectedPhone ?? '' });
     if (testCase.source === 'easterns' && !testCase.contactId.includes('rosali')) expect(rows[0].qualification_snapshot).toMatchObject({ real_name: 'Jose Barahona' });
@@ -265,6 +267,7 @@ function postJson(port: number, path: string, payload: Record<string, unknown>):
         'x-dealeradmin-contact-id': String(payload.ghl_contact_id),
         'x-dealeradmin-conversation-id': String(payload.ghl_conversation_id),
         'x-dealeradmin-message-id': String(payload.ghl_message_id ?? payload.event_id),
+        'x-dealeradmin-test-now': '2026-10-12T23:00:00.000Z',
       },
     }, (response) => {
       let responseBody = '';

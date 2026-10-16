@@ -24,3 +24,22 @@ Estas reglas son la fuente de verdad para el ingreso automático a la cola:
 - Easterns conserva su requisito separado de ciudad/estado o zona para poder georutear al dealer correcto.
 - Un lead puede existir en varios dealers independientes. La deduplicación solo bloquea una segunda relación del mismo lead en el mismo dealer; nunca debe impedirlo en otro dealer.
 - Una relación que ya entró en la cola o fue enviada no se elimina por una actualización o por latencia de GHL. Las reconciliaciones son aditivas e idempotentes.
+
+## GHL Guard y auditoría de latencia
+
+El webhook continúa siendo la fuente primaria de mensajes. Cada ciclo del guard selecciona primero las conversaciones locales activas con `last_message_at` más reciente, consulta los mensajes de esa conversación en GHL con el token privado de su subcuenta, persiste cualquier mensaje faltante y llama a la misma reconciliación/normalización del webhook. El guard no modifica la asignación por dealer y excluye relaciones `queued`, `sent`, `duplicate_ignored`, `ignored_channel` y `stale_phone_ignored`.
+
+Las migraciones `1710000034000-GhlGuardLogs` y `1710000035000-GhlGuardLifecycle` crean y completan `ghl_guard_logs`. Para cerrar una investigación se deben comparar, en este orden, `webhook_ingress_logs`, `webhook_processing_attempts`, `conversations`, `conversation_messages`, `conversation_attachments` y `ghl_guard_logs`. Un `200` de GHL o un log `succeeded` solo prueba una consulta; la prueba de reparación es que aparezcan los mensajes en `conversation_messages`, que el `qualification_snapshot` se actualice y que `ghl_guard_logs.reconciled = true`.
+
+Cada fila conserva el ciclo `pending` → `running` → `succeeded`/`failed`/`skipped` en `metadata.lifecycle`, junto con `scheduled_at`, `started_at`, `finished_at`, `duration_ms`, `http_status`, `request_path`, `error_code` y `response_payload`.
+
+Variables opcionales:
+
+```env
+GHL_GUARD_ENABLED=true
+GHL_GUARD_INTERVAL_MS=300000
+GHL_GUARD_BATCH_SIZE=25
+GHL_GUARD_TIMEOUT_MS=15000
+GHL_GUARD_MESSAGE_PAGE_LIMIT=100
+GHL_GUARD_MAX_PAGES=10
+```

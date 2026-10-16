@@ -21,3 +21,35 @@ The API rejects invalid configuration at startup. The webhook endpoint accepts o
 ## Production migrations
 
 Vercel runs `pnpm --filter api migrate` before `pnpm build`, so every production deployment applies pending TypeORM migrations against the configured `DATABASE_URL` (Neon). Configure `DATABASE_URL` in Vercel for the Production environment before deploying. The command is idempotent: already-applied migrations are skipped.
+
+## Verificación completa de conversaciones y GHL Guard
+
+La recepción del webhook sigue siendo la fuente principal. El GHL Guard es una capa de auditoría y reparación que prioriza conversaciones con `last_message_at` más reciente, vuelve a leer sus mensajes mediante el token privado de la subcuenta y reutiliza la normalización existente únicamente cuando encuentra datos faltantes o atrasados por latencia. No reemplaza el webhook ni cambia las reglas de routing.
+
+Para diagnosticar una conversación se debe seguir toda la cadena en Neon:
+
+1. `webhook_ingress_logs`: confirma si GHL entregó la petición.
+2. `webhook_processing_attempts`: confirma si la aplicación intentó procesarla y cuánto tardó.
+3. `conversations` + `conversation_messages`: confirma la relación, el estado, el snapshot y los mensajes persistidos. Solo los mensajes `inbound` son evidencia del cliente; los `outbound` se conservan para auditoría.
+4. `conversation_attachments`: confirma extracción de texto o procesamiento de medios.
+5. `ghl_guard_logs`: confirma si el guard consultó GHL, cuántos mensajes encontró, insertó o reparó, si ejecutó reconciliación y si falló.
+
+Ejemplo de auditoría por conversación:
+
+```sql
+SELECT c.id, c.ghl_location_id, c.ghl_contact_id, c.ghl_conversation_id,
+       c.status, c.qualification_snapshot, c.last_message_at,
+       cm.id AS message_id, cm.direction, cm.body, cm.occurred_at,
+       gl.status AS guard_status, gl.fetched_message_count,
+       gl.inserted_message_count, gl.repaired_message_count,
+       gl.reconciled, gl.error_code, gl.created_at AS guard_checked_at
+FROM conversations c
+LEFT JOIN conversation_messages cm ON cm.conversation_id = c.id
+LEFT JOIN LATERAL (
+  SELECT * FROM ghl_guard_logs g
+  WHERE g.conversation_id = c.id
+  ORDER BY g.created_at DESC LIMIT 1
+) gl ON true
+WHERE c.ghl_conversation_id = '<GHL_CONVERSATION_ID>'
+ORDER BY cm.occurred_at ASC NULLS LAST, cm.created_at ASC;
+```

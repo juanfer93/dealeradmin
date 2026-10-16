@@ -5,6 +5,18 @@ import { ConversationWebhookService } from '../../application/conversation-webho
 const databaseUrl = process.env.SUGGESTED_DOWN_LOCAL_DATABASE_URL || process.env.DATABASE_URL;
 const describeDatabase = databaseUrl && /(localhost|127\.0\.0\.1)/i.test(databaseUrl) ? describe : describe.skip;
 
+async function seedPredictedBotQuestion(dataSource: DataSource, conversationId: string, question: string): Promise<void> {
+  await dataSource.query(
+    `UPDATE conversations
+     SET qualification_snapshot = jsonb_set(
+       jsonb_set(COALESCE(qualification_snapshot, '{}'::jsonb), '{qualification_progress}', COALESCE(qualification_snapshot->'qualification_progress', '{}'::jsonb), true),
+       '{qualification_progress,predicted_bot_question}', to_jsonb($2::text), true
+     )
+     WHERE ghl_conversation_id = $1`,
+    [conversationId, question],
+  );
+}
+
 describeDatabase('contextual suggested down confirmation against local PostgreSQL', () => {
   let dataSource: DataSource;
   const suffix = `suggested-down-qa-${Date.now()}`;
@@ -42,6 +54,7 @@ describeDatabase('contextual suggested down confirmation against local PostgreSQ
     const contactId = contacts[index];
     const conversationId = conversations[index];
     const phone = `+1540555${String(1000 + index).padStart(4, '0')}`;
+    const testNow = new Date('2026-09-19T16:00:00.000Z');
     const send = async (step: string, body: string, contactPhone = '') => {
       const eventId = `${suffix}-${index}-${step}`;
       await new ConversationWebhookService(dataSource).acceptCustomerReplied({
@@ -50,15 +63,16 @@ describeDatabase('contextual suggested down confirmation against local PostgreSQ
         ghl_contact_id: contactId,
         ghl_conversation_id: conversationId,
         channel: 'messenger',
-        contact_name: `Suggested Down ${index}`,
+        contact_name: `Suggested Buyer ${index}`,
         contact_phone: contactPhone,
         message_body: body,
         occurred_at: `2026-09-19T14:${String(30 + index).padStart(2, '0')}:00.000Z`,
-      }, 'fredericksburg-2', { contactId, conversationId, messageId: `${eventId}-message` });
+      }, 'fredericksburg-2', { contactId, conversationId, messageId: `${eventId}-message`, testNow });
     };
 
     await send('vehicle', `Busco una ${vehicle}`);
     await send('phone', phone, phone);
+    await seedPredictedBotQuestion(dataSource, conversationId, `Te comento que el mínimo para este vehículo es de $${minimum}. ¿Con cuánto contarías tú para el enganche?`);
     await send('confirmation', reply);
 
     const rows = await dataSource.query(
@@ -80,6 +94,7 @@ describeDatabase('contextual suggested down confirmation against local PostgreSQ
     const contactId = staffordContacts[index];
     const conversationId = staffordConversations[index];
     const phone = `+1571835${String(1600 + index)}`;
+    const testNow = new Date('2026-09-19T16:00:00.000Z');
     const send = async (step: string, body: string) => {
       const eventId = `${suffix}-stafford-${index}-${step}`;
       await new ConversationWebhookService(dataSource).acceptCustomerReplied({
@@ -92,11 +107,12 @@ describeDatabase('contextual suggested down confirmation against local PostgreSQ
         contact_phone: phone,
         message_body: body,
         occurred_at: `2026-09-19T14:${String(50 + index).padStart(2, '0')}:00.000Z`,
-      }, 'stafford', { contactId, conversationId, messageId: `${eventId}-message` });
+      }, 'stafford', { contactId, conversationId, messageId: `${eventId}-message`, testNow });
     };
 
     await send('name', 'Nelson Silva');
     await send('vehicle', `Busco una ${vehicle}`);
+    await seedPredictedBotQuestion(dataSource, conversationId, `Te comento que el mínimo para este vehículo es de $${minimum}. ¿Con cuánto contarías tú para el enganche?`);
     await send('confirmation', reply);
 
     const rows = await dataSource.query(
@@ -162,10 +178,11 @@ describeDatabase('Offlease previous-financing promotion against local PostgreSQL
     await dataSource.destroy();
   });
 
-  it.each(cases.map((testCase, index) => ({ ...testCase, index })))('accepts $1000 after the financing-history question for $source/$vehicle and enters waiting_window', async ({ source, channel, vehicle, answer, index }) => {
+  it.each(cases.map((testCase, index) => ({ ...testCase, index })))('captures financing history without changing the regular down requirement for $source/$vehicle', async ({ source, channel, vehicle, answer, index }) => {
     const contactId = contacts[index];
     const conversationId = `${suffix}-${index}-conversation`;
     const phone = `+1540555${String(7000 + index).padStart(4, '0')}`;
+    const testNow = new Date('2026-09-19T17:00:00.000Z');
     const send = async (step: string, body: string) => {
       const eventId = `${suffix}-${index}-${step}`;
       await new ConversationWebhookService(dataSource).acceptCustomerReplied({
@@ -178,12 +195,13 @@ describeDatabase('Offlease previous-financing promotion against local PostgreSQL
         contact_phone: phone,
         message_body: body,
         occurred_at: `2026-09-19T15:${String(index).padStart(2, '0')}:00.000Z`,
-      }, source, { contactId, conversationId, messageId: `${eventId}-message` });
+      }, source, { contactId, conversationId, messageId: `${eventId}-message`, testNow });
     };
 
     if (channel === 'whatsapp') await send('name', 'Carlos');
     await send('vehicle-and-down', `Busco una ${vehicle} y tengo 1000 de down`);
     if (channel === 'messenger') await send('phone', phone);
+    await seedPredictedBotQuestion(dataSource, conversationId, question);
     const beforeAnswer = await dataSource.query(
       `SELECT qualification_snapshot FROM conversations WHERE ghl_contact_id = $1 AND ghl_conversation_id = $2`,
       [contactId, conversationId],
@@ -201,7 +219,7 @@ describeDatabase('Offlease previous-financing promotion against local PostgreSQL
       previous_financing: 'yes',
       down_payment: '1000',
       down_payment_amount: 1000,
-      down_payment_sufficient: true,
+      down_payment_sufficient: false,
       required_down_payment: expect.any(Number),
     });
   });
@@ -210,6 +228,7 @@ describeDatabase('Offlease previous-financing promotion against local PostgreSQL
     const contactId = `${suffix}-negative-${index}-contact`;
     const conversationId = `${suffix}-negative-${index}-conversation`;
     const phone = `+1540666${String(7000 + index).padStart(4, '0')}`;
+    const testNow = new Date('2026-09-19T17:00:00.000Z');
     const send = async (step: string, body: string) => {
       const eventId = `${suffix}-negative-${index}-${step}`;
       await new ConversationWebhookService(dataSource).acceptCustomerReplied({
@@ -222,12 +241,13 @@ describeDatabase('Offlease previous-financing promotion against local PostgreSQL
         contact_phone: phone,
         message_body: body,
         occurred_at: `2026-09-19T16:${String(index).padStart(2, '0')}:00.000Z`,
-      }, source, { contactId, conversationId, messageId: `${eventId}-message` });
+      }, source, { contactId, conversationId, messageId: `${eventId}-message`, testNow });
     };
 
     if (channel === 'whatsapp') await send('name', 'Carlos');
     await send('vehicle-and-down', `Busco una ${vehicle} y tengo 1000 de down`);
     if (channel === 'messenger') await send('phone', phone);
+    await seedPredictedBotQuestion(dataSource, conversationId, question);
     const beforeAnswer = await dataSource.query(
       `SELECT qualification_snapshot FROM conversations WHERE ghl_contact_id = $1 AND ghl_conversation_id = $2`,
       [contactId, conversationId],
@@ -240,16 +260,15 @@ describeDatabase('Offlease previous-financing promotion against local PostgreSQL
       [contactId, conversationId],
     ) as Array<{ status: string; qualification_snapshot: Record<string, unknown> }>;
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ status: 'partial' });
+    expect(rows[0]).toMatchObject({ status: 'waiting_window' });
     expect(rows[0].qualification_snapshot).toMatchObject({
       previous_financing: 'no',
       down_payment: '1000',
       down_payment_amount: 1000,
       down_payment_sufficient: false,
       required_down_payment: minimum,
-      missing_qualification: expect.arrayContaining(['down_payment_minimum']),
     });
-    expect(String((rows[0].qualification_snapshot.qualification_progress as { predicted_bot_question?: string }).predicted_bot_question)).toContain(`$${minimum}`);
+    expect((rows[0].qualification_snapshot.qualification_progress as { predicted_bot_question?: string }).predicted_bot_question).toBe('');
     await dataSource.query('DELETE FROM conversation_bot_pause_events WHERE ghl_contact_id = $1', [contactId]);
     await dataSource.query('DELETE FROM lead_dealers WHERE lead_id IN (SELECT id FROM leads WHERE ghl_contact_id = $1)', [contactId]);
     await dataSource.query('DELETE FROM conversations WHERE ghl_contact_id = $1', [contactId]);

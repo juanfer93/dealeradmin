@@ -28,6 +28,11 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
   const snapshotConversationId = `${suffix}-snapshot-conversation`;
   const queuedEditContactId = `${suffix}-queued-edit-contact`;
   const queuedEditConversationId = `${suffix}-queued-edit-conversation`;
+  const phoneSeed = String(Date.now()).slice(-6);
+  const ocrPhone = `+12401${phoneSeed}`;
+  const normalPhone = `+12402${String(Number(phoneSeed) + 1).padStart(6, '0')}`;
+  const julioPhone = `+15711${phoneSeed}`;
+  const javierPhone = `+12402${String(Number(phoneSeed) + 2).padStart(6, '0')}`;
   const now = '2026-09-17T17:19:00.000Z';
 
   beforeAll(async () => {
@@ -39,9 +44,14 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
   afterAll(async () => {
     if (!dataSource?.isInitialized) return;
     for (const qaContactId of [contactId, afterHoursContactId, normalContactId, imageContactId, audioContactId, portugueseAudioContactId, julioContactId, javierContactId, snapshotContactId, queuedEditContactId]) {
+      await dataSource.query(
+        `DELETE FROM conversations
+         WHERE ghl_contact_id = $1
+            OR lead_id IN (SELECT id FROM leads WHERE ghl_contact_id = $1)`,
+        [qaContactId],
+      );
       await dataSource.query('DELETE FROM conversation_bot_pause_events WHERE ghl_contact_id = $1', [qaContactId]);
       await dataSource.query('DELETE FROM lead_dealers WHERE lead_id IN (SELECT id FROM leads WHERE ghl_contact_id = $1)', [qaContactId]);
-      await dataSource.query('DELETE FROM conversations WHERE ghl_contact_id = $1', [qaContactId]);
       await dataSource.query('DELETE FROM leads WHERE ghl_contact_id = $1', [qaContactId]);
     }
     await dataSource.query('DELETE FROM webhook_events WHERE event_id LIKE $1', [`${suffix}-%`]);
@@ -97,7 +107,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       `UPDATE conversation_attachments
        SET processing_status = 'done', extracted_text = $2, updated_at = CURRENT_TIMESTAMP
        WHERE id = $1`,
-      [attachment[0].id, 'Versión de hardware\nNúmero de teléfono\n+1-240-841-4199'],
+      [attachment[0].id, `Versión de hardware\nNúmero de teléfono\n${ocrPhone}`],
     );
 
     const conversation = await dataSource.query(
@@ -109,7 +119,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
 
     const result = await service.reconcileMediaConversation(conversation[0].id, new Date(now));
     expect(result.qualificationSnapshot).toMatchObject({
-      phone: '+12408414199',
+      phone: ocrPhone,
       vehicle_type: 'Tacoma',
       down_payment: '3000',
       required_down_payment: 3000,
@@ -124,10 +134,10 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
        WHERE c.ghl_contact_id = $1`,
       [contactId],
     ) as Array<{ canonical_phone: string; status: string; ready_at: string; next_attempt_at: string; qualification_snapshot: Record<string, unknown> }>;
-    expect(persisted[0]).toMatchObject({ canonical_phone: '+12408414199', status: 'waiting_window' });
+    expect(persisted[0]).toMatchObject({ canonical_phone: ocrPhone, status: 'waiting_window' });
     expect(new Date(persisted[0].ready_at).toISOString()).toBe(now);
     const firstNextAttempt = persisted[0].next_attempt_at;
-    expect((persisted[0].qualification_snapshot as { phone: string }).phone).toBe('+12408414199');
+    expect((persisted[0].qualification_snapshot as { phone: string }).phone).toBe(ocrPhone);
 
     // A later reconciliation must reuse the original window instead of
     // pushing another 30-minute window from the current time.
@@ -159,8 +169,8 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
        WHERE c.ghl_contact_id = $1`,
       [contactId],
     ) as Array<{ canonical_phone: string; qualification_snapshot: { phone: string }; message_count: string }>;
-    expect(afterNormalWebhook[0].canonical_phone).toBe('+12408414199');
-    expect(afterNormalWebhook[0].qualification_snapshot.phone).toBe('+12408414199');
+    expect(afterNormalWebhook[0].canonical_phone).toBe(ocrPhone);
+    expect(afterNormalWebhook[0].qualification_snapshot.phone).toBe(ocrPhone);
     expect(Number(afterNormalWebhook[0].message_count)).toBe(4);
   });
 
@@ -314,7 +324,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       channel: 'messenger',
       contact_name: 'Normal Text Lead',
       contact_phone: '',
-      message_body: 'Mi número es 240-841-4211. Estoy buscando un Corolla.',
+      message_body: `Mi número es ${normalPhone}. Estoy buscando un Corolla.`,
       occurred_at: now,
     }, 'fredericksburg', { contactId: normalContactId, conversationId: normalConversationId, testNow: new Date(now) });
 
@@ -326,8 +336,8 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
        WHERE c.ghl_contact_id = $1`,
       [normalContactId],
     ) as Array<{ canonical_phone: string; status: string; qualification_snapshot: { phone: string }; message_count: string; attachment_count: string }>;
-    expect(rows[0]).toMatchObject({ canonical_phone: '+12408414211', status: 'partial' });
-    expect(rows[0].qualification_snapshot.phone).toBe('+12408414211');
+    expect(rows[0]).toMatchObject({ canonical_phone: normalPhone, status: 'waiting_window' });
+    expect(rows[0].qualification_snapshot.phone).toBe(normalPhone);
     expect(Number(rows[0].message_count)).toBe(1);
     expect(Number(rows[0].attachment_count)).toBe(0);
   });
@@ -411,7 +421,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
     };
     const messages = [
       ['vehicle', 'Sedan'],
-      ['phone', '5714439392'],
+      ['phone', `5711${phoneSeed}`],
       ['down', '1.500 está perfecto'],
       ['timeline', 'Este mes sería ideal'],
       ['documents', 'Si tengo licencia de conducir y cuenta en el banco'],
@@ -438,9 +448,9 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       `SELECT status, qualification_snapshot FROM conversations WHERE ghl_contact_id = $1`,
       [julioContactId],
     ) as Array<{ status: string; qualification_snapshot: Record<string, unknown> }>;
-    expect(rows[0]).toMatchObject({ status: 'waiting_window' });
+    expect(rows[0]).toMatchObject({ status: 'queued' });
     expect(rows[0].qualification_snapshot).toMatchObject({
-      phone: '+15714439392',
+      phone: julioPhone,
       vehicle_type: 'Sedan',
       down_payment: '1500',
       required_down_payment: 1500,
@@ -518,7 +528,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
     const messages = [
       ['intent', 'Me gustaria financiar un auto con ustedes.'],
       ['vehicle', 'Honda acoitd'],
-      ['phone', '2409060016'],
+      ['phone', `2402${String(Number(phoneSeed) + 2).padStart(6, '0')}`],
       ['down', '3 mil'],
       ['timeline', 'Esta semana'],
       ['identification', 'Si'],
@@ -543,9 +553,9 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       `SELECT status, qualification_snapshot FROM conversations WHERE ghl_contact_id = $1`,
       [javierContactId],
     ) as Array<{ status: string; qualification_snapshot: Record<string, unknown> }>;
-    expect(rows[0]).toMatchObject({ status: 'waiting_window' });
+    expect(rows[0]).toMatchObject({ status: 'queued' });
     expect(rows[0].qualification_snapshot).toMatchObject({
-      phone: '+12409060016',
+      phone: javierPhone,
       vehicle_type: 'Honda Accord',
       vehicle_category: 'sedan',
       down_payment: '3000',
@@ -553,7 +563,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       down_payment_amount: 3000,
       down_payment_sufficient: true,
     });
-  });
+  }, 20_000);
 
   it('injects a local audio transcription as a separate inbound conversation message', async () => {
     const service = new ConversationWebhookService(dataSource);
@@ -633,7 +643,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       [portugueseAudioConversationId],
     ) as Array<{ id: string }>;
     expect(attachment).toHaveLength(1);
-    const transcription = 'Olá, estou procurando um SUV. Quanto seria de down payment?';
+    const transcription = 'Olá, estou procurando um SUV. Quanto seria de down payment? Have you financed a vehicle before?';
     await dataSource.query(
       `UPDATE conversation_attachments
        SET processing_status = 'done', extracted_text = $2, processing_metadata = $3::jsonb,

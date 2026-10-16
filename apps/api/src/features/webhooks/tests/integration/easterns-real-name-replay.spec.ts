@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { DataSource } from 'typeorm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ConversationWebhookService } from '../../application/conversation-webhook.service';
+import { GeoroutingService } from '../../../routing/domain/services/georouting.service';
 
 const databaseUrl = process.env.EASTERN_REAL_NAME_DATABASE_URL || process.env.DATABASE_URL;
 const describeDatabase = databaseUrl && /(localhost|127\.0\.0\.1)/i.test(databaseUrl) ? describe : describe.skip;
@@ -54,7 +55,7 @@ describeDatabase('Easterns real-name production replay', () => {
   });
 
   it('keeps Juiccy Zayy instead of promoting the first vehicle-intent message', async () => {
-    const service = new ConversationWebhookService(dataSource);
+    const service = new ConversationWebhookService(dataSource, new GeoroutingService(dataSource));
 
     for (const [index, message] of replay.messages.entries()) {
       const eventId = `${suffix}-${index}`;
@@ -68,7 +69,7 @@ describeDatabase('Easterns real-name production replay', () => {
         contact_phone: '',
         message_body: message,
         occurred_at: `2026-09-23T11:${String(index).padStart(2, '0')}:00.000Z`,
-      }, replay.source, { contactId, conversationId, messageId: `${eventId}-message` });
+      }, replay.source, { contactId, conversationId, messageId: `${eventId}-message`, testNow: new Date('2026-09-23T12:00:00.000Z') });
     }
 
     const rows = await dataSource.query(
@@ -86,7 +87,7 @@ describeDatabase('Easterns real-name production replay', () => {
   }, 20_000);
 
   it('replays the vehicle change for Stafford WhatsApp and Fredericksburg Messenger in local PostgreSQL', async () => {
-    const service = new ConversationWebhookService(dataSource);
+    const service = new ConversationWebhookService(dataSource, new GeoroutingService(dataSource));
     const scenarios = [
       {
         source: 'stafford',
@@ -123,6 +124,7 @@ describeDatabase('Easterns real-name production replay', () => {
           contactId: scenario.contactId,
           conversationId: scenario.conversationId,
           messageId: `${eventId}-message`,
+          testNow: new Date('2026-09-23T13:00:00.000Z'),
         });
       }
     }
@@ -151,7 +153,7 @@ describeDatabase('Easterns real-name production replay', () => {
   }, 20_000);
 
   it('does not persist Messenger campaign text as the lead name in local PostgreSQL', async () => {
-    const service = new ConversationWebhookService(dataSource);
+    const service = new ConversationWebhookService(dataSource, new GeoroutingService(dataSource));
     const conversationId = `${suffix}-information-label-conversation`;
     const messages = ['Busco una SUV', 'Baltimore', '4433782399', '1000'];
 
@@ -167,7 +169,7 @@ describeDatabase('Easterns real-name production replay', () => {
         contact_phone: '',
         message_body: message,
         occurred_at: `2026-09-24T10:${String(index).padStart(2, '0')}:00.000Z`,
-      }, 'easterns', { contactId: informationLabelContact, conversationId, messageId: `${eventId}-message` });
+      }, 'easterns', { contactId: informationLabelContact, conversationId, messageId: `${eventId}-message`, testNow: new Date('2026-09-24T11:30:00.000Z') });
     }
 
     const rows = await dataSource.query(
@@ -185,7 +187,7 @@ describeDatabase('Easterns real-name production replay', () => {
   }, 20_000);
 
   it('replays the exact Neon Stafford WhatsApp transcript and persists Andres instead of Precio de Hailader', async () => {
-    const service = new ConversationWebhookService(dataSource);
+    const service = new ConversationWebhookService(dataSource, new GeoroutingService(dataSource));
     const conversationId = `${suffix}-neon-stafford-conversation`;
     const messages = [
       '*Headline:* Off Lease Motors Of Stafford *Source URL:* https://fb.me/46LvP8ksN ¡Hola! Quiero más información',
@@ -215,6 +217,7 @@ describeDatabase('Easterns real-name production replay', () => {
         contactId: neonStaffordContact,
         conversationId,
         messageId: `${eventId}-message`,
+        testNow: new Date('2026-09-29T19:00:00.000Z'),
       });
     }
 
@@ -237,7 +240,7 @@ describeDatabase('Easterns real-name production replay', () => {
   }, 20_000);
 
   it('persists the ticket 0001 WhatsApp vehicle and name corrections in local PostgreSQL', async () => {
-    const service = new ConversationWebhookService(dataSource);
+    const service = new ConversationWebhookService(dataSource, new GeoroutingService(dataSource));
     const scenarios = [
       {
         source: 'stafford',
@@ -289,6 +292,7 @@ describeDatabase('Easterns real-name production replay', () => {
           contactId: scenario.contactId,
           conversationId: scenario.conversationId,
           messageId: `${eventId}-message`,
+          testNow: new Date('2026-09-24T12:00:00.000Z'),
         });
       }
     }
