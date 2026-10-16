@@ -82,4 +82,14 @@ describe('GhlGuardClient', () => {
     expect(result).toMatchObject({ ok: true, status: 200, requestPath: '/conversations/search?locationId=location-1&contactId=contact-1&limit=20&sort=desc', data: { conversation: { id: 'ghl-real-conversation' } } });
     expect(fetchMock).toHaveBeenCalledOnce();
   });
+
+  it('does not start another GHL request after the conversation deadline', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new GhlGuardClient().listMessages('pit-test-token', 'conversation-1', { deadlineAt: Date.now() - 1 });
+
+    expect(result).toMatchObject({ ok: false, status: 0, errorCode: 'GHL_TIMEOUT' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

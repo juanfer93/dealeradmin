@@ -49,7 +49,11 @@ export type GhlGuardMessagesResult = {
 const DEFAULT_BASE_URL = 'https://services.leadconnectorhq.com';
 const DEFAULT_VERSION = '2021-07-28';
 const DEFAULT_PAGE_LIMIT = 100;
-const DEFAULT_MAX_PAGES = 10;
+const DEFAULT_MAX_PAGES = 2;
+
+export type GhlGuardRequestOptions = {
+  deadlineAt?: number;
+};
 
 function positiveInteger(value: string | undefined, fallback: number): number {
   const parsed = Number(value ?? fallback);
@@ -83,9 +87,9 @@ export class GhlGuardClient {
   private readonly pageLimit = positiveInteger(process.env.GHL_GUARD_MESSAGE_PAGE_LIMIT, DEFAULT_PAGE_LIMIT);
   private readonly maxPages = positiveInteger(process.env.GHL_GUARD_MAX_PAGES, DEFAULT_MAX_PAGES);
 
-  async searchLatestConversation(token: string, locationId: string): Promise<GhlGuardFetchResult<{ conversations: GhlGuardConversation[]; total: number }>> {
+  async searchLatestConversation(token: string, locationId: string, options?: GhlGuardRequestOptions): Promise<GhlGuardFetchResult<{ conversations: GhlGuardConversation[]; total: number }>> {
     const path = `/conversations/search?locationId=${encodeURIComponent(locationId)}&limit=1&sort=desc`;
-    const response = await this.get<GhlSearchResponse>(path, token);
+    const response = await this.get<GhlSearchResponse>(path, token, options);
     if (!response.ok) return { ok: false, status: response.status, errorCode: response.errorCode, requestPath: path, responsePayload: response.responsePayload };
     const conversations = (response.data?.conversations ?? [])
       .filter((conversation): conversation is GhlGuardConversation => typeof conversation.id === 'string')
@@ -93,9 +97,9 @@ export class GhlGuardClient {
     return { ok: true, status: response.status, requestPath: path, data: { conversations, total: Number(response.data?.total ?? 0) } };
   }
 
-  async searchConversationByContact(token: string, locationId: string, contactId: string): Promise<GhlGuardFetchResult<{ conversation: GhlGuardConversation | null; total: number }>> {
+  async searchConversationByContact(token: string, locationId: string, contactId: string, options?: GhlGuardRequestOptions): Promise<GhlGuardFetchResult<{ conversation: GhlGuardConversation | null; total: number }>> {
     const path = `/conversations/search?locationId=${encodeURIComponent(locationId)}&contactId=${encodeURIComponent(contactId)}&limit=20&sort=desc`;
-    const response = await this.get<GhlSearchResponse>(path, token);
+    const response = await this.get<GhlSearchResponse>(path, token, options);
     if (!response.ok) return { ok: false, status: response.status, errorCode: response.errorCode, requestPath: path, responsePayload: response.responsePayload };
     const conversation = (response.data?.conversations ?? [])
       .find((candidate) => typeof candidate.id === 'string' && (!candidate.locationId || candidate.locationId === locationId));
@@ -110,7 +114,7 @@ export class GhlGuardClient {
     };
   }
 
-  async listMessages(token: string, conversationId: string): Promise<GhlGuardFetchResult<GhlGuardMessagesResult>> {
+  async listMessages(token: string, conversationId: string, options?: GhlGuardRequestOptions): Promise<GhlGuardFetchResult<GhlGuardMessagesResult>> {
     const messages: GhlGuardMessage[] = [];
     let lastMessageId: string | undefined;
     let pages = 0;
@@ -122,7 +126,7 @@ export class GhlGuardClient {
       const query = new URLSearchParams({ limit: String(this.pageLimit) });
       if (lastMessageId) query.set('lastMessageId', lastMessageId);
       const path = `${requestPath}?${query.toString()}`;
-      const response = await this.get<GhlMessagesResponse>(path, token);
+      const response = await this.get<GhlMessagesResponse>(path, token, options);
       if (!response.ok) return { ok: false, status: response.status, errorCode: response.errorCode, requestPath, responsePayload: response.responsePayload };
 
       responsePayload.push(response.data);
@@ -144,11 +148,13 @@ export class GhlGuardClient {
     };
   }
 
-  private async get<T>(path: string, token: string): Promise<GhlGuardFetchResult<T>> {
+  private async get<T>(path: string, token: string, options: GhlGuardRequestOptions = {}): Promise<GhlGuardFetchResult<T>> {
     const attempts = 3;
     for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const remainingMs = options.deadlineAt === undefined ? Infinity : options.deadlineAt - Date.now();
+      if (remainingMs <= 0) return { ok: false, status: 0, errorCode: 'GHL_TIMEOUT', requestPath: path };
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+      const timeout = setTimeout(() => controller.abort(), Math.max(1, Math.min(this.timeoutMs, remainingMs)));
       try {
         const response = await fetch(`${this.baseUrl}${path}`, {
           method: 'GET',

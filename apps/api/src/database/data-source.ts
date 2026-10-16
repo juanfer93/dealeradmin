@@ -34,6 +34,7 @@ import { LeadReengagementQueue1710000032000 } from './migrations/1710000032000-L
 import { ReengagementCount1710000033000 } from './migrations/1710000033000-ReengagementCount';
 import { GhlGuardLogs1710000034000 } from './migrations/1710000034000-GhlGuardLogs';
 import { GhlGuardLifecycle1710000035000 } from './migrations/1710000035000-GhlGuardLifecycle';
+import { GhlGuardLeases1710000036000 } from './migrations/1710000036000-GhlGuardLeases';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -81,6 +82,7 @@ export const AppDataSource = new DataSource({
     ReengagementCount1710000033000,
     GhlGuardLogs1710000034000,
     GhlGuardLifecycle1710000035000,
+    GhlGuardLeases1710000036000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,

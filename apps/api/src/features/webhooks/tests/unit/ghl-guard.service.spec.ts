@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GHL_SOURCE_CONFIG } from '../../application/functions/conversation-webhook.config';
-import { ghlGuardBatchSize, ghlGuardConcurrency, ghlGuardTimeoutMs } from '../../application/ghl-guard.config';
+import { ghlGuardBatchSize, ghlGuardConcurrency, ghlGuardConversationTimeoutMs, ghlGuardTimeoutMs } from '../../application/ghl-guard.config';
 import { GhlGuardService } from '../../application/ghl-guard.service';
 
 describe('GhlGuardService', () => {
@@ -27,9 +27,10 @@ describe('GhlGuardService', () => {
     process.env.GHL_GUARD_CONCURRENCY = '25';
     process.env.GHL_GUARD_TIMEOUT_MS = '60000';
 
-    expect(ghlGuardBatchSize()).toBe(5);
-    expect(ghlGuardConcurrency()).toBe(5);
+    expect(ghlGuardBatchSize()).toBe(2);
+    expect(ghlGuardConcurrency()).toBe(2);
     expect(ghlGuardTimeoutMs()).toBe(15_000);
+    expect(ghlGuardConversationTimeoutMs()).toBe(20_000);
   });
 
   it('fetches, persists, reconciles, and logs a local conversation', async () => {
@@ -87,7 +88,7 @@ describe('GhlGuardService', () => {
     const result = await service.run(new Date('2026-10-16T12:00:00.000Z'));
 
     expect(result).toMatchObject({ enabled: true, skipped: false, selected: 1, fetched: 1, inserted: 1, repaired: 0, failed: 0 });
-    expect(client.listMessages).toHaveBeenCalledWith('pit-test-token', 'ghl-conversation-1');
+    expect(client.listMessages).toHaveBeenCalledWith('pit-test-token', 'ghl-conversation-1', { deadlineAt: expect.any(Number) });
     expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(row.id, new Date('2026-10-16T12:00:00.000Z'), true, true);
     expect(persistRunner.commitTransaction).toHaveBeenCalledOnce();
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO ghl_guard_logs'), expect.any(Array));
@@ -129,8 +130,8 @@ describe('GhlGuardService', () => {
     const result = await service.run(new Date('2026-10-16T12:00:00.000Z'));
 
     expect(result).toMatchObject({ selected: 1, fetched: 1, inserted: 1, failed: 0 });
-    expect(client.searchConversationByContact).toHaveBeenCalledWith('pit-test-token', row.ghl_location_id, row.ghl_contact_id);
-    expect(client.listMessages).toHaveBeenCalledWith('pit-test-token', 'ghl-real-conversation');
+    expect(client.searchConversationByContact).toHaveBeenCalledWith('pit-test-token', row.ghl_location_id, row.ghl_contact_id, { deadlineAt: expect.any(Number) });
+    expect(client.listMessages).toHaveBeenCalledWith('pit-test-token', 'ghl-real-conversation', { deadlineAt: expect.any(Number) });
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining("SET ghl_conversation_id = $2"), [row.id, 'ghl-real-conversation']);
   });
 });

@@ -9,9 +9,11 @@ import { ConversationReconciliationFunctions } from './functions/conversation-re
 import {
   ghlGuardBatchSize,
   ghlGuardConcurrency,
+  ghlGuardConversationTimeoutMs,
   GHL_GUARD_LOCK_KEY,
   ghlGuardEnabled,
   ghlGuardIntervalMs,
+  ghlGuardRetryDelayMs,
   ghlGuardStaleLogMs,
   GHL_GUARD_TOKEN_ENV_BY_SOURCE,
 } from './ghl-guard.config';
@@ -111,6 +113,18 @@ export class GhlGuardService {
          FROM conversations
          WHERE status NOT IN ('queued', 'sent', 'duplicate_ignored', 'ignored_channel', 'stale_phone_ignored')
            AND ghl_location_id = ANY($2::text[])
+           AND NOT EXISTS (
+             SELECT 1 FROM ghl_guard_logs active_guard
+             WHERE active_guard.conversation_id = conversations.id
+               AND active_guard.status IN ('pending', 'running')
+               AND COALESCE(active_guard.lease_expires_at, active_guard.started_at, active_guard.scheduled_at) > CURRENT_TIMESTAMP
+           )
+           AND NOT EXISTS (
+             SELECT 1 FROM ghl_guard_logs retry_guard
+             WHERE retry_guard.conversation_id = conversations.id
+               AND retry_guard.status = 'failed'
+               AND retry_guard.next_retry_at > CURRENT_TIMESTAMP
+           )
          ORDER BY last_message_at DESC NULLS LAST, updated_at DESC
          LIMIT $1`,
         [ghlGuardBatchSize(), RECONCILIATION_LOCATION_IDS],
@@ -138,6 +152,7 @@ export class GhlGuardService {
     const startedAt = new Date();
     await this.updateLog(logId, 'running', { startedAt });
     try {
+      const deadlineAt = Date.now() + ghlGuardConversationTimeoutMs();
       const source = sourceForLocation(this.sourceConfig, row.ghl_location_id);
       if (!source) {
         result.failed += 1;
@@ -159,7 +174,7 @@ export class GhlGuardService {
           await this.updateLog(logId, 'failed', { errorCode: 'GHL_CONVERSATION_LOOKUP_UNAVAILABLE', source, finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });
           return;
         }
-        const lookup = await this.client.searchConversationByContact(token, row.ghl_location_id, row.ghl_contact_id);
+        const lookup = await this.client.searchConversationByContact(token, row.ghl_location_id, row.ghl_contact_id, { deadlineAt });
         lookupMetadata = { conversationLookup: { requestPath: lookup.requestPath, httpStatus: lookup.status, resolved: Boolean(lookup.data?.conversation?.id) } };
         if (!lookup.ok || !lookup.data?.conversation?.id) {
           result.failed += 1;
@@ -184,7 +199,7 @@ export class GhlGuardService {
         );
         effectiveRow = { ...row, ghl_conversation_id: conversationId };
       }
-      const fetched = await this.client.listMessages(token, conversationId);
+      const fetched = await this.client.listMessages(token, conversationId, { deadlineAt });
       if (!fetched.ok || !fetched.data) {
         result.failed += 1;
         await this.updateLog(logId, 'failed', {
@@ -340,14 +355,19 @@ export class GhlGuardService {
              finished_at = $1::timestamptz,
              duration_ms = GREATEST(0, EXTRACT(EPOCH FROM ($1::timestamptz - COALESCE(started_at, scheduled_at))) * 1000)::integer,
              error_code = COALESCE(error_code, 'GHL_GUARD_STALE_RUN'),
+             next_retry_at = $1::timestamptz + ($2::integer * INTERVAL '1 millisecond'),
+             lease_expires_at = NULL,
              metadata = jsonb_set(
                metadata || jsonb_build_object('recoveredAt', $1::text, 'recoveryReason', 'stale_guard_log'),
                '{lifecycle}',
                COALESCE(metadata->'lifecycle', '[]'::jsonb) || jsonb_build_array('stale_recovered')
              )
          WHERE status IN ('pending', 'running')
-           AND COALESCE(started_at, scheduled_at) < $1::timestamptz - ($2::integer * INTERVAL '1 millisecond')`,
-        [now.toISOString(), ghlGuardStaleLogMs()],
+           AND (
+             (lease_expires_at IS NOT NULL AND lease_expires_at < $1::timestamptz)
+             OR (lease_expires_at IS NULL AND COALESCE(started_at, scheduled_at) < $1::timestamptz - ($3::integer * INTERVAL '1 millisecond'))
+           )`,
+        [now.toISOString(), ghlGuardRetryDelayMs(), ghlGuardStaleLogMs()],
       );
     } catch {
       // Stale-log recovery is audit hygiene and must not block message repair.
@@ -381,11 +401,18 @@ export class GhlGuardService {
     if (!this.dataSource) return null;
     try {
       const rows = await this.dataSource.query(
-        `INSERT INTO ghl_guard_logs
-          (run_id, ghl_location_id, ghl_contact_id, ghl_conversation_id, conversation_id, status, scheduled_at, metadata)
-         VALUES ($1, $2, $3, $4, $5, $6, $7::timestamptz, $8::jsonb)
+        `WITH previous_attempt AS (
+           SELECT COALESCE(MAX(attempt_count), 0) + 1 AS attempt_count
+           FROM ghl_guard_logs WHERE conversation_id = $5
+         )
+         INSERT INTO ghl_guard_logs
+          (run_id, ghl_location_id, ghl_contact_id, ghl_conversation_id, conversation_id, status, scheduled_at, lease_expires_at, metadata)
+         SELECT $1, $2, $3, $4, $5, $6, $7::timestamptz, $8::timestamptz,
+                jsonb_build_object('lifecycle', jsonb_build_array('pending'), 'attemptCount', previous_attempt.attempt_count)
+         FROM previous_attempt
          RETURNING id`,
-        [runId, row.ghl_location_id, row.ghl_contact_id, row.ghl_conversation_id, row.id, status, scheduledAt.toISOString(), JSON.stringify({ lifecycle: ['pending'] })],
+        [runId, row.ghl_location_id, row.ghl_contact_id, row.ghl_conversation_id, row.id, status,
+          scheduledAt.toISOString(), new Date(scheduledAt.getTime() + ghlGuardConversationTimeoutMs()).toISOString()],
       ) as Array<{ id: string }>;
       return rows[0]?.id ?? null;
     } catch {
@@ -420,6 +447,8 @@ export class GhlGuardService {
              request_path = COALESCE($11, request_path),
              error_code = COALESCE($12, error_code),
              response_payload = COALESCE($13::jsonb, response_payload),
+             next_retry_at = CASE WHEN $2 = 'failed' THEN CURRENT_TIMESTAMP + ($16::integer * INTERVAL '1 millisecond') ELSE next_retry_at END,
+             lease_expires_at = CASE WHEN $2 IN ('pending', 'running') THEN COALESCE(lease_expires_at, CURRENT_TIMESTAMP + ($17::integer * INTERVAL '1 millisecond')) ELSE NULL END,
              metadata = jsonb_set(metadata || $14::jsonb, '{lifecycle}',
                COALESCE(metadata->'lifecycle', '[]'::jsonb) || jsonb_build_array($15::text))
          WHERE id = $1`,
@@ -429,7 +458,8 @@ export class GhlGuardService {
           explicitDuration ?? derivedDuration,
           details.fetchedMessages ?? null, details.insertedMessages ?? null, details.repairedMessages ?? null,
           details.reconciled === true ? true : null, details.httpStatus ?? null, details.requestPath ?? null,
-          details.errorCode ?? null, details.responsePayload === undefined ? null : JSON.stringify(details.responsePayload), JSON.stringify(metadata), status],
+          details.errorCode ?? null, details.responsePayload === undefined ? null : JSON.stringify(details.responsePayload), JSON.stringify(metadata), status,
+          ghlGuardRetryDelayMs(), ghlGuardConversationTimeoutMs()],
       );
     } catch {
       // Audit persistence must never block conversation processing.

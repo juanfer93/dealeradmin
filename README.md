@@ -34,7 +34,7 @@ Para diagnosticar una conversación se debe seguir toda la cadena en Neon:
 2. `webhook_processing_attempts`: confirma si la aplicación intentó procesarla y cuánto tardó.
 3. `conversations` + `conversation_messages`: confirma la relación, el estado, el snapshot y los mensajes persistidos. Solo los mensajes `inbound` son evidencia del cliente; los `outbound` se conservan para auditoría.
 4. `conversation_attachments`: confirma extracción de texto o procesamiento de medios.
-5. `ghl_guard_logs`: confirma si el guard consultó GHL, cuántos mensajes encontró, insertó o reparó, si ejecutó reconciliación y si falló.
+5. `ghl_guard_logs`: confirma si el guard consultó GHL, cuántos mensajes encontró, insertó o reparó, si ejecutó reconciliación y si falló. También conserva el ciclo de vida auditable (`pending`, `running`, `succeeded`/`failed`), el intento, el lease y el próximo reintento (`attempt_count`, `lease_expires_at`, `next_retry_at`).
 
 Ejemplo de auditoría por conversación:
 

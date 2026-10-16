@@ -47,4 +47,4 @@ GHL_GUARD_MESSAGE_PAGE_LIMIT=100
 GHL_GUARD_MAX_PAGES=10
 ```
 
-El guard limita cada ciclo a cinco conversaciones y cuatro lecturas concurrentes. El timeout efectivo de GHL está limitado a 15 segundos aunque una variable de entorno tenga un valor mayor; así una latencia excepcional no deja el cron bloqueado durante minutos. `duration_ms` conserva la duración calculada de cada intento, incluyendo los fallidos.
+El guard procesa una conversación por ciclo por defecto (se puede ampliar hasta dos), con una sola lectura concurrente y un deadline total de 20 segundos por conversación. Cada intento deja `scheduled_at`, `started_at`, `finished_at`, `attempt_count`, `next_retry_at` y `lease_expires_at` en `ghl_guard_logs`: una fila `pending`/`running` con lease vigente no se duplica, y un fallo vuelve a intentarse en el siguiente ciclo de cinco minutos. `duration_ms` conserva la duración calculada de cada intento, incluyendo los fallidos. El guard sigue siendo aditivo: nunca borra ni reemplaza datos existentes.
