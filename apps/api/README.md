@@ -33,6 +33,8 @@ Las migraciones `1710000034000-GhlGuardLogs` y `1710000035000-GhlGuardLifecycle`
 
 Cada fila conserva el ciclo `pending` → `running` → `succeeded`/`failed`/`skipped` en `metadata.lifecycle`, junto con `scheduled_at`, `started_at`, `finished_at`, `duration_ms`, `http_status`, `request_path`, `error_code` y `response_payload`.
 
+El ciclo automático de cinco minutos lo ejecuta GitHub Actions mediante `.github/workflows/process-due-conversations.yml`. El repositorio debe tener configurado el secreto `CRON_SECRET`, con el mismo valor que usa la API. El cron mensual permanece en Vercel; no se debe mover el guard de cinco minutos a `vercel.json` mientras el proyecto esté en el plan Hobby.
+
 Variables opcionales:
 
 ```env

@@ -5,6 +5,12 @@ on:
     - cron: '*/5 * * * *'
   workflow_dispatch:
 
+permissions: {}
+
+concurrency:
+  group: process-due-conversations
+  cancel-in-progress: false
+
 jobs:
   process-due:
     runs-on: ubuntu-latest

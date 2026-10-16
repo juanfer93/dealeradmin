@@ -26,6 +26,8 @@ Vercel runs `pnpm --filter api migrate` before `pnpm build`, so every production
 
 La recepción del webhook sigue siendo la fuente principal. El GHL Guard es una capa de auditoría y reparación que prioriza conversaciones con `last_message_at` más reciente, vuelve a leer sus mensajes mediante el token privado de la subcuenta y reutiliza la normalización existente únicamente cuando encuentra datos faltantes o atrasados por latencia. No reemplaza el webhook ni cambia las reglas de routing.
 
+El scheduler del guard está en GitHub Actions, en `.github/workflows/process-due-conversations.yml`, y se ejecuta cada cinco minutos contra `GET /api/webhooks/ghl/conversations/process-due`. El workflow usa el secreto de repositorio `CRON_SECRET` y también puede ejecutarse manualmente con `workflow_dispatch`. No se configura ese intervalo en `vercel.json` porque la cuenta Hobby de Vercel solo permite cron jobs diarios; Vercel conserva únicamente el cron mensual del reporte.
+
 Para diagnosticar una conversación se debe seguir toda la cadena en Neon:
 
 1. `webhook_ingress_logs`: confirma si GHL entregó la petición.
