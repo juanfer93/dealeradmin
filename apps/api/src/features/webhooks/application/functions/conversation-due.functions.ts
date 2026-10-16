@@ -19,7 +19,7 @@ export class ConversationDueFunctions {
     private readonly guard?: GhlGuardService,
   ) {}
 
-  async processDueConversations(now: Date, options: { reconcileActive?: boolean } = {}): Promise<DueConversationResponse> {
+  async processDueConversations(now: Date, options: { reconcileActive?: boolean; runGuard?: boolean } = {}): Promise<DueConversationResponse> {
     if (!this.dataSource) {
       if (process.env.NODE_ENV === 'test') return { accepted: true, processed: 0 };
       throw new ServiceUnavailableException('Database connection is not available');
@@ -42,7 +42,7 @@ export class ConversationDueFunctions {
     if (options.reconcileActive !== false) await this.reconciliation.reconcileActiveConversations(now);
     let guardResult: GhlGuardRunResult | undefined;
     let guardError: string | undefined;
-    if (options.reconcileActive !== false) {
+    if (options.runGuard !== false) {
       try {
         // Reconciliation can take longer than the caller's initial timestamp.
         // The guard must lease from the real execution time, not that stale timestamp.

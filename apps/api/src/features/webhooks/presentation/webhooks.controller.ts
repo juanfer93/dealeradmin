@@ -88,9 +88,15 @@ export class WebhooksController {
   @Get('ghl/conversations/process-due')
   @UseGuards(HmacSignatureGuard)
   processDueConversationsCron() {
-    // The bounded active reconciliation repairs old partial conversations
-    // whose phone/vehicle/down evidence was already persisted in messages.
-    return this.conversationWebhookService.processDueConversations();
+    // GitHub Actions invokes this endpoint every five minutes. Keep the
+    // request focused on due releases plus the GHL guard so the serverless
+    // time budget is not consumed by the heavier active reconciliation pass.
+    // The guard then fetches GHL messages and applies the existing additive
+    // normalizer to fill only data missing locally because of latency.
+    return this.conversationWebhookService.processDueConversations(undefined, {
+      reconcileActive: false,
+      runGuard: true,
+    });
   }
 
   @Post('ghl/conversations/:conversationId/reconcile-media')

@@ -33,6 +33,8 @@ Las migraciones `1710000034000-GhlGuardLogs`, `1710000035000-GhlGuardLifecycle`,
 
 Cada fila conserva el ciclo `pending` → `running` → `succeeded`/`failed`/`skipped` en `metadata.lifecycle`, junto con `scheduled_at`, `started_at`, `finished_at`, `duration_ms`, `http_status`, `request_path`, `error_code` y `response_payload`. `lead_metadata` guarda el snapshot local del lead, su conversación y sus relaciones `lead_dealers` que el guard usó para reconciliar. `completed_fields` guarda únicamente los campos que pasaron de vacío a valor, con `before`, `after` y `source: "ghl_guard"`; queda `NULL` cuando no se recuperó ningún campo. El snapshot no elimina ni reemplaza valores existentes.
 
+El endpoint del cron ejecuta la liberación de vencidos y el guard en el mismo request, pero deja fuera la pasada pesada de reconciliación activa para conservar el presupuesto de tiempo de la función serverless. La reparación de latencia ocurre cuando el guard vuelve a leer GHL, inserta los mensajes que falten y ejecuta la normalización aditiva; una conversación que ya tiene información en GHL puede completar su copia local en el siguiente ciclo de cinco minutos sin borrar datos existentes.
+
 El ciclo automático de cinco minutos lo ejecuta GitHub Actions mediante `.github/workflows/process-due-conversations.yml`. El repositorio debe tener configurado el secreto `CRON_SECRET`, con el mismo valor que usa la API. El cron mensual permanece en Vercel; no se debe mover el guard de cinco minutos a `vercel.json` mientras el proyecto esté en el plan Hobby.
 
 Variables opcionales:
