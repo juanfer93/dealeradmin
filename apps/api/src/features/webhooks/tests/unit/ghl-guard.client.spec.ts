@@ -48,6 +48,16 @@ describe('GhlGuardClient', () => {
     expect(JSON.stringify(result)).not.toContain('pit-secret');
   });
 
+  it('keeps an HTTP error payload for guard auditing without leaking the token', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: 'conversation id is invalid' }), { status: 400 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new GhlGuardClient().listMessages('pit-secret', 'contact:contact-1:messenger');
+
+    expect(result).toMatchObject({ ok: false, status: 400, errorCode: 'GHL_HTTP_400', responsePayload: { message: 'conversation id is invalid' } });
+    expect(JSON.stringify(result)).not.toContain('pit-secret');
+  });
+
   it('retries transient GHL failures and returns the successful page', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response('{}', { status: 503 }))
@@ -59,5 +69,17 @@ describe('GhlGuardClient', () => {
     expect(result.ok).toBe(true);
     expect(result.data?.pages).toBe(1);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('resolves a real conversation id by contact when the webhook id is synthetic', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      conversations: [{ id: 'ghl-real-conversation', locationId: 'location-1' }], total: 1,
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new GhlGuardClient().searchConversationByContact('pit-test-token', 'location-1', 'contact-1');
+
+    expect(result).toMatchObject({ ok: true, status: 200, requestPath: '/conversations/search?locationId=location-1&contactId=contact-1&limit=20&sort=desc', data: { conversation: { id: 'ghl-real-conversation' } } });
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 });

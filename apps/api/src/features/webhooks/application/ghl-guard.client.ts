@@ -34,6 +34,7 @@ export type GhlGuardFetchResult<T> = {
   data?: T;
   errorCode?: string;
   requestPath?: string;
+  responsePayload?: unknown;
 };
 
 export type GhlGuardMessagesResult = {
@@ -84,11 +85,28 @@ export class GhlGuardClient {
   async searchLatestConversation(token: string, locationId: string): Promise<GhlGuardFetchResult<{ conversations: GhlGuardConversation[]; total: number }>> {
     const path = `/conversations/search?locationId=${encodeURIComponent(locationId)}&limit=1&sort=desc`;
     const response = await this.get<GhlSearchResponse>(path, token);
-    if (!response.ok) return { ok: false, status: response.status, errorCode: response.errorCode };
+    if (!response.ok) return { ok: false, status: response.status, errorCode: response.errorCode, requestPath: path, responsePayload: response.responsePayload };
     const conversations = (response.data?.conversations ?? [])
       .filter((conversation): conversation is GhlGuardConversation => typeof conversation.id === 'string')
       .map((conversation) => ({ id: conversation.id, locationId: conversation.locationId }));
-    return { ok: true, status: response.status, data: { conversations, total: Number(response.data?.total ?? 0) } };
+    return { ok: true, status: response.status, requestPath: path, data: { conversations, total: Number(response.data?.total ?? 0) } };
+  }
+
+  async searchConversationByContact(token: string, locationId: string, contactId: string): Promise<GhlGuardFetchResult<{ conversation: GhlGuardConversation | null; total: number }>> {
+    const path = `/conversations/search?locationId=${encodeURIComponent(locationId)}&contactId=${encodeURIComponent(contactId)}&limit=20&sort=desc`;
+    const response = await this.get<GhlSearchResponse>(path, token);
+    if (!response.ok) return { ok: false, status: response.status, errorCode: response.errorCode, requestPath: path, responsePayload: response.responsePayload };
+    const conversation = (response.data?.conversations ?? [])
+      .find((candidate) => typeof candidate.id === 'string' && (!candidate.locationId || candidate.locationId === locationId));
+    return {
+      ok: true,
+      status: response.status,
+      requestPath: path,
+      data: {
+        conversation: conversation?.id ? { id: conversation.id, locationId: conversation.locationId } : null,
+        total: Number(response.data?.total ?? 0),
+      },
+    };
   }
 
   async listMessages(token: string, conversationId: string): Promise<GhlGuardFetchResult<GhlGuardMessagesResult>> {
@@ -104,7 +122,7 @@ export class GhlGuardClient {
       if (lastMessageId) query.set('lastMessageId', lastMessageId);
       const path = `${requestPath}?${query.toString()}`;
       const response = await this.get<GhlMessagesResponse>(path, token);
-      if (!response.ok) return { ok: false, status: response.status, errorCode: response.errorCode, requestPath };
+      if (!response.ok) return { ok: false, status: response.status, errorCode: response.errorCode, requestPath, responsePayload: response.responsePayload };
 
       responsePayload.push(response.data);
       const payload = response.data?.messages;
@@ -147,7 +165,9 @@ export class GhlGuardClient {
           await new Promise((resolve) => setTimeout(resolve, retryDelayMs(response, attempt)));
           continue;
         }
-        return { ok: false, status: response.status, errorCode: safeErrorCode(response.status, undefined) };
+        let responsePayload: unknown;
+        try { responsePayload = await response.json(); } catch { /* Some gateway errors have no JSON body. */ }
+        return { ok: false, status: response.status, errorCode: safeErrorCode(response.status, undefined), responsePayload };
       } catch (error) {
         if (attempt < attempts - 1 && (!(error instanceof Error) || error.name !== 'AbortError')) {
           await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));

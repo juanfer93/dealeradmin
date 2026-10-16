@@ -187,8 +187,14 @@ describeDatabaseCase('new contact versus reengagement classification with local 
       [fixture.leadId, dealerId],
     );
     await dataSource.query(
+      `UPDATE conversations
+       SET created_at = '2026-10-12T17:59:00.000Z', first_message_at = '2026-10-12T18:00:00.000Z', last_message_at = '2026-10-12T18:00:00.000Z'
+       WHERE id = $1`,
+      [fixture.conversationId],
+    );
+    await dataSource.query(
       `UPDATE lead_dealers
-       SET created_at = '2026-10-12T17:59:00.000Z'
+       SET created_at = '2026-10-12T18:01:00.000Z'
        WHERE lead_id = $1 AND dealer_id = $2`,
       [fixture.leadId, dealerId],
     );

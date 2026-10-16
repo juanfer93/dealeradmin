@@ -82,4 +82,43 @@ describe('GhlGuardService', () => {
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO ghl_guard_logs'), expect.any(Array));
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE ghl_guard_logs'), expect.any(Array));
   });
+
+  it('resolves a synthetic conversation id by contact and persists the real GHL id', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.GHL_GUARD_ENABLED = 'true';
+    process.env.GHL_GUARD_INTERVAL_MS = '1';
+    process.env.GHL_PRIVATE_TOKEN_STAFFORD = 'pit-test-token';
+
+    const row = {
+      id: 'conversation-synthetic', ghl_location_id: GHL_SOURCE_CONFIG.stafford.locationId,
+      ghl_contact_id: 'contact-1', ghl_conversation_id: 'contact:contact-1:whatsapp', status: 'waiting_window',
+    };
+    const lockRunner = {
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : sql.includes('FROM conversations') ? [row] : []),
+      release: vi.fn(),
+    };
+    const persistRunner = {
+      connect: vi.fn(), startTransaction: vi.fn(), isTransactionActive: true,
+      query: vi.fn(async (sql: string) => sql.includes('FOR UPDATE') ? [{ id: row.id, status: row.status }] : sql.includes('INSERT INTO conversation_messages') ? [{ id: 'message-1' }] : []),
+      commitTransaction: vi.fn(), rollbackTransaction: vi.fn(), release: vi.fn(),
+    };
+    const dataSource = {
+      createQueryRunner: vi.fn().mockReturnValueOnce(lockRunner).mockReturnValueOnce(persistRunner),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_logs') ? [{ id: 'guard-log-1' }] : []),
+    };
+    const client = {
+      searchConversationByContact: vi.fn().mockResolvedValue({ ok: true, status: 200, requestPath: '/conversations/search', data: { conversation: { id: 'ghl-real-conversation' }, total: 1 } }),
+      listMessages: vi.fn().mockResolvedValue({ ok: true, status: 200, requestPath: '/conversations/ghl-real-conversation/messages', data: { messages: [{ id: 'message-1', body: 'Busco una troca', direction: 'inbound', dateAdded: '2026-10-16T11:59:00.000Z' }], pages: 1, truncated: false, responsePayload: [{ messages: [] }] } }),
+    };
+    const reconciliation = { reconcileConversation: vi.fn().mockResolvedValue(undefined) };
+    const service = new GhlGuardService(dataSource as never, reconciliation as never, GHL_SOURCE_CONFIG, client);
+
+    const result = await service.run(new Date('2026-10-16T12:00:00.000Z'));
+
+    expect(result).toMatchObject({ selected: 1, fetched: 1, inserted: 1, failed: 0 });
+    expect(client.searchConversationByContact).toHaveBeenCalledWith('pit-test-token', row.ghl_location_id, row.ghl_contact_id);
+    expect(client.listMessages).toHaveBeenCalledWith('pit-test-token', 'ghl-real-conversation');
+    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining("SET ghl_conversation_id = $2"), [row.id, 'ghl-real-conversation']);
+  });
 });

@@ -11,6 +11,7 @@ import {
   GHL_GUARD_LOCK_KEY,
   ghlGuardEnabled,
   ghlGuardIntervalMs,
+  ghlGuardStaleLogMs,
   GHL_GUARD_TOKEN_ENV_BY_SOURCE,
 } from './ghl-guard.config';
 import { GhlGuardClient, type GhlGuardMessage } from './ghl-guard.client';
@@ -19,7 +20,7 @@ type GuardConversationRow = {
   id: string;
   ghl_location_id: string;
   ghl_contact_id: string;
-  ghl_conversation_id: string;
+  ghl_conversation_id: string | null;
   status: string;
 };
 
@@ -39,7 +40,11 @@ export type GhlGuardRunResult = {
   failed: number;
 };
 
-type GhlGuardClientPort = Pick<GhlGuardClient, 'listMessages'>;
+type GhlGuardClientPort = Pick<GhlGuardClient, 'listMessages'> & Partial<Pick<GhlGuardClient, 'searchConversationByContact'>>;
+
+function needsConversationLookup(conversationId: string | null): boolean {
+  return !conversationId?.trim() || conversationId.trim().startsWith('contact:');
+}
 
 function sourceForLocation(sourceConfig: SourceConfigMap, locationId: string): SourceKey | undefined {
   return Object.entries(sourceConfig).find(([, config]) => config.locationId === locationId)?.[0] as SourceKey | undefined;
@@ -99,6 +104,7 @@ export class GhlGuardService {
     try {
       const locked = await lockRunner.query(`SELECT pg_try_advisory_lock(hashtext($1)) AS locked`, [GHL_GUARD_LOCK_KEY]) as Array<{ locked: boolean }>;
       if (!locked[0]?.locked) return { ...result, skipped: true };
+      await this.recoverStaleLogs(now);
       const rows = await lockRunner.query(
         `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status
          FROM conversations
@@ -126,7 +132,41 @@ export class GhlGuardService {
             await this.updateLog(logId, 'failed', { errorCode: 'GHL_TOKEN_MISSING', source, finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });
             continue;
           }
-          const fetched = await this.client.listMessages(token, row.ghl_conversation_id);
+          let effectiveRow = row;
+          let conversationId = row.ghl_conversation_id?.trim() ?? '';
+          let lookupMetadata: Record<string, unknown> = {};
+          if (needsConversationLookup(row.ghl_conversation_id)) {
+            if (!this.client.searchConversationByContact) {
+              result.failed += 1;
+              await this.updateLog(logId, 'failed', { errorCode: 'GHL_CONVERSATION_LOOKUP_UNAVAILABLE', source, finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });
+              continue;
+            }
+            const lookup = await this.client.searchConversationByContact(token, row.ghl_location_id, row.ghl_contact_id);
+            lookupMetadata = { conversationLookup: { requestPath: lookup.requestPath, httpStatus: lookup.status, resolved: Boolean(lookup.data?.conversation?.id) } };
+            if (!lookup.ok || !lookup.data?.conversation?.id) {
+              result.failed += 1;
+              await this.updateLog(logId, 'failed', {
+                errorCode: lookup.errorCode || 'GHL_CONVERSATION_NOT_FOUND',
+                source,
+                httpStatus: lookup.status,
+                requestPath: lookup.requestPath,
+                responsePayload: lookup.responsePayload,
+                finishedAt: new Date(),
+                durationMs: Date.now() - startedAt.getTime(),
+                ...lookupMetadata,
+              });
+              continue;
+            }
+            conversationId = lookup.data.conversation.id;
+            await this.dataSource.query(
+              `UPDATE conversations
+               SET ghl_conversation_id = $2, updated_at = CURRENT_TIMESTAMP
+               WHERE id = $1 AND (ghl_conversation_id IS NULL OR ghl_conversation_id LIKE 'contact:%')`,
+              [row.id, conversationId],
+            );
+            effectiveRow = { ...row, ghl_conversation_id: conversationId };
+          }
+          const fetched = await this.client.listMessages(token, conversationId);
           if (!fetched.ok || !fetched.data) {
             result.failed += 1;
             await this.updateLog(logId, 'failed', {
@@ -134,13 +174,15 @@ export class GhlGuardService {
               source,
               httpStatus: fetched.status,
               requestPath: fetched.requestPath,
+              responsePayload: fetched.responsePayload,
               finishedAt: new Date(),
               durationMs: Date.now() - startedAt.getTime(),
+              ...lookupMetadata,
             });
             continue;
           }
           result.fetched += fetched.data.messages.length;
-          const persisted = await this.persistMessages(row, fetched.data.messages);
+          const persisted = await this.persistMessages(effectiveRow, fetched.data.messages);
           if (persisted.skipped) {
             await this.updateLog(logId, 'skipped', {
               source,
@@ -152,12 +194,13 @@ export class GhlGuardService {
               truncated: fetched.data.truncated,
               finishedAt: new Date(),
               durationMs: Date.now() - startedAt.getTime(),
+              ...lookupMetadata,
             });
             continue;
           }
           result.inserted += persisted.inserted;
           result.repaired += persisted.repaired;
-          await this.reconciliation.reconcileConversation(row.id, now, true, true);
+          await this.reconciliation.reconcileConversation(effectiveRow.id, now, true, true);
           await this.updateLog(logId, 'succeeded', {
             source,
             fetchedMessages: fetched.data.messages.length,
@@ -171,6 +214,7 @@ export class GhlGuardService {
             reconciled: true,
             finishedAt: new Date(),
             durationMs: Date.now() - startedAt.getTime(),
+            ...lookupMetadata,
           });
         } catch (error) {
           result.failed += 1;
@@ -278,6 +322,28 @@ export class GhlGuardService {
       throw error;
     } finally {
       await runner.release();
+    }
+  }
+
+  private async recoverStaleLogs(now: Date): Promise<void> {
+    try {
+      await this.dataSource?.query(
+        `UPDATE ghl_guard_logs
+         SET status = 'failed',
+             finished_at = $1::timestamptz,
+             duration_ms = GREATEST(0, EXTRACT(EPOCH FROM ($1::timestamptz - COALESCE(started_at, scheduled_at))) * 1000)::integer,
+             error_code = COALESCE(error_code, 'GHL_GUARD_STALE_RUN'),
+             metadata = jsonb_set(
+               metadata || jsonb_build_object('recoveredAt', $1::text, 'recoveryReason', 'stale_guard_log'),
+               '{lifecycle}',
+               COALESCE(metadata->'lifecycle', '[]'::jsonb) || jsonb_build_array('stale_recovered')
+             )
+         WHERE status IN ('pending', 'running')
+           AND COALESCE(started_at, scheduled_at) < $1::timestamptz - ($2::integer * INTERVAL '1 millisecond')`,
+        [now.toISOString(), ghlGuardStaleLogMs()],
+      );
+    } catch {
+      // Stale-log recovery is audit hygiene and must not block message repair.
     }
   }
 

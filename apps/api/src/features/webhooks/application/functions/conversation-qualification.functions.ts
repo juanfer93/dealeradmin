@@ -75,6 +75,21 @@ export class ConversationQualificationFunctions {
              FROM conversations current_lead_conversation
              WHERE current_lead_conversation.lead_id = l.id
            )
+           OR EXISTS (
+             SELECT 1
+             FROM conversations current_lead_conversation
+             WHERE current_lead_conversation.id = $4
+               AND current_lead_conversation.lead_id = l.id
+               AND current_lead_conversation.ghl_location_id = $5
+               AND current_lead_conversation.status IN ('queued', 'sent')
+               AND current_lead_conversation.last_message_at <= $6::timestamptz - INTERVAL '24 hours'
+               AND EXISTS (
+                 SELECT 1
+                 FROM conversation_messages current_lead_message
+                 WHERE current_lead_message.conversation_id = current_lead_conversation.id
+                   AND current_lead_message.occurred_at <= $6::timestamptz - INTERVAL '24 hours'
+               )
+           )
          )
          AND (
            NOT EXISTS (

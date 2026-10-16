@@ -3,6 +3,7 @@ import type { SourceKey } from './functions/conversation-webhook.types';
 export const GHL_GUARD_LOCK_KEY = 'dealeradmin.ghl.guard.v1';
 export const GHL_GUARD_DEFAULT_INTERVAL_MS = 5 * 60 * 1000;
 export const GHL_GUARD_DEFAULT_BATCH_SIZE = 25;
+export const GHL_GUARD_DEFAULT_STALE_LOG_MS = 30 * 60 * 1000;
 
 export const GHL_GUARD_TOKEN_ENV_BY_SOURCE: Record<SourceKey, string> = {
   stafford: 'GHL_PRIVATE_TOKEN_STAFFORD',
@@ -33,4 +34,9 @@ export function ghlGuardIntervalMs(): number {
 export function ghlGuardBatchSize(): number {
   const value = Number(process.env.GHL_GUARD_BATCH_SIZE ?? GHL_GUARD_DEFAULT_BATCH_SIZE);
   return Number.isInteger(value) && value > 0 ? value : GHL_GUARD_DEFAULT_BATCH_SIZE;
+}
+
+export function ghlGuardStaleLogMs(): number {
+  const value = Number(process.env.GHL_GUARD_STALE_LOG_MS ?? GHL_GUARD_DEFAULT_STALE_LOG_MS);
+  return Number.isInteger(value) && value > 0 ? value : GHL_GUARD_DEFAULT_STALE_LOG_MS;
 }

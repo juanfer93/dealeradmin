@@ -24,6 +24,11 @@ describe('extractConversationLocation', () => {
     expect(extractLocationCandidates('What city are you in? Odenton')).toContain('odenton');
   });
 
+  it('recognizes the malformed Spanish location reply used by Messenger', () => {
+    expect(extractConversationLocation('Estoy buscando una troca.f250\nEn de Glen Burnie').city).toBe('Glen Burnie');
+    expect(extractLocationCandidates('Estoy buscando una troca.f250\nEn de Glen Burnie')).toContain('glen burnie');
+  });
+
   it('does not turn a vehicle model into a location candidate', () => {
     expect(extractLocationCandidates('I want a Tacoma')).not.toContain('tacoma');
   });

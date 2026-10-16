@@ -35,8 +35,10 @@ function stateFromText(value: string): string | null {
 }
 
 function cityFromText(value: string): string | null {
+  const rawSource = String(value ?? '').replace(/\r\n?/g, '\n');
   const source = normalized(value);
-  const explicit = source.match(/(?:located|live|living|from|estoy|vivo|ubicad[oa]?|location|ubicacion)\s+(?:in|en|at)?\s*([a-z][a-z' -]{2,50}?)(?:,|\s+(?:md|maryland|va|virginia|pa|pennsylvania|de|delaware|ny|new york|nj|new jersey|dc|washington dc)\b|$)/i)?.[1];
+  const malformedSpanish = rawSource.match(/(?:^|\n)[ \t]*en[ \t]+de[ \t]+([a-z][a-z' -]{2,50}?)[ \t]*(?:,|$)/im)?.[1];
+  const explicit = malformedSpanish || source.match(/(?:located|live|living|from|estoy|vivo|ubicad[oa]?|location|ubicacion)\s+(?:in|en|at)?\s*([a-z][a-z' -]{2,50}?)(?:,|\s+(?:md|maryland|va|virginia|pa|pennsylvania|de|delaware|ny|new york|nj|new jersey|dc|washington dc)\b|$)/i)?.[1];
   const candidate = clean(explicit || '');
   if (!candidate || candidate.split(' ').some((part) => STOP_WORDS.has(part))) return null;
   return candidate;
@@ -50,7 +52,7 @@ export function extractConversationLocation(transcript: string): ConversationLoc
   ) ?? null;
   const zipCode = source.match(/\b\d{5}(?:-\d{4})?\b/)?.[0] ?? null;
   const state = stateFromText(source);
-  const city = easternsZone || cityFromText(source);
+  const city = easternsZone || cityFromText(transcript);
   return { city, state, zip_code: zipCode, easterns_zone: easternsZone };
 }
 
