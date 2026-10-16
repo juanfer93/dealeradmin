@@ -125,7 +125,7 @@ const vehicleFrom = (text) => {
       const requestedLabel = vehicleLabel(requested);
       if (requestedLabel) candidates.push({ label: requestedLabel, score: 100 + (vehicleModels.test(requested) ? 25 : 0) + lineIndex / 1000, lineIndex, hasModel: vehicleModels.test(requested), brand: requested.match(vehicleBrands)?.[0] || '', isColloquialTruck: false });
     }
-    const category = cleaned.match(/\b(?:suv|sedan|truck|troka|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i);
+    const category = cleaned.match(/\b(?:suv|sedans?|trucks?|troka|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i);
     const hasModel = vehicleModels.test(cleaned);
     const brand = cleaned.match(vehicleBrands)?.[0] || '';
     const label = vehicleLabel(cleaned);

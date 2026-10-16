@@ -126,6 +126,13 @@ export class GhlGuardService {
       const rows = await lockRunner.query(
         `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status
          FROM conversations
+         LEFT JOIN LATERAL (
+           SELECT latest_guard.created_at
+           FROM ghl_guard_logs latest_guard
+           WHERE latest_guard.conversation_id = conversations.id
+           ORDER BY latest_guard.created_at DESC
+           LIMIT 1
+         ) last_guard ON TRUE
          WHERE status NOT IN ('queued', 'sent', 'duplicate_ignored', 'ignored_channel', 'stale_phone_ignored')
            AND ghl_location_id = ANY($2::text[])
            AND NOT EXISTS (
@@ -140,7 +147,9 @@ export class GhlGuardService {
                AND retry_guard.status = 'failed'
                AND retry_guard.next_retry_at > CURRENT_TIMESTAMP
            )
-         ORDER BY last_message_at DESC NULLS LAST, updated_at DESC
+         ORDER BY last_guard.created_at NULLS FIRST,
+                  last_message_at DESC NULLS LAST,
+                  updated_at DESC
          LIMIT $1`,
         [ghlGuardBatchSize(), RECONCILIATION_LOCATION_IDS],
       ) as GuardConversationRow[];

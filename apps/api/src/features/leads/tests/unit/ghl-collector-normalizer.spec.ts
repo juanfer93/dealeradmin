@@ -76,6 +76,26 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
   });
 
+  it('repairs a preserved advisor vehicle when GHL later contains a preference such as "I love sedans"', () => {
+    const result = execute({
+      source: 'action-cars',
+      channel: 'messenger',
+      real_name: 'Katelyn Borley',
+      phone: '+16147830827',
+      vehicle_type: 'Quiere hablar con un asesor',
+      down_payment: '1000',
+      purchase_timeline: 'this week',
+      chat_history_log: 'What vehicles are eligible?\nI love sedans\nI am located in Ohio\n6147830827\nI can put 1000 down.\nThis week\nYes',
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'Sedan',
+      vehicle_category: 'sedan',
+      qualification_complete: true,
+      missing_qualification: [],
+    });
+  });
+
   it('uses memory to repair stale custom fields and reports both sources', () => {
     const result = execute({
       real_name: 'QA Customer',

@@ -91,6 +91,9 @@ describe('GhlGuardService', () => {
     expect(client.listMessages).toHaveBeenCalledWith('pit-test-token', 'ghl-conversation-1', { deadlineAt: expect.any(Number) });
     expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(row.id, expect.any(Date), true, true);
     expect(persistRunner.commitTransaction).toHaveBeenCalledOnce();
+    const selectionCall = lockRunner.query.mock.calls.find(([sql]) => String(sql).includes('FROM conversations')) as [string, unknown[]] | undefined;
+    expect(selectionCall?.[0]).toContain('LEFT JOIN LATERAL');
+    expect(selectionCall?.[0]).toContain('ORDER BY last_guard.created_at NULLS FIRST');
     const insertLogCall = dataSource.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO ghl_guard_logs')) as [string, unknown[]] | undefined;
     expect(insertLogCall?.[0]).toContain("CURRENT_TIMESTAMP + ($8::integer * INTERVAL '1 millisecond')");
     expect(insertLogCall?.[1]?.[7]).toBe(ghlGuardConversationTimeoutMs());
