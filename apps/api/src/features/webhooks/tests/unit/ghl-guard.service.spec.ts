@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GHL_SOURCE_CONFIG } from '../../application/functions/conversation-webhook.config';
-import { ghlGuardBatchSize, ghlGuardConcurrency, ghlGuardConversationTimeoutMs, ghlGuardTimeoutMs } from '../../application/ghl-guard.config';
+import { ghlGuardBatchSize, ghlGuardConcurrency, ghlGuardConversationTimeoutMs, ghlGuardStaleLogMs, ghlGuardTimeoutMs } from '../../application/ghl-guard.config';
 import { GhlGuardService } from '../../application/ghl-guard.service';
 
 describe('GhlGuardService', () => {
@@ -72,7 +72,11 @@ describe('GhlGuardService', () => {
       createQueryRunner: vi.fn()
         .mockReturnValueOnce(lockRunner)
         .mockReturnValueOnce(persistRunner),
-      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_logs') ? [{ id: 'guard-log-1' }] : []),
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO ghl_guard_logs')) return [{ id: 'guard-log-1' }];
+        if (sql.includes('UPDATE ghl_guard_logs')) return [{ id: 'guard-log-1', status: 'succeeded' }];
+        return [];
+      }),
     };
     const client = {
       listMessages: vi.fn().mockResolvedValue({
@@ -96,9 +100,10 @@ describe('GhlGuardService', () => {
     expect(selectionCall?.[0]).toContain('ORDER BY last_guard.created_at NULLS FIRST');
     const insertLogCall = dataSource.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO ghl_guard_logs')) as [string, unknown[]] | undefined;
     expect(insertLogCall?.[0]).toContain("CURRENT_TIMESTAMP + ($8::integer * INTERVAL '1 millisecond')");
-    expect(insertLogCall?.[1]?.[7]).toBe(ghlGuardConversationTimeoutMs());
+    expect(insertLogCall?.[1]?.[7]).toBe(ghlGuardStaleLogMs());
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE ghl_guard_logs'), expect.any(Array));
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE ghl_guard_logs'), expect.arrayContaining([expect.any(Number)]));
+    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('RETURNING id, status'), expect.any(Array));
   });
 
   it('resolves a synthetic conversation id by contact and persists the real GHL id', async () => {
@@ -123,7 +128,11 @@ describe('GhlGuardService', () => {
     };
     const dataSource = {
       createQueryRunner: vi.fn().mockReturnValueOnce(lockRunner).mockReturnValueOnce(persistRunner),
-      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_logs') ? [{ id: 'guard-log-1' }] : []),
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO ghl_guard_logs')) return [{ id: 'guard-log-1' }];
+        if (sql.includes('UPDATE ghl_guard_logs')) return [{ id: 'guard-log-1', status: 'succeeded' }];
+        return [];
+      }),
     };
     const client = {
       searchConversationByContact: vi.fn().mockResolvedValue({ ok: true, status: 200, requestPath: '/conversations/search', data: { conversation: { id: 'ghl-real-conversation' }, total: 1 } }),

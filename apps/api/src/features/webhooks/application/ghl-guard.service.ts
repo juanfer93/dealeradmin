@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type { DataSource } from 'typeorm';
 import { normalizeGhlAttachments } from '../domain/ghl-attachment-normalizer';
 import { hash, parseOccurredAt } from './functions/conversation-webhook.helpers';
@@ -46,6 +46,11 @@ type LeadMetadataRow = {
   qualification_snapshot: Record<string, unknown> | null;
   location_snapshot: Record<string, unknown> | null;
   dealer_relations: Array<Record<string, unknown>> | null;
+};
+
+type GuardAuditRow = {
+  id: string;
+  status: string;
 };
 
 export type GhlGuardRunResult = {
@@ -98,6 +103,7 @@ function latestInboundAt(messages: GhlGuardMessage[]): string | null {
 
 @Injectable()
 export class GhlGuardService {
+  private readonly logger = new Logger(GhlGuardService.name);
   private running = false;
   private lastRunAt = 0;
 
@@ -172,10 +178,11 @@ export class GhlGuardService {
   }
 
   private async processRow(row: GuardConversationRow, runId: string, now: Date, result: GhlGuardRunResult): Promise<void> {
-    const logId = await this.createLog(runId, row, 'pending', now);
+    let logId: string | null = null;
     const startedAt = new Date();
-    await this.updateLog(logId, 'running', { startedAt });
     try {
+      logId = await this.createLog(runId, row, 'pending', now);
+      await this.updateLog(logId, 'running', { startedAt });
       const deadlineAt = Date.now() + ghlGuardConversationTimeoutMs();
       const source = sourceForLocation(this.sourceConfig, row.ghl_location_id);
       if (!source) {
@@ -280,7 +287,7 @@ export class GhlGuardService {
       });
     } catch (error) {
       result.failed += 1;
-      await this.updateLog(logId, 'failed', {
+      await this.safeUpdateLog(logId, 'failed', {
         errorCode: error instanceof Error ? error.name : 'GHL_GUARD_CONVERSATION_FAILED',
         finishedAt: new Date(),
         durationMs: Date.now() - startedAt.getTime(),
@@ -422,7 +429,8 @@ export class GhlGuardService {
         location: row.location_snapshot,
         dealer_relations: row.dealer_relations ?? [],
       };
-    } catch {
+    } catch (error) {
+      this.logAuditError('GHL_GUARD_LEAD_METADATA_READ_FAILED', error, { conversationId });
       return null;
     }
   }
@@ -449,7 +457,8 @@ export class GhlGuardService {
            )`,
         [now.toISOString(), ghlGuardRetryDelayMs(), ghlGuardStaleLogMs()],
       );
-    } catch {
+    } catch (error) {
+      this.logAuditError('GHL_GUARD_STALE_RECOVERY_FAILED', error);
       // Stale-log recovery is audit hygiene and must not block message repair.
     }
   }
@@ -472,7 +481,8 @@ export class GhlGuardService {
           status, Number(metadata.fetchedMessages ?? 0), Number(metadata.insertedMessages ?? 0), Number(metadata.repairedMessages ?? 0),
           metadata.reconciled === true, metadata.durationMs ?? null, metadata.errorCode ?? null, JSON.stringify(metadata)],
       );
-    } catch {
+    } catch (error) {
+      this.logAuditError('GHL_GUARD_RUN_LOG_FAILED', error, { runId, status });
       // Guard telemetry must never block webhook processing or due release.
     }
   }
@@ -493,63 +503,82 @@ export class GhlGuardService {
          FROM previous_attempt
          RETURNING id`,
         [runId, row.ghl_location_id, row.ghl_contact_id, row.ghl_conversation_id, row.id, status,
-          scheduledAt.toISOString(), ghlGuardConversationTimeoutMs()],
+          scheduledAt.toISOString(), ghlGuardStaleLogMs()],
       ) as Array<{ id: string }>;
-      return rows[0]?.id ?? null;
-    } catch {
+      if (!rows[0]?.id) {
+        this.logAuditError('GHL_GUARD_LOG_CREATE_NOT_PERSISTED', new Error('INSERT returned no guard log id'), { runId, conversationId: row.id });
+        return null;
+      }
+      return rows[0].id;
+    } catch (error) {
+      this.logAuditError('GHL_GUARD_LOG_CREATE_FAILED', error, { runId, conversationId: row.id });
       return null;
     }
   }
 
   private async updateLog(logId: string | null, status: string, details: Record<string, unknown>): Promise<void> {
     if (!this.dataSource || !logId) return;
-    try {
-      const metadata = { ...details };
-      delete metadata.startedAt;
-      delete metadata.finishedAt;
-      delete metadata.responsePayload;
-      delete metadata.leadMetadata;
-      delete metadata.completedFields;
-      const explicitDuration = typeof details.durationMs === 'number' && Number.isFinite(details.durationMs)
-        ? details.durationMs
-        : null;
-      const derivedDuration = details.startedAt instanceof Date && details.finishedAt instanceof Date
-        ? details.finishedAt.getTime() - details.startedAt.getTime()
-        : null;
-      await this.dataSource.query(
-        `UPDATE ghl_guard_logs
-         SET status = $2,
-             started_at = COALESCE($3::timestamptz, started_at),
-             finished_at = COALESCE($4::timestamptz, finished_at),
-             duration_ms = COALESCE($5, duration_ms),
-             fetched_message_count = COALESCE($6, fetched_message_count),
-             inserted_message_count = COALESCE($7, inserted_message_count),
-             repaired_message_count = COALESCE($8, repaired_message_count),
-             reconciled = COALESCE($9, reconciled),
-             http_status = COALESCE($10, http_status),
-             request_path = COALESCE($11, request_path),
-             error_code = COALESCE($12, error_code),
-             response_payload = COALESCE($13::jsonb, response_payload),
-             lead_metadata = COALESCE($18::jsonb, lead_metadata),
-             completed_fields = COALESCE($19::jsonb, completed_fields),
-             next_retry_at = CASE WHEN $2 = 'failed' THEN CURRENT_TIMESTAMP + ($16::integer * INTERVAL '1 millisecond') ELSE next_retry_at END,
-             lease_expires_at = CASE WHEN $2 IN ('pending', 'running') THEN COALESCE(lease_expires_at, CURRENT_TIMESTAMP + ($17::integer * INTERVAL '1 millisecond')) ELSE NULL END,
-             metadata = jsonb_set(metadata || $14::jsonb, '{lifecycle}',
-               COALESCE(metadata->'lifecycle', '[]'::jsonb) || jsonb_build_array($15::text))
-         WHERE id = $1`,
-        [logId, status,
-          details.startedAt instanceof Date ? details.startedAt.toISOString() : null,
-          details.finishedAt instanceof Date ? details.finishedAt.toISOString() : null,
-          explicitDuration ?? derivedDuration,
-          details.fetchedMessages ?? null, details.insertedMessages ?? null, details.repairedMessages ?? null,
-          details.reconciled === true ? true : null, details.httpStatus ?? null, details.requestPath ?? null,
-          details.errorCode ?? null, details.responsePayload === undefined ? null : JSON.stringify(details.responsePayload), JSON.stringify(metadata), status,
-          ghlGuardRetryDelayMs(), ghlGuardConversationTimeoutMs(),
-          details.leadMetadata === undefined || details.leadMetadata === null ? null : JSON.stringify(details.leadMetadata),
-          details.completedFields === undefined || details.completedFields === null ? null : JSON.stringify(details.completedFields)],
-      );
-    } catch {
-      // Audit persistence must never block conversation processing.
+    const metadata = { ...details };
+    delete metadata.startedAt;
+    delete metadata.finishedAt;
+    delete metadata.responsePayload;
+    delete metadata.leadMetadata;
+    delete metadata.completedFields;
+    const explicitDuration = typeof details.durationMs === 'number' && Number.isFinite(details.durationMs)
+      ? details.durationMs
+      : null;
+    const derivedDuration = details.startedAt instanceof Date && details.finishedAt instanceof Date
+      ? details.finishedAt.getTime() - details.startedAt.getTime()
+      : null;
+    const rows = await this.dataSource.query(
+      `UPDATE ghl_guard_logs
+       SET status = $2,
+           started_at = COALESCE($3::timestamptz, started_at),
+           finished_at = COALESCE($4::timestamptz, finished_at),
+           duration_ms = COALESCE($5, duration_ms),
+           fetched_message_count = COALESCE($6, fetched_message_count),
+           inserted_message_count = COALESCE($7, inserted_message_count),
+           repaired_message_count = COALESCE($8, repaired_message_count),
+           reconciled = COALESCE($9, reconciled),
+           http_status = COALESCE($10, http_status),
+           request_path = COALESCE($11, request_path),
+           error_code = COALESCE($12, error_code),
+           response_payload = COALESCE($13::jsonb, response_payload),
+           lead_metadata = COALESCE($18::jsonb, lead_metadata),
+           completed_fields = COALESCE($19::jsonb, completed_fields),
+           next_retry_at = CASE WHEN $2 = 'failed' THEN CURRENT_TIMESTAMP + ($16::integer * INTERVAL '1 millisecond') ELSE next_retry_at END,
+           lease_expires_at = CASE WHEN $2 IN ('pending', 'running') THEN CURRENT_TIMESTAMP + ($17::integer * INTERVAL '1 millisecond') ELSE NULL END,
+           metadata = jsonb_set(metadata || $14::jsonb, '{lifecycle}',
+             COALESCE(metadata->'lifecycle', '[]'::jsonb) || jsonb_build_array($15::text))
+       WHERE id = $1
+         AND status IN ('pending', 'running')
+       RETURNING id, status`,
+      [logId, status,
+        details.startedAt instanceof Date ? details.startedAt.toISOString() : null,
+        details.finishedAt instanceof Date ? details.finishedAt.toISOString() : null,
+        explicitDuration ?? derivedDuration,
+        details.fetchedMessages ?? null, details.insertedMessages ?? null, details.repairedMessages ?? null,
+        details.reconciled === true ? true : null, details.httpStatus ?? null, details.requestPath ?? null,
+        details.errorCode ?? null, details.responsePayload === undefined ? null : JSON.stringify(details.responsePayload), JSON.stringify(metadata), status,
+        ghlGuardRetryDelayMs(), ghlGuardStaleLogMs(),
+        details.leadMetadata === undefined || details.leadMetadata === null ? null : JSON.stringify(details.leadMetadata),
+        details.completedFields === undefined || details.completedFields === null ? null : JSON.stringify(details.completedFields)],
+    ) as GuardAuditRow[];
+    if (!rows[0]?.id) {
+      throw new Error(`GHL_GUARD_LOG_UPDATE_NOT_PERSISTED:${status}`);
     }
+  }
+
+  private async safeUpdateLog(logId: string | null, status: string, details: Record<string, unknown>): Promise<void> {
+    try {
+      await this.updateLog(logId, status, details);
+    } catch (error) {
+      this.logAuditError('GHL_GUARD_LOG_UPDATE_FAILED', error, { logId, status });
+    }
+  }
+
+  private logAuditError(code: string, error: unknown, context: Record<string, unknown> = {}): void {
+    const message = error instanceof Error ? error.message : String(error);
+    this.logger.error(`${code}: ${message}`, JSON.stringify(context));
   }
 }
