@@ -8,6 +8,7 @@
     { "source": "/api/:path*", "destination": "/api/[...path]" }
   ],
   "crons": [
+    { "path": "/api/webhooks/ghl/conversations/process-due", "schedule": "*/5 * * * *" },
     { "path": "/api/reports/monthly/run", "schedule": "0 17 1 * *" }
   ],
   "functions": {
