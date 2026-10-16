@@ -37,7 +37,9 @@ function payloadMetadata(body: unknown) {
   const location = value.location && typeof value.location === 'object' ? value.location as Record<string, unknown> : {};
   const customData = value.customData && typeof value.customData === 'object' ? value.customData as Record<string, unknown> : {};
   return {
-    locationId: recordValue(value, 'ghl_location_id', 'location_id') || recordValue(location, 'id') || recordValue(customData, 'ghl_location_id', 'location_id'),
+    locationId: recordValue(value, 'ghl_location_id', 'location_id', 'locationId')
+      || recordValue(location, 'id')
+      || recordValue(customData, 'ghl_location_id', 'location_id', 'locationId'),
     contactId: recordValue(value, 'ghl_contact_id', 'contact_id') || recordValue(contact, 'id'),
     conversationId: recordValue(value, 'ghl_conversation_id', 'conversation_id') || recordValue(conversation, 'id'),
     messageId: recordValue(value, 'ghl_message_id', 'message_id', 'messageId'),
@@ -81,6 +83,7 @@ export class WebhookProcessingAuditService {
     errorCode?: string;
     body: unknown;
     headers?: { contactId?: string; conversationId?: string; messageId?: string };
+    metadata?: Record<string, unknown>;
   }): Promise<void> {
     const metadata = payloadMetadata(options.body);
     await this.record({
@@ -94,7 +97,7 @@ export class WebhookProcessingAuditService {
       messageId: metadata.messageId ?? options.headers?.messageId,
       status: options.status,
       errorCode: options.errorCode,
-      metadata: { telemetry_version: 'webhook-processing.v1' },
+      metadata: { telemetry_version: 'webhook-processing.v1', ...(options.metadata ?? {}) },
     });
   }
 }

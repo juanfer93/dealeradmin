@@ -48,6 +48,7 @@ export class WebhooksController {
           contactId: request.header('X-DealerADMIN-Contact-ID') ?? undefined,
           conversationId: request.header('X-DealerADMIN-Conversation-ID') ?? undefined,
           messageId: request.header('X-DealerADMIN-Message-ID') ?? undefined,
+          requestId: request.webhookIngressRequestId,
           testNow: this.controlledTestNow(request.header('X-DealerADMIN-Test-Now')),
         },
         request.rawBody?.toString('utf8'),
@@ -67,13 +68,6 @@ export class WebhooksController {
       return response.status === 'ignored_channel' ? undefined : response;
     } catch (error) {
       await this.ingressAudit.markError(request, error);
-      await this.processingAudit.recordFromPayload({
-        requestId: request.webhookIngressRequestId,
-        source,
-        status: 'failed',
-        errorCode: error instanceof Error ? error.message.slice(0, 500) : 'UNKNOWN_ERROR',
-        body,
-      });
       throw error;
     }
   }

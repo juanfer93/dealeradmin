@@ -42,6 +42,7 @@ export class ConversationEventFunctions {
 
   async persistEvent(event: PersistedWebhookEvent, source: SourceKey, rawBody: string, controlledNow?: Date): Promise<ConversationWebhookResponse> {
     const runner = this.dataSource!.createQueryRunner();
+    const locationId = event.ghl_location_id || this.sourceConfig[source].locationId;
     let queuedPauseEvent: QueuedPauseDispatch | null = null;
     await runner.connect();
     await runner.startTransaction();
@@ -54,7 +55,7 @@ export class ConversationEventFunctions {
            SET status = 'pending', error_code = NULL, received_at = CURRENT_TIMESTAMP
            WHERE webhook_events.status = 'failed'
          RETURNING event_id`,
-        [event.event_id, event.event_type, this.sourceConfig[source].locationId, hash(rawBody), event.message_body ?? ''],
+        [event.event_id, event.event_type, locationId, hash(rawBody), event.message_body ?? ''],
       ) as Array<{ event_id: string }>;
       if (insertedEvents.length === 0) {
         await runner.rollbackTransaction();
@@ -63,12 +64,12 @@ export class ConversationEventFunctions {
 
       const sourceDealer = this.sourceConfig[source].splitByLanguage || this.sourceConfig[source].alternatingGroup
         ? undefined
-        : await this.qualification.findSourceDealer(runner, this.sourceConfig[source].locationId, source);
+        : await this.qualification.findSourceDealer(runner, locationId, source);
       const displayName = clean(event.contact_name) || 'Lead';
       const normalizedName = normalizeRealName(displayName) || 'Lead';
       const { firstName, lastName } = splitName(normalizedName);
       let lead = await this.qualification.upsertLead(runner, {
-        locationId: this.sourceConfig[source].locationId,
+        locationId,
         contactId: event.ghl_contact_id,
         phone: isStaffordWhatsApp(source, event.channel) ? safePhone(event.contact_phone) : null,
         firstName,
@@ -76,7 +77,7 @@ export class ConversationEventFunctions {
       });
       const conversation = await this.qualification.upsertConversation(runner, {
         leadId: lead.id,
-        locationId: this.sourceConfig[source].locationId,
+        locationId,
         contactId: event.ghl_contact_id,
         conversationId: event.ghl_conversation_id,
         channel: event.channel,
@@ -198,7 +199,7 @@ export class ConversationEventFunctions {
         qualification_progress: normalized.qualification_progress,
       };
       const assignedDealerId = clean(conversation.qualification_snapshot?.assigned_dealer_id);
-      const resolvedDealer = sourceDealer ?? await this.qualification.findSourceDealer(runner, this.sourceConfig[source].locationId, source, language, assignedDealerId || undefined);
+      const resolvedDealer = sourceDealer ?? await this.qualification.findSourceDealer(runner, locationId, source, language, assignedDealerId || undefined);
       snapshot.assigned_dealer_id = resolvedDealer.id;
       const existingLeadReengagement = snapshot.phone
         ? await this.qualification.findExistingLeadReengagement(
@@ -208,7 +209,7 @@ export class ConversationEventFunctions {
           conversation.id,
           conversation.created_at || occurredAt,
           occurredAt,
-          this.sourceConfig[source].locationId,
+          locationId,
         )
         : null;
       if (existingLeadReengagement) {
@@ -231,7 +232,7 @@ export class ConversationEventFunctions {
           conversationId: conversation.id,
           ghlConversationId: event.ghl_conversation_id,
           contactId: event.ghl_contact_id,
-          locationId: this.sourceConfig[source].locationId,
+          locationId,
           leadId: lead.id,
           source,
           emittedAt: now,
@@ -291,7 +292,7 @@ export class ConversationEventFunctions {
           conversationId: conversation.id,
           ghlConversationId: event.ghl_conversation_id,
           contactId: event.ghl_contact_id,
-          locationId: this.sourceConfig[source].locationId,
+          locationId,
           leadId: lead.id,
           source,
           emittedAt: now,
@@ -337,7 +338,7 @@ export class ConversationEventFunctions {
         [
           conversationId,
           conversationMessageId,
-          this.sourceConfig[source].locationId,
+          event.ghl_location_id || this.sourceConfig[source].locationId,
           event.ghl_conversation_id,
           sourceMessageId,
           attachment.sourceUrl,
@@ -359,7 +360,7 @@ export class ConversationEventFunctions {
         `INSERT INTO webhook_events (event_id, event_type, ghl_location_id, status, error_code, payload_hash, raw_transcript, capture_contract, capture_schema_version)
          VALUES ($1, $2, $3, 'failed', $4, $5, $6, '{}'::jsonb, 'dealeradmin.conversation.v1')
          ON CONFLICT (event_id) DO UPDATE SET status = 'failed', error_code = EXCLUDED.error_code, payload_hash = EXCLUDED.payload_hash`,
-        [event.event_id, event.event_type, this.sourceConfig[source].locationId, error instanceof Error ? error.message.slice(0, 250) : 'UNKNOWN_ERROR', hash(rawBody), event.message_body ?? ''],
+        [event.event_id, event.event_type, event.ghl_location_id || this.sourceConfig[source].locationId, error instanceof Error ? error.message.slice(0, 250) : 'UNKNOWN_ERROR', hash(rawBody), event.message_body ?? ''],
       );
     } catch {
       // Never hide the original webhook error behind audit logging.

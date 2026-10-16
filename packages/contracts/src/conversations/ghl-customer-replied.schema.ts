@@ -49,6 +49,7 @@ const OptionalGhlAttachmentsSchema = z.preprocess(
 export const GhlCustomerRepliedSchema = z.object({
   event_id: z.string().trim().min(1).optional(),
   event_type: z.string().trim().min(1).default('customer.replied'),
+  ghl_location_id: z.string().trim().min(1).optional(),
   ghl_message_id: z.string().trim().min(1).optional(),
   ghl_contact_id: z.string().trim().min(1).optional(),
   ghl_conversation_id: z.string().trim().min(1).optional(),

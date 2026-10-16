@@ -65,6 +65,11 @@ Lectura operacional:
 | `outcome=failed` | La respuesta fue 5xx. `error_code` conserva el error controlado por el handler cuando existe. |
 | `outcome=connection_closed` | El cliente cerró la conexión antes de terminar la respuesta. |
 
+Los fallos de clasificación del webhook también quedan en `webhook_processing_attempts` aunque la transacción de negocio haga rollback:
+
+- `processing_status=pending_classification`, `error_code=UnresolvedLocationException` y `metadata.fallback_status=Pendiente de Clasificación` indican que el `location_id` del payload no encontró un dealer activo ni un alias. En este esquema, el mapping equivalente a `ghl_location_routing` vive en `dealers.ghl_location_id` y `dealer_location_aliases.ghl_location_id`.
+- `processing_status=InvalidPhoneNumber` y `error_code=InvalidPhoneNumber` indican que GHL envió un teléfono no normalizable; el error se propaga para que el emisor pueda reintentar, pero no se pierde la evidencia de ingress.
+
 ## Consultas para investigar un caso
 
 Buscar por contacto, evento o ventana horaria:

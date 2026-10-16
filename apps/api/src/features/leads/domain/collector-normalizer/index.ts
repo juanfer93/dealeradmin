@@ -243,7 +243,7 @@ function extractVehicle(message: string): string {
     }
     // A transcript can contain several facts (for example "Sedan" followed by
     // a Subaru trade-in). Return the vehicle token, never the complete transcript.
-    const category = withoutOtherFacts.match(/\b(suv|sedan|truck|troka|troca|trokita|troquita|troque|trokas|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i)?.[1];
+    const category = withoutOtherFacts.match(/\b(suv|sedan|trucks?|troka|trocas?|trokitas?|troquitas?|troques?|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i)?.[1];
     const transcriptionModelAlias = /\b(?:odisea|paila|tajo)\b/i.test(candidate);
     const hasModel = VEHICLE_MODELS.test(withoutOtherFacts) || transcriptionModelAlias;
     const brand = withoutOtherFacts.match(VEHICLE_BRANDS)?.[0] ?? EMPTY;
@@ -266,7 +266,7 @@ function extractVehicle(message: string): string {
         lineIndex,
         hasModel,
         brand,
-        isColloquialTruck: /\b(?:troka|troca|trokita|troquita|troque|trokas|camionetq)\b/i.test(candidate),
+        isColloquialTruck: /\b(?:troka|trocas?|trokitas?|troquitas?|troques?|camionetq)\b/i.test(candidate),
       });
     }
   }
@@ -325,6 +325,19 @@ const AFFIRMATIVE_DOWN_CONFIRMATION = /^(?:yes|yeah|yep|correct|that's right|tha
 const REFERENCED_DOWN_CONFIRMATION = /^(?:(?:si|claro|correcto|ok(?:ay)?|bien)[,\s]+)?(?:con\s+(?:ese|este)\s+(?:monto|enganche|down)|con\s+(?:esa|esta)\s+cantidad|(?:ese|este)\s+(?:monto|enganche|down)|(?:esa|esta)\s+cantidad|con\s+eso|with\s+that\s+(?:amount|down)|that\s+(?:amount|down))(?:\s+(?:si|s[ií]\s+lo\s+tengo|s[ií]\s+puedo|esta\s+bien|est[aá]\s+bien|works?|is\s+(?:fine|okay|perfect)))?$/i;
 const DOWN_CONTEXT_MARKERS = /\b(?:down|payment|enganche|pago\s+inicial|dinero|cash|contado|trade[- ]?in|tradein|m[ií]nimo|minimum|required|conseguir|bring|subir|subirle|raise|increase|m[aá]s|more)\b/i;
 const NON_DOWN_AFFIRMATION_CONTEXT = /\b(?:phone|number|n[uú]mero|tel[eé]fono|document|documentos?|identificaci[oó]n|license|licencia|income|ingresos?|proof|prueba|bank|banco|cuenta|vehicle|veh[ií]culo|carro|auto|suv|sedan|truck|troca|van|hoy|today|semana|week|mes|month|ubicad|located|location)\b/i;
+const VEHICLE_YEAR_MIN = 2006;
+const VEHICLE_YEAR_MAX = 2026;
+
+function isVehicleYearValue(value: string): boolean {
+  const normalized = value.replace(/[$,\s]/g, '');
+  const year = Number(normalized);
+  return /^\d{4}$/.test(normalized) && year >= VEHICLE_YEAR_MIN && year <= VEHICLE_YEAR_MAX;
+}
+
+function isVehicleYearRange(value: string): boolean {
+  const match = value.match(/\b(20\d{2})\s*(?:-|–|—|a|to)\s*(20\d{2})\b/i);
+  return Boolean(match && isVehicleYearValue(match[1]) && isVehicleYearValue(match[2]));
+}
 
 function affirmativeDownConfirmation(value: string): boolean {
   const source = clean(value);
@@ -385,7 +398,7 @@ function extractStandaloneDownPayment(message: string): string {
   if (NO_DOWN_PAYMENT_RESPONSE.test(source)) return 'No down payment';
   const safeSource = source.split('\n').filter((line) => !isPhoneOnlyLine(line)).join('\n');
   const matches = [...safeSource.matchAll(/(?:^|\n)\$?[ \t]*(\d{1,3}(?:[,.]\d{3})+|\d+(?:[,.]\d+)?\s*k?|\d{1,2}\s*(?:mil|thousand)|mil(?:\s+quinientos)?|(?:un|one|a|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\s+(?:mil|thousand)(?:\s+(?:quinientos|five hundred))?)[ \t]*\$?[ \t]*(?:tengo|have|available|disponible|i have|i can put)?[ \t]*\d{0,2}[ \t]*\.?[ \t]*(?=\n|$)/gim)];
-  const standalone = matches.reverse().find((match) => !/^20(?:1\d|2[0-6])$/.test(match[1].replace(/[$,\s]/g, '')));
+  const standalone = matches.reverse().find((match) => !isVehicleYearValue(match[1]));
   if (!standalone) return EMPTY;
   // A standalone recent four-digit answer is a vehicle year, not a down
   // payment. Values such as 1000/2000/3000 remain valid down payments.
@@ -406,6 +419,7 @@ function extractLatestDownPayment(message: string): string {
     const paymentRange = /\$?\d+(?:[,.]\d+)?\s*(?:a|to|[-–/])\s*\$?\d+(?:[,.]\d+)?/i.test(line);
     if (/[?¿]/.test(line)
       || isPhoneOnlyLine(line)
+      || isVehicleYearRange(line)
       || PHONE_LIKE_TEXT.test(line)
       || /\b(?:phone|telephone|tel[eé]fono|n[uú]mero|number)\b/i.test(line)
       || (lineDigits.length >= 7 && !paymentRange && !/\b(?:down|payment|enganche|inicial|deposit|dep[oó]sito)\b/i.test(line))) continue;
@@ -426,7 +440,7 @@ function extractLatestDownPayment(message: string): string {
     const amountToken = '(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?)';
     const range = [...line.matchAll(new RegExp(`\\$?(${amountToken})\\s*(?:a|to|[-–/])\\s*\\$?(${amountToken})`, 'gi'))]
       .map((match) => normalizeAmount(match[2]))
-      .find((amount) => amount && !/^20(?:1\\d|2\\d)$/.test(amount));
+      .find((amount) => amount && !isVehicleYearValue(amount));
     if (range) return range;
 
     // Keep this deliberately line-scoped and answer-shaped. Requiring a
@@ -438,7 +452,7 @@ function extractLatestDownPayment(message: string): string {
     if (!answerLike) continue;
     const amounts = [...line.matchAll(new RegExp(`\\$?(${amountToken})(?!\\d)`, 'gi'))]
       .map((match) => normalizeAmount(match[1]))
-      .filter((amount) => amount && !/^20(?:1\\d|2\\d)$/.test(amount));
+      .filter((amount) => amount && !isVehicleYearValue(amount));
     if (amounts.length > 0) return amounts.at(-1) ?? EMPTY;
   }
   return EMPTY;

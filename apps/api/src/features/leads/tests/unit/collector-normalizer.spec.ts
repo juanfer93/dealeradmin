@@ -1023,6 +1023,25 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message }).vehicle_type).toBe(expected);
   });
 
+  it('keeps Arlington plural troca intent and ignores the phone line as down payment', () => {
+    const transcript = ['Que trocas tiene', '540-746-5136'].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'arlington',
+      channel: 'messenger',
+      real_name: 'Gera Delgado',
+      phone: '+15407465136',
+      message: transcript,
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'truck',
+      down_payment: '',
+      qualification_complete: true,
+      missing_qualification: [],
+    });
+  });
+
   it('replays Alonzo Gerber’s Arlington Messenger vehicle answer as a routable Tacoma', () => {
     const transcript = [
       'Hola',
@@ -1491,8 +1510,21 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message }).down_payment).toBe(expected);
   });
 
-  it.each(['2018', '2019', '2025'])('does not classify a standalone vehicle year as down payment: %s', (message) => {
+  it.each(['2006', '2018', '2019', '2025', '2026'])('does not classify a standalone vehicle year as down payment: %s', (message) => {
     expect(normalizeCollectorInput({ message }).down_payment).toBe('');
+  });
+
+  it('does not classify a vehicle year range as down payment', () => {
+    const result = normalizeCollectorInput({
+      message: 'Que trocas tiene\n2006 - 2026',
+      chat_history_log: 'Que trocas tiene\n2006 - 2026',
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'truck',
+      vehicle_year: 2006,
+      down_payment: '',
+    });
   });
 
   it('separates a vehicle year from down payment when only the vehicle is mentioned', () => {

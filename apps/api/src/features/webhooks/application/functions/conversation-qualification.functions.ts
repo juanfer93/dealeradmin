@@ -14,6 +14,7 @@ import {
   STALE_PHONE_REENTRY_DAYS,
 } from './conversation-webhook.config';
 import { plusHours, safePhone, withinDispatchWindow } from './conversation-webhook.helpers';
+import { UnresolvedLocationException } from './conversation-webhook.errors';
 import type {
   ConversationRow,
   ConversationSnapshot,
@@ -164,7 +165,7 @@ export class ConversationQualificationFunctions {
        ORDER BY d.created_at, d.id`,
       [locationId],
     ) as DealerRow[];
-    if (rows.length === 0) throw new BadRequestException(`No existe dealer activo para la Location ID ${locationId}`);
+    if (rows.length === 0) throw new UnresolvedLocationException(locationId);
     if (source === 'action-cars') {
       const selectedLanguage = language ?? 'es';
       const dealer = rows.find((row) => row.routing_config?.language === selectedLanguage);

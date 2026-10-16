@@ -11,8 +11,10 @@ import { ConversationDueFunctions } from './functions/conversation-due.functions
 import { ConversationEventFunctions } from './functions/conversation-event.functions';
 import { ConversationQualificationFunctions } from './functions/conversation-qualification.functions';
 import { ConversationReconciliationFunctions } from './functions/conversation-reconciliation.functions';
+import { InvalidPhoneNumber, UnresolvedLocationException } from './functions/conversation-webhook.errors';
 import { DUE_CONVERSATION_POLL_MS, GHL_SOURCE_CONFIG } from './functions/conversation-webhook.config';
-import { currentLocalNow, hash, inputIndicatesWhatsApp, normalizedChannel, sourceKey } from './functions/conversation-webhook.helpers';
+import { currentLocalNow, hash, inputIndicatesWhatsApp, normalizedChannel, safePhone, sourceKey } from './functions/conversation-webhook.helpers';
+import { WebhookProcessingAuditService } from './webhook-processing-audit.service';
 import type {
   ConversationSnapshot,
   ConversationWebhookResponse,
@@ -41,6 +43,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     @Optional() @InjectDataSource() private readonly dataSource?: DataSource,
     @Optional() @Inject(GeoroutingService) georoutingService?: GeoroutingService,
     @Optional() @Inject(QUEUED_PAUSE_NOTIFIER) queuedPauseNotifier?: QueuedPauseNotifier,
+    @Optional() private readonly processingAudit?: WebhookProcessingAuditService,
   ) {
     this.queueService = new ConversationQueueService(dataSource, queuedPauseNotifier, GHL_SOURCE_CONFIG);
     this.qualification = new ConversationQualificationFunctions(georoutingService, GHL_SOURCE_CONFIG);
@@ -74,16 +77,45 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
   async acceptCustomerReplied(
     input: unknown,
     sourceValue: string,
-    headers: { contactId?: string; conversationId?: string; messageId?: string; testNow?: Date },
+    headers: { contactId?: string; conversationId?: string; messageId?: string; requestId?: string; testNow?: Date },
     rawBody?: string,
   ): Promise<ConversationWebhookResponse> {
-    const source = sourceKey(sourceValue, GHL_SOURCE_CONFIG);
+    try {
+      const source = sourceKey(sourceValue, GHL_SOURCE_CONFIG);
+      return await this.processCustomerReplied(input, source, headers, rawBody);
+    } catch (error) {
+      if (this.processingAudit) {
+        const errorName = error instanceof Error && error.name ? error.name : 'UNKNOWN_ERROR';
+        await this.processingAudit.recordFromPayload({
+          requestId: headers.requestId,
+          source: sourceValue,
+          status: error instanceof UnresolvedLocationException ? 'pending_classification' : errorName === 'InvalidPhoneNumber' ? 'InvalidPhoneNumber' : 'failed',
+          errorCode: errorName,
+          body: input,
+          headers,
+          metadata: {
+            exception: errorName,
+            ...(error instanceof UnresolvedLocationException ? { fallback_status: 'Pendiente de Clasificación' } : {}),
+          },
+        });
+      }
+      throw error;
+    }
+  }
+
+  private async processCustomerReplied(
+    input: unknown,
+    source: SourceKey,
+    headers: { contactId?: string; conversationId?: string; messageId?: string; requestId?: string; testNow?: Date },
+    rawBody?: string,
+  ): Promise<ConversationWebhookResponse> {
     const sourceConfig = GHL_SOURCE_CONFIG[source];
     const body = this.eventFunctions.normalizeInput(input, sourceConfig.defaultChannel, headers);
     const parsed = GhlCustomerRepliedSchema.safeParse(body);
     if (!parsed.success) throw new UnprocessableEntityException({ code: 'INVALID_CUSTOMER_REPLIED_PAYLOAD', issues: parsed.error.issues });
 
     const event = { ...parsed.data, channel: normalizedChannel(parsed.data.channel) || parsed.data.channel };
+    if (event.contact_phone && !safePhone(event.contact_phone)) throw new InvalidPhoneNumber(event.contact_phone);
     if (source === 'fredericksburg-2' && inputIndicatesWhatsApp(input, event.channel)) {
       return {
         accepted: true,
@@ -111,7 +143,13 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       return { accepted: true, eventId, conversationId, source, status: 'processed' };
     }
     if (!this.dataSource) throw new ServiceUnavailableException('Database connection is not available');
-    return this.eventFunctions.persistEvent({ ...event, ghl_contact_id: contactId, ghl_conversation_id: conversationId, event_id: eventId }, source, raw, headers.testNow);
+    return this.eventFunctions.persistEvent({
+      ...event,
+      ghl_location_id: event.ghl_location_id || sourceConfig.locationId,
+      ghl_contact_id: contactId,
+      ghl_conversation_id: conversationId,
+      event_id: eventId,
+    }, source, raw, headers.testNow);
   }
 
   async processDueConversations(now = currentLocalNow(), options: { reconcileActive?: boolean } = {}): Promise<DueConversationResponse> {

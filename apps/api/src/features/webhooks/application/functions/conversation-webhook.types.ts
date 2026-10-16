@@ -98,6 +98,7 @@ export type MediaReconciliationResponse = {
 };
 
 export type PersistedWebhookEvent = GhlCustomerRepliedDto & {
+  ghl_location_id: string;
   ghl_contact_id: string;
   ghl_conversation_id: string;
   event_id: string;

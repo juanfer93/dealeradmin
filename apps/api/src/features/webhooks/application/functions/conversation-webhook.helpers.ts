@@ -163,6 +163,13 @@ export function normalizeWebhookInput(input: unknown, defaultChannel: string, he
     ...value,
     event_id: value.event_id ?? value.eventId,
     event_type: value.event_type ?? value.eventType ?? 'customer.replied',
+    ghl_location_id: value.ghl_location_id
+      ?? value.location_id
+      ?? value.locationId
+      ?? nestedLocation.id
+      ?? customData.ghl_location_id
+      ?? customData.location_id
+      ?? customData.locationId,
     ghl_message_id: value.ghl_message_id ?? value.messageId ?? headers.messageId,
     ghl_contact_id: value.ghl_contact_id ?? value.contact_id ?? value.contactId ?? headers.contactId ?? nestedContact.id ?? value.id,
     ghl_conversation_id: value.ghl_conversation_id ?? value.conversation_id ?? value.conversationId ?? headers.conversationId,

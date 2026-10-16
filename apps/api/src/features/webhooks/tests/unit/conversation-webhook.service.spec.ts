@@ -1212,4 +1212,67 @@ describe('ConversationWebhookService', () => {
     expect(runner.query.mock.calls.some(([sql]) => sql.includes("SET status = 'queued'"))).toBe(true);
     expect(runner.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO lead_dealers'))).toBe(true);
   });
+
+  it('records an InvalidPhoneNumber processing attempt before propagating the failure', async () => {
+    const processingAudit = { recordFromPayload: vi.fn().mockResolvedValue(undefined) };
+    const service = new ConversationWebhookService(undefined, undefined, undefined, processingAudit as never);
+
+    await expect(service.acceptCustomerReplied(
+      { message_body: 'Busco una SUV', contact_phone: '555-019', contact_name: 'Invalid Phone', channel: 'messenger' },
+      'arlington',
+      { contactId: 'invalid-phone-contact', requestId: 'request-invalid-phone' },
+    )).rejects.toMatchObject({ name: 'InvalidPhoneNumber' });
+
+    expect(processingAudit.recordFromPayload).toHaveBeenCalledWith(expect.objectContaining({
+      requestId: 'request-invalid-phone',
+      status: 'InvalidPhoneNumber',
+      errorCode: 'InvalidPhoneNumber',
+      metadata: expect.objectContaining({ exception: 'InvalidPhoneNumber' }),
+    }));
+  });
+
+  it('records an unresolved location with a pending-classification fallback', async () => {
+    const runner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [{ event_id: 'unmapped-event' }];
+        if (sql.includes('FROM dealers')) return [];
+        return [];
+      }),
+    };
+    const dataSource = {
+      createQueryRunner: vi.fn(() => runner),
+      query: vi.fn().mockResolvedValue([]),
+    };
+    const processingAudit = { recordFromPayload: vi.fn().mockResolvedValue(undefined) };
+    const service = new ConversationWebhookService(dataSource as never, undefined, undefined, processingAudit as never);
+
+    await expect(service.acceptCustomerReplied(
+      {
+        event_id: 'unmapped-event',
+        locationId: 'unmapped_location_123',
+        message_body: 'Busco una SUV',
+        contact_phone: '+15405550123',
+        contact_name: 'Unmapped Lead',
+        channel: 'messenger',
+      },
+      'arlington',
+      { contactId: 'unmapped-contact', requestId: 'request-unmapped-location' },
+    )).rejects.toMatchObject({ name: 'UnresolvedLocationException' });
+
+    expect(processingAudit.recordFromPayload).toHaveBeenCalledWith(expect.objectContaining({
+      requestId: 'request-unmapped-location',
+      status: 'pending_classification',
+      errorCode: 'UnresolvedLocationException',
+      metadata: expect.objectContaining({
+        exception: 'UnresolvedLocationException',
+        fallback_status: 'Pendiente de Clasificación',
+      }),
+    }));
+    expect(runner.rollbackTransaction).toHaveBeenCalledOnce();
+  });
 });
