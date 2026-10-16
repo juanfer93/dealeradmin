@@ -89,9 +89,11 @@ describe('GhlGuardService', () => {
 
     expect(result).toMatchObject({ enabled: true, skipped: false, selected: 1, fetched: 1, inserted: 1, repaired: 0, failed: 0 });
     expect(client.listMessages).toHaveBeenCalledWith('pit-test-token', 'ghl-conversation-1', { deadlineAt: expect.any(Number) });
-    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(row.id, new Date('2026-10-16T12:00:00.000Z'), true, true);
+    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(row.id, expect.any(Date), true, true);
     expect(persistRunner.commitTransaction).toHaveBeenCalledOnce();
-    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO ghl_guard_logs'), expect.any(Array));
+    const insertLogCall = dataSource.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO ghl_guard_logs')) as [string, unknown[]] | undefined;
+    expect(insertLogCall?.[0]).toContain("CURRENT_TIMESTAMP + ($8::integer * INTERVAL '1 millisecond')");
+    expect(insertLogCall?.[1]?.[7]).toBe(ghlGuardConversationTimeoutMs());
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE ghl_guard_logs'), expect.any(Array));
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE ghl_guard_logs'), expect.arrayContaining([expect.any(Number)]));
   });

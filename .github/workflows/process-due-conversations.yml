@@ -21,6 +21,8 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           test -n "$CRON_SECRET"
-          curl --fail-with-body --silent --show-error --request GET \
+          response="$(curl --fail-with-body --silent --show-error --request GET \
             --header "Authorization: Bearer $CRON_SECRET" \
-            https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/process-due
+            https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/process-due)"
+          printf '%s\n' "$response"
+          node -e 'const result = JSON.parse(process.argv[1]); if (!result.guard || result.guard.enabled !== true || result.guard.failed > 0 || result.guardError) process.exit(1)' "$response"

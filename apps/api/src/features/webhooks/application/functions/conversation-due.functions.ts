@@ -7,7 +7,7 @@ import { ConversationReconciliationFunctions } from './conversation-reconciliati
 import { DUE_CONVERSATION_BATCH_SIZE, GHL_SOURCE_CONFIG } from './conversation-webhook.config';
 import { clean } from './conversation-webhook.helpers';
 import type { ConversationSnapshot, LocationSnapshot, DueConversationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
-import type { GhlGuardService } from '../ghl-guard.service';
+import type { GhlGuardRunResult, GhlGuardService } from '../ghl-guard.service';
 
 export class ConversationDueFunctions {
   constructor(
@@ -40,14 +40,24 @@ export class ConversationDueFunctions {
       if (await this.releaseDueConversation(row.id, now)) processed += 1;
     }
     if (options.reconcileActive !== false) await this.reconciliation.reconcileActiveConversations(now);
+    let guardResult: GhlGuardRunResult | undefined;
+    let guardError: string | undefined;
     if (options.reconcileActive !== false) {
       try {
-        await this.guard?.run(now);
-      } catch {
+        // Reconciliation can take longer than the caller's initial timestamp.
+        // The guard must lease from the real execution time, not that stale timestamp.
+        guardResult = await this.guard?.run(new Date());
+      } catch (error) {
         // The GHL guard is a repair/audit layer; it must never block due releases.
+        guardError = error instanceof Error ? error.name : 'GHL_GUARD_RUN_FAILED';
       }
     }
-    return { accepted: true, processed };
+    return {
+      accepted: true,
+      processed,
+      ...(guardResult ? { guard: guardResult } : {}),
+      ...(guardError ? { guardError } : {}),
+    };
   }
 
   private async releaseDueConversation(id: string, now: Date): Promise<boolean> {

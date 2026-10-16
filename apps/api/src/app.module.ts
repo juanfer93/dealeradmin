@@ -44,6 +44,7 @@ import { ReengagementCount1710000033000 } from './database/migrations/1710000033
 import { GhlGuardLogs1710000034000 } from './database/migrations/1710000034000-GhlGuardLogs';
 import { GhlGuardLifecycle1710000035000 } from './database/migrations/1710000035000-GhlGuardLifecycle';
 import { GhlGuardLeases1710000036000 } from './database/migrations/1710000036000-GhlGuardLeases';
+import { GhlGuardAuditDetails1710000037000 } from './database/migrations/1710000037000-GhlGuardAuditDetails';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -89,6 +90,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             GhlGuardLogs1710000034000,
             GhlGuardLifecycle1710000035000,
             GhlGuardLeases1710000036000,
+            GhlGuardAuditDetails1710000037000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,

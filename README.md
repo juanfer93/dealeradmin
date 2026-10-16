@@ -44,7 +44,8 @@ SELECT c.id, c.ghl_location_id, c.ghl_contact_id, c.ghl_conversation_id,
        cm.id AS message_id, cm.direction, cm.body, cm.occurred_at,
        gl.status AS guard_status, gl.fetched_message_count,
        gl.inserted_message_count, gl.repaired_message_count,
-       gl.reconciled, gl.error_code, gl.created_at AS guard_checked_at
+       gl.reconciled, gl.lead_metadata, gl.completed_fields,
+       gl.error_code, gl.created_at AS guard_checked_at
 FROM conversations c
 LEFT JOIN conversation_messages cm ON cm.conversation_id = c.id
 LEFT JOIN LATERAL (

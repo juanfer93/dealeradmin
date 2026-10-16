@@ -18,6 +18,7 @@ import {
   GHL_GUARD_TOKEN_ENV_BY_SOURCE,
 } from './ghl-guard.config';
 import { GhlGuardClient, type GhlGuardMessage } from './ghl-guard.client';
+import { completedFieldsBetween, type GhlGuardLeadMetadata } from './ghl-guard-audit';
 
 type GuardConversationRow = {
   id: string;
@@ -31,6 +32,20 @@ type PersistResult = {
   skipped: boolean;
   inserted: number;
   repaired: number;
+};
+
+type LeadMetadataRow = {
+  lead_id: string;
+  ghl_contact_id: string;
+  ghl_location_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  canonical_phone: string | null;
+  email: string | null;
+  source: string | null;
+  qualification_snapshot: Record<string, unknown> | null;
+  location_snapshot: Record<string, unknown> | null;
+  dealer_relations: Array<Record<string, unknown>> | null;
 };
 
 export type GhlGuardRunResult = {
@@ -233,7 +248,10 @@ export class GhlGuardService {
       }
       result.inserted += persisted.inserted;
       result.repaired += persisted.repaired;
-      await this.reconciliation.reconcileConversation(effectiveRow.id, now, true, true);
+      const leadMetadataBefore = await this.readLeadMetadata(effectiveRow.id);
+      await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true);
+      const leadMetadataAfter = await this.readLeadMetadata(effectiveRow.id);
+      const completedFields = completedFieldsBetween(leadMetadataBefore, leadMetadataAfter);
       await this.updateLog(logId, 'succeeded', {
         source,
         fetchedMessages: fetched.data.messages.length,
@@ -245,6 +263,8 @@ export class GhlGuardService {
         pages: fetched.data.pages,
         truncated: fetched.data.truncated,
         reconciled: true,
+        leadMetadata: leadMetadataAfter,
+        completedFields,
         finishedAt: new Date(),
         durationMs: Date.now() - startedAt.getTime(),
         ...lookupMetadata,
@@ -347,6 +367,57 @@ export class GhlGuardService {
     }
   }
 
+  private async readLeadMetadata(conversationId: string): Promise<GhlGuardLeadMetadata | null> {
+    if (!this.dataSource) return null;
+    try {
+      const rows = await this.dataSource.query(
+        `SELECT l.id::text AS lead_id, l.ghl_contact_id, l.ghl_location_id,
+                l.first_name, l.last_name, l.canonical_phone, l.email, l.source,
+                c.qualification_snapshot, c.location_snapshot,
+                COALESCE(jsonb_agg(jsonb_build_object(
+                  'dealer_id', ld.dealer_id::text,
+                  'vehicle_type', ld.vehicle_type,
+                  'down_payment', ld.down_payment,
+                  'purchase_timeline', ld.purchase_timeline,
+                  'documents', ld.documents,
+                  'easterns_zone', ld.easterns_zone,
+                  'routing_status', ld.routing_status,
+                  'assigned_dealer_id', ld.assigned_dealer_id::text,
+                  'routing_override', ld.routing_override,
+                  'routing_reason', ld.routing_reason,
+                  'status', ld.status,
+                  'message_text', ld.message_text
+                ) ORDER BY ld.dealer_id) FILTER (WHERE ld.lead_id IS NOT NULL), '[]'::jsonb) AS dealer_relations
+         FROM conversations c
+         JOIN leads l ON l.id = c.lead_id
+         LEFT JOIN lead_dealers ld ON ld.lead_id = l.id
+         WHERE c.id = $1
+         GROUP BY l.id, l.ghl_contact_id, l.ghl_location_id, l.first_name, l.last_name,
+                  l.canonical_phone, l.email, l.source, c.qualification_snapshot, c.location_snapshot`,
+        [conversationId],
+      ) as LeadMetadataRow[];
+      const row = rows[0];
+      if (!row) return null;
+      return {
+        lead: {
+          id: row.lead_id,
+          ghl_contact_id: row.ghl_contact_id,
+          ghl_location_id: row.ghl_location_id,
+          first_name: row.first_name,
+          last_name: row.last_name,
+          canonical_phone: row.canonical_phone,
+          email: row.email,
+          source: row.source,
+        },
+        qualification: row.qualification_snapshot,
+        location: row.location_snapshot,
+        dealer_relations: row.dealer_relations ?? [],
+      };
+    } catch {
+      return null;
+    }
+  }
+
   private async recoverStaleLogs(now: Date): Promise<void> {
     try {
       await this.dataSource?.query(
@@ -407,12 +478,13 @@ export class GhlGuardService {
          )
          INSERT INTO ghl_guard_logs
           (run_id, ghl_location_id, ghl_contact_id, ghl_conversation_id, conversation_id, status, scheduled_at, lease_expires_at, metadata)
-         SELECT $1, $2, $3, $4, $5, $6, $7::timestamptz, $8::timestamptz,
+         SELECT $1, $2, $3, $4, $5, $6, $7::timestamptz,
+                CURRENT_TIMESTAMP + ($8::integer * INTERVAL '1 millisecond'),
                 jsonb_build_object('lifecycle', jsonb_build_array('pending'), 'attemptCount', previous_attempt.attempt_count)
          FROM previous_attempt
          RETURNING id`,
         [runId, row.ghl_location_id, row.ghl_contact_id, row.ghl_conversation_id, row.id, status,
-          scheduledAt.toISOString(), new Date(scheduledAt.getTime() + ghlGuardConversationTimeoutMs()).toISOString()],
+          scheduledAt.toISOString(), ghlGuardConversationTimeoutMs()],
       ) as Array<{ id: string }>;
       return rows[0]?.id ?? null;
     } catch {
@@ -427,6 +499,8 @@ export class GhlGuardService {
       delete metadata.startedAt;
       delete metadata.finishedAt;
       delete metadata.responsePayload;
+      delete metadata.leadMetadata;
+      delete metadata.completedFields;
       const explicitDuration = typeof details.durationMs === 'number' && Number.isFinite(details.durationMs)
         ? details.durationMs
         : null;
@@ -447,6 +521,8 @@ export class GhlGuardService {
              request_path = COALESCE($11, request_path),
              error_code = COALESCE($12, error_code),
              response_payload = COALESCE($13::jsonb, response_payload),
+             lead_metadata = COALESCE($18::jsonb, lead_metadata),
+             completed_fields = COALESCE($19::jsonb, completed_fields),
              next_retry_at = CASE WHEN $2 = 'failed' THEN CURRENT_TIMESTAMP + ($16::integer * INTERVAL '1 millisecond') ELSE next_retry_at END,
              lease_expires_at = CASE WHEN $2 IN ('pending', 'running') THEN COALESCE(lease_expires_at, CURRENT_TIMESTAMP + ($17::integer * INTERVAL '1 millisecond')) ELSE NULL END,
              metadata = jsonb_set(metadata || $14::jsonb, '{lifecycle}',
@@ -459,7 +535,9 @@ export class GhlGuardService {
           details.fetchedMessages ?? null, details.insertedMessages ?? null, details.repairedMessages ?? null,
           details.reconciled === true ? true : null, details.httpStatus ?? null, details.requestPath ?? null,
           details.errorCode ?? null, details.responsePayload === undefined ? null : JSON.stringify(details.responsePayload), JSON.stringify(metadata), status,
-          ghlGuardRetryDelayMs(), ghlGuardConversationTimeoutMs()],
+          ghlGuardRetryDelayMs(), ghlGuardConversationTimeoutMs(),
+          details.leadMetadata === undefined || details.leadMetadata === null ? null : JSON.stringify(details.leadMetadata),
+          details.completedFields === undefined || details.completedFields === null ? null : JSON.stringify(details.completedFields)],
       );
     } catch {
       // Audit persistence must never block conversation processing.

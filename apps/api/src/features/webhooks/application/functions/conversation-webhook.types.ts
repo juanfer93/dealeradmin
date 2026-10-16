@@ -89,7 +89,20 @@ export type ConversationWebhookResponse = {
   status: 'processed' | 'duplicate_ignored' | 'stale_phone_ignored' | 'ignored_channel';
 };
 
-export type DueConversationResponse = { accepted: true; processed: number };
+export type DueConversationResponse = {
+  accepted: true;
+  processed: number;
+  guard?: {
+    enabled: boolean;
+    skipped: boolean;
+    selected: number;
+    fetched: number;
+    inserted: number;
+    repaired: number;
+    failed: number;
+  };
+  guardError?: string;
+};
 export type MediaReconciliationResponse = {
   accepted: true;
   conversationId: string;
