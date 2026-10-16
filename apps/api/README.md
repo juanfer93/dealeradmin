@@ -40,8 +40,11 @@ Variables opcionales:
 ```env
 GHL_GUARD_ENABLED=true
 GHL_GUARD_INTERVAL_MS=300000
-GHL_GUARD_BATCH_SIZE=25
-GHL_GUARD_TIMEOUT_MS=15000
+GHL_GUARD_BATCH_SIZE=5
+GHL_GUARD_CONCURRENCY=4
+GHL_GUARD_TIMEOUT_MS=10000
 GHL_GUARD_MESSAGE_PAGE_LIMIT=100
 GHL_GUARD_MAX_PAGES=10
 ```
+
+El guard limita cada ciclo a cinco conversaciones y cuatro lecturas concurrentes. El timeout efectivo de GHL está limitado a 15 segundos aunque una variable de entorno tenga un valor mayor; así una latencia excepcional no deja el cron bloqueado durante minutos. `duration_ms` conserva la duración calculada de cada intento, incluyendo los fallidos.

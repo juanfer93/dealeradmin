@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GHL_SOURCE_CONFIG } from '../../application/functions/conversation-webhook.config';
+import { ghlGuardBatchSize, ghlGuardConcurrency, ghlGuardTimeoutMs } from '../../application/ghl-guard.config';
 import { GhlGuardService } from '../../application/ghl-guard.service';
 
 describe('GhlGuardService', () => {
@@ -19,6 +20,16 @@ describe('GhlGuardService', () => {
 
     expect(result).toEqual({ enabled: false, skipped: true, selected: 0, fetched: 0, inserted: 0, repaired: 0, failed: 0 });
     expect((dataSource as { createQueryRunner: ReturnType<typeof vi.fn> }).createQueryRunner).not.toHaveBeenCalled();
+  });
+
+  it('bounds the guard workload and GHL timeout even when production env values are too high', () => {
+    process.env.GHL_GUARD_BATCH_SIZE = '25';
+    process.env.GHL_GUARD_CONCURRENCY = '25';
+    process.env.GHL_GUARD_TIMEOUT_MS = '60000';
+
+    expect(ghlGuardBatchSize()).toBe(5);
+    expect(ghlGuardConcurrency()).toBe(5);
+    expect(ghlGuardTimeoutMs()).toBe(15_000);
   });
 
   it('fetches, persists, reconciles, and logs a local conversation', async () => {
@@ -81,6 +92,7 @@ describe('GhlGuardService', () => {
     expect(persistRunner.commitTransaction).toHaveBeenCalledOnce();
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO ghl_guard_logs'), expect.any(Array));
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE ghl_guard_logs'), expect.any(Array));
+    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE ghl_guard_logs'), expect.arrayContaining([expect.any(Number)]));
   });
 
   it('resolves a synthetic conversation id by contact and persists the real GHL id', async () => {

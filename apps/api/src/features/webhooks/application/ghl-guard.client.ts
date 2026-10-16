@@ -1,3 +1,5 @@
+import { ghlGuardTimeoutMs } from './ghl-guard.config';
+
 export type GhlGuardMessage = {
   id?: string;
   altId?: string;
@@ -46,7 +48,6 @@ export type GhlGuardMessagesResult = {
 
 const DEFAULT_BASE_URL = 'https://services.leadconnectorhq.com';
 const DEFAULT_VERSION = '2021-07-28';
-const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_PAGE_LIMIT = 100;
 const DEFAULT_MAX_PAGES = 10;
 
@@ -78,7 +79,7 @@ function isRetryable(status: number): boolean {
 export class GhlGuardClient {
   private readonly baseUrl = (process.env.GHL_API_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, '');
   private readonly version = process.env.GHL_API_VERSION || DEFAULT_VERSION;
-  private readonly timeoutMs = positiveInteger(process.env.GHL_GUARD_TIMEOUT_MS, DEFAULT_TIMEOUT_MS);
+  private readonly timeoutMs = ghlGuardTimeoutMs();
   private readonly pageLimit = positiveInteger(process.env.GHL_GUARD_MESSAGE_PAGE_LIMIT, DEFAULT_PAGE_LIMIT);
   private readonly maxPages = positiveInteger(process.env.GHL_GUARD_MAX_PAGES, DEFAULT_MAX_PAGES);
 

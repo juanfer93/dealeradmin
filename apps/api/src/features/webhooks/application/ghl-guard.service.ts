@@ -8,6 +8,7 @@ import type { SourceConfigMap, SourceKey } from './functions/conversation-webhoo
 import { ConversationReconciliationFunctions } from './functions/conversation-reconciliation.functions';
 import {
   ghlGuardBatchSize,
+  ghlGuardConcurrency,
   GHL_GUARD_LOCK_KEY,
   ghlGuardEnabled,
   ghlGuardIntervalMs,
@@ -115,115 +116,10 @@ export class GhlGuardService {
         [ghlGuardBatchSize(), RECONCILIATION_LOCATION_IDS],
       ) as GuardConversationRow[];
       result.selected = rows.length;
-      for (const row of rows) {
-        const logId = await this.createLog(runId, row, 'pending', now);
-        const startedAt = new Date();
-        await this.updateLog(logId, 'running', { startedAt });
-        try {
-          const source = sourceForLocation(this.sourceConfig, row.ghl_location_id);
-          if (!source) {
-            result.failed += 1;
-            await this.updateLog(logId, 'failed', { errorCode: 'SOURCE_NOT_CONFIGURED', finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });
-            continue;
-          }
-          const token = process.env[GHL_GUARD_TOKEN_ENV_BY_SOURCE[source]]?.trim();
-          if (!token) {
-            result.failed += 1;
-            await this.updateLog(logId, 'failed', { errorCode: 'GHL_TOKEN_MISSING', source, finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });
-            continue;
-          }
-          let effectiveRow = row;
-          let conversationId = row.ghl_conversation_id?.trim() ?? '';
-          let lookupMetadata: Record<string, unknown> = {};
-          if (needsConversationLookup(row.ghl_conversation_id)) {
-            if (!this.client.searchConversationByContact) {
-              result.failed += 1;
-              await this.updateLog(logId, 'failed', { errorCode: 'GHL_CONVERSATION_LOOKUP_UNAVAILABLE', source, finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });
-              continue;
-            }
-            const lookup = await this.client.searchConversationByContact(token, row.ghl_location_id, row.ghl_contact_id);
-            lookupMetadata = { conversationLookup: { requestPath: lookup.requestPath, httpStatus: lookup.status, resolved: Boolean(lookup.data?.conversation?.id) } };
-            if (!lookup.ok || !lookup.data?.conversation?.id) {
-              result.failed += 1;
-              await this.updateLog(logId, 'failed', {
-                errorCode: lookup.errorCode || 'GHL_CONVERSATION_NOT_FOUND',
-                source,
-                httpStatus: lookup.status,
-                requestPath: lookup.requestPath,
-                responsePayload: lookup.responsePayload,
-                finishedAt: new Date(),
-                durationMs: Date.now() - startedAt.getTime(),
-                ...lookupMetadata,
-              });
-              continue;
-            }
-            conversationId = lookup.data.conversation.id;
-            await this.dataSource.query(
-              `UPDATE conversations
-               SET ghl_conversation_id = $2, updated_at = CURRENT_TIMESTAMP
-               WHERE id = $1 AND (ghl_conversation_id IS NULL OR ghl_conversation_id LIKE 'contact:%')`,
-              [row.id, conversationId],
-            );
-            effectiveRow = { ...row, ghl_conversation_id: conversationId };
-          }
-          const fetched = await this.client.listMessages(token, conversationId);
-          if (!fetched.ok || !fetched.data) {
-            result.failed += 1;
-            await this.updateLog(logId, 'failed', {
-              errorCode: fetched.errorCode || 'GHL_MESSAGES_READ_FAILED',
-              source,
-              httpStatus: fetched.status,
-              requestPath: fetched.requestPath,
-              responsePayload: fetched.responsePayload,
-              finishedAt: new Date(),
-              durationMs: Date.now() - startedAt.getTime(),
-              ...lookupMetadata,
-            });
-            continue;
-          }
-          result.fetched += fetched.data.messages.length;
-          const persisted = await this.persistMessages(effectiveRow, fetched.data.messages);
-          if (persisted.skipped) {
-            await this.updateLog(logId, 'skipped', {
-              source,
-              fetchedMessages: fetched.data.messages.length,
-              responsePayload: fetched.data.responsePayload,
-              httpStatus: fetched.status,
-              requestPath: fetched.requestPath,
-              pages: fetched.data.pages,
-              truncated: fetched.data.truncated,
-              finishedAt: new Date(),
-              durationMs: Date.now() - startedAt.getTime(),
-              ...lookupMetadata,
-            });
-            continue;
-          }
-          result.inserted += persisted.inserted;
-          result.repaired += persisted.repaired;
-          await this.reconciliation.reconcileConversation(effectiveRow.id, now, true, true);
-          await this.updateLog(logId, 'succeeded', {
-            source,
-            fetchedMessages: fetched.data.messages.length,
-            insertedMessages: persisted.inserted,
-            repairedMessages: persisted.repaired,
-            responsePayload: fetched.data.responsePayload,
-            httpStatus: fetched.status,
-            requestPath: fetched.requestPath,
-            pages: fetched.data.pages,
-            truncated: fetched.data.truncated,
-            reconciled: true,
-            finishedAt: new Date(),
-            durationMs: Date.now() - startedAt.getTime(),
-            ...lookupMetadata,
-          });
-        } catch (error) {
-          result.failed += 1;
-          await this.updateLog(logId, 'failed', {
-            errorCode: error instanceof Error ? error.name : 'GHL_GUARD_CONVERSATION_FAILED',
-            finishedAt: new Date(),
-            durationMs: Date.now() - startedAt.getTime(),
-          });
-        }
+      const concurrency = Math.min(ghlGuardConcurrency(), rows.length);
+      for (let offset = 0; offset < rows.length; offset += concurrency) {
+        const batch = rows.slice(offset, offset + concurrency);
+        await Promise.all(batch.map((row) => this.processRow(row, runId, now, result)));
       }
       return result;
     } catch (error) {
@@ -234,6 +130,117 @@ export class GhlGuardService {
       try { await lockRunner.query(`SELECT pg_advisory_unlock(hashtext($1))`, [GHL_GUARD_LOCK_KEY]); } catch { /* best effort */ }
       await lockRunner.release();
       this.running = false;
+    }
+  }
+
+  private async processRow(row: GuardConversationRow, runId: string, now: Date, result: GhlGuardRunResult): Promise<void> {
+    const logId = await this.createLog(runId, row, 'pending', now);
+    const startedAt = new Date();
+    await this.updateLog(logId, 'running', { startedAt });
+    try {
+      const source = sourceForLocation(this.sourceConfig, row.ghl_location_id);
+      if (!source) {
+        result.failed += 1;
+        await this.updateLog(logId, 'failed', { errorCode: 'SOURCE_NOT_CONFIGURED', finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });
+        return;
+      }
+      const token = process.env[GHL_GUARD_TOKEN_ENV_BY_SOURCE[source]]?.trim();
+      if (!token) {
+        result.failed += 1;
+        await this.updateLog(logId, 'failed', { errorCode: 'GHL_TOKEN_MISSING', source, finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });
+        return;
+      }
+      let effectiveRow = row;
+      let conversationId = row.ghl_conversation_id?.trim() ?? '';
+      let lookupMetadata: Record<string, unknown> = {};
+      if (needsConversationLookup(row.ghl_conversation_id)) {
+        if (!this.client.searchConversationByContact) {
+          result.failed += 1;
+          await this.updateLog(logId, 'failed', { errorCode: 'GHL_CONVERSATION_LOOKUP_UNAVAILABLE', source, finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });
+          return;
+        }
+        const lookup = await this.client.searchConversationByContact(token, row.ghl_location_id, row.ghl_contact_id);
+        lookupMetadata = { conversationLookup: { requestPath: lookup.requestPath, httpStatus: lookup.status, resolved: Boolean(lookup.data?.conversation?.id) } };
+        if (!lookup.ok || !lookup.data?.conversation?.id) {
+          result.failed += 1;
+          await this.updateLog(logId, 'failed', {
+            errorCode: lookup.errorCode || 'GHL_CONVERSATION_NOT_FOUND',
+            source,
+            httpStatus: lookup.status,
+            requestPath: lookup.requestPath,
+            responsePayload: lookup.responsePayload,
+            finishedAt: new Date(),
+            durationMs: Date.now() - startedAt.getTime(),
+            ...lookupMetadata,
+          });
+          return;
+        }
+        conversationId = lookup.data.conversation.id;
+        await this.dataSource!.query(
+          `UPDATE conversations
+           SET ghl_conversation_id = $2, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1 AND (ghl_conversation_id IS NULL OR ghl_conversation_id LIKE 'contact:%')`,
+          [row.id, conversationId],
+        );
+        effectiveRow = { ...row, ghl_conversation_id: conversationId };
+      }
+      const fetched = await this.client.listMessages(token, conversationId);
+      if (!fetched.ok || !fetched.data) {
+        result.failed += 1;
+        await this.updateLog(logId, 'failed', {
+          errorCode: fetched.errorCode || 'GHL_MESSAGES_READ_FAILED',
+          source,
+          httpStatus: fetched.status,
+          requestPath: fetched.requestPath,
+          responsePayload: fetched.responsePayload,
+          finishedAt: new Date(),
+          durationMs: Date.now() - startedAt.getTime(),
+          ...lookupMetadata,
+        });
+        return;
+      }
+      result.fetched += fetched.data.messages.length;
+      const persisted = await this.persistMessages(effectiveRow, fetched.data.messages);
+      if (persisted.skipped) {
+        await this.updateLog(logId, 'skipped', {
+          source,
+          fetchedMessages: fetched.data.messages.length,
+          responsePayload: fetched.data.responsePayload,
+          httpStatus: fetched.status,
+          requestPath: fetched.requestPath,
+          pages: fetched.data.pages,
+          truncated: fetched.data.truncated,
+          finishedAt: new Date(),
+          durationMs: Date.now() - startedAt.getTime(),
+          ...lookupMetadata,
+        });
+        return;
+      }
+      result.inserted += persisted.inserted;
+      result.repaired += persisted.repaired;
+      await this.reconciliation.reconcileConversation(effectiveRow.id, now, true, true);
+      await this.updateLog(logId, 'succeeded', {
+        source,
+        fetchedMessages: fetched.data.messages.length,
+        insertedMessages: persisted.inserted,
+        repairedMessages: persisted.repaired,
+        responsePayload: fetched.data.responsePayload,
+        httpStatus: fetched.status,
+        requestPath: fetched.requestPath,
+        pages: fetched.data.pages,
+        truncated: fetched.data.truncated,
+        reconciled: true,
+        finishedAt: new Date(),
+        durationMs: Date.now() - startedAt.getTime(),
+        ...lookupMetadata,
+      });
+    } catch (error) {
+      result.failed += 1;
+      await this.updateLog(logId, 'failed', {
+        errorCode: error instanceof Error ? error.name : 'GHL_GUARD_CONVERSATION_FAILED',
+        finishedAt: new Date(),
+        durationMs: Date.now() - startedAt.getTime(),
+      });
     }
   }
 
@@ -393,6 +400,12 @@ export class GhlGuardService {
       delete metadata.startedAt;
       delete metadata.finishedAt;
       delete metadata.responsePayload;
+      const explicitDuration = typeof details.durationMs === 'number' && Number.isFinite(details.durationMs)
+        ? details.durationMs
+        : null;
+      const derivedDuration = details.startedAt instanceof Date && details.finishedAt instanceof Date
+        ? details.finishedAt.getTime() - details.startedAt.getTime()
+        : null;
       await this.dataSource.query(
         `UPDATE ghl_guard_logs
          SET status = $2,
@@ -413,7 +426,7 @@ export class GhlGuardService {
         [logId, status,
           details.startedAt instanceof Date ? details.startedAt.toISOString() : null,
           details.finishedAt instanceof Date ? details.finishedAt.toISOString() : null,
-          details.startedAt instanceof Date && details.finishedAt instanceof Date ? details.finishedAt.getTime() - details.startedAt.getTime() : null,
+          explicitDuration ?? derivedDuration,
           details.fetchedMessages ?? null, details.insertedMessages ?? null, details.repairedMessages ?? null,
           details.reconciled === true ? true : null, details.httpStatus ?? null, details.requestPath ?? null,
           details.errorCode ?? null, details.responsePayload === undefined ? null : JSON.stringify(details.responsePayload), JSON.stringify(metadata), status],
