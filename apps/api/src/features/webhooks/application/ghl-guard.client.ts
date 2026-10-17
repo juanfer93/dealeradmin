@@ -50,6 +50,7 @@ const DEFAULT_BASE_URL = 'https://services.leadconnectorhq.com';
 const DEFAULT_VERSION = '2021-07-28';
 const DEFAULT_PAGE_LIMIT = 100;
 const DEFAULT_MAX_PAGES = 2;
+const CONVERSATION_SEARCH_LIMIT = 1;
 
 export type GhlGuardRequestOptions = {
   deadlineAt?: number;
@@ -111,7 +112,9 @@ export class GhlGuardClient {
   }
 
   async searchConversationByContact(token: string, locationId: string, contactId: string, options?: GhlGuardRequestOptions): Promise<GhlGuardFetchResult<{ conversation: GhlGuardConversation | null; total: number }>> {
-    const path = `/conversations/search?locationId=${encodeURIComponent(locationId)}&contactId=${encodeURIComponent(contactId)}&limit=20&sort=desc`;
+    // The guard only needs the newest conversation. Keeping the response small
+    // reduces latency and avoids making GHL scan/serialize unrelated history.
+    const path = `/conversations/search?locationId=${encodeURIComponent(locationId)}&contactId=${encodeURIComponent(contactId)}&limit=${CONVERSATION_SEARCH_LIMIT}&sort=desc`;
     const response = await this.get<GhlSearchResponse>(path, token, options);
     if (!response.ok) return { ok: false, status: response.status, errorCode: response.errorCode, requestPath: path, responsePayload: response.responsePayload };
     const conversation = (response.data?.conversations ?? [])
@@ -182,7 +185,8 @@ export class GhlGuardClient {
           return { ok: true, status: response.status, data: await response.json() as T };
         }
         if (isRetryable(response.status) && attempt < attempts - 1) {
-          await new Promise((resolve) => setTimeout(resolve, retryDelayMs(response, attempt)));
+          const retryable = await this.waitForRetry(retryDelayMs(response, attempt), options.deadlineAt);
+          if (!retryable) return { ok: false, status: 0, errorCode: 'GHL_TIMEOUT', requestPath: path };
           continue;
         }
         let responsePayload: unknown;
@@ -190,7 +194,8 @@ export class GhlGuardClient {
         return { ok: false, status: response.status, errorCode: safeErrorCode(response.status, undefined), responsePayload };
       } catch (error) {
         if (attempt < attempts - 1 && shouldRetryThrownError(error)) {
-          await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+          const retryable = await this.waitForRetry(250 * (attempt + 1), options.deadlineAt);
+          if (!retryable) return { ok: false, status: 0, errorCode: 'GHL_TIMEOUT', requestPath: path };
           continue;
         }
         return { ok: false, status: 0, errorCode: safeErrorCode(0, error), requestPath: path };
@@ -199,5 +204,11 @@ export class GhlGuardClient {
       }
     }
     return { ok: false, status: 0, errorCode: 'GHL_NETWORK_ERROR' };
+  }
+
+  private async waitForRetry(delayMs: number, deadlineAt?: number): Promise<boolean> {
+    if (deadlineAt !== undefined && deadlineAt - Date.now() <= delayMs) return false;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    return deadlineAt === undefined || deadlineAt > Date.now();
   }
 }
