@@ -532,7 +532,7 @@ export class GhlGuardService {
       : null;
     const rows = await this.dataSource.query(
       `UPDATE ghl_guard_logs
-       SET status = $2,
+       SET status = $2::varchar,
            started_at = COALESCE($3::timestamptz, started_at),
            finished_at = COALESCE($4::timestamptz, finished_at),
            duration_ms = COALESCE($5, duration_ms),
@@ -546,8 +546,8 @@ export class GhlGuardService {
            response_payload = COALESCE($13::jsonb, response_payload),
            lead_metadata = COALESCE($18::jsonb, lead_metadata),
            completed_fields = COALESCE($19::jsonb, completed_fields),
-           next_retry_at = CASE WHEN $2 = 'failed' THEN CURRENT_TIMESTAMP + ($16::integer * INTERVAL '1 millisecond') ELSE next_retry_at END,
-           lease_expires_at = CASE WHEN $2 IN ('pending', 'running') THEN CURRENT_TIMESTAMP + ($17::integer * INTERVAL '1 millisecond') ELSE NULL END,
+           next_retry_at = CASE WHEN $2::varchar = 'failed' THEN CURRENT_TIMESTAMP + ($16::integer * INTERVAL '1 millisecond') ELSE next_retry_at END,
+           lease_expires_at = CASE WHEN $2::varchar IN ('pending', 'running') THEN CURRENT_TIMESTAMP + ($17::integer * INTERVAL '1 millisecond') ELSE NULL END,
            metadata = jsonb_set(metadata || $14::jsonb, '{lifecycle}',
              COALESCE(metadata->'lifecycle', '[]'::jsonb) || jsonb_build_array($15::text))
        WHERE id = $1

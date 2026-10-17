@@ -104,6 +104,10 @@ describe('GhlGuardService', () => {
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE ghl_guard_logs'), expect.any(Array));
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE ghl_guard_logs'), expect.arrayContaining([expect.any(Number)]));
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('RETURNING id, status'), expect.any(Array));
+    const updateLogCall = dataSource.query.mock.calls.find(([sql]) => String(sql).includes('RETURNING id, status')) as [string, unknown[]] | undefined;
+    expect(updateLogCall?.[0]).toContain('status = $2::varchar');
+    expect(updateLogCall?.[0]).toContain("CASE WHEN $2::varchar = 'failed'");
+    expect(updateLogCall?.[0]).toContain("CASE WHEN $2::varchar IN ('pending', 'running')");
   });
 
   it('resolves a synthetic conversation id by contact and persists the real GHL id', async () => {
