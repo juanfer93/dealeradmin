@@ -287,8 +287,11 @@ export class GhlGuardService {
       });
     } catch (error) {
       result.failed += 1;
+      const errorCode = error instanceof Error ? error.name : 'GHL_GUARD_CONVERSATION_FAILED';
+      const errorMessage = error instanceof Error ? error.message : String(error);
       await this.safeUpdateLog(logId, 'failed', {
-        errorCode: error instanceof Error ? error.name : 'GHL_GUARD_CONVERSATION_FAILED',
+        errorCode,
+        errorMessage,
         finishedAt: new Date(),
         durationMs: Date.now() - startedAt.getTime(),
       });
@@ -550,8 +553,8 @@ export class GhlGuardService {
            lease_expires_at = CASE WHEN $2::varchar IN ('pending', 'running') THEN CURRENT_TIMESTAMP + ($17::integer * INTERVAL '1 millisecond') ELSE NULL END,
            metadata = jsonb_set(metadata || $14::jsonb, '{lifecycle}',
              COALESCE(metadata->'lifecycle', '[]'::jsonb) || jsonb_build_array($15::text))
-       WHERE id = $1
-         AND status IN ('pending', 'running')
+       WHERE id = $1::uuid
+         AND (status IN ('pending', 'running') OR status = $2::varchar)
        RETURNING id, status`,
       [logId, status,
         details.startedAt instanceof Date ? details.startedAt.toISOString() : null,

@@ -106,6 +106,8 @@ describe('GhlGuardService', () => {
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('RETURNING id, status'), expect.any(Array));
     const updateLogCall = dataSource.query.mock.calls.find(([sql]) => String(sql).includes('RETURNING id, status')) as [string, unknown[]] | undefined;
     expect(updateLogCall?.[0]).toContain('status = $2::varchar');
+    expect(updateLogCall?.[0]).toContain('id = $1::uuid');
+    expect(updateLogCall?.[0]).toContain("OR status = $2::varchar");
     expect(updateLogCall?.[0]).toContain("CASE WHEN $2::varchar = 'failed'");
     expect(updateLogCall?.[0]).toContain("CASE WHEN $2::varchar IN ('pending', 'running')");
   });
