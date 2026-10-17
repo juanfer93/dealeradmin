@@ -61,6 +61,15 @@ export type GhlGuardRunResult = {
   inserted: number;
   repaired: number;
   failed: number;
+  errors?: GhlGuardFailure[];
+};
+
+export type GhlGuardFailure = {
+  conversationId: string | null;
+  ghlLocationId: string | null;
+  ghlContactId: string | null;
+  errorCode: string;
+  errorMessage?: string;
 };
 
 type GhlGuardClientPort = Pick<GhlGuardClient, 'listMessages'> & Partial<Pick<GhlGuardClient, 'searchConversationByContact'>>;
@@ -167,8 +176,10 @@ export class GhlGuardService {
       }
       return result;
     } catch (error) {
-      await this.log(runId, null, 'failed', { errorCode: error instanceof Error ? error.name : 'GHL_GUARD_RUN_FAILED' });
-      result.failed += 1;
+      const errorCode = error instanceof Error ? error.name : 'GHL_GUARD_RUN_FAILED';
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      await this.log(runId, null, 'failed', { errorCode, errorMessage });
+      this.recordFailure(result, null, errorCode, errorMessage);
       return result;
     } finally {
       try { await lockRunner.query(`SELECT pg_advisory_unlock(hashtext($1))`, [GHL_GUARD_LOCK_KEY]); } catch { /* best effort */ }
@@ -182,17 +193,21 @@ export class GhlGuardService {
     const startedAt = new Date();
     try {
       logId = await this.createLog(runId, row, 'pending', now);
+      if (!logId) {
+        this.recordFailure(result, row, 'GHL_GUARD_LOG_CREATE_NOT_PERSISTED');
+        return;
+      }
       await this.updateLog(logId, 'running', { startedAt });
       const deadlineAt = Date.now() + ghlGuardConversationTimeoutMs();
       const source = sourceForLocation(this.sourceConfig, row.ghl_location_id);
       if (!source) {
-        result.failed += 1;
+        this.recordFailure(result, row, 'SOURCE_NOT_CONFIGURED');
         await this.updateLog(logId, 'failed', { errorCode: 'SOURCE_NOT_CONFIGURED', finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });
         return;
       }
       const token = process.env[GHL_GUARD_TOKEN_ENV_BY_SOURCE[source]]?.trim();
       if (!token) {
-        result.failed += 1;
+        this.recordFailure(result, row, 'GHL_TOKEN_MISSING');
         await this.updateLog(logId, 'failed', { errorCode: 'GHL_TOKEN_MISSING', source, finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });
         return;
       }
@@ -201,16 +216,17 @@ export class GhlGuardService {
       let lookupMetadata: Record<string, unknown> = {};
       if (needsConversationLookup(row.ghl_conversation_id)) {
         if (!this.client.searchConversationByContact) {
-          result.failed += 1;
+          this.recordFailure(result, row, 'GHL_CONVERSATION_LOOKUP_UNAVAILABLE');
           await this.updateLog(logId, 'failed', { errorCode: 'GHL_CONVERSATION_LOOKUP_UNAVAILABLE', source, finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });
           return;
         }
         const lookup = await this.client.searchConversationByContact(token, row.ghl_location_id, row.ghl_contact_id, { deadlineAt });
         lookupMetadata = { conversationLookup: { requestPath: lookup.requestPath, httpStatus: lookup.status, resolved: Boolean(lookup.data?.conversation?.id) } };
         if (!lookup.ok || !lookup.data?.conversation?.id) {
-          result.failed += 1;
+          const errorCode = lookup.errorCode || 'GHL_CONVERSATION_NOT_FOUND';
+          this.recordFailure(result, row, errorCode);
           await this.updateLog(logId, 'failed', {
-            errorCode: lookup.errorCode || 'GHL_CONVERSATION_NOT_FOUND',
+            errorCode,
             source,
             httpStatus: lookup.status,
             requestPath: lookup.requestPath,
@@ -232,9 +248,10 @@ export class GhlGuardService {
       }
       const fetched = await this.client.listMessages(token, conversationId, { deadlineAt });
       if (!fetched.ok || !fetched.data) {
-        result.failed += 1;
+        const errorCode = fetched.errorCode || 'GHL_MESSAGES_READ_FAILED';
+        this.recordFailure(result, row, errorCode);
         await this.updateLog(logId, 'failed', {
-          errorCode: fetched.errorCode || 'GHL_MESSAGES_READ_FAILED',
+          errorCode,
           source,
           httpStatus: fetched.status,
           requestPath: fetched.requestPath,
@@ -286,9 +303,9 @@ export class GhlGuardService {
         ...lookupMetadata,
       });
     } catch (error) {
-      result.failed += 1;
       const errorCode = error instanceof Error ? error.name : 'GHL_GUARD_CONVERSATION_FAILED';
       const errorMessage = error instanceof Error ? error.message : String(error);
+      this.recordFailure(result, row, errorCode, errorMessage);
       await this.safeUpdateLog(logId, 'failed', {
         errorCode,
         errorMessage,
@@ -509,14 +526,35 @@ export class GhlGuardService {
           scheduledAt.toISOString(), ghlGuardStaleLogMs()],
       ) as Array<{ id: string }>;
       if (!rows[0]?.id) {
-        this.logAuditError('GHL_GUARD_LOG_CREATE_NOT_PERSISTED', new Error('INSERT returned no guard log id'), { runId, conversationId: row.id });
-        return null;
+        const error = new Error('INSERT returned no guard log id');
+        error.name = 'GHL_GUARD_LOG_CREATE_NOT_PERSISTED';
+        this.logAuditError(error.name, error, { runId, conversationId: row.id });
+        throw error;
       }
       return rows[0].id;
     } catch (error) {
-      this.logAuditError('GHL_GUARD_LOG_CREATE_FAILED', error, { runId, conversationId: row.id });
-      return null;
+      const persistenceError = new Error(error instanceof Error ? error.message : String(error));
+      persistenceError.name = error instanceof Error && error.name !== 'Error' ? error.name : 'GHL_GUARD_LOG_CREATE_FAILED';
+      this.logAuditError(persistenceError.name, error, { runId, conversationId: row.id });
+      throw persistenceError;
     }
+  }
+
+  private recordFailure(
+    result: GhlGuardRunResult,
+    row: GuardConversationRow | null,
+    errorCode: string,
+    errorMessage?: string,
+  ): void {
+    result.failed += 1;
+    const failure: GhlGuardFailure = {
+      conversationId: row?.id ?? null,
+      ghlLocationId: row?.ghl_location_id ?? null,
+      ghlContactId: row?.ghl_contact_id ?? null,
+      errorCode,
+    };
+    if (errorMessage) failure.errorMessage = errorMessage.slice(0, 500);
+    result.errors = [...(result.errors ?? []), failure];
   }
 
   private async updateLog(logId: string | null, status: string, details: Record<string, unknown>): Promise<void> {

@@ -154,4 +154,45 @@ describe('GhlGuardService', () => {
     expect(client.listMessages).toHaveBeenCalledWith('pit-test-token', 'ghl-real-conversation', { deadlineAt: expect.any(Number) });
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining("SET ghl_conversation_id = $2"), [row.id, 'ghl-real-conversation']);
   });
+
+  it('surfaces guard-log persistence failures and does not call GHL without an audit row', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.GHL_GUARD_ENABLED = 'true';
+    process.env.GHL_GUARD_INTERVAL_MS = '1';
+    process.env.GHL_PRIVATE_TOKEN_STAFFORD = 'pit-test-token';
+
+    const row = {
+      id: 'conversation-log-failure',
+      ghl_location_id: GHL_SOURCE_CONFIG.stafford.locationId,
+      ghl_contact_id: 'contact-log-failure',
+      ghl_conversation_id: 'ghl-conversation-log-failure',
+      status: 'waiting_window',
+    };
+    const lockRunner = {
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : sql.includes('FROM conversations') ? [row] : []),
+      release: vi.fn(),
+    };
+    const dataSource = {
+      createQueryRunner: vi.fn().mockReturnValue(lockRunner),
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO ghl_guard_logs')) throw new Error('column "lease_expires_at" does not exist');
+        return [];
+      }),
+    };
+    const client = { listMessages: vi.fn() };
+    const service = new GhlGuardService(dataSource as never, { reconcileConversation: vi.fn() } as never, GHL_SOURCE_CONFIG, client);
+
+    const result = await service.run(new Date('2026-10-16T12:00:00.000Z'));
+
+    expect(result).toMatchObject({ selected: 1, fetched: 0, inserted: 0, repaired: 0, failed: 1 });
+    expect(result.errors).toEqual([{
+      conversationId: row.id,
+      ghlLocationId: row.ghl_location_id,
+      ghlContactId: row.ghl_contact_id,
+      errorCode: 'GHL_GUARD_LOG_CREATE_FAILED',
+      errorMessage: 'column "lease_expires_at" does not exist',
+    }]);
+    expect(client.listMessages).not.toHaveBeenCalled();
+  });
 });
