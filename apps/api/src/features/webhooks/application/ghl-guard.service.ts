@@ -304,6 +304,9 @@ export class GhlGuardService {
       }
       result.inserted += persisted.inserted;
       result.repaired += persisted.repaired;
+      const mergedMessages = syntheticConversationId && syntheticConversationId !== effectiveRow.id
+        ? await this.mergeSyntheticConversationMessages(syntheticConversationId, effectiveRow.id)
+        : 0;
       const leadMetadataBefore = await this.readLeadMetadata(effectiveRow.id);
       await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true);
       const leadMetadataAfter = await this.readLeadMetadata(effectiveRow.id);
@@ -331,6 +334,7 @@ export class GhlGuardService {
         completedFields,
         finishedAt: new Date(),
         durationMs: Date.now() - startedAt.getTime(),
+        ...(mergedMessages > 0 ? { mergedMessages } : {}),
         ...lookupMetadata,
       });
     } catch (error) {
@@ -484,6 +488,37 @@ export class GhlGuardService {
       this.logAuditError('GHL_GUARD_LEAD_METADATA_READ_FAILED', error, { conversationId });
       return null;
     }
+  }
+
+  private async mergeSyntheticConversationMessages(sourceConversationId: string, targetConversationId: string): Promise<number> {
+    if (!this.dataSource || sourceConversationId === targetConversationId) return 0;
+    const rows = await this.dataSource.query(
+      `WITH moved AS (
+         UPDATE conversation_messages source
+         SET conversation_id = $2
+         WHERE source.conversation_id = $1
+           AND NOT EXISTS (
+             SELECT 1
+             FROM conversation_messages target
+             WHERE target.conversation_id = $2
+               AND target.dedupe_key = source.dedupe_key
+           )
+         RETURNING occurred_at
+       ), updated AS (
+         UPDATE conversations target
+         SET last_message_at = GREATEST(
+               target.last_message_at,
+               COALESCE((SELECT MAX(occurred_at) FROM moved), target.last_message_at)
+             ),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE target.id = $2
+         RETURNING target.id
+       )
+       SELECT (SELECT COUNT(*)::int FROM moved) AS moved_count,
+              (SELECT COUNT(*) FROM updated) AS updated_count`,
+      [sourceConversationId, targetConversationId],
+    ) as Array<{ moved_count: number | string }>;
+    return Number(rows[0]?.moved_count) || 0;
   }
 
   private async recoverStaleLogs(now: Date): Promise<void> {
