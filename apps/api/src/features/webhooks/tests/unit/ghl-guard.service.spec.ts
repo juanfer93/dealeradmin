@@ -200,6 +200,7 @@ describe('GhlGuardService', () => {
     expect(result).toMatchObject({ selected: 1, fetched: 1, inserted: 1, failed: 0 });
     expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(winner.id, expect.any(Date), true, true);
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('WHERE ghl_location_id = $1 AND ghl_contact_id = $2 AND ghl_conversation_id = $3'), [row.ghl_location_id, row.ghl_contact_id, 'ghl-real-winner']);
+    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining("SET status = 'duplicate_ignored'"), [row.id]);
   });
 
   it('surfaces guard-log persistence failures and does not call GHL without an audit row', async () => {

@@ -220,6 +220,7 @@ export class GhlGuardService {
         return;
       }
       let effectiveRow = row;
+      let syntheticConversationId: string | null = null;
       let conversationId = row.ghl_conversation_id?.trim() ?? '';
       let lookupMetadata: Record<string, unknown> = {};
       if (needsConversationLookup(row.ghl_conversation_id)) {
@@ -263,6 +264,7 @@ export class GhlGuardService {
             [row.ghl_location_id, row.ghl_contact_id, conversationId],
           ) as Array<{ id: string; status: string }>;
           if (!existingConversation[0]) throw error;
+          syntheticConversationId = row.id;
           effectiveRow = { ...row, id: existingConversation[0].id, ghl_conversation_id: conversationId, status: existingConversation[0].status };
         }
         if (effectiveRow.id === row.id) effectiveRow = { ...row, ghl_conversation_id: conversationId };
@@ -306,6 +308,14 @@ export class GhlGuardService {
       await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true);
       const leadMetadataAfter = await this.readLeadMetadata(effectiveRow.id);
       const completedFields = completedFieldsBetween(leadMetadataBefore, leadMetadataAfter);
+      if (syntheticConversationId && syntheticConversationId !== effectiveRow.id) {
+        await this.dataSource!.query(
+          `UPDATE conversations
+           SET status = 'duplicate_ignored', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1 AND status NOT IN ('queued', 'sent', 'duplicate_ignored', 'ignored_channel', 'stale_phone_ignored')`,
+          [syntheticConversationId],
+        );
+      }
       await this.updateLog(logId, 'succeeded', {
         source,
         fetchedMessages: fetched.data.messages.length,
