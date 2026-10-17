@@ -103,8 +103,8 @@ describe('GhlGuardService', () => {
     expect(insertLogCall?.[1]?.[7]).toBe(ghlGuardStaleLogMs());
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE ghl_guard_logs'), expect.any(Array));
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE ghl_guard_logs'), expect.arrayContaining([expect.any(Number)]));
-    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('RETURNING id, status'), expect.any(Array));
-    const updateLogCall = dataSource.query.mock.calls.find(([sql]) => String(sql).includes('RETURNING id, status')) as [string, unknown[]] | undefined;
+    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('RETURNING id::text AS id, status'), expect.any(Array));
+    const updateLogCall = dataSource.query.mock.calls.find(([sql]) => String(sql).includes('RETURNING id::text AS id, status')) as [string, unknown[]] | undefined;
     expect(updateLogCall?.[0]).toContain('status = $2::varchar');
     expect(updateLogCall?.[0]).toContain('id = $1::uuid');
     expect(updateLogCall?.[0]).toContain("OR status = $2::varchar");
@@ -194,5 +194,21 @@ describe('GhlGuardService', () => {
       errorMessage: 'column "lease_expires_at" does not exist',
     }]);
     expect(client.listMessages).not.toHaveBeenCalled();
+  });
+
+  it('accepts an idempotent audit transition when RETURNING is empty but the row has the target state', async () => {
+    const dataSource = {
+      query: vi.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: 'guard-log-1', status: 'running' }]),
+    };
+    const service = new GhlGuardService(dataSource as never, { reconcileConversation: vi.fn() } as never);
+
+    await (service as unknown as {
+      updateLog: (logId: string, status: string, details: Record<string, unknown>) => Promise<void>;
+    }).updateLog('guard-log-1', 'running', {});
+
+    expect(dataSource.query).toHaveBeenCalledTimes(2);
+    expect(dataSource.query.mock.calls[1]?.[0]).toContain('SELECT id::text AS id, status');
   });
 });

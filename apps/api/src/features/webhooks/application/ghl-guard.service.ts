@@ -593,7 +593,7 @@ export class GhlGuardService {
              COALESCE(metadata->'lifecycle', '[]'::jsonb) || jsonb_build_array($15::text))
        WHERE id = $1::uuid
          AND (status IN ('pending', 'running') OR status = $2::varchar)
-       RETURNING id, status`,
+       RETURNING id::text AS id, status`,
       [logId, status,
         details.startedAt instanceof Date ? details.startedAt.toISOString() : null,
         details.finishedAt instanceof Date ? details.finishedAt.toISOString() : null,
@@ -605,9 +605,20 @@ export class GhlGuardService {
         details.leadMetadata === undefined || details.leadMetadata === null ? null : JSON.stringify(details.leadMetadata),
         details.completedFields === undefined || details.completedFields === null ? null : JSON.stringify(details.completedFields)],
     ) as GuardAuditRow[];
-    if (!rows[0]?.id) {
-      throw new Error(`GHL_GUARD_LOG_UPDATE_NOT_PERSISTED:${status}`);
-    }
+    if (rows[0]?.id) return;
+
+    // Some pooled Postgres drivers can return an empty result for a successful
+    // idempotent UPDATE ... RETURNING. Confirm the durable state before marking
+    // the guard attempt as failed; never hide a genuinely missing or conflicting row.
+    const currentRows = await this.dataSource.query(
+      `SELECT id::text AS id, status
+       FROM ghl_guard_logs
+       WHERE id = $1::uuid`,
+      [logId],
+    ) as GuardAuditRow[];
+    if (currentRows[0]?.status === status) return;
+
+    throw new Error(`GHL_GUARD_LOG_UPDATE_NOT_PERSISTED:${status}:${currentRows[0]?.status ?? 'missing'}`);
   }
 
   private async safeUpdateLog(logId: string | null, status: string, details: Record<string, unknown>): Promise<void> {
