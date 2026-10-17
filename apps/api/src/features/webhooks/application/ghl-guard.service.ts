@@ -82,6 +82,14 @@ function sourceForLocation(sourceConfig: SourceConfigMap, locationId: string): S
   return Object.entries(sourceConfig).find(([, config]) => config.locationId === locationId)?.[0] as SourceKey | undefined;
 }
 
+function isConversationIdentityConflict(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { code?: unknown; constraint?: unknown; message?: unknown };
+  return candidate.code === '23505'
+    && (candidate.constraint === 'conversations_identity_unique'
+      || String(candidate.message ?? '').includes('conversations_identity_unique'));
+}
+
 function normalizeDirection(value: unknown): 'inbound' | 'outbound' | 'unknown' {
   const direction = String(value ?? '').trim().toLowerCase();
   if (direction === 'inbound') return 'inbound';
@@ -238,13 +246,26 @@ export class GhlGuardService {
           return;
         }
         conversationId = lookup.data.conversation.id;
-        await this.dataSource!.query(
-          `UPDATE conversations
-           SET ghl_conversation_id = $2, updated_at = CURRENT_TIMESTAMP
-           WHERE id = $1 AND (ghl_conversation_id IS NULL OR ghl_conversation_id LIKE 'contact:%')`,
-          [row.id, conversationId],
-        );
-        effectiveRow = { ...row, ghl_conversation_id: conversationId };
+        try {
+          await this.dataSource!.query(
+            `UPDATE conversations
+             SET ghl_conversation_id = $2, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $1 AND (ghl_conversation_id IS NULL OR ghl_conversation_id LIKE 'contact:%')`,
+            [row.id, conversationId],
+          );
+        } catch (error) {
+          if (!isConversationIdentityConflict(error)) throw error;
+          const existingConversation = await this.dataSource!.query(
+            `SELECT id, status
+             FROM conversations
+             WHERE ghl_location_id = $1 AND ghl_contact_id = $2 AND ghl_conversation_id = $3
+             LIMIT 1`,
+            [row.ghl_location_id, row.ghl_contact_id, conversationId],
+          ) as Array<{ id: string; status: string }>;
+          if (!existingConversation[0]) throw error;
+          effectiveRow = { ...row, id: existingConversation[0].id, ghl_conversation_id: conversationId, status: existingConversation[0].status };
+        }
+        if (effectiveRow.id === row.id) effectiveRow = { ...row, ghl_conversation_id: conversationId };
       }
       const fetched = await this.client.listMessages(token, conversationId, { deadlineAt });
       if (!fetched.ok || !fetched.data) {

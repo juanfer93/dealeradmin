@@ -71,6 +71,18 @@ describe('GhlGuardClient', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('retries an authentication timeout and preserves the request path on failure', async () => {
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new Error('Authentication timed out'))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ messages: [] }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new GhlGuardClient().listMessages('pit-test-token', 'conversation-1');
+
+    expect(result).toMatchObject({ ok: true, status: 200, requestPath: '/conversations/conversation-1/messages' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('resolves a real conversation id by contact when the webhook id is synthetic', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       conversations: [{ id: 'ghl-real-conversation', locationId: 'location-1' }], total: 1,

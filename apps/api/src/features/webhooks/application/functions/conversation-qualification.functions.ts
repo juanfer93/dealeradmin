@@ -260,10 +260,29 @@ export class ConversationQualificationFunctions {
     if (existing[0]) return { ...existing[0], isExisting: true };
     const inserted = await runner.query(
       `INSERT INTO conversations (lead_id, ghl_location_id, ghl_contact_id, ghl_conversation_id, channel, first_message_at, last_message_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $6) RETURNING id, status, qualification_snapshot, location_snapshot, ready_at, created_at, first_message_at`,
+       VALUES ($1, $2, $3, $4, $5, $6, $6)
+       ON CONFLICT (ghl_location_id, ghl_contact_id, ghl_conversation_id) DO NOTHING
+       RETURNING id, status, qualification_snapshot, location_snapshot, ready_at, created_at, first_message_at`,
       [input.leadId, input.locationId, input.contactId, input.conversationId, input.channel, input.occurredAt],
     ) as ConversationRow[];
-    return { ...inserted[0], isExisting: false };
+    if (inserted[0]) return { ...inserted[0], isExisting: false };
+
+    // Another webhook won the same identity race. Read its committed row and
+    // continue through the existing-conversation path without duplicating it.
+    const concurrent = await runner.query(
+      `SELECT id, status, qualification_snapshot, location_snapshot, ready_at,
+              created_at, first_message_at,
+              EXISTS (
+                SELECT 1
+                FROM conversation_messages cm
+                WHERE cm.conversation_id = conversations.id
+              ) AS has_previous_message
+       FROM conversations
+       WHERE ghl_location_id = $1 AND ghl_contact_id = $2 AND ghl_conversation_id = $3 FOR UPDATE`,
+      [input.locationId, input.contactId, input.conversationId],
+    ) as ConversationRow[];
+    if (concurrent[0]) return { ...concurrent[0], isExisting: true };
+    throw new Error('Conversation insert conflict did not resolve to an existing row');
   }
 
   statusForConversation(

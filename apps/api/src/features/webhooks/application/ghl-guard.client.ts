@@ -67,6 +67,7 @@ function safeErrorCode(status: number, error: unknown): string {
   if (status === 429) return 'GHL_RATE_LIMITED';
   if (status >= 500) return `GHL_HTTP_${status}`;
   if (error instanceof Error && error.name === 'AbortError') return 'GHL_TIMEOUT';
+  if (error instanceof Error && /authentication.*timed out|auth(?:entication)?[^\n]*timed out/i.test(error.message)) return 'GHL_AUTH_TIMEOUT';
   return status > 0 ? `GHL_HTTP_${status}` : 'GHL_NETWORK_ERROR';
 }
 
@@ -78,6 +79,18 @@ function retryDelayMs(response: Response, attempt: number): number {
 
 function isRetryable(status: number): boolean {
   return status === 429 || status >= 500;
+}
+
+function isRetryableTransportError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return error.name === 'AbortError' || /timed out|timeout|temporarily unavailable|econnreset|socket hang up/i.test(error.message);
+}
+
+function shouldRetryThrownError(error: unknown): boolean {
+  // Preserve the previous retry behavior for ordinary thrown errors while
+  // adding retries for request-level aborts caused by transient timeouts.
+  if (!(error instanceof Error)) return true;
+  return error.name !== 'AbortError' || isRetryableTransportError(error);
 }
 
 export class GhlGuardClient {
@@ -176,11 +189,11 @@ export class GhlGuardClient {
         try { responsePayload = await response.json(); } catch { /* Some gateway errors have no JSON body. */ }
         return { ok: false, status: response.status, errorCode: safeErrorCode(response.status, undefined), responsePayload };
       } catch (error) {
-        if (attempt < attempts - 1 && (!(error instanceof Error) || error.name !== 'AbortError')) {
+        if (attempt < attempts - 1 && shouldRetryThrownError(error)) {
           await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
           continue;
         }
-        return { ok: false, status: 0, errorCode: safeErrorCode(0, error) };
+        return { ok: false, status: 0, errorCode: safeErrorCode(0, error), requestPath: path };
       } finally {
         clearTimeout(timeout);
       }
