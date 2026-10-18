@@ -18,6 +18,7 @@ describe('ConversationReconciliationFunctions', () => {
             phone: '+14103016969',
             vehicle_type: 'Honda Civic',
             vehicle_year: 2010,
+            down_payment: '15',
             qualification_complete: false,
           },
           location_snapshot: { city: null, state: null, zip_code: null, easterns_zone: null },
@@ -33,7 +34,7 @@ describe('ConversationReconciliationFunctions', () => {
       if (sql.includes('SELECT cm.body')) {
         return [
           { body: 'Hola cómo está mi nombre es Manuel', direction: 'inbound', occurred_at: '2026-10-18T17:59:00.000Z' },
-          { body: 'Ando buscando un Honda civic', direction: 'inbound', occurred_at: '2026-10-18T18:00:00.000Z' },
+          { body: 'Ando buscando un Honda civic 2014/15', direction: 'inbound', occurred_at: '2026-10-18T18:00:00.000Z' },
         ];
       }
       return [];
@@ -62,7 +63,7 @@ describe('ConversationReconciliationFunctions', () => {
     const leadUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE leads SET first_name'));
     expect(leadUpdate?.[1]).toEqual(['lead-manuel', 'Manuel', '']);
     const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot'));
-    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ real_name: 'Manuel', vehicle_type: 'Honda Civic', vehicle_year: 2010 });
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ real_name: 'Manuel', vehicle_type: 'Honda Civic', vehicle_year: 2015, down_payment: '' });
     expect(conversationUpdate?.[1]?.[1]).toBe('queued');
   });
 });

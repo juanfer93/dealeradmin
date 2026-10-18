@@ -133,10 +133,13 @@ export class ConversationReconciliationFunctions {
         message: transcript,
         chat_history_log: transcript,
         phone: effectivePhone,
-        real_name: clean(current.real_name),
+        // A targeted repair is an explicit transcript replay. Do not feed the
+        // contaminated name/down-payment fields back into the normalizer or
+        // they can win over the newer evidence in the conversation.
+        real_name: targeted ? '' : clean(current.real_name),
         contact_name: contactName,
-        vehicle_type: clean(current.vehicle_type),
-        down_payment: clean(current.down_payment),
+        vehicle_type: targeted ? '' : clean(current.vehicle_type),
+        down_payment: targeted ? '' : clean(current.down_payment),
         purchase_timeline: clean(current.purchase_timeline),
         documents: clean(current.documents),
         identification: clean(current.identification),
@@ -150,12 +153,14 @@ export class ConversationReconciliationFunctions {
         const incomingValue = clean(incoming);
         return additiveOnly ? existingValue || incomingValue : incomingValue || existingValue;
       };
-      const realName = preserveOrNormalize(current.real_name, normalized.real_name);
-      const vehicle = preserveOrNormalize(current.vehicle_type, normalized.vehicle_type);
-      const vehicleYear = additiveOnly && typeof current.vehicle_year === 'number'
+      const realName = targeted ? clean(normalized.real_name) : preserveOrNormalize(current.real_name, normalized.real_name);
+      const vehicle = targeted ? clean(normalized.vehicle_type) : preserveOrNormalize(current.vehicle_type, normalized.vehicle_type);
+      const vehicleYear = targeted
+        ? normalized.vehicle_year
+        : additiveOnly && typeof current.vehicle_year === 'number'
         ? current.vehicle_year
         : normalized.vehicle_year ?? (typeof current.vehicle_year === 'number' ? current.vehicle_year : null);
-      const downPayment = normalizeDownPayment(preserveOrNormalize(current.down_payment, normalized.down_payment));
+      const downPayment = normalizeDownPayment(targeted ? normalized.down_payment : preserveOrNormalize(current.down_payment, normalized.down_payment));
       const purchaseTimeline = preserveOrNormalize(current.purchase_timeline, normalized.purchase_timeline);
       const documents = preserveOrNormalize(current.documents, normalized.documents);
       const identification = preserveOrNormalize(current.identification, normalized.identification);
