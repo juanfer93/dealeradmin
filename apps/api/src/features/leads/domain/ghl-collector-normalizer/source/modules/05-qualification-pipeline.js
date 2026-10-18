@@ -250,6 +250,8 @@ const extractedVehicle = familyPassengerVanIntent.test(vehicleSource)
     ? 'Sedan'
     : genericSedanIntent.test(vehicleSource)
       ? 'Sedan'
+      : /\b(?:four|4)[-\s]?door\s+sports?\s+cars?\b/i.test(vehicleSource)
+        ? 'Sedan'
     : first(
     campaign ? '' : cleanVehicleValue(vehicleFrom(vehicleSource)),
     cleanVehicleValue(memoryValue(['vehicle', 'vehicle_type'])),

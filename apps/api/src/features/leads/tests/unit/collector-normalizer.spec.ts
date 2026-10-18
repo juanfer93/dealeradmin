@@ -95,6 +95,36 @@ describe('normalizeCollectorInput', () => {
     expect(result.qualification_memory).toContain('vehicle: Honda Civic');
   });
 
+  it('classifies a four-door sports-car answer as a sedan instead of preserving the advisor marker', () => {
+    const transcript = [
+      'You have any used vehicle',
+      'Four-door sports car',
+      '7174193529',
+      'looking for something in 16 and under',
+      '2016',
+      'Yes 1000',
+      'browsing for right now, but very soon',
+      'Maybe',
+      'I like to see some pictures of cars',
+      'Yes I do i’m 61',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'action-cars',
+      channel: 'messenger',
+      real_name: 'Robert Schmidt',
+      phone: '+17174193529',
+      vehicle_type: 'Quiere hablar con un asesor',
+      down_payment: '1000',
+      qualification_memory: 'real_name: Robert Schmidt; vehicle: Quiere hablar con un asesor; down payment: 1000',
+      message: 'Yes I do i’m 61',
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({ vehicle_type: 'Sedan', vehicle_category: 'sedan', vehicle_year: 2016 });
+    expect(result.missing_qualification).not.toContain('vehicle_type');
+    expect(result.qualification_memory).toContain('vehicle: Sedan');
+  });
+
   it('normalizes Manuel Stafford\'s misspelled Camionetq answer as a truck', () => {
     const transcript = [
       '*Headline:* Financiamiento interno! Source URL: x Quiero financiar un auto!',
