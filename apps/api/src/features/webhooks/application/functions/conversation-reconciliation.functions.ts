@@ -9,6 +9,15 @@ import { ACTIVE_RECONCILIATION_BATCH_SIZE, GHL_SOURCE_CONFIG, RECONCILIATION_LOC
 import { addProcessedImageEvidence, clean, extractNativeWhatsappPhone, inputIndicatesWhatsApp, isAttachmentEvidenceMessage, safePhone, splitName } from './conversation-webhook.helpers';
 import type { ConversationMessageRow, ConversationSnapshot, LocationSnapshot, MediaReconciliationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
 
+function targetedReplayMemory(value: string): string {
+  return value
+    .replace(/(?:^|;\s*)real_name:\s*[^;]*/gi, '')
+    .replace(/(?:^|;\s*)down payment:\s*[^;]*/gi, '')
+    .replace(/;\s*;/g, ';')
+    .replace(/^\s*;\s*|\s*;\s*$/g, '')
+    .trim();
+}
+
 export class ConversationReconciliationFunctions {
   constructor(
     private readonly dataSource: DataSource | undefined,
@@ -144,7 +153,7 @@ export class ConversationReconciliationFunctions {
         documents: clean(current.documents),
         identification: clean(current.identification),
         bank_account: clean(current.bank_account),
-        qualification_memory: clean(current.qualification_memory),
+        qualification_memory: targeted ? targetedReplayMemory(clean(current.qualification_memory)) : clean(current.qualification_memory),
         customer_location: clean(current.customer_location),
         previous_predicted_bot_question: clean(current.qualification_progress?.predicted_bot_question),
       });

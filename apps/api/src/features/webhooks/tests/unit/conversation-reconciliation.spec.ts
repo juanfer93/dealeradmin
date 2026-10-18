@@ -19,6 +19,7 @@ describe('ConversationReconciliationFunctions', () => {
             vehicle_type: 'Honda Civic',
             vehicle_year: 2010,
             down_payment: '15',
+            qualification_memory: 'real_name: Me Puede Mandar Fotos; vehicle: Honda Civic; down payment: 15',
             qualification_complete: false,
           },
           location_snapshot: { city: null, state: null, zip_code: null, easterns_zone: null },
@@ -64,6 +65,7 @@ describe('ConversationReconciliationFunctions', () => {
     expect(leadUpdate?.[1]).toEqual(['lead-manuel', 'Manuel', '']);
     const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot'));
     expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ real_name: 'Manuel', vehicle_type: 'Honda Civic', vehicle_year: 2015, down_payment: '' });
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2])).qualification_memory).not.toContain('down payment: 15');
     expect(conversationUpdate?.[1]?.[1]).toBe('queued');
   });
 });

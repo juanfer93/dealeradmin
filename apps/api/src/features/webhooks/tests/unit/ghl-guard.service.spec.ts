@@ -245,10 +245,11 @@ describe('GhlGuardService', () => {
     const reconciliation = { reconcileConversation: vi.fn().mockResolvedValue(undefined) };
     const service = new GhlGuardService(dataSource as never, reconciliation as never, GHL_SOURCE_CONFIG, client);
 
-    const result = await service.run(new Date('2026-10-16T12:00:00.000Z'));
+    const result = await service.run(new Date('2026-10-16T12:00:00.000Z'), { contactIds: ['contact-race'] });
 
     expect(result).toMatchObject({ selected: 1, fetched: 1, inserted: 1, failed: 0 });
-    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(winner.id, expect.any(Date), true, true);
+    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(winner.id, expect.any(Date), true, true, true);
+    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(row.id, expect.any(Date), true, true, true);
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('WITH moved AS'), [row.id, winner.id]);
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('WHERE ghl_location_id = $1 AND ghl_contact_id = $2 AND ghl_conversation_id = $3'), [row.ghl_location_id, row.ghl_contact_id, 'ghl-real-winner']);
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining("SET status = 'duplicate_ignored'"), [row.id]);

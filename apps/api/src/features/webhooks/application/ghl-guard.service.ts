@@ -344,6 +344,13 @@ export class GhlGuardService {
       } else {
         await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true);
       }
+      // A targeted replay can discover that a synthetic local conversation
+      // maps to an already-canonical GHL conversation. Reconcile the local
+      // row as well so its queued snapshot receives the same corrected lead
+      // evidence instead of remaining on the stale profile label.
+      if (targeted && syntheticConversationId && syntheticConversationId !== effectiveRow.id) {
+        await this.reconciliation.reconcileConversation(syntheticConversationId, new Date(), true, true, true);
+      }
       const leadMetadataAfter = await this.readLeadMetadata(effectiveRow.id);
       const completedFields = completedFieldsBetween(leadMetadataBefore, leadMetadataAfter);
       if (syntheticConversationId && syntheticConversationId !== effectiveRow.id) {
