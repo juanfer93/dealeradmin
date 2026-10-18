@@ -1595,6 +1595,35 @@ describe('HighLevel collector custom-code normalizer', () => {
     }).real_name).toBe('Juan Perez');
   });
 
+  it('maps the Stafford shorthand year pair to 2015 and does not extract $15', () => {
+    expect(execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Me Puede Mandar Fotos',
+      phone: '+15713169760',
+      message: 'Soy Jaime !',
+      chat_history_log: 'Tienes hondas civic 2014/15\nSoy Jaime !',
+    })).toMatchObject({
+      real_name: 'Jaime',
+      vehicle_type: 'Civic',
+      vehicle_year: 2015,
+      down_payment: '',
+    });
+  });
+
+  it('prefers the explicitly declared Stafford name over a photo-request profile label', () => {
+    expect(execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      real_name: 'Me Puede Mandar Fotos',
+      contact_name: 'Me Puede Mandar Fotos',
+      phone: '+14103016969',
+      message: 'Ando buscando un Honda civic',
+      chat_history_log: 'Hola cómo está mi nombre es Manuel\nAndo buscando un Honda civic',
+      qualification_memory: 'real_name: Me Puede Mandar Fotos; vehicle: Honda Civic',
+    }).real_name).toBe('Manuel');
+  });
+
   it.each([
     'Can I See Inventory',
     'Buenos Días Bendiciones',

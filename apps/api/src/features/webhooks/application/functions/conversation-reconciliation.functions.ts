@@ -48,7 +48,7 @@ export class ConversationReconciliationFunctions {
     for (const row of rows) await this.reconcileConversation(row.id, now);
   }
 
-  async reconcileConversation(id: string, now: Date, propagateErrors = false, additiveOnly = false): Promise<void> {
+  async reconcileConversation(id: string, now: Date, propagateErrors = false, additiveOnly = false, targeted = false): Promise<void> {
     const runner = this.dataSource!.createQueryRunner();
     let queuedPauseEvent: QueuedPauseDispatch | null = null;
     await runner.connect();
@@ -61,10 +61,11 @@ export class ConversationReconciliationFunctions {
          FROM conversations c
          JOIN leads l ON l.id = c.lead_id
          WHERE c.id = $1 AND (c.status IN ('partial', 'waiting_window', 'stale_phone_ignored')
+           OR ($3::boolean AND c.status IN ('queued', 'duplicate_ignored'))
            OR (c.status <> 'queued' AND c.ghl_location_id = ANY($2::text[])
                AND NOT EXISTS (SELECT 1 FROM lead_dealers orphan_ld WHERE orphan_ld.lead_id = c.lead_id)))
          FOR UPDATE`,
-        [id, RECONCILIATION_LOCATION_IDS],
+        [id, RECONCILIATION_LOCATION_IDS, targeted],
       ) as Array<{
         id: string;
         channel: string;
@@ -233,7 +234,10 @@ export class ConversationReconciliationFunctions {
       const recentlyCaptured = Number.isFinite(lastMessageAt) && now.getTime() - lastMessageAt < CONVERSATION_STABILIZATION_MS;
       const phase = row.status === 'partial' && snapshot.qualification_complete && recentlyCaptured ? 'capture' : 'due';
       const activeWindow = row.status === 'waiting_window' && row.next_attempt_at && new Date(row.next_attempt_at).getTime() > now.getTime();
-      const status = activeWindow
+      const preserveTargetedStatus = targeted && (row.status === 'queued' || row.status === 'duplicate_ignored');
+      const status = preserveTargetedStatus
+        ? { status: row.status as 'queued' | 'duplicate_ignored', nextAttemptAt: null }
+        : activeWindow
         ? { status: 'waiting_window' as const, nextAttemptAt: row.next_attempt_at }
         : this.qualification.statusForConversation(snapshot, location, dealer, source, now, phase, row.ready_at || row.last_message_at);
       await runner.query(
@@ -245,7 +249,7 @@ export class ConversationReconciliationFunctions {
          WHERE id = $1`,
         [id, status.status, JSON.stringify(snapshot), JSON.stringify(location), status.nextAttemptAt, now.toISOString()],
       );
-      if (status.status === 'ready') {
+      if (!preserveTargetedStatus && status.status === 'ready') {
         const duplicate = await findQueuedConversationDuplicate(runner, dealer.id, snapshot.real_name || contactName, snapshot.phone, id);
         if (!duplicate) {
           await this.qualification.syncLeadDealer(runner, dealer, row.lead_id, snapshot, location, source);

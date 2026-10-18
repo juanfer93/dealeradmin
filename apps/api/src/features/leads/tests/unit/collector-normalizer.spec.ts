@@ -2387,4 +2387,39 @@ describe('normalizeCollectorInput', () => {
       missing_qualification: [],
     });
   });
+
+  it('treats Civic 2014/15 as the latest model year and never as a $15 down payment', () => {
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Me Puede Mandar Fotos',
+      phone: '+15713169760',
+      message: 'Soy Jaime !',
+      chat_history_log: 'Tienes hondas civic 2014/15\nSoy Jaime !',
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Jaime',
+      vehicle_type: 'Civic',
+      vehicle_year: 2015,
+      down_payment: '',
+    });
+    expect(result.down_payment_amount).toBeNull();
+  });
+
+  it('rejects Stafford photo-request labels and keeps the name explicitly declared by the buyer', () => {
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      real_name: 'Me Puede Mandar Fotos',
+      contact_name: 'Me Puede Mandar Fotos',
+      phone: '+14103016969',
+      message: 'Ando buscando un Honda civic',
+      chat_history_log: 'Hola cómo está mi nombre es Manuel\nAndo buscando un Honda civic',
+      qualification_memory: 'real_name: Me Puede Mandar Fotos; vehicle: Honda Civic',
+    });
+
+    expect(result.real_name).toBe('Manuel');
+    expect(normalizeRealName('Me Puede Mandar Fotos')).toBe('');
+  });
 });

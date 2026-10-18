@@ -171,21 +171,30 @@ const cleanVehicleValue = (value) => {
 };
 const vehicleYearFrom = (value) => {
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter(Boolean);
-  const years = /\b(19\d{2}|20(?:0\d|1\d|2[0-6]))\b/g;
+  const years = /\b(19\d{2}|20(?:0\d|1\d|2[0-6])|0[5-9]|1\d|2[0-6])\b/g;
   const financialPrefix = /(?:\$|doy|dar(?:é|as|emos)?|pongo|poner|tengo|have|i have|i can put|puedo poner|down|payment|enganche|inicial|pago\s+inicial|cuota\s+inicial|deposit|dep[oó]sito)\s*(?:de|para|as|is|es|:)?\s*$/i;
   const financialSuffix = /^\s*(?:down|payment|enganche|inicial|pago\s+inicial|cuota\s+inicial|deposit|dep[oó]sito)\b/i;
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
     const line = lines[lineIndex];
+    const candidates = [];
     for (const match of line.matchAll(years)) {
+      const rawYear = match[1];
+      const year = rawYear.length === 2 ? 2000 + Number(rawYear) : Number(rawYear);
       const index = match.index || 0;
       const before = line.slice(Math.max(0, index - 60), index);
       const after = line.slice(index + match[0].length, index + match[0].length + 60);
       if (financialPrefix.test(before) || financialSuffix.test(after) || /\b(?:down|payment|enganche|inicial|pago\s+inicial|cuota\s+inicial|deposit|dep[oó]sito)\b[^\d]{0,40}$/i.test(before)) continue;
+      if (rawYear.length === 2 && !/(?:[-–—/]|\ba\b|\bto\b)\s*$/i.test(before) && !/^\s*(?:[-–—/]|\ba\b|\bto\b)/i.test(after)
+        && !/\b(?:year|año|ano|model|modelo)\b/i.test(`${before} ${after}`)) continue;
       const neighborhood = [lines[lineIndex - 1] || '', line, lines[lineIndex + 1] || ''].join(' ');
       if (vehicleBrands.test(neighborhood) || vehicleModels.test(neighborhood) || vehicleCategories.test(neighborhood)
         || vehicleContext.test(neighborhood) || /\b(?:vehicle|car|auto|carro|coche|veh[ií]culo|model|modelo|year|año|ano)\b/i.test(neighborhood)) {
-        return Number(match[1]);
+        candidates.push({ year, shorthand: rawYear.length === 2 });
       }
+    }
+    if (candidates.length > 0) {
+      const shorthandYears = candidates.filter((candidate) => candidate.shorthand).map((candidate) => candidate.year);
+      return shorthandYears.length > 0 ? Math.max(...shorthandYears) : candidates[0].year;
     }
   }
   return null;

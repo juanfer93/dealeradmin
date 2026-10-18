@@ -155,7 +155,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     }, source, raw, headers.testNow);
   }
 
-  async processDueConversations(now = currentLocalNow(), options: { reconcileActive?: boolean; runGuard?: boolean } = {}): Promise<DueConversationResponse> {
+  async processDueConversations(now = currentLocalNow(), options: { reconcileActive?: boolean; runGuard?: boolean; guardContactIds?: string[] } = {}): Promise<DueConversationResponse> {
     return this.dueFunctions.processDueConversations(now, options);
   }
 

@@ -87,7 +87,7 @@ export class WebhooksController {
 
   @Get('ghl/conversations/process-due')
   @UseGuards(HmacSignatureGuard)
-  processDueConversationsCron() {
+  processDueConversationsCron(@Req() request: Request) {
     // GitHub Actions invokes this endpoint every five minutes. Keep the
     // request focused on due releases plus the GHL guard so the serverless
     // time budget is not consumed by the heavier active reconciliation pass.
@@ -96,6 +96,10 @@ export class WebhooksController {
     return this.conversationWebhookService.processDueConversations(undefined, {
       reconcileActive: false,
       runGuard: true,
+      guardContactIds: String(request.query.contact_ids ?? '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean),
     });
   }
 

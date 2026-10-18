@@ -25,6 +25,19 @@ test('GHL guard cron is protected and accepts the configured cron secret', async
   expect(await authorized.json()).toMatchObject({ accepted: true });
 });
 
+test('GHL guard cron accepts a contact-scoped reprocess request', async ({ request }) => {
+  const contactIds = [
+    'FsYrauWhsrnmeAlHpN20',
+    'J6uI4hMMmyueyDB3OkTG',
+  ].join(',');
+  const response = await request.get(
+    `http://127.0.0.1:3010/api/webhooks/ghl/conversations/process-due?contact_ids=${encodeURIComponent(contactIds)}`,
+    { headers: { Authorization: 'Bearer test-cron-secret' } },
+  );
+  expect(response.status()).toBe(200);
+  expect(await response.json()).toMatchObject({ accepted: true });
+});
+
 test('reports view shows the real disabled state without setup instructions', async ({ page }) => {
   await page.goto('/login');
   await page.fill('input[name="username"]', 'operator');

@@ -7,7 +7,9 @@ export const VEHICLE_MODELS = /\b(?:grand caravan|grand cherokee|transit connect
 export const VEHICLE_CATEGORIES = /\b(?:suv|sedans?|midsize|mid[- ]?size|medium[- ]?size|mediano|mediana|trucks?|truk|troka|trocas?|trokitas?|troquitas?|troques?|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i;
 export const VEHICLE_TRIMS = /\b(?:\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i;
 export const VEHICLE_CONTEXT = /\b(?:tengo|tiene|tienen|ten[ií]an|have|has|got|carry|available|need|needs|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|love|like|prefer|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i;
-export const VEHICLE_YEAR_PATTERN = /\b(19\d{2}|20(?:0\d|1\d|2[0-6]))\b/g;
+// GHL/Messenger often shortens a model year in pairs such as "Civic 2014/15".
+// Two-digit years are accepted only in vehicle context and map to 2005-2026.
+export const VEHICLE_YEAR_PATTERN = /\b(19\d{2}|20(?:0\d|1\d|2[0-6])|0[5-9]|1\d|2[0-6])\b/g;
 export const VEHICLE_YEAR_CONTEXT = /\b(?:vehicle|car|auto|carro|coche|veh[ií]culo|model|modelo|year|año|ano|f[- ]?\d{3})\b/i;
 const PHONE_LIKE_SEQUENCE = /(?<!\d)(?:\+?1[\s().,-]*)?(?:\([2-9]\d{2}\)|[2-9]\d{2})(?:[\s().,-]*\d){7}(?!\d)/g;
 export const FINANCIAL_AMOUNT_PREFIX = /(?:\$|doy|dar(?:é|as|emos)?|pongo|poner|tengo|have|i have|i can put|puedo poner|down|payment|enganche|inicial|pago\s+inicial|cuota\s+inicial|deposit|dep[oó]sito)\s*(?:de|para|as|is|es|:)?\s*$/i;
@@ -156,15 +158,23 @@ export function extractVehicleYear(value: string | null | undefined): number | n
       start: match.index ?? 0,
       end: (match.index ?? 0) + match[0].length,
     }));
+    const candidates: Array<{ year: number; shorthand: boolean }> = [];
     for (const match of line.matchAll(VEHICLE_YEAR_PATTERN)) {
-      const year = Number(match[1]);
+      const rawYear = match[1];
+      const year = rawYear.length === 2 ? 2000 + Number(rawYear) : Number(rawYear);
       const index = match.index ?? 0;
       if (phoneRanges.some(({ start, end }) => index >= start && index + match[0].length <= end)) continue;
       const before = line.slice(Math.max(0, index - 60), index);
       const after = line.slice(index + match[0].length, index + match[0].length + 60);
       if (FINANCIAL_AMOUNT_PREFIX.test(before) || FINANCIAL_AMOUNT_SUFFIX.test(after) || FINANCIAL_CONTEXT_BEFORE_AMOUNT.test(before)) continue;
+      if (rawYear.length === 2 && !/(?:[-–—/]|\ba\b|\bto\b)\s*$/i.test(before) && !/^\s*(?:[-–—/]|\ba\b|\bto\b)/i.test(after)
+        && !/\b(?:year|año|ano|model|modelo)\b/i.test(`${before} ${after}`)) continue;
       const neighborhood = [lines[lineIndex - 1] ?? '', line, lines[lineIndex + 1] ?? ''].join(' ');
-      if (VEHICLE_BRANDS.test(neighborhood) || VEHICLE_MODELS.test(neighborhood) || VEHICLE_CATEGORIES.test(neighborhood) || VEHICLE_CONTEXT.test(neighborhood) || VEHICLE_YEAR_CONTEXT.test(neighborhood)) return year;
+      if (VEHICLE_BRANDS.test(neighborhood) || VEHICLE_MODELS.test(neighborhood) || VEHICLE_CATEGORIES.test(neighborhood) || VEHICLE_CONTEXT.test(neighborhood) || VEHICLE_YEAR_CONTEXT.test(neighborhood)) candidates.push({ year, shorthand: rawYear.length === 2 });
+    }
+    if (candidates.length > 0) {
+      const shorthandYears = candidates.filter((candidate) => candidate.shorthand).map((candidate) => candidate.year);
+      return shorthandYears.length > 0 ? Math.max(...shorthandYears) : candidates[0].year;
     }
   }
   return null;

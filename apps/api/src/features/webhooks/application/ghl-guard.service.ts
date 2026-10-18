@@ -131,10 +131,12 @@ export class GhlGuardService {
     private readonly client: GhlGuardClientPort = new GhlGuardClient(),
   ) {}
 
-  async run(now = new Date()): Promise<GhlGuardRunResult> {
+  async run(now = new Date(), options: { contactIds?: string[] } = {}): Promise<GhlGuardRunResult> {
     const empty: GhlGuardRunResult = { enabled: ghlGuardEnabled(), skipped: true, selected: 0, fetched: 0, inserted: 0, repaired: 0, failed: 0 };
     if (!empty.enabled || !this.dataSource) return empty;
-    if (this.running || now.getTime() - this.lastRunAt < ghlGuardIntervalMs()) return empty;
+    const contactIds = [...new Set((options.contactIds ?? []).map((value) => value.trim()).filter(Boolean))];
+    const targeted = contactIds.length > 0;
+    if (this.running || (!targeted && now.getTime() - this.lastRunAt < ghlGuardIntervalMs())) return empty;
     this.running = true;
     this.lastRunAt = now.getTime();
 
@@ -147,7 +149,31 @@ export class GhlGuardService {
       if (!locked[0]?.locked) return { ...result, skipped: true };
       await this.recoverStaleLogs(now);
       const rows = await lockRunner.query(
-        `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status
+        targeted
+          ? `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status
+         FROM conversations
+         LEFT JOIN LATERAL (
+           SELECT latest_guard.created_at
+           FROM ghl_guard_logs latest_guard
+           WHERE latest_guard.conversation_id = conversations.id
+           ORDER BY latest_guard.created_at DESC
+           LIMIT 1
+         ) last_guard ON TRUE
+         WHERE status NOT IN ('sent', 'ignored_channel', 'stale_phone_ignored')
+           AND ghl_location_id = ANY($2::text[])
+           AND ghl_contact_id = ANY($3::text[])
+           AND NOT EXISTS (
+             SELECT 1 FROM ghl_guard_logs active_guard
+             WHERE active_guard.conversation_id = conversations.id
+               AND active_guard.status IN ('pending', 'running')
+               AND COALESCE(active_guard.lease_expires_at, active_guard.started_at, active_guard.scheduled_at) > CURRENT_TIMESTAMP
+           )
+         ORDER BY CASE status WHEN 'duplicate_ignored' THEN 0 WHEN 'partial' THEN 1 WHEN 'waiting_window' THEN 2 WHEN 'stale_phone_ignored' THEN 3 WHEN 'queued' THEN 4 ELSE 5 END,
+                  last_guard.created_at NULLS FIRST,
+                  last_message_at DESC NULLS LAST,
+                  updated_at DESC
+         LIMIT $1`
+          : `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status
          FROM conversations
          LEFT JOIN LATERAL (
            SELECT latest_guard.created_at
@@ -174,13 +200,18 @@ export class GhlGuardService {
                   last_message_at DESC NULLS LAST,
                   updated_at DESC
          LIMIT $1`,
-        [ghlGuardBatchSize(), RECONCILIATION_LOCATION_IDS],
+        targeted
+          ? [Math.max(ghlGuardBatchSize(), Math.min(contactIds.length * 3, 10)), RECONCILIATION_LOCATION_IDS, contactIds]
+          : [ghlGuardBatchSize(), RECONCILIATION_LOCATION_IDS],
       ) as GuardConversationRow[];
       result.selected = rows.length;
-      const concurrency = Math.min(ghlGuardConcurrency(), rows.length);
+      // Rows belonging to one explicitly targeted contact must be serialized:
+      // an older conversation may contain the name that repairs a later queued
+      // conversation sharing the same lead.
+      const concurrency = targeted ? 1 : Math.min(ghlGuardConcurrency(), rows.length);
       for (let offset = 0; offset < rows.length; offset += concurrency) {
         const batch = rows.slice(offset, offset + concurrency);
-        await Promise.all(batch.map((row) => this.processRow(row, runId, now, result)));
+        await Promise.all(batch.map((row) => this.processRow(row, runId, now, result, targeted)));
       }
       return result;
     } catch (error) {
@@ -196,7 +227,7 @@ export class GhlGuardService {
     }
   }
 
-  private async processRow(row: GuardConversationRow, runId: string, now: Date, result: GhlGuardRunResult): Promise<void> {
+  private async processRow(row: GuardConversationRow, runId: string, now: Date, result: GhlGuardRunResult, targeted = false): Promise<void> {
     let logId: string | null = null;
     const startedAt = new Date();
     try {
@@ -286,7 +317,7 @@ export class GhlGuardService {
         return;
       }
       result.fetched += fetched.data.messages.length;
-      const persisted = await this.persistMessages(effectiveRow, fetched.data.messages);
+      const persisted = await this.persistMessages(effectiveRow, fetched.data.messages, targeted);
       if (persisted.skipped) {
         await this.updateLog(logId, 'skipped', {
           source,
@@ -308,7 +339,11 @@ export class GhlGuardService {
         ? await this.mergeSyntheticConversationMessages(syntheticConversationId, effectiveRow.id)
         : 0;
       const leadMetadataBefore = await this.readLeadMetadata(effectiveRow.id);
-      await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true);
+      if (targeted) {
+        await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true, true);
+      } else {
+        await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true);
+      }
       const leadMetadataAfter = await this.readLeadMetadata(effectiveRow.id);
       const completedFields = completedFieldsBetween(leadMetadataBefore, leadMetadataAfter);
       if (syntheticConversationId && syntheticConversationId !== effectiveRow.id) {
@@ -350,14 +385,14 @@ export class GhlGuardService {
     }
   }
 
-  private async persistMessages(row: GuardConversationRow, messages: GhlGuardMessage[]): Promise<PersistResult> {
+  private async persistMessages(row: GuardConversationRow, messages: GhlGuardMessage[], allowTargetedStatuses = false): Promise<PersistResult> {
     const runner = this.dataSource!.createQueryRunner();
     await runner.connect();
     await runner.startTransaction();
     try {
       const protectedRows = await runner.query(
         `SELECT id, status FROM conversations
-         WHERE id = $1 AND status NOT IN ('queued', 'sent', 'duplicate_ignored', 'ignored_channel', 'stale_phone_ignored')
+         WHERE id = $1 AND status NOT IN (${allowTargetedStatuses ? "'sent', 'ignored_channel', 'stale_phone_ignored'" : "'queued', 'sent', 'duplicate_ignored', 'ignored_channel', 'stale_phone_ignored'"})
          FOR UPDATE`,
         [row.id],
       ) as Array<{ id: string; status: string }>;

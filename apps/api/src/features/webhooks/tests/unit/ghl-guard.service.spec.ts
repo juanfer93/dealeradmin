@@ -112,6 +112,55 @@ describe('GhlGuardService', () => {
     expect(updateLogCall?.[0]).toContain("CASE WHEN $2::varchar IN ('pending', 'running')");
   });
 
+  it('reprocesses only explicitly targeted queued conversations and preserves their queue state', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.GHL_GUARD_ENABLED = 'true';
+    process.env.GHL_PRIVATE_TOKEN_STAFFORD = 'pit-test-token';
+
+    const row = {
+      id: 'conversation-targeted',
+      ghl_location_id: GHL_SOURCE_CONFIG.stafford.locationId,
+      ghl_contact_id: 'contact-targeted',
+      ghl_conversation_id: 'ghl-targeted',
+      status: 'queued',
+    };
+    const lockRunner = {
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : sql.includes('FROM conversations') ? [row] : []),
+      release: vi.fn(),
+    };
+    const persistRunner = {
+      connect: vi.fn(), startTransaction: vi.fn(), isTransactionActive: true,
+      query: vi.fn(async (sql: string) => sql.includes('FOR UPDATE') ? [{ id: row.id, status: row.status }] : sql.includes('INSERT INTO conversation_messages') ? [{ id: 'targeted-message' }] : []),
+      commitTransaction: vi.fn(), rollbackTransaction: vi.fn(), release: vi.fn(),
+    };
+    const dataSource = {
+      createQueryRunner: vi.fn().mockReturnValueOnce(lockRunner).mockReturnValueOnce(persistRunner),
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO ghl_guard_logs')) return [{ id: 'targeted-log' }];
+        if (sql.includes('UPDATE ghl_guard_logs')) return [{ id: 'targeted-log', status: 'succeeded' }];
+        return [];
+      }),
+    };
+    const client = {
+      listMessages: vi.fn().mockResolvedValue({
+        ok: true, status: 200, requestPath: '/conversations/ghl-targeted/messages',
+        data: { messages: [{ id: 'targeted-message', body: 'Soy Jaime', direction: 'inbound', dateAdded: '2026-10-16T11:59:00.000Z' }], pages: 1, truncated: false, responsePayload: [] },
+      }),
+    };
+    const reconciliation = { reconcileConversation: vi.fn().mockResolvedValue(undefined) };
+    const service = new GhlGuardService(dataSource as never, reconciliation as never, GHL_SOURCE_CONFIG, client);
+
+    const result = await service.run(new Date('2026-10-16T12:00:00.000Z'), { contactIds: ['contact-targeted'] });
+
+    expect(result).toMatchObject({ skipped: false, selected: 1, fetched: 1, inserted: 1, failed: 0 });
+    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(row.id, expect.any(Date), true, true, true);
+    const selectionCall = lockRunner.query.mock.calls.find(([sql]) => String(sql).includes('FROM conversations')) as [string, unknown[]] | undefined;
+    expect(selectionCall?.[0]).toContain('ghl_contact_id = ANY($3::text[])');
+    expect(selectionCall?.[1]).toEqual([expect.any(Number), expect.arrayContaining([row.ghl_location_id]), ['contact-targeted']]);
+    expect(persistRunner.query).toHaveBeenCalledWith(expect.stringContaining("status NOT IN ('sent', 'ignored_channel', 'stale_phone_ignored')"), [row.id]);
+  });
+
   it('resolves a synthetic conversation id by contact and persists the real GHL id', async () => {
     process.env.NODE_ENV = 'production';
     process.env.GHL_GUARD_ENABLED = 'true';

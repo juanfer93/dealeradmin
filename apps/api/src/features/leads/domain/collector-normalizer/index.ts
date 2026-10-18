@@ -335,9 +335,16 @@ function isVehicleYearValue(value: string): boolean {
   return /^\d{4}$/.test(normalized) && year >= VEHICLE_YEAR_MIN && year <= VEHICLE_YEAR_MAX;
 }
 
+function isVehicleYearRangeToken(value: string): boolean {
+  const normalized = value.replace(/[$,\s]/g, '');
+  const year = Number(normalized);
+  return (/^\d{4}$/.test(normalized) && year >= 1900 && year <= VEHICLE_YEAR_MAX)
+    || /^(?:0[5-9]|1\d|2[0-6])$/.test(normalized);
+}
+
 function isVehicleYearRange(value: string): boolean {
-  const match = value.match(/\b(20\d{2})\s*(?:-|–|—|a|to)\s*(20\d{2})\b/i);
-  return Boolean(match && isVehicleYearValue(match[1]) && isVehicleYearValue(match[2]));
+  const match = value.match(/\b(19\d{2}|20\d{2}|0[5-9]|1\d|2[0-6])\s*(?:-|–|—|\/|a|to)\s*(19\d{2}|20\d{2}|0[5-9]|1\d|2[0-6])\b/i);
+  return Boolean(match && isVehicleYearRangeToken(match[1]) && isVehicleYearRangeToken(match[2]));
 }
 
 function affirmativeDownConfirmation(value: string): boolean {
@@ -501,6 +508,8 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     extractRealNameFromText(rawHistory),
   ];
   const whatsappNames = [
+    extractDeclaredRealNameFromText(rawMessage),
+    extractDeclaredRealNameFromText(rawHistory),
     extractRealNameFromText(rawMessage),
     extractRealNameFromText(rawHistory),
     profileName,

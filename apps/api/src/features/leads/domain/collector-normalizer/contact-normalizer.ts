@@ -76,6 +76,7 @@ const INVALID_REAL_NAMES = new Set([
 ]);
 const BUSINESS_NAME_MARKERS = /\b(?:auto\s*sales|motors?|dealership|dealer|llc|inc(?:orporated)?|corp(?:oration)?|company|tatuajes?|tattoos?|operaciones?|operations?|transport(?:ation)?|logistics|construction|remodeling|roofing|realty|consulting|services?|servicios?|shop|tienda|salon|barbershop|restaurant)\b/i;
 const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|baltimore|maryland|where are you located|where are you|what|which|how|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|qué|que|ubicaci[oó]n|ubicados?|cu[aá]l(?:\s+ser[ií]a)?|ser[ií]a|gracias|thank you|thank|vehicle|car|auto|carro|coche|veh[ií]culo|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|sim|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|cheques?|checks?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
+const PROFILE_DISPLAY_LABEL_MARKERS = /\b(?:me\s+puede(?:s)?\s+(?:mandar|enviar)|(?:mandar|enviar)\s+(?:fotos?|informaci[oó]n)|fotos?\s+de|copiar)\b/i;
 const GENERIC_VEHICLE_INTENT = /\b(?:need|needs|looking\s+for|want|wants|seeking|shopping\s+for|trying\s+to\s+find|necesito|busco|buscando|quiero|me\s+interesa)\b[\s\S]*\b(?:vehicle|car|auto|carro|coche|veh[ií]culo|truck|suv|sedan|van|camioneta|pickup|pick-up)\b/i;
 const INVENTORY_INTENT = /\b(?:inventory|inventario|see\s+(?:the\s+)?inventory|can\s+i\s+see|show\s+me|mu[eé]strame|ver\s+(?:el\s+)?inventario)\b/i;
 const GREETING_ONLY = /^(?:buenos\s+d[ií]as|buenas\s+tardes|buenas\s+noches|saludos|hello|hi|hey|hola|ola|greetings)(?:[,.!?\s]+bendiciones)?[,.!?\s]*$/i;
@@ -117,7 +118,7 @@ export function isLikelyBusinessName(value: string | null | undefined): boolean 
 }
 
 export function isLikelyProfileDisplayName(value: string | null | undefined): boolean {
-  return NAME_DECLARATION.test(clean(value)) || !isValidRealName(value);
+  return PROFILE_DISPLAY_LABEL_MARKERS.test(clean(value)) || NAME_DECLARATION.test(clean(value)) || !isValidRealName(value);
 }
 
 export function normalizeRealName(value: string | null | undefined): string {
@@ -126,6 +127,7 @@ export function normalizeRealName(value: string | null | undefined): string {
   if (PHONE_LIKE_TEXT.test(candidate) || candidate.replace(/\D/g, '').length >= 7) return EMPTY;
   if (!isValidRealName(candidate)) return EMPTY;
   if (TECHNICAL_NAME_LABEL.test(candidate) || LOCATION_RESPONSE.test(candidate)) return EMPTY;
+  if (PROFILE_DISPLAY_LABEL_MARKERS.test(candidate)) return EMPTY;
   if (SINGLE_WORD_NAME_BLOCKLIST.test(candidate)) return EMPTY;
   if (QUALIFICATION_RESPONSE_MARKERS.test(candidate) || GENERIC_VEHICLE_INTENT.test(candidate) || INVENTORY_INTENT.test(candidate) || GREETING_ONLY.test(candidate) || isVehicleStatement(candidate)) return EMPTY;
   if (candidate.length > 100 || candidate.split(/\s+/).length > 5) return EMPTY;
