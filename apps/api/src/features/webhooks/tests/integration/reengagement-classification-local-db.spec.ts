@@ -428,7 +428,11 @@ describeDatabaseCase('new contact versus reengagement classification with local 
     const rows = await dataSource.query(
       `SELECT c.status, ld.status AS dealer_status, ld.has_unhandled_reengagement, ld.reengagement_count,
               l.first_name, l.last_name,
-              (SELECT COUNT(*)::int FROM leads WHERE canonical_phone = $1) AS lead_count
+              (SELECT COUNT(*)::int
+               FROM leads
+               WHERE first_name = 'Jason'
+                 AND last_name = 'Carpenter'
+                 AND source = 'reengagement-alias-regression') AS lead_count
        FROM conversations c
        INNER JOIN leads l ON l.id = c.lead_id
        INNER JOIN lead_dealers ld ON ld.lead_id = l.id AND ld.dealer_id = $2
@@ -445,6 +449,102 @@ describeDatabaseCase('new contact versus reengagement classification with local 
       last_name: 'Canete',
       lead_count: 1,
     }]);
+  });
+
+  it('reuses a historical lead from a location alias when its canonical phone is missing', async () => {
+    const phone = `+154055${String((Date.now() + 7) % 100000).padStart(5, '0')}`;
+    const oldContactId = `fred-alias-old-contact-${randomUUID()}`;
+    const oldConversationKey = `fred-alias-old-conversation-${randomUUID()}`;
+    const currentContactId = `fred-alias-current-contact-${randomUUID()}`;
+    const currentConversationKey = `fred-alias-current-conversation-${randomUUID()}`;
+    const fredLocationId = 'bAuMEQeH48xAtu9tAMFf';
+    const currentLocationId = GHL_SOURCE_CONFIG.fredericksburg.locationId;
+    const fredDealers = await dataSource.query(
+      `SELECT d.id
+       FROM dealers d
+       WHERE d.active = true
+         AND (d.ghl_location_id = $1 OR EXISTS (
+           SELECT 1 FROM dealer_location_aliases a WHERE a.ghl_location_id = $1 AND a.dealer_id = d.id
+         ))
+       LIMIT 1`,
+      [currentLocationId],
+    ) as Array<{ id: string }>;
+    if (!fredDealers[0]) throw new Error('No active Offlease Fredericksburg dealer configured for alias regression');
+
+    const oldLeadRows = await dataSource.query(
+      `INSERT INTO leads (canonical_phone, first_name, last_name, ghl_contact_id, ghl_location_id, source)
+       VALUES (NULL, 'Jason', 'Carpenter', $1, $2, 'reengagement-alias-regression')
+       RETURNING id`,
+      [oldContactId, fredLocationId],
+    ) as Array<{ id: string }>;
+    const oldLeadId = oldLeadRows[0].id;
+    createdLeadIds.push(oldLeadId);
+
+    const oldConversationRows = await dataSource.query(
+      `INSERT INTO conversations
+        (lead_id, ghl_location_id, ghl_contact_id, ghl_conversation_id, channel, status,
+         created_at, first_message_at, last_message_at, qualification_snapshot)
+       VALUES ($1, $2, $3, $4, 'messenger', 'sent', '2026-10-14T18:00:00.000Z',
+         '2026-10-14T18:00:00.000Z', '2026-10-14T18:05:00.000Z', $5::jsonb)
+       RETURNING id`,
+      [oldLeadId, fredLocationId, oldContactId, oldConversationKey, JSON.stringify({ phone, real_name: 'Jason Carpenter', vehicle_type: 'SUV' })],
+    ) as Array<{ id: string }>;
+    const oldConversationId = oldConversationRows[0].id;
+    createdConversationIds.push(oldConversationId);
+    await dataSource.query(
+      `INSERT INTO conversation_messages (conversation_id, dedupe_key, ghl_message_id, body, occurred_at)
+       VALUES ($1, $2, $3, $4, '2026-10-14T18:05:00.000Z')`,
+      [oldConversationId, `fred-alias-prior-${oldConversationKey}`, `fred-alias-prior-message-${oldConversationKey}`, `My number is ${phone} and I am looking for an SUV`],
+    );
+    await dataSource.query(
+      `INSERT INTO lead_dealers (lead_id, dealer_id, vehicle_type, routing_status, status, sent_at, message_text)
+       VALUES ($1, $2, 'SUV', 'resolved', 'sent', '2026-10-14T18:10:00.000Z', 'Jason Carpenter')`,
+      [oldLeadId, fredDealers[0].id],
+    );
+
+    const result = await service.acceptCustomerReplied(
+      {
+        event_id: `evt-fred-alias-reengagement-${randomUUID()}`,
+        occurred_at: '2026-10-18T18:00:00.000Z',
+        message_body: `My number is ${phone} and I still want an SUV`,
+        contact_phone: phone,
+        contact_name: 'Jason Carpenter',
+        channel: 'messenger',
+      },
+      'fredericksburg',
+      { contactId: currentContactId, conversationId: currentConversationKey, testNow: new Date('2026-10-18T18:00:15.000Z') },
+    );
+    expect(result.status).toBe('processed');
+
+    const currentConversationRows = await dataSource.query(
+      `SELECT id FROM conversations WHERE ghl_conversation_id = $1`,
+      [currentConversationKey],
+    ) as Array<{ id: string }>;
+    if (currentConversationRows[0]) createdConversationIds.push(currentConversationRows[0].id);
+
+    const rows = await dataSource.query(
+      `SELECT c.lead_id, c.status, ld.status AS dealer_status,
+              ld.has_unhandled_reengagement, ld.reengagement_count,
+              (SELECT COUNT(*)::int
+               FROM leads
+               WHERE first_name = 'Jason'
+                 AND last_name = 'Carpenter'
+                 AND source = 'reengagement-alias-regression') AS lead_count
+       FROM conversations c
+       INNER JOIN lead_dealers ld ON ld.lead_id = c.lead_id AND ld.dealer_id = $1
+       WHERE c.ghl_conversation_id = $2`,
+      [fredDealers[0].id, currentConversationKey],
+    ) as Array<{ lead_id: string; status: string; dealer_status: string; has_unhandled_reengagement: boolean; reengagement_count: number; lead_count: number }>;
+
+    expect(rows).toEqual([{
+      lead_id: oldLeadId,
+      status: 'queued',
+      dealer_status: 'pending',
+      has_unhandled_reengagement: true,
+      reengagement_count: 1,
+      lead_count: 1,
+    }]);
+    expect(currentLocationId).not.toBe(fredLocationId);
   });
 
   it('reuses a manually created lead even when it has no previous conversation', async () => {

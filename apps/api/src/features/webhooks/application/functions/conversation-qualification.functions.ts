@@ -26,6 +26,22 @@ import type {
   SourceKey,
 } from './conversation-webhook.types';
 
+function sameDealerLocationSql(conversationAlias: string): string {
+  return `(
+           ${conversationAlias}.ghl_location_id = $5
+           OR EXISTS (
+             SELECT 1
+             FROM dealer_location_aliases current_location_alias
+             INNER JOIN dealer_location_aliases historical_location_alias
+               ON historical_location_alias.dealer_id = current_location_alias.dealer_id
+             WHERE current_location_alias.ghl_location_id = $5
+               AND current_location_alias.dealer_id = $2
+               AND historical_location_alias.ghl_location_id = ${conversationAlias}.ghl_location_id
+               AND historical_location_alias.dealer_id = $2
+           )
+         )`;
+}
+
 export class ConversationQualificationFunctions {
   constructor(
     private readonly georoutingService?: GeoroutingService,
@@ -64,7 +80,16 @@ export class ConversationQualificationFunctions {
       `SELECT l.id, l.canonical_phone, l.first_name, l.last_name
        FROM leads l
        INNER JOIN lead_dealers ld ON ld.lead_id = l.id
-       WHERE l.canonical_phone = $1
+       WHERE (
+           l.canonical_phone = $1
+           OR EXISTS (
+             SELECT 1
+             FROM conversations phone_evidence_conversation
+             WHERE phone_evidence_conversation.lead_id = l.id
+               AND phone_evidence_conversation.qualification_snapshot->>'phone' = $1
+               AND ${sameDealerLocationSql('phone_evidence_conversation')}
+           )
+         )
          AND (ld.dealer_id = $2 OR COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $2)
          AND ld.status IN ('pending', 'queued', 'sent')
          AND (ld.status <> 'sent' OR ld.sent_at IS NOT NULL)
@@ -80,7 +105,7 @@ export class ConversationQualificationFunctions {
              FROM conversations current_lead_conversation
              WHERE current_lead_conversation.id = $4
                AND current_lead_conversation.lead_id = l.id
-               AND current_lead_conversation.ghl_location_id = $5
+               AND ${sameDealerLocationSql('current_lead_conversation')}
                AND current_lead_conversation.status IN ('queued', 'sent')
                AND current_lead_conversation.last_message_at <= $6::timestamptz - INTERVAL '24 hours'
                AND EXISTS (
@@ -102,7 +127,7 @@ export class ConversationQualificationFunctions {
              FROM conversations old_lead_conversation
              WHERE old_lead_conversation.lead_id = l.id
                AND old_lead_conversation.id <> $4
-               AND old_lead_conversation.ghl_location_id = $5
+               AND ${sameDealerLocationSql('old_lead_conversation')}
                AND old_lead_conversation.status IN ('queued', 'sent')
                AND old_lead_conversation.last_message_at <= $3::timestamptz - INTERVAL '24 hours'
                AND EXISTS (
@@ -116,7 +141,7 @@ export class ConversationQualificationFunctions {
              FROM conversations current_lead_conversation
              WHERE current_lead_conversation.id = $4
                AND current_lead_conversation.lead_id = l.id
-               AND current_lead_conversation.ghl_location_id = $5
+               AND ${sameDealerLocationSql('current_lead_conversation')}
                AND current_lead_conversation.status IN ('queued', 'sent')
                AND current_lead_conversation.last_message_at <= $6::timestamptz - INTERVAL '24 hours'
                AND EXISTS (

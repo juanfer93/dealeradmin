@@ -73,7 +73,8 @@ function safeErrorCode(status: number, error: unknown): string {
 }
 
 function retryDelayMs(response: Response, attempt: number): number {
-  const retryAfter = Number(response.headers.get('retry-after'));
+  const retryAfterHeader = response.headers.get('retry-after');
+  const retryAfter = retryAfterHeader === null ? Number.NaN : Number(retryAfterHeader);
   if (Number.isFinite(retryAfter) && retryAfter >= 0) return Math.min(retryAfter * 1000, 5_000);
   return Math.min(250 * (attempt + 1), 2_000);
 }

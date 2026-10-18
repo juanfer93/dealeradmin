@@ -2,6 +2,42 @@ import { describe, expect, it, vi } from 'vitest';
 import { ConversationQualificationFunctions } from '../../application/functions/conversation-qualification.functions';
 
 describe('ConversationQualificationFunctions', () => {
+  it('finds reengagement by historical snapshot phone across aliases of the same dealer', async () => {
+    const historicalLead = {
+      id: 'lead-jason-carpenter',
+      canonical_phone: null,
+      first_name: 'Jason',
+      last_name: 'Carpenter',
+    };
+    const runner = {
+      query: vi.fn().mockResolvedValue([historicalLead]),
+    };
+
+    const result = await new ConversationQualificationFunctions().findExistingLeadReengagement(
+      runner as never,
+      '+15408184341',
+      'dealer-offlease-fredericksburg',
+      'conversation-current',
+      '2026-10-18T08:17:50.000Z',
+      '2026-10-18T08:21:45.000Z',
+      'MyxWNKacThim798E8KC6',
+    );
+
+    expect(result).toEqual(historicalLead);
+    const [sql, params] = runner.query.mock.calls[0] as [string, unknown[]];
+    expect(sql).toContain("qualification_snapshot->>'phone' = $1");
+    expect(sql).toContain('dealer_location_aliases');
+    expect(sql).toContain('historical_location_alias');
+    expect(params).toEqual([
+      '+15408184341',
+      'dealer-offlease-fredericksburg',
+      '2026-10-18T08:17:50.000Z',
+      'conversation-current',
+      'MyxWNKacThim798E8KC6',
+      '2026-10-18T08:21:45.000Z',
+    ]);
+  });
+
   it('recovers a concurrent conversation insert without creating a duplicate', async () => {
     const concurrentRow = {
       id: 'conversation-existing',
