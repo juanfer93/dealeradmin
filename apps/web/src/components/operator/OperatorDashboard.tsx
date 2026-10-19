@@ -264,7 +264,8 @@ export default function OperatorDashboard() {
         if (!response.ok) throw new Error(t.app.errors.loadQueue);
         data = await response.json() as LeadResponse;
       }
-      setDealers(data.dealers); setLeads(selectInitialQueueLeads(data.leads, data.dealers, dealerId, dealerIds)); setWroteAgainCount(data.wroteAgainCount ?? 0); setSelectedLeadIds([]);
+      const displayLeads = data.leads.map((lead) => ({ ...lead, messageText: formatLeadCopy(lead) }));
+      setDealers(data.dealers); setLeads(selectInitialQueueLeads(displayLeads, data.dealers, dealerId, dealerIds)); setWroteAgainCount(data.wroteAgainCount ?? 0); setSelectedLeadIds([]);
       setSelectedDealerId((current) => current || data.dealers[0]?.id || '');
       setSelectedDealerIds((current) => current.length ? current : (data.dealers[0]?.id ? [data.dealers[0].id] : []));
     } catch (loadError) { setError(loadError instanceof Error ? loadError.message : t.app.errors.loadQueue); }
