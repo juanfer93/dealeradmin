@@ -2456,6 +2456,37 @@ describe('normalizeCollectorInput', () => {
     expect(result.down_payment_amount).toBeNull();
   });
 
+  it('keeps a valid 1500 down payment when a later callback hour is 10', () => {
+    const transcript = [
+      'Manuel',
+      'Me interesa una rav 4',
+      '1500',
+      'Está semana',
+      'Si tengo cuenta',
+      'Pasaporte nomas',
+      'Si',
+      '10',
+      'Una pregunta solo quiero saber en q estado están. Para ver si no estoy muy lejos',
+      'Disculpe',
+      'Ok perfecto',
+      'Xf si nesesito un carro',
+    ].join('\n');
+
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      phone: '+13237728671',
+      message: transcript,
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'RAV4',
+      down_payment: '1500',
+      down_payment_amount: 1500,
+    });
+  });
+
   it('rejects Stafford photo-request labels and keeps the name explicitly declared by the buyer', () => {
     const result = normalizeCollectorInput({
       source: 'stafford',

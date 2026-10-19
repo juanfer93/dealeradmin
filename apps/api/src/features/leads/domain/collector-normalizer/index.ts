@@ -416,7 +416,7 @@ function extractStandaloneDownPayment(message: string): string {
   if (!source || isCampaignButton(source)) return EMPTY;
   if (NO_DOWN_PAYMENT_RESPONSE.test(source)) return 'No down payment';
   const safeSource = source.split('\n').filter((line) => !isPhoneOnlyLine(line)).join('\n');
-  const matches = [...safeSource.matchAll(/(?:^|\n)\$?[ \t]*(\d{1,3}(?:[,.]\d{3})+|\d+(?:[,.]\d+)?\s*k?|\d{1,2}\s*(?:mil|thousand)|mil(?:\s+quinientos)?|(?:un|one|a|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\s+(?:mil|thousand)(?:\s+(?:quinientos|five hundred))?)[ \t]*\$?[ \t]*(?:tengo|have|available|disponible|i have|i can put)?[ \t]*\d{0,2}[ \t]*\.?[ \t]*(?=\n|$)/gim)];
+  const matches = [...safeSource.matchAll(/(?:^|\n)\$?[ \t]*(\d{1,3}(?:[,.]\d{3})+|\d+(?:[,.]\d+)?\s*k?|\d{1,2}\s*(?:mil|thousand)|mil(?:\s+quinientos)?|(?:un|one|a|dos|two|tres|three|cuatro|four|cinco|five|seis|six|seven|ocho|eight|nueve|nine|diez|ten)\s+(?:mil|thousand)(?:\s+(?:quinientos|five hundred))?)[ \t]*\$?[ \t]*(?:(?:tengo|have|available|disponible|i have|i can put)[ \t]*\d{0,2})?[ \t]*\.?[ \t]*(?=\n|$)/gim)];
   const standalone = matches.reverse().find((match) => !isVehicleYearValue(match[1]) && !isShortVehicleYearValue(match[1]));
   if (!standalone) return EMPTY;
   // A standalone recent four-digit answer is a vehicle year, not a down

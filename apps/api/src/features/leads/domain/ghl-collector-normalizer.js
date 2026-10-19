@@ -413,7 +413,7 @@ const downFrom = (text) => {
   const spanishDeclared = source.match(new RegExp(`\\b(?:doy|dar[eé]?|pongo|poner|i(?:'|’)ll put|i put)[ \\t]+(?:down[ \\t]+)?(?:at least[ \\t]+|de[ \\t]+|para[ \\t]+)?\\$?[ \\t]*${token}\\b`, 'i'));
   const noisyDeclared = source.match(new RegExp(`\\b(?:cuento|cuenta)\\b[^\\n]{0,80}?(?:y|and|plus)[ \\t.,;:]*\\$?[ \\t]*${token}\\b`, 'i'));
   const safeSource = source.split('\\n').filter((line) => !isPhoneOnlyLine(line)).join('\\n');
-  const standalone = safeSource.match(new RegExp(`(?:^|\\n)\\$?[ \\t]*${token}[ \\t]*\\$?[ \\t]*(?:tengo|have|available|disponible|i have|i can put|m[aá]ximo|maximum)?[ \\t]*\\d{0,2}[ \\t]*\\.?[ \\t]*(?=\\n|$)`, 'im'));
+  const standalone = safeSource.match(new RegExp(`(?:^|\\n)\\$?[ \\t]*${token}[ \\t]*\\$?[ \\t]*(?:(?:tengo|have|available|disponible|i have|i can put|m[aá]ximo|maximum)[ \\t]*\\d{0,2})?[ \\t]*\\.?[ \\t]*(?=\\n|$)`, 'im'));
   const candidate = standalone?.[1]?.replace(/[$,\s]/g, '') || '';
   const value = explicit?.[1] || withAmount?.[1] || directCon?.[1] || declared?.[1] || spanishDeclared?.[1] || noisyDeclared?.[1] || standalone?.[1];
   if (value && isShortVehicleYear(value) && (vehicleBrands.test(source) || vehicleModels.test(source) || vehicleCategories.test(source))) return '';
