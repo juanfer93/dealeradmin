@@ -157,18 +157,19 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       event_id: eventId,
     }, source, raw, headers.testNow);
     if (isSyntheticConversation) {
-      await this.triggerTargetedGuardIfSplit(locationId, contactId, headers.testNow);
+      await this.triggerTargetedGuardIfSplit(locationId, contactId, headers.testNow, message);
     }
     return response;
   }
 
   /**
    * A webhook without a native conversation id is stored under a contact-scoped
-   * synthetic id. If that contact already has a canonical GHL conversation, ask
-   * the guard to reconcile only this contact. This avoids waiting for the
-   * global batch and never replays other dealers or contacts.
+   * synthetic id. If that contact already has a canonical GHL conversation, or
+   * the message looks like a phone candidate, ask the guard to reconcile only
+   * this contact. This avoids waiting for the global batch and never replays
+   * other dealers or contacts.
    */
-  private async triggerTargetedGuardIfSplit(locationId: string, contactId: string, now?: Date): Promise<void> {
+  private async triggerTargetedGuardIfSplit(locationId: string, contactId: string, now?: Date, message = ''): Promise<void> {
     try {
       const split = await this.dataSource!.query(
         `SELECT 1
@@ -180,7 +181,12 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
          LIMIT 1`,
         [locationId, contactId],
       ) as Array<Record<string, unknown>>;
-      if (!split[0]) return;
+      // A malformed phone can be the first webhook delivered while the valid
+      // follow-up is already visible in GHL. In that case there is no native
+      // sibling yet, so the old split-only probe never ran and the scheduled
+      // batch could leave the contact unrecovered for several cycles.
+      const digitCount = (message.match(/\d/g) ?? []).length;
+      if (!split[0] && digitCount < 7) return;
       void this.guard.run(now || new Date(), { contactIds: [contactId] }).catch(() => {
         // The scheduled guard remains the fallback for a transient targeted-run failure.
       });

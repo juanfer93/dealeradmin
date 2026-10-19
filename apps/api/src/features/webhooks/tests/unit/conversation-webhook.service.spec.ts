@@ -130,6 +130,29 @@ describe('ConversationWebhookService', () => {
     expect(guard.run).not.toHaveBeenCalled();
   });
 
+  it('launches targeted recovery for a phone-shaped synthetic message without a canonical sibling', async () => {
+    const dataSource = { query: vi.fn().mockResolvedValue([]) };
+    const service = new ConversationWebhookService(dataSource as never);
+    const eventFunctions = (service as unknown as { eventFunctions: { persistEvent: ReturnType<typeof vi.fn> } }).eventFunctions;
+    eventFunctions.persistEvent = vi.fn().mockResolvedValue({
+      accepted: true,
+      eventId: 'evt-latent-phone',
+      conversationId: 'contact:latent-phone:messenger',
+      source: 'fredericksburg-2',
+      status: 'processed',
+    });
+    const guard = (service as unknown as { guard: { run: ReturnType<typeof vi.fn> } }).guard;
+    guard.run = vi.fn().mockResolvedValue({ enabled: true, skipped: false, selected: 1, fetched: 7, inserted: 1, repaired: 0, failed: 0 });
+
+    await service.acceptCustomerReplied(
+      { message_body: '704439601', channel: 'messenger' },
+      'fredericksburg-2',
+      { contactId: 'latent-phone' },
+    );
+
+    expect(guard.run).toHaveBeenCalledWith(expect.any(Date), { contactIds: ['latent-phone'] });
+  });
+
   it('ignores native WhatsApp attribution for Fredericksburg 2 even when customData says messenger', async () => {
     const service = new ConversationWebhookService();
     const result = await service.acceptCustomerReplied(
