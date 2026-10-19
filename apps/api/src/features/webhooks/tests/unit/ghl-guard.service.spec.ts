@@ -33,6 +33,30 @@ describe('GhlGuardService', () => {
     expect(ghlGuardConversationTimeoutMs()).toBe(20_000);
   });
 
+  it('allows the scheduled run to bypass the in-memory interval gate', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.GHL_GUARD_ENABLED = 'true';
+    process.env.GHL_GUARD_INTERVAL_MS = '300000';
+
+    const lockRunner = {
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : []),
+      release: vi.fn(),
+    };
+    const dataSource = {
+      createQueryRunner: vi.fn().mockReturnValue(lockRunner),
+      query: vi.fn().mockResolvedValue([]),
+    };
+    const service = new GhlGuardService(dataSource as never, { reconcileConversation: vi.fn() } as never);
+    const firstRun = new Date('2026-10-16T12:00:00.000Z');
+
+    await service.run(firstRun);
+    const result = await service.run(new Date(firstRun.getTime() + 1000), { force: true });
+
+    expect(result).toMatchObject({ enabled: true, skipped: false, selected: 0, fetched: 0, inserted: 0, repaired: 0, failed: 0 });
+    expect(dataSource.createQueryRunner).toHaveBeenCalledTimes(2);
+  });
+
   it('fetches, persists, reconciles, and logs a local conversation', async () => {
     process.env.NODE_ENV = 'production';
     process.env.GHL_GUARD_ENABLED = 'true';

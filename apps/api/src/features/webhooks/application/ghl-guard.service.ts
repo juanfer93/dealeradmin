@@ -132,7 +132,7 @@ export class GhlGuardService {
     private readonly client: GhlGuardClientPort = new GhlGuardClient(),
   ) {}
 
-  async run(now = new Date(), options: { contactIds?: string[] } = {}): Promise<GhlGuardRunResult> {
+  async run(now = new Date(), options: { contactIds?: string[]; force?: boolean } = {}): Promise<GhlGuardRunResult> {
     const empty: GhlGuardRunResult = { enabled: ghlGuardEnabled(), skipped: true, selected: 0, fetched: 0, inserted: 0, repaired: 0, failed: 0 };
     if (!empty.enabled || !this.dataSource) return empty;
     const contactIds = [...new Set((options.contactIds ?? []).map((value) => value.trim()).filter(Boolean))];
@@ -141,7 +141,7 @@ export class GhlGuardService {
       for (const contactId of contactIds) this.pendingContactIds.add(contactId);
       return empty;
     }
-    if (!targeted && now.getTime() - this.lastRunAt < ghlGuardIntervalMs()) return empty;
+    if (!targeted && !options.force && now.getTime() - this.lastRunAt < ghlGuardIntervalMs()) return empty;
     this.running = true;
     this.lastRunAt = now.getTime();
 

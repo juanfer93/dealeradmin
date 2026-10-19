@@ -19,7 +19,7 @@ export class ConversationDueFunctions {
     private readonly guard?: GhlGuardService,
   ) {}
 
-  async processDueConversations(now: Date, options: { reconcileActive?: boolean; runGuard?: boolean; guardContactIds?: string[] } = {}): Promise<DueConversationResponse> {
+  async processDueConversations(now: Date, options: { reconcileActive?: boolean; runGuard?: boolean; guardContactIds?: string[]; forceGuard?: boolean } = {}): Promise<DueConversationResponse> {
     if (!this.dataSource) {
       if (process.env.NODE_ENV === 'test') return { accepted: true, processed: 0 };
       throw new ServiceUnavailableException('Database connection is not available');
@@ -46,7 +46,7 @@ export class ConversationDueFunctions {
       try {
         // Reconciliation can take longer than the caller's initial timestamp.
         // The guard must lease from the real execution time, not that stale timestamp.
-        guardResult = await this.guard?.run(new Date(), { contactIds: options.guardContactIds });
+        guardResult = await this.guard?.run(new Date(), { contactIds: options.guardContactIds, force: options.forceGuard === true });
       } catch (error) {
         // The GHL guard is a repair/audit layer; it must never block due releases.
         guardError = error instanceof Error ? error.name : 'GHL_GUARD_RUN_FAILED';

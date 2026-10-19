@@ -34,10 +34,12 @@ describe('ConversationDueFunctions', () => {
     const result = await service.processDueConversations(new Date('2026-10-16T22:30:00.000Z'), {
       reconcileActive: false,
       runGuard: true,
+      forceGuard: true,
     });
 
     expect(result.guard).toEqual(expect.objectContaining({ selected: 1, fetched: 2, inserted: 1 }));
     expect(guard.run).toHaveBeenCalledOnce();
+    expect(guard.run).toHaveBeenCalledWith(expect.any(Date), { contactIds: undefined, force: true });
     expect(reconciliation.reconcileActiveConversations).not.toHaveBeenCalled();
   });
 

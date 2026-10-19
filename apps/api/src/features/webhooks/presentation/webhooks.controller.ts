@@ -96,6 +96,7 @@ export class WebhooksController {
     return this.conversationWebhookService.processDueConversations(undefined, {
       reconcileActive: false,
       runGuard: true,
+      forceGuard: true,
       guardContactIds: String(request.query.contact_ids ?? '')
         .split(',')
         .map((value) => value.trim())

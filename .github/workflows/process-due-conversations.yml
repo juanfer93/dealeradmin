@@ -42,5 +42,5 @@ jobs:
               guard: result.guard ?? null,
               guardError: result.guardError ?? null,
             }, null, 2));
-            if (!result.guard || result.guard.enabled !== true || result.guard.failed > 0 || result.guardError) process.exit(1);
+            if (!result.guard || result.guard.enabled !== true || result.guard.skipped === true || result.guard.failed > 0 || result.guardError) process.exit(1);
           ' "$response"
