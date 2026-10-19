@@ -57,6 +57,7 @@ describe('GhlGuardService', () => {
     expect(skipped).toMatchObject({ enabled: true, skipped: true, skipReason: 'in_memory_interval' });
     expect(result).toMatchObject({ enabled: true, skipped: false, selected: 0, fetched: 0, inserted: 0, repaired: 0, failed: 0 });
     expect(dataSource.createQueryRunner).toHaveBeenCalledTimes(2);
+    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('skip_reason'), expect.arrayContaining(['in_memory_interval']));
   });
 
   it('reports when the advisory lock prevents a guard cycle', async () => {

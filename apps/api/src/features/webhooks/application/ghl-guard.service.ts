@@ -142,18 +142,20 @@ export class GhlGuardService {
 
   async run(now = new Date(), options: { contactIds?: string[]; force?: boolean } = {}): Promise<GhlGuardRunResult> {
     const empty: GhlGuardRunResult = { enabled: ghlGuardEnabled(), skipped: true, selected: 0, fetched: 0, inserted: 0, repaired: 0, failed: 0 };
-    const skip = (reason: GhlGuardSkipReason, contactIds: string[] = []): GhlGuardRunResult => {
+    const runId = randomUUID();
+    const contactIds = [...new Set((options.contactIds ?? []).map((value) => value.trim()).filter(Boolean))];
+    const skip = async (reason: GhlGuardSkipReason): Promise<GhlGuardRunResult> => {
       const target = contactIds.length > 0 ? ` contacts=${contactIds.join(',')}` : '';
       this.logger.warn(`GHL guard skipped reason=${reason}${target}`);
+      await this.logSkip(runId, reason, contactIds, empty.enabled);
       return { ...empty, skipReason: reason };
     };
     if (!empty.enabled) return skip('disabled');
     if (!this.dataSource) return skip('no_database');
-    const contactIds = [...new Set((options.contactIds ?? []).map((value) => value.trim()).filter(Boolean))];
     const targeted = contactIds.length > 0;
     if (this.running) {
       for (const contactId of contactIds) this.pendingContactIds.add(contactId);
-      return skip('already_running', contactIds);
+      return skip('already_running');
     }
     if (!targeted && !options.force && now.getTime() - this.lastRunAt < ghlGuardIntervalMs()) return skip('in_memory_interval');
     this.running = true;
@@ -161,13 +163,13 @@ export class GhlGuardService {
 
     const result: GhlGuardRunResult = { ...empty, skipped: false };
     const lockRunner = this.dataSource.createQueryRunner();
-    const runId = randomUUID();
     await lockRunner.connect();
     try {
       const locked = await lockRunner.query(`SELECT pg_try_advisory_lock(hashtext($1)) AS locked`, [GHL_GUARD_LOCK_KEY]) as Array<{ locked: boolean }>;
       if (!locked[0]?.locked) {
         const skipped = { ...result, skipped: true, skipReason: 'advisory_lock' as const };
         this.logger.warn('GHL guard skipped reason=advisory_lock');
+        await this.logSkip(runId, 'advisory_lock', contactIds, empty.enabled);
         return skipped;
       }
       await this.recoverStaleLogs(now);
@@ -627,6 +629,20 @@ export class GhlGuardService {
     } catch (error) {
       this.logAuditError('GHL_GUARD_STALE_RECOVERY_FAILED', error);
       // Stale-log recovery is audit hygiene and must not block message repair.
+    }
+  }
+
+  private async logSkip(runId: string, reason: GhlGuardSkipReason, contactIds: string[], enabled: boolean): Promise<void> {
+    if (!enabled || !this.dataSource) return;
+    try {
+      await this.dataSource.query(
+        `INSERT INTO ghl_guard_logs
+          (run_id, status, skip_reason, metadata)
+         VALUES ($1, 'skipped', $2, $3::jsonb)`,
+        [runId, reason, JSON.stringify({ lifecycle: ['skipped'], targetContactIds: contactIds })],
+      );
+    } catch (error) {
+      this.logger.error(`GHL guard skip log persistence failed reason=${reason}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
