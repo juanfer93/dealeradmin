@@ -1899,6 +1899,21 @@ describe('normalizeCollectorInput', () => {
     });
   });
 
+  it('does not use a Stafford WhatsApp vehicle label as the buyer name', () => {
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Un Ford Explorer Estoppel',
+      real_name: 'Un Ford Explorer Estoppel',
+      phone: '+17712024963',
+      message: 'Ford Explorer',
+      chat_history_log: 'Ford Explorer\n1000\nEstoy en Stafford',
+    });
+
+    expect(result.real_name).toBe('');
+    expect(result.vehicle_type).toBe('Ford Explorer');
+  });
+
   it('does not use a vehicle statement as an Arlington buyer name', () => {
     expect(normalizeCollectorInput({
       source: 'arlington',

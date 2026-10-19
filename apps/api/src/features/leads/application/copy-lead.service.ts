@@ -56,7 +56,14 @@ export class CopyLeadService {
            d.name AS source_dealer_name,
            l.first_name,
            l.last_name,
-           l.canonical_phone,
+           COALESCE(NULLIF(l.canonical_phone, ''), (
+             SELECT NULLIF(c_phone.qualification_snapshot->>'phone', '')
+             FROM conversations c_phone
+             WHERE c_phone.lead_id = l.id
+               AND NULLIF(c_phone.qualification_snapshot->>'phone', '') IS NOT NULL
+             ORDER BY c_phone.last_message_at DESC NULLS LAST, c_phone.created_at DESC
+             LIMIT 1
+           )) AS canonical_phone,
            ld.vehicle_type,
            ld.down_payment,
            ld.purchase_timeline,

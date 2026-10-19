@@ -8,6 +8,7 @@ describe('GhlGuardService', () => {
 
   afterEach(() => {
     process.env = { ...originalEnv };
+    vi.useRealTimers();
   });
 
   it('does not call GHL or the database when disabled', async () => {
@@ -79,6 +80,44 @@ describe('GhlGuardService', () => {
 
     expect(result).toMatchObject({ enabled: true, skipped: true, skipReason: 'advisory_lock', selected: 0, fetched: 0, inserted: 0, repaired: 0, failed: 0 });
     expect(lockRunner.release).toHaveBeenCalledOnce();
+  });
+
+  it('retries targeted contacts after an advisory-lock skip instead of dropping them', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.GHL_GUARD_ENABLED = 'true';
+    process.env.GHL_GUARD_RETRY_DELAY_MS = '1';
+    vi.useFakeTimers();
+
+    const firstLockRunner = {
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: false }] : []),
+      release: vi.fn(),
+    };
+    const secondLockRunner = {
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('pg_try_advisory_lock')) return [{ locked: true }];
+        if (sql.includes('FROM conversations')) return [];
+        return [];
+      }),
+      release: vi.fn(),
+    };
+    const dataSource = {
+      createQueryRunner: vi.fn()
+        .mockReturnValueOnce(firstLockRunner)
+        .mockReturnValueOnce(secondLockRunner),
+      query: vi.fn().mockResolvedValue([]),
+    };
+    const service = new GhlGuardService(dataSource as never, { reconcileConversation: vi.fn() } as never);
+
+    const result = await service.run(new Date('2026-10-19T12:00:00.000Z'), { contactIds: ['adrian-contact'], force: true });
+    expect(result).toMatchObject({ skipped: true, skipReason: 'advisory_lock' });
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(dataSource.createQueryRunner).toHaveBeenCalledTimes(2);
+    expect(secondLockRunner.release).toHaveBeenCalledOnce();
+    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('skip_reason'), expect.arrayContaining(['advisory_lock']));
   });
 
   it('fetches, persists, reconciles, and logs a local conversation', async () => {

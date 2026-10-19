@@ -71,7 +71,7 @@ describe('ConversationReconciliationFunctions', () => {
     const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot'));
     expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({
       real_name: 'Manuel',
-      vehicle_type: 'Honda Civic',
+      vehicle_type: 'Honda Civic 2015',
       vehicle_year: 2015,
       down_payment: '',
       purchase_timeline: 'this week',

@@ -239,7 +239,7 @@ export class ConversationReconciliationFunctions {
       if (effectivePhone && effectivePhone !== row.canonical_phone) {
         await runner.query(
           `UPDATE leads SET canonical_phone = $2, updated_at = CURRENT_TIMESTAMP
-           WHERE id = $1 AND NOT EXISTS (SELECT 1 FROM leads other WHERE other.canonical_phone = $2 AND other.id <> $1)`,
+           WHERE id = $1`,
           [row.lead_id, effectivePhone],
         );
       }

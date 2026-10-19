@@ -50,6 +50,7 @@ describe('CopyLeadService', () => {
     expect(runner.query).toHaveBeenCalledTimes(4);
     expect(calls[2]?.[0]).toContain('pg_advisory_xact_lock');
     expect(calls[3]?.[0]).toContain('canonical_phone');
+    expect(calls[0]?.[0]).toContain("COALESCE(NULLIF(l.canonical_phone, ''),");
     expect(calls[3]?.[0]).toContain('COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $3');
     expect(calls[3]?.[0]).toContain('CONCAT_WS');
     expect(calls[3]?.[1]).toEqual(['lead-1', sourceRow.canonical_phone, 'dealer-target', 'jose lopez']);

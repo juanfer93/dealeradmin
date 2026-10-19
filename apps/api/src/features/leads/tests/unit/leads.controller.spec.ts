@@ -133,6 +133,7 @@ describe('LeadsController queue read', () => {
     await expect(controller.list({ cookies: {} } as never, 'pending')).resolves.toEqual({ dealers: [], leads: [], wroteAgainCount: 0 });
     expect(dataSource.query).toHaveBeenCalledTimes(3);
     expect(dataSource.query.mock.calls[0]?.[0]).toContain("$1 <> 'pending' OR COALESCE(ld.routing_status, 'resolved') <> 'not_qualified'");
+    expect(dataSource.query.mock.calls[0]?.[0]).toContain("COALESCE(NULLIF(l.canonical_phone, ''),");
     expect(dataSource.query.mock.calls[1]?.[0]).toContain("ld.status = 'pending' AND COALESCE(ld.routing_status, 'resolved') <> 'not_qualified'");
     expect(dataSource.query.mock.calls[2]?.[0]).toContain('has_unhandled_reengagement');
   });

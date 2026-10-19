@@ -132,6 +132,7 @@ export class GhlGuardService {
   private running = false;
   private lastRunAt = 0;
   private readonly pendingContactIds = new Set<string>();
+  private pendingTargetedRetry: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly dataSource: DataSource | undefined,
@@ -154,7 +155,7 @@ export class GhlGuardService {
     if (!this.dataSource) return skip('no_database');
     const targeted = contactIds.length > 0;
     if (this.running) {
-      for (const contactId of contactIds) this.pendingContactIds.add(contactId);
+      this.enqueuePendingContactIds(contactIds);
       return skip('already_running');
     }
     if (!targeted && !options.force && now.getTime() - this.lastRunAt < ghlGuardIntervalMs()) return skip('in_memory_interval');
@@ -169,6 +170,7 @@ export class GhlGuardService {
       if (!locked[0]?.locked) {
         const skipped = { ...result, skipped: true, skipReason: 'advisory_lock' as const };
         this.logger.warn('GHL guard skipped reason=advisory_lock');
+        this.enqueuePendingContactIds(contactIds);
         await this.logSkip(runId, 'advisory_lock', contactIds, empty.enabled);
         return skipped;
       }
@@ -249,14 +251,34 @@ export class GhlGuardService {
       try { await lockRunner.query(`SELECT pg_advisory_unlock(hashtext($1))`, [GHL_GUARD_LOCK_KEY]); } catch { /* best effort */ }
       await lockRunner.release();
       this.running = false;
-      if (this.pendingContactIds.size > 0) {
-        const pendingContactIds = [...this.pendingContactIds];
-        this.pendingContactIds.clear();
-        void this.run(new Date(), { contactIds: pendingContactIds }).catch((error) => {
-          this.logger.warn(`Deferred targeted GHL guard failed: ${error instanceof Error ? error.message : String(error)}`);
-        });
-      }
+      this.schedulePendingTargetedRun();
     }
+  }
+
+  private enqueuePendingContactIds(contactIds: string[]): void {
+    for (const contactId of contactIds) this.pendingContactIds.add(contactId);
+    this.schedulePendingTargetedRun();
+  }
+
+  private schedulePendingTargetedRun(): void {
+    if (this.pendingContactIds.size === 0 || this.pendingTargetedRetry) return;
+    const retry = setTimeout(() => {
+      this.pendingTargetedRetry = null;
+      if (this.pendingContactIds.size === 0) return;
+      const contactIds = [...this.pendingContactIds];
+      this.pendingContactIds.clear();
+      void this.run(new Date(), { contactIds, force: true }).then((result) => {
+        if (result.skipped && (result.skipReason === 'already_running' || result.skipReason === 'advisory_lock')) {
+          this.enqueuePendingContactIds(contactIds);
+        }
+      }).catch((error) => {
+        this.logger.warn(`Deferred targeted GHL guard failed: ${error instanceof Error ? error.message : String(error)}`);
+        this.enqueuePendingContactIds(contactIds);
+      });
+    }, ghlGuardRetryDelayMs());
+    this.pendingTargetedRetry = retry;
+    const unref = (retry as unknown as { unref?: () => void }).unref;
+    if (typeof unref === 'function') unref.call(retry);
   }
 
   private async processRow(row: GuardConversationRow, runId: string, now: Date, result: GhlGuardRunResult, targeted = false): Promise<void> {

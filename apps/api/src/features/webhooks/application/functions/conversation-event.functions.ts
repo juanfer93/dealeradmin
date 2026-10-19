@@ -151,7 +151,6 @@ export class ConversationEventFunctions {
           `UPDATE leads
            SET canonical_phone = $2, updated_at = CURRENT_TIMESTAMP
            WHERE id = $1
-             AND NOT EXISTS (SELECT 1 FROM leads other WHERE other.canonical_phone = $2 AND other.id <> $1)
            RETURNING id, canonical_phone, first_name, last_name`,
           [lead.id, effectivePhone],
         );

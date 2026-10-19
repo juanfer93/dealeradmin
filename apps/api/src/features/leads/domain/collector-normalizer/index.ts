@@ -84,6 +84,13 @@ function recoverStaffordPreviousFinancing(rawHistory: string, policy: CollectorF
   return beforeTimeline.some((line) => /^(?:yes|yeah|yep|si|sí|claro|correcto|tengo)$/i.test(line)) ? 'yes' : '';
 }
 
+function isStaffordWhatsAppVehicleLabel(value: string, policy: CollectorFlowPolicy, channel: string | null | undefined): boolean {
+  if (!policy.stafford || !isWhatsAppChannel(channel)) return false;
+  const candidate = clean(value);
+  return /^(?:un|una|a|an|my|mi|the)\s+/i.test(candidate)
+    && (VEHICLE_BRANDS.test(candidate) || VEHICLE_MODELS.test(candidate) || VEHICLE_CATEGORIES.test(candidate));
+}
+
 // HighLevel sometimes exposes a technical profile label as the Messenger
 // contact name. It is not buyer identity evidence and must never be persisted
 // as the lead's real name.
@@ -557,7 +564,9 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     : isWhatsAppChannel(channel)
       // WhatsApp gets a declared chat name first, then the profile name. The
       // message body and profile are separate fields in the webhook contract.
-      ? whatsappNames.map(normalizeRealName).find(Boolean) ?? EMPTY
+      ? whatsappNames
+        .map((candidate) => isStaffordWhatsAppVehicleLabel(candidate, policy, channel) ? EMPTY : normalizeRealName(candidate))
+        .find(Boolean) ?? EMPTY
       : (isLikelyBusinessName(suppliedName) || isLikelyProfileDisplayName(suppliedName)
         ? [...extractedNames, suppliedName]
         : [suppliedName, ...extractedNames]

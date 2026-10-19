@@ -27,6 +27,7 @@ const normalizeRealName = (value) => {
 };
 const isMessengerChannel = (value) => /(?:^|[^a-z])(?:messenger|facebook)(?:$|[^a-z])/i.test(clean(value));
 const isWhatsAppChannel = (value) => /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(clean(value));
+const isStaffordWhatsApp = (source, value) => clean(source).toLocaleLowerCase() === 'stafford' && isWhatsAppChannel(value);
 const effectiveChannel = (input) => {
   const channel = clean(input.channel);
   if (channel) return channel;
@@ -94,6 +95,7 @@ const profile = inputData.profile && typeof inputData.profile === 'object' ? inp
 const whatsappProfile = inputData.whatsapp && typeof inputData.whatsapp === 'object' && inputData.whatsapp.profile && typeof inputData.whatsapp.profile === 'object' ? inputData.whatsapp.profile : {};
 const rawContactName = first(inputData.contact_name, inputData.contactName, profile.name, whatsappProfile.name, inputData.name);
 const channel = effectiveChannel(inputData);
+const staffordWhatsApp = isStaffordWhatsApp(inputData.source, channel);
 const contactName = isMessengerChannel(channel)
   ? normalizeProfileDisplayName(rawContactName)
   : (isProfileDisplayName(rawContactName) ? '' : normalizeRealName(rawContactName));
@@ -113,12 +115,23 @@ const whatsappNames = [
   contactName,
   memoryValue(['real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name', 'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre']),
 ];
+const normalizeWhatsAppCandidate = (value) => {
+  const candidate = clean(value);
+  // Stafford is WhatsApp-only. GHL sometimes exposes a vehicle/offer label as
+  // the contact name (for example, "Un Ford Explorer Estoppel"). Do not let
+  // that label become the buyer's real name; recover the name only from an
+  // explicit declaration or a valid conversational answer.
+  const startsWithVehicleArticle = /^(?:un|una|a|an|my|mi|the)\s+/i.test(candidate);
+  const containsVehicleToken = vehicleBrands.test(candidate) || vehicleModels.test(candidate) || vehicleCategories.test(candidate);
+  if (staffordWhatsApp && candidate && startsWithVehicleArticle && containsVehicleToken) return '';
+  return normalizeRealName(candidate);
+};
 const realName = isMessengerChannel(channel)
   ? (messengerProfileName && !isBusinessName(messengerProfileName)
     ? messengerProfileName
     : declaredNameFromText(rawMessage) || declaredNameFromText(rawHistory) || extractedNames.map(normalizeRealName).find(Boolean) || messengerProfileName || '')
   : isWhatsAppChannel(channel)
-    ? whatsappNames.map(normalizeRealName).find(Boolean) || ''
+    ? whatsappNames.map(normalizeWhatsAppCandidate).find(Boolean) || ''
     : ((isBusinessName(suppliedName) || isProfileDisplayName(suppliedName)) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) || '';
 const isCampaignButton = (value) => /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today|quiero financiar un auto(?: con ustedes)?|me gustaria financiar un auto(?: con ustedes)?|financiar un auto(?: con ustedes)?|(?:quiero )?financiar con easterns?)$/.test(normalizeMatch(String(value ?? '').replace(/([!?])\s*\d{1,3}$/, '$1').replace(/[!?.,]/g, '')));
 const isNonVehicleIntent = (value) => nonVehicleIntentValues.test(clean(value).replace(/[!?.,]/g, '').trim());
