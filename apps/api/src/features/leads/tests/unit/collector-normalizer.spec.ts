@@ -1556,6 +1556,15 @@ describe('normalizeCollectorInput', () => {
     });
   });
 
+  it('ignores a callback hour when reconciliation provides inbound messages only', () => {
+    const transcript = ['RAV4', '1500', 'Está semana', 'Si tengo cuenta', 'Pasaporte nomas', '10', '10'].join('\n');
+
+    expect(normalizeCollectorInput({ message: transcript, chat_history_log: transcript })).toMatchObject({
+      vehicle_type: 'RAV4',
+      down_payment: '1500',
+    });
+  });
+
   it.each([
     ['1000', '1000'],
     ['2000', '2000'],
@@ -1585,6 +1594,22 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message: 'Me interesa la F150 2018' })).toMatchObject({
       vehicle_type: 'F-150',
       vehicle_year: 2018,
+      down_payment: '',
+    });
+  });
+
+  it.each(['05', '15', '26'])('treats a standalone Stafford year reply as a vehicle year, not down payment: %s', (year) => {
+    expect(normalizeCollectorInput({ message: `Civic\n${year}`, chat_history_log: `Civic\n${year}` })).toMatchObject({
+      vehicle_type: 'Civic',
+      vehicle_year: 2000 + Number(year),
+      down_payment: '',
+    });
+  });
+
+  it('does not treat a two-digit year rendered beside down as a payment', () => {
+    expect(normalizeCollectorInput({ message: 'Jaime Civic, 15 de down', chat_history_log: 'Jaime Civic, 15 de down' })).toMatchObject({
+      vehicle_type: 'Civic',
+      vehicle_year: 2015,
       down_payment: '',
     });
   });

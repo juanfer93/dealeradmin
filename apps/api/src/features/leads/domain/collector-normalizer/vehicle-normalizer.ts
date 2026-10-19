@@ -167,9 +167,12 @@ export function extractVehicleYear(value: string | null | undefined): number | n
       const before = line.slice(Math.max(0, index - 60), index);
       const after = line.slice(index + match[0].length, index + match[0].length + 60);
       if (FINANCIAL_AMOUNT_PREFIX.test(before) || FINANCIAL_AMOUNT_SUFFIX.test(after) || FINANCIAL_CONTEXT_BEFORE_AMOUNT.test(before)) continue;
-      if (rawYear.length === 2 && !/(?:[-–—/]|\ba\b|\bto\b)\s*$/i.test(before) && !/^\s*(?:[-–—/]|\ba\b|\bto\b)/i.test(after)
-        && !/\b(?:year|año|ano|model|modelo)\b/i.test(`${before} ${after}`)) continue;
       const neighborhood = [lines[lineIndex - 1] ?? '', line, lines[lineIndex + 1] ?? ''].join(' ');
+      const standaloneVehicleReply = rawYear.length === 2
+        && (VEHICLE_BRANDS.test(neighborhood) || VEHICLE_MODELS.test(neighborhood) || VEHICLE_CATEGORIES.test(neighborhood))
+        && (/^\d{2}$/.test(line) || /^\s*(?:de|del|down|year|año|ano|model|modelo)\b/i.test(after));
+      if (rawYear.length === 2 && !standaloneVehicleReply && !/(?:[-–—/]|\ba\b|\bto\b)\s*$/i.test(before) && !/^\s*(?:[-–—/]|\ba\b|\bto\b)/i.test(after)
+        && !/\b(?:year|año|ano|model|modelo)\b/i.test(`${before} ${after}`)) continue;
       if (VEHICLE_BRANDS.test(neighborhood) || VEHICLE_MODELS.test(neighborhood) || VEHICLE_CATEGORIES.test(neighborhood) || VEHICLE_CONTEXT.test(neighborhood) || VEHICLE_YEAR_CONTEXT.test(neighborhood)) candidates.push({ year, shorthand: rawYear.length === 2 });
     }
     if (candidates.length > 0) {

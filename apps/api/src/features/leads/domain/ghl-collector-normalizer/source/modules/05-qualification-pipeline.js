@@ -43,6 +43,11 @@ const isVehicleYear = (value) => {
   const parsed = Number(normalized);
   return /^\d{4}$/.test(normalized) && Number.isInteger(parsed) && parsed >= 1990 && parsed <= 2026;
 };
+const isShortVehicleYear = (value) => {
+  const normalized = String(value ?? '').replace(/[$,\s]/g, '');
+  const parsed = Number(normalized);
+  return /^(?:0[5-9]|1\d|2[0-6])$/.test(normalized) && Number.isInteger(parsed);
+};
 const amountToken = '(?:\\d{1,3}(?:,\\d{3})+|\\d{1,2}\\s*(?:mil|thousand)|mil(?:\\s+quinientos)?|(?:un|one|a|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+(?:mil|thousand)(?:\\s+(?:quinientos|five hundred))?|\\d+(?:[,.]\\d+)?\\s*k?)(?:\\s*d[oó]lar(?:es|e)?)?';
 const tradeIn = (text) => {
   const source = clean(text);
@@ -72,9 +77,11 @@ const downFrom = (text) => {
   const safeSource = source.split('\\n').filter((line) => !isPhoneOnlyLine(line)).join('\\n');
   const standalone = safeSource.match(new RegExp(`(?:^|\\n)\\$?[ \\t]*${token}[ \\t]*\\$?[ \\t]*(?:tengo|have|available|disponible|i have|i can put|m[aá]ximo|maximum)?[ \\t]*\\d{0,2}[ \\t]*\\.?[ \\t]*(?=\\n|$)`, 'im'));
   const candidate = standalone?.[1]?.replace(/[$,\s]/g, '') || '';
+  const value = explicit?.[1] || withAmount?.[1] || directCon?.[1] || declared?.[1] || spanishDeclared?.[1] || noisyDeclared?.[1] || standalone?.[1];
+  if (value && isShortVehicleYear(value) && (vehicleBrands.test(source) || vehicleModels.test(source) || vehicleCategories.test(source))) return '';
   if (!explicit && !spanishDeclared && isVehicleYear(candidate)
     && (vehicleYearFrom(source) !== null || /^20(?:1\d|2[0-6])$/.test(candidate))) return '';
-  return validAmount(explicit?.[1] || withAmount?.[1] || directCon?.[1] || declared?.[1] || spanishDeclared?.[1] || noisyDeclared?.[1] || standalone?.[1]);
+  return validAmount(value);
 };
 const affirmativeDownConfirmation = (value) => {
   const source = normalizeMatch(value).replace(/[.,!?¡¿-]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -184,9 +191,12 @@ const vehicleYearFrom = (value) => {
       const before = line.slice(Math.max(0, index - 60), index);
       const after = line.slice(index + match[0].length, index + match[0].length + 60);
       if (financialPrefix.test(before) || financialSuffix.test(after) || /\b(?:down|payment|enganche|inicial|pago\s+inicial|cuota\s+inicial|deposit|dep[oó]sito)\b[^\d]{0,40}$/i.test(before)) continue;
-      if (rawYear.length === 2 && !/(?:[-–—/]|\ba\b|\bto\b)\s*$/i.test(before) && !/^\s*(?:[-–—/]|\ba\b|\bto\b)/i.test(after)
-        && !/\b(?:year|año|ano|model|modelo)\b/i.test(`${before} ${after}`)) continue;
       const neighborhood = [lines[lineIndex - 1] || '', line, lines[lineIndex + 1] || ''].join(' ');
+      const standaloneVehicleReply = rawYear.length === 2
+        && (vehicleBrands.test(neighborhood) || vehicleModels.test(neighborhood) || vehicleCategories.test(neighborhood))
+        && (/^\d{2}$/.test(line) || /^\s*(?:de|del|down|year|año|ano|model|modelo)\b/i.test(after));
+      if (rawYear.length === 2 && !standaloneVehicleReply && !/(?:[-–—/]|\ba\b|\bto\b)\s*$/i.test(before) && !/^\s*(?:[-–—/]|\ba\b|\bto\b)/i.test(after)
+        && !/\b(?:year|año|ano|model|modelo)\b/i.test(`${before} ${after}`)) continue;
       if (vehicleBrands.test(neighborhood) || vehicleModels.test(neighborhood) || vehicleCategories.test(neighborhood)
         || vehicleContext.test(neighborhood) || /\b(?:vehicle|car|auto|carro|coche|veh[ií]culo|model|modelo|year|año|ano)\b/i.test(neighborhood)) {
         candidates.push({ year, shorthand: rawYear.length === 2 });

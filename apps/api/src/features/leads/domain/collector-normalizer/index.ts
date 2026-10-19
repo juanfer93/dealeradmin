@@ -319,6 +319,10 @@ function extractDownPayment(message: string): string {
     // confirmation phrase so prices, years, and unrelated numbers do not leak
     // into the down-payment field.
     ?? source.match(new RegExp(`(?:^|\\n)\\$?[ \\t]*(${amountToken})[ \\t]*(?:d[oó]lares?|usd)?[ \\t]*(?:est[aá]\\s+(?:perfecto|bien)|perfecto|bien|ok(?:ay)?|works?(?:\\s+for\\s+me)?|is\\s+(?:fine|perfect|okay))\\b`, 'i'))?.[1];
+  // Stafford transcripts sometimes render a vehicle year as a payment phrase,
+  // for example "Civic, 15 de down". Values 05-26 are shorthand model years
+  // when vehicle evidence is present; they must not overwrite a real amount.
+  if (amount && isShortVehicleYearValue(amount) && (VEHICLE_BRANDS.test(source) || VEHICLE_MODELS.test(source) || VEHICLE_CATEGORIES.test(source))) return EMPTY;
   return amount ? normalizeAmount(amount) : EMPTY;
 }
 
@@ -341,6 +345,12 @@ function isVehicleYearRangeToken(value: string): boolean {
   const year = Number(normalized);
   return (/^\d{4}$/.test(normalized) && year >= 1900 && year <= VEHICLE_YEAR_MAX)
     || /^(?:0[5-9]|1\d|2[0-6])$/.test(normalized);
+}
+
+function isShortVehicleYearValue(value: string): boolean {
+  const normalized = value.replace(/[$,\s]/g, '');
+  const year = Number(normalized);
+  return /^(?:0[5-9]|1\d|2[0-6])$/.test(normalized) && Number.isInteger(year);
 }
 
 function isVehicleYearRange(value: string): boolean {
@@ -407,7 +417,7 @@ function extractStandaloneDownPayment(message: string): string {
   if (NO_DOWN_PAYMENT_RESPONSE.test(source)) return 'No down payment';
   const safeSource = source.split('\n').filter((line) => !isPhoneOnlyLine(line)).join('\n');
   const matches = [...safeSource.matchAll(/(?:^|\n)\$?[ \t]*(\d{1,3}(?:[,.]\d{3})+|\d+(?:[,.]\d+)?\s*k?|\d{1,2}\s*(?:mil|thousand)|mil(?:\s+quinientos)?|(?:un|one|a|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\s+(?:mil|thousand)(?:\s+(?:quinientos|five hundred))?)[ \t]*\$?[ \t]*(?:tengo|have|available|disponible|i have|i can put)?[ \t]*\d{0,2}[ \t]*\.?[ \t]*(?=\n|$)/gim)];
-  const standalone = matches.reverse().find((match) => !isVehicleYearValue(match[1]));
+  const standalone = matches.reverse().find((match) => !isVehicleYearValue(match[1]) && !isShortVehicleYearValue(match[1]));
   if (!standalone) return EMPTY;
   // A standalone recent four-digit answer is a vehicle year, not a down
   // payment. Values such as 1000/2000/3000 remain valid down payments.
@@ -439,9 +449,9 @@ function extractLatestDownPayment(message: string): string {
       || /\b(?:phone|telephone|tel[eé]fono|n[uú]mero|number)\b/i.test(line)
       || (lineDigits.length >= 7 && !paymentRange && !/\b(?:down|payment|enganche|inicial|deposit|dep[oó]sito)\b/i.test(line))) continue;
     const contextual = extractDownPayment(line);
-    if (contextual) return contextual;
+    if (contextual && !(isShortVehicleYearValue(contextual) && (VEHICLE_BRANDS.test(String(message)) || VEHICLE_MODELS.test(String(message)) || VEHICLE_CATEGORIES.test(String(message))))) return contextual;
     const standalone = extractStandaloneDownPayment(line);
-    if (standalone) return standalone;
+    if (standalone && !isShortVehicleYearValue(standalone)) return standalone;
 
     // A time range such as "Entre 1:30 a 5pm" is not a payment range. Only
     // the explicit/contextual extraction above may use a line containing a
@@ -465,9 +475,10 @@ function extractLatestDownPayment(message: string): string {
     const answerLike = /\b(?:tengo|have|cuento|cuenta|puedo|podr[ií]a|maximum|maximo|m[aá]ximo|son|available|will\s+have|down|payment|enganche|d[oó]lares?|dollars?)\b/i.test(line)
       || /^(?:si|sí|yes|yeah|yep|claro|ok(?:ay)?|bien)\b\s*\$?\d/i.test(line);
     if (!answerLike) continue;
+    const hasVehicleEvidence = VEHICLE_BRANDS.test(String(message)) || VEHICLE_MODELS.test(String(message)) || VEHICLE_CATEGORIES.test(String(message));
     const amounts = [...line.matchAll(new RegExp(`\\$?(${amountToken})(?!\\d)`, 'gi'))]
       .map((match) => normalizeAmount(match[1]))
-      .filter((amount) => amount && !isVehicleYearValue(amount));
+      .filter((amount) => amount && !isVehicleYearValue(amount) && !(hasVehicleEvidence && isShortVehicleYearValue(amount)));
     if (amounts.length > 0) return amounts.at(-1) ?? EMPTY;
   }
   return EMPTY;
