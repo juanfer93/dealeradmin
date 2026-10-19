@@ -56,6 +56,7 @@ type GuardAuditRow = {
 export type GhlGuardRunResult = {
   enabled: boolean;
   skipped: boolean;
+  skipReason?: GhlGuardSkipReason;
   selected: number;
   fetched: number;
   inserted: number;
@@ -63,6 +64,13 @@ export type GhlGuardRunResult = {
   failed: number;
   errors?: GhlGuardFailure[];
 };
+
+export type GhlGuardSkipReason =
+  | 'disabled'
+  | 'no_database'
+  | 'already_running'
+  | 'in_memory_interval'
+  | 'advisory_lock';
 
 export type GhlGuardFailure = {
   conversationId: string | null;
@@ -134,14 +142,20 @@ export class GhlGuardService {
 
   async run(now = new Date(), options: { contactIds?: string[]; force?: boolean } = {}): Promise<GhlGuardRunResult> {
     const empty: GhlGuardRunResult = { enabled: ghlGuardEnabled(), skipped: true, selected: 0, fetched: 0, inserted: 0, repaired: 0, failed: 0 };
-    if (!empty.enabled || !this.dataSource) return empty;
+    const skip = (reason: GhlGuardSkipReason, contactIds: string[] = []): GhlGuardRunResult => {
+      const target = contactIds.length > 0 ? ` contacts=${contactIds.join(',')}` : '';
+      this.logger.warn(`GHL guard skipped reason=${reason}${target}`);
+      return { ...empty, skipReason: reason };
+    };
+    if (!empty.enabled) return skip('disabled');
+    if (!this.dataSource) return skip('no_database');
     const contactIds = [...new Set((options.contactIds ?? []).map((value) => value.trim()).filter(Boolean))];
     const targeted = contactIds.length > 0;
     if (this.running) {
       for (const contactId of contactIds) this.pendingContactIds.add(contactId);
-      return empty;
+      return skip('already_running', contactIds);
     }
-    if (!targeted && !options.force && now.getTime() - this.lastRunAt < ghlGuardIntervalMs()) return empty;
+    if (!targeted && !options.force && now.getTime() - this.lastRunAt < ghlGuardIntervalMs()) return skip('in_memory_interval');
     this.running = true;
     this.lastRunAt = now.getTime();
 
@@ -151,7 +165,11 @@ export class GhlGuardService {
     await lockRunner.connect();
     try {
       const locked = await lockRunner.query(`SELECT pg_try_advisory_lock(hashtext($1)) AS locked`, [GHL_GUARD_LOCK_KEY]) as Array<{ locked: boolean }>;
-      if (!locked[0]?.locked) return { ...result, skipped: true };
+      if (!locked[0]?.locked) {
+        const skipped = { ...result, skipped: true, skipReason: 'advisory_lock' as const };
+        this.logger.warn('GHL guard skipped reason=advisory_lock');
+        return skipped;
+      }
       await this.recoverStaleLogs(now);
       const rows = await lockRunner.query(
         targeted

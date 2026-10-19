@@ -18,7 +18,7 @@ describe('GhlGuardService', () => {
 
     const result = await service.run(new Date('2026-10-16T12:00:00.000Z'));
 
-    expect(result).toEqual({ enabled: false, skipped: true, selected: 0, fetched: 0, inserted: 0, repaired: 0, failed: 0 });
+    expect(result).toEqual({ enabled: false, skipped: true, skipReason: 'disabled', selected: 0, fetched: 0, inserted: 0, repaired: 0, failed: 0 });
     expect((dataSource as { createQueryRunner: ReturnType<typeof vi.fn> }).createQueryRunner).not.toHaveBeenCalled();
   });
 
@@ -51,10 +51,33 @@ describe('GhlGuardService', () => {
     const firstRun = new Date('2026-10-16T12:00:00.000Z');
 
     await service.run(firstRun);
+    const skipped = await service.run(new Date(firstRun.getTime() + 1000));
     const result = await service.run(new Date(firstRun.getTime() + 1000), { force: true });
 
+    expect(skipped).toMatchObject({ enabled: true, skipped: true, skipReason: 'in_memory_interval' });
     expect(result).toMatchObject({ enabled: true, skipped: false, selected: 0, fetched: 0, inserted: 0, repaired: 0, failed: 0 });
     expect(dataSource.createQueryRunner).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports when the advisory lock prevents a guard cycle', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.GHL_GUARD_ENABLED = 'true';
+
+    const lockRunner = {
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: false }] : []),
+      release: vi.fn(),
+    };
+    const dataSource = {
+      createQueryRunner: vi.fn().mockReturnValue(lockRunner),
+      query: vi.fn().mockResolvedValue([]),
+    };
+    const service = new GhlGuardService(dataSource as never, { reconcileConversation: vi.fn() } as never);
+
+    const result = await service.run(new Date('2026-10-16T12:00:00.000Z'), { force: true });
+
+    expect(result).toMatchObject({ enabled: true, skipped: true, skipReason: 'advisory_lock', selected: 0, fetched: 0, inserted: 0, repaired: 0, failed: 0 });
+    expect(lockRunner.release).toHaveBeenCalledOnce();
   });
 
   it('fetches, persists, reconciles, and logs a local conversation', async () => {
