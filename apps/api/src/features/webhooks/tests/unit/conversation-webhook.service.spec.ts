@@ -65,6 +65,71 @@ describe('ConversationWebhookService', () => {
     ]);
   });
 
+  it.each([
+    {
+      name: 'Marvincito Rodríguez',
+      source: 'fredericksburg' as const,
+      contactId: 'n9FTmyvk1carfWu3SV36',
+      phone: '+15407642648',
+    },
+    {
+      name: 'Hector Rocha',
+      source: 'easterns-millersville' as const,
+      contactId: 'IxDrnd43sCwT9f547lvY',
+      phone: '+18565346443',
+    },
+  ])('requests a contact-only guard reconciliation for the split-conversation regression: $name', async ({ name, source, contactId, phone }) => {
+    const dataSource = { query: vi.fn().mockResolvedValue([{ '?column?': 1 }]) };
+    const service = new ConversationWebhookService(dataSource as never);
+    const eventFunctions = (service as unknown as { eventFunctions: { persistEvent: ReturnType<typeof vi.fn> } }).eventFunctions;
+    eventFunctions.persistEvent = vi.fn().mockResolvedValue({
+      accepted: true,
+      eventId: `evt-${contactId}`,
+      conversationId: `contact:${contactId}:messenger`,
+      source,
+      status: 'processed',
+    });
+    const guard = (service as unknown as { guard: { run: ReturnType<typeof vi.fn> } }).guard;
+    guard.run = vi.fn().mockResolvedValue({ enabled: true, skipped: false, selected: 2, fetched: 2, inserted: 2, repaired: 0, failed: 0 });
+    const testNow = new Date('2026-10-19T12:00:00.000Z');
+
+    await service.acceptCustomerReplied(
+      { message_body: 'Estoy buscando una camioneta', contact_name: name, contact_phone: phone, channel: 'messenger' },
+      source,
+      { contactId, testNow },
+    );
+
+    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining("ghl_conversation_id NOT LIKE 'contact:%'"), [GHL_SOURCE_CONFIG[source].locationId, contactId]);
+    expect(eventFunctions.persistEvent).toHaveBeenCalledWith(expect.objectContaining({
+      ghl_contact_id: contactId,
+      ghl_conversation_id: `contact:${contactId}:messenger`,
+    }), source, expect.any(String), testNow);
+    expect(guard.run).toHaveBeenCalledWith(testNow, { contactIds: [contactId] });
+  });
+
+  it('does not launch the targeted guard when a synthetic conversation has no canonical sibling', async () => {
+    const dataSource = { query: vi.fn().mockResolvedValue([]) };
+    const service = new ConversationWebhookService(dataSource as never);
+    const eventFunctions = (service as unknown as { eventFunctions: { persistEvent: ReturnType<typeof vi.fn> } }).eventFunctions;
+    eventFunctions.persistEvent = vi.fn().mockResolvedValue({
+      accepted: true,
+      eventId: 'evt-single-conversation',
+      conversationId: 'contact:single-contact:messenger',
+      source: 'fredericksburg',
+      status: 'processed',
+    });
+    const guard = (service as unknown as { guard: { run: ReturnType<typeof vi.fn> } }).guard;
+    guard.run = vi.fn();
+
+    await service.acceptCustomerReplied(
+      { message_body: 'Solo una conversación', channel: 'messenger' },
+      'fredericksburg',
+      { contactId: 'single-contact' },
+    );
+
+    expect(guard.run).not.toHaveBeenCalled();
+  });
+
   it('ignores native WhatsApp attribution for Fredericksburg 2 even when customData says messenger', async () => {
     const service = new ConversationWebhookService();
     const result = await service.acceptCustomerReplied(

@@ -138,7 +138,10 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       throw new UnprocessableEntityException('El webhook requiere el cuerpo del mensaje o al menos un attachment');
     }
 
-    const conversationId = event.ghl_conversation_id || `contact:${contactId}:${event.channel}`;
+    const nativeConversationId = event.ghl_conversation_id?.trim() || null;
+    const isSyntheticConversation = !nativeConversationId || nativeConversationId.startsWith('contact:');
+    const conversationId = nativeConversationId || `contact:${contactId}:${event.channel}`;
+    const locationId = event.ghl_location_id || sourceConfig.locationId;
     const raw = rawBody || JSON.stringify(input);
     const eventId = event.event_id || `ghl:${source}:${hash(raw)}`;
     if (!this.dataSource && process.env.NODE_ENV === 'test') {
@@ -146,13 +149,44 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       return { accepted: true, eventId, conversationId, source, status: 'processed' };
     }
     if (!this.dataSource) throw new ServiceUnavailableException('Database connection is not available');
-    return this.eventFunctions.persistEvent({
+    const response = await this.eventFunctions.persistEvent({
       ...event,
-      ghl_location_id: event.ghl_location_id || sourceConfig.locationId,
+      ghl_location_id: locationId,
       ghl_contact_id: contactId,
       ghl_conversation_id: conversationId,
       event_id: eventId,
     }, source, raw, headers.testNow);
+    if (isSyntheticConversation) {
+      await this.triggerTargetedGuardIfSplit(locationId, contactId, headers.testNow);
+    }
+    return response;
+  }
+
+  /**
+   * A webhook without a native conversation id is stored under a contact-scoped
+   * synthetic id. If that contact already has a canonical GHL conversation, ask
+   * the guard to reconcile only this contact. This avoids waiting for the
+   * global batch and never replays other dealers or contacts.
+   */
+  private async triggerTargetedGuardIfSplit(locationId: string, contactId: string, now?: Date): Promise<void> {
+    try {
+      const split = await this.dataSource!.query(
+        `SELECT 1
+         FROM conversations
+         WHERE ghl_location_id = $1
+           AND ghl_contact_id = $2
+           AND ghl_conversation_id IS NOT NULL
+           AND ghl_conversation_id NOT LIKE 'contact:%'
+         LIMIT 1`,
+        [locationId, contactId],
+      ) as Array<Record<string, unknown>>;
+      if (!split[0]) return;
+      void this.guard.run(now || new Date(), { contactIds: [contactId] }).catch(() => {
+        // The scheduled guard remains the fallback for a transient targeted-run failure.
+      });
+    } catch {
+      // A guard probe must never turn a successfully persisted webhook into a 5xx.
+    }
   }
 
   async processDueConversations(now = currentLocalNow(), options: { reconcileActive?: boolean; runGuard?: boolean; guardContactIds?: string[] } = {}): Promise<DueConversationResponse> {

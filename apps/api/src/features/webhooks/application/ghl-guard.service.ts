@@ -123,6 +123,7 @@ export class GhlGuardService {
   private readonly logger = new Logger(GhlGuardService.name);
   private running = false;
   private lastRunAt = 0;
+  private readonly pendingContactIds = new Set<string>();
 
   constructor(
     private readonly dataSource: DataSource | undefined,
@@ -136,7 +137,11 @@ export class GhlGuardService {
     if (!empty.enabled || !this.dataSource) return empty;
     const contactIds = [...new Set((options.contactIds ?? []).map((value) => value.trim()).filter(Boolean))];
     const targeted = contactIds.length > 0;
-    if (this.running || (!targeted && now.getTime() - this.lastRunAt < ghlGuardIntervalMs())) return empty;
+    if (this.running) {
+      for (const contactId of contactIds) this.pendingContactIds.add(contactId);
+      return empty;
+    }
+    if (!targeted && now.getTime() - this.lastRunAt < ghlGuardIntervalMs()) return empty;
     this.running = true;
     this.lastRunAt = now.getTime();
 
@@ -224,6 +229,13 @@ export class GhlGuardService {
       try { await lockRunner.query(`SELECT pg_advisory_unlock(hashtext($1))`, [GHL_GUARD_LOCK_KEY]); } catch { /* best effort */ }
       await lockRunner.release();
       this.running = false;
+      if (this.pendingContactIds.size > 0) {
+        const pendingContactIds = [...this.pendingContactIds];
+        this.pendingContactIds.clear();
+        void this.run(new Date(), { contactIds: pendingContactIds }).catch((error) => {
+          this.logger.warn(`Deferred targeted GHL guard failed: ${error instanceof Error ? error.message : String(error)}`);
+        });
+      }
     }
   }
 
