@@ -1540,6 +1540,22 @@ describe('normalizeCollectorInput', () => {
     expect(result.vehicle_type).toBe('Mustang');
   });
 
+  it('does not turn a callback hour into a down payment after a valid earlier amount', () => {
+    const transcript = [
+      'RAV4',
+      '1500',
+      'Está semana',
+      '¿A qué hora te queda mejor recibir la llamada?',
+      '10',
+      '10',
+    ].join('\n');
+
+    expect(normalizeCollectorInput({ message: transcript, chat_history_log: transcript })).toMatchObject({
+      vehicle_type: 'RAV4',
+      down_payment: '1500',
+    });
+  });
+
   it.each([
     ['1000', '1000'],
     ['2000', '2000'],

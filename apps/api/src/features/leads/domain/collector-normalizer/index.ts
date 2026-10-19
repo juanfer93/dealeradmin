@@ -326,6 +326,7 @@ const AFFIRMATIVE_DOWN_CONFIRMATION = /^(?:yes|yeah|yep|correct|that's right|tha
 const REFERENCED_DOWN_CONFIRMATION = /^(?:(?:si|claro|correcto|ok(?:ay)?|bien)[,\s]+)?(?:con\s+(?:ese|este)\s+(?:monto|enganche|down)|con\s+(?:esa|esta)\s+cantidad|(?:ese|este)\s+(?:monto|enganche|down)|(?:esa|esta)\s+cantidad|con\s+eso|with\s+that\s+(?:amount|down)|that\s+(?:amount|down))(?:\s+(?:si|s[ií]\s+lo\s+tengo|s[ií]\s+puedo|esta\s+bien|est[aá]\s+bien|works?|is\s+(?:fine|okay|perfect)))?$/i;
 const DOWN_CONTEXT_MARKERS = /\b(?:down|payment|enganche|pago\s+inicial|dinero|cash|contado|trade[- ]?in|tradein|m[ií]nimo|minimum|required|conseguir|bring|subir|subirle|raise|increase|m[aá]s|more)\b/i;
 const NON_DOWN_AFFIRMATION_CONTEXT = /\b(?:phone|number|n[uú]mero|tel[eé]fono|document|documentos?|identificaci[oó]n|license|licencia|income|ingresos?|proof|prueba|bank|banco|cuenta|vehicle|veh[ií]culo|carro|auto|suv|sedan|truck|troca|van|hoy|today|semana|week|mes|month|ubicad|located|location)\b/i;
+const CALL_TIME_QUESTION = /\b(?:a\s+qu[eé]\s+hora|qu[eé]\s+hora|what\s+time|best\s+time|time\s+to\s+(?:call|talk)|recibir\s+la\s+llamada|receive\s+the\s+call|llamada)\b/i;
 const VEHICLE_YEAR_MIN = 2006;
 const VEHICLE_YEAR_MAX = 2026;
 
@@ -420,7 +421,13 @@ function extractLatestDownPayment(message: string): string {
     .map((line) => clean(line).replace(/\b\d+(?:st|nd|rd|th)\b/gi, ' '))
     .filter(Boolean)
     .reverse();
-  for (const line of lines) {
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex];
+    // A short numeric answer after the bot asks for a callback time is an
+    // appointment hour, not a cash down payment. GHL can duplicate that
+    // inbound reply, so inspect the nearest earlier distinct line.
+    const previousDistinctLine = lines.slice(lineIndex + 1).find((candidate) => candidate !== line) ?? '';
+    if (/^\d{1,2}$/.test(line) && CALL_TIME_QUESTION.test(previousDistinctLine)) continue;
     // Never infer a down payment from a question asked by the bot, or from a
     // stale bot question that appears before a later qualification step.
     const lineDigits = line.replace(/\D/g, '');
