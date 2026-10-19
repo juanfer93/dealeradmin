@@ -21,6 +21,7 @@ export const FINANCIAL_CONTEXT_BEFORE_AMOUNT = /\b(?:down|payment|enganche|inici
 // instead of falling back to the advisor handoff marker.
 export function normalizeWhisperVehicleAliases(value: string): string {
   return clean(value)
+    .replace(/\bsedán\b/gi, 'Sedan')
     .replace(/\b(?:andas|onda|ondas|honda)\s+y\s*vis\s+si\b/gi, 'Honda Civic')
     .replace(/\b(?:andas|onda|ondas)\s+civ(?:ic|is)\b/gi, 'Honda Civic')
     // GHL/Messenger transcription in the Culpeper replay rendered

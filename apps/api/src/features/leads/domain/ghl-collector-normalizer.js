@@ -94,6 +94,7 @@ const economicSedanIntent = /\b(?:carro|auto|coche|veh[ií]culo|algo)\s+econ[oó
 const familyPassengerVanIntent = /\b(?:algo\s+)?familiar\b[\s\S]{0,80}\bpasajeros?\b/i;
 const noDownPaymentResponse = /\b(?:no(?:\s+\w+){0,3}\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)?)\b/i;
 const normalizeWhisperVehicleAliases = (value) => clean(value)
+  .replace(/\bsedán\b/gi, 'Sedan')
   .replace(/\b(?:andas|onda|ondas|honda)\s+y\s*vis\s+si\b/gi, 'Honda Civic')
   .replace(/\b(?:andas|onda|ondas)\s+civ(?:ic|is)\b/gi, 'Honda Civic')
   // GHL/Messenger transcription in the Culpeper replay rendered

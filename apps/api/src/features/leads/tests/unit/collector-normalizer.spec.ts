@@ -2,6 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { ADVISOR_HANDOFF_VEHICLE, detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isAdvisorHandoffVehicle, isQualificationComplete, isValidRealName, normalizeCollectorInput, normalizeRealName } from '../../domain/collector-normalizer';
 
 describe('normalizeCollectorInput', () => {
+  it('normalizes accented Spanish sedan wording during reconciliation', () => {
+    expect(normalizeCollectorInput({
+      source: 'fredericksburg-2',
+      channel: 'messenger',
+      message: 'Necesito un sedán de bajo precio',
+      chat_history_log: 'Necesito un sedán de bajo precio',
+      phone: '+15405607865',
+    }).vehicle_type).toBe('Sedan');
+  });
+
   it('normalizes Katherine Amaya\'s Spanish truck and down-payment answer', () => {
     const result = normalizeCollectorInput({
       source: 'koons-fredericksburg',
