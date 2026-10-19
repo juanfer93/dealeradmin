@@ -120,7 +120,7 @@ describe('normalizeCollectorInput', () => {
       chat_history_log: transcript,
     });
 
-    expect(result).toMatchObject({ vehicle_type: 'Sedan', vehicle_category: 'sedan', vehicle_year: 2016 });
+    expect(result).toMatchObject({ vehicle_type: 'Sedan 2016', vehicle_category: 'sedan', vehicle_year: 2016 });
     expect(result.missing_qualification).not.toContain('vehicle_type');
     expect(result.qualification_memory).toContain('vehicle: Sedan');
   });
@@ -231,7 +231,7 @@ describe('normalizeCollectorInput', () => {
 
     expect(result).toMatchObject({
       real_name: 'Benigno',
-      vehicle_type: 'Silverado',
+      vehicle_type: 'Silverado 2020',
       down_payment: '2000 + trade-in',
       qualification_step: 'complete',
     });
@@ -258,7 +258,7 @@ describe('normalizeCollectorInput', () => {
       message: 'I can put down a thousand',
       chat_history_log: '2018 RLX\n4439903443\nI can put down a thousand',
     })).toMatchObject({
-      vehicle_type: 'RLX',
+      vehicle_type: 'RLX 2018',
       down_payment: '1000',
     });
   });
@@ -278,8 +278,8 @@ describe('normalizeCollectorInput', () => {
     });
 
     expect(result).toMatchObject({
-      down_payment: '1000',
-      down_payment_amount: 1000,
+      down_payment: '',
+      down_payment_amount: null,
       qualification_step: 'complete',
     });
   });
@@ -294,7 +294,7 @@ describe('normalizeCollectorInput', () => {
     });
 
     expect(result).toMatchObject({
-      down_payment: '1000',
+      down_payment: '',
       down_payment_sufficient: false,
       qualification_step: 'complete',
     });
@@ -332,8 +332,8 @@ describe('normalizeCollectorInput', () => {
     });
 
     expect(result).toMatchObject({
-      down_payment: '1000',
-      down_payment_amount: 1000,
+      down_payment: '',
+      down_payment_amount: null,
     });
     expect(result.down_payment).not.toBe('5');
   });
@@ -363,7 +363,7 @@ describe('normalizeCollectorInput', () => {
     });
 
     expect(result).toMatchObject({
-      down_payment: '1000',
+      down_payment: '',
       qualification_step: 'complete',
     });
   });
@@ -393,7 +393,7 @@ describe('normalizeCollectorInput', () => {
       previous_predicted_bot_question: 'Te comento que el mínimo para este vehículo es de $3000. ¿Crees que podrías conseguir más?',
     });
 
-    expect(result).toMatchObject({ previous_financing: '', down_payment: '1000', down_payment_sufficient: false });
+    expect(result).toMatchObject({ previous_financing: '', down_payment: '', down_payment_sufficient: false });
     expect(result.next_question).toBe('');
   });
 
@@ -409,7 +409,7 @@ describe('normalizeCollectorInput', () => {
       previous_predicted_bot_question: question,
     });
 
-    expect(result).toMatchObject({ previous_financing: '', down_payment: '1000', down_payment_sufficient: false, next_question: '' });
+    expect(result).toMatchObject({ previous_financing: '', down_payment: '', down_payment_sufficient: false, next_question: '' });
   });
 
   it('repeats the exact minimum question when the down-payment answer is unrelated', () => {
@@ -424,7 +424,7 @@ describe('normalizeCollectorInput', () => {
       previous_predicted_bot_question: question,
     });
 
-    expect(result).toMatchObject({ down_payment: '1000', down_payment_sufficient: false, next_question: '' });
+    expect(result).toMatchObject({ down_payment: '', down_payment_sufficient: false, next_question: '' });
   });
 
   it('normalizes structured image interpretation as ordinary inbound evidence', () => {
@@ -558,7 +558,7 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message: 'I can put 1K down' }).down_payment).toBe('1000');
     expect(normalizeCollectorInput({ message: 'down payment is $1,000' }).down_payment).toBe('1000');
     expect(normalizeCollectorInput({ message: 'I have 1000 for down' }).down_payment).toBe('1000');
-    expect(normalizeCollectorInput({ message: '500$' }).down_payment).toBe('500');
+    expect(normalizeCollectorInput({ message: '500$' }).down_payment).toBe('');
   });
 
   it('keeps a vehicle year out of down payment when GHL supplies it in the vehicle field', () => {
@@ -572,8 +572,8 @@ describe('normalizeCollectorInput', () => {
     });
 
     expect(result.vehicle_year).toBe(2018);
-    expect(result.down_payment).toBe('1000');
-    expect(result.down_payment_amount).toBe(1000);
+    expect(result.down_payment).toBe('');
+    expect(result.down_payment_amount).toBe(null);
   });
 
   it('normalizes Spanish thousands and amount confirmations like the Julio conversation', () => {
@@ -710,8 +710,8 @@ describe('normalizeCollectorInput', () => {
     });
 
     expect(result).toMatchObject({
-      down_payment: transcript.match(/Tengo (\d+)/)?.[1],
-      down_payment_amount: Number(transcript.match(/Tengo (\d+)/)?.[1]),
+      down_payment: Number(transcript.match(/Tengo (\d+)/)?.[1]) >= 1500 ? transcript.match(/Tengo (\d+)/)?.[1] : '',
+      down_payment_amount: Number(transcript.match(/Tengo (\d+)/)?.[1]) >= 1500 ? Number(transcript.match(/Tengo (\d+)/)?.[1]) : null,
       required_down_payment: minimum,
       down_payment_sufficient: false,
     });
@@ -758,7 +758,7 @@ describe('normalizeCollectorInput', () => {
       previous_predicted_bot_question: `Te comento que el mínimo para este vehículo es de $${minimum}. ¿Crees que podrías conseguir un poco más?`,
     });
 
-    expect(result).toMatchObject({ down_payment: amount, down_payment_sufficient: false });
+    expect(result).toMatchObject({ down_payment: Number(amount) >= 1500 ? amount : '', down_payment_sufficient: false });
   });
 
   it('does not promote an affirmative turn when the predictor did not ask about increasing the down payment', () => {
@@ -771,7 +771,7 @@ describe('normalizeCollectorInput', () => {
       chat_history_log: 'Tengo 1000\nSí',
     });
 
-    expect(result).toMatchObject({ down_payment: '1000', down_payment_sufficient: false });
+    expect(result).toMatchObject({ down_payment: '', down_payment_sufficient: false });
   });
 
   it('does not reuse an old down question after the bot moves to the timeline question', () => {
@@ -808,7 +808,7 @@ describe('normalizeCollectorInput', () => {
 
   it('ignores a stale area-code-only down field but keeps an explicit down amount', () => {
     expect(normalizeCollectorInput({ phone: '+14438626592', vehicle_type: 'SUV', message: 'A small SUV', down_payment: '443' }).down_payment).toBe('');
-    expect(normalizeCollectorInput({ phone: '+14438626592', message: 'I have 443 down' }).down_payment).toBe('443');
+    expect(normalizeCollectorInput({ phone: '+14438626592', message: 'I have 443 down' }).down_payment).toBe('');
   });
 
   it('stores the cash portion when the lead combines it with a trade-in', () => {
@@ -839,7 +839,7 @@ describe('normalizeCollectorInput', () => {
 
     expect(result.vehicle_type).toBe('Sedan');
     expect(result.phone).toBe('+19392249226');
-    expect(result.down_payment).toBe('1000');
+    expect(result.down_payment).toBe('');
     expect(result.previous_financing).toBe('yes');
     expect(result.down_payment_sufficient).toBe(false);
   });
@@ -856,7 +856,7 @@ describe('normalizeCollectorInput', () => {
     ].join('\n');
     const result = normalizeCollectorInput({ message: transcript, chat_history_log: transcript, phone: '+12272599238' });
 
-    expect(result.vehicle_type).toBe('Sedan');
+    expect(result.vehicle_type).toBe('Sedan 2021');
     expect(result.down_payment).toBe('1000 + trade-in');
     expect(result.identification).toBe('yes');
     expect(result.has_income_proof).toBe('yes');
@@ -928,7 +928,7 @@ describe('normalizeCollectorInput', () => {
       'lo haria en esta semana, igual puedo esperar algunos dias la cosa que me guste el auto',
     ].join('\n');
     const result = normalizeCollectorInput({ channel: 'messenger', real_name: 'Gabriel Gonzalez', message: 'Con gusto!', chat_history_log: transcript });
-    expect(result.vehicle_type).toBe('Chevrolet Camaro 2LT');
+    expect(result.vehicle_type).toBe('Chevrolet Camaro 2LT 2017');
     expect(result.purchase_timeline).toBe('esta semana');
   });
 
@@ -1006,7 +1006,7 @@ describe('normalizeCollectorInput', () => {
     ].join('\n');
 
     expect(normalizeCollectorInput({ channel: 'messenger', real_name: 'Sarah Saints', chat_history_log: transcript, message: '5716946924' })).toMatchObject({
-      vehicle_type: 'Honda Civic EX',
+      vehicle_type: 'Honda Civic EX 2014',
       phone: '+15716946924',
     });
   });
@@ -1147,7 +1147,7 @@ describe('normalizeCollectorInput', () => {
     })).toMatchObject({
       real_name: 'Jaimen Cruz',
       phone: '+18046532943',
-      vehicle_type: '4Runner',
+      vehicle_type: '4Runner 2010',
     });
   });
 
@@ -1167,7 +1167,7 @@ describe('normalizeCollectorInput', () => {
     })).toMatchObject({
       real_name: 'Jose Luis Salcedo',
       phone: '+18435311632',
-      vehicle_type: 'Toyota 4Runner',
+      vehicle_type: 'Toyota 4Runner 2016',
       vehicle_year: 2016,
     });
   });
@@ -1396,7 +1396,7 @@ describe('normalizeCollectorInput', () => {
       phone: '+18045550123',
       message: 'Busco una Toyota Corolla y tengo 1000 para el enganche',
     });
-    expect(second).toMatchObject({ vehicle_type: 'Toyota Corolla', down_payment: '1000', down_payment_sufficient: false });
+    expect(second).toMatchObject({ vehicle_type: 'Toyota Corolla', down_payment: '', down_payment_sufficient: false });
     expect(second.qualification_progress).toMatchObject({ step: 'complete' });
     expect(second.next_question).toBe('');
   });
@@ -1551,7 +1551,7 @@ describe('normalizeCollectorInput', () => {
     ].join('\n');
 
     expect(normalizeCollectorInput({ message: transcript, chat_history_log: transcript })).toMatchObject({
-      vehicle_type: 'RAV4',
+      vehicle_type: 'RAV4 2010',
       down_payment: '1500',
     });
   });
@@ -1560,7 +1560,7 @@ describe('normalizeCollectorInput', () => {
     const transcript = ['RAV4', '1500', 'Está semana', 'Si tengo cuenta', 'Pasaporte nomas', '10', '10'].join('\n');
 
     expect(normalizeCollectorInput({ message: transcript, chat_history_log: transcript })).toMatchObject({
-      vehicle_type: 'RAV4',
+      vehicle_type: 'RAV4 2010',
       down_payment: '1500',
     });
   });
@@ -1584,7 +1584,7 @@ describe('normalizeCollectorInput', () => {
     });
 
     expect(result).toMatchObject({
-      vehicle_type: 'truck',
+      vehicle_type: 'truck 2006',
       vehicle_year: 2006,
       down_payment: '',
     });
@@ -1592,7 +1592,7 @@ describe('normalizeCollectorInput', () => {
 
   it('separates a vehicle year from down payment when only the vehicle is mentioned', () => {
     expect(normalizeCollectorInput({ message: 'Me interesa la F150 2018' })).toMatchObject({
-      vehicle_type: 'F-150',
+      vehicle_type: 'F-150 2018',
       vehicle_year: 2018,
       down_payment: '',
     });
@@ -1600,7 +1600,7 @@ describe('normalizeCollectorInput', () => {
 
   it.each(['05', '15', '26'])('treats a standalone Stafford year reply as a vehicle year, not down payment: %s', (year) => {
     expect(normalizeCollectorInput({ message: `Civic\n${year}`, chat_history_log: `Civic\n${year}` })).toMatchObject({
-      vehicle_type: 'Civic',
+      vehicle_type: `Civic ${2000 + Number(year)}`,
       vehicle_year: 2000 + Number(year),
       down_payment: '',
     });
@@ -1608,7 +1608,7 @@ describe('normalizeCollectorInput', () => {
 
   it('does not treat a two-digit year rendered beside down as a payment', () => {
     expect(normalizeCollectorInput({ message: 'Jaime Civic, 15 de down', chat_history_log: 'Jaime Civic, 15 de down' })).toMatchObject({
-      vehicle_type: 'Civic',
+      vehicle_type: 'Civic 2015',
       vehicle_year: 2015,
       down_payment: '',
     });
@@ -1616,7 +1616,7 @@ describe('normalizeCollectorInput', () => {
 
   it('keeps a vehicle year separate from an explicit intermediate down payment', () => {
     expect(normalizeCollectorInput({ message: 'Quiero el Honda Civic 2020 y tengo 2500 de down' })).toMatchObject({
-      vehicle_type: 'Honda Civic',
+      vehicle_type: 'Honda Civic 2020',
       vehicle_year: 2020,
       down_payment: '2500',
       down_payment_amount: 2500,
@@ -1674,8 +1674,8 @@ describe('normalizeCollectorInput', () => {
     });
 
     expect(result.real_name).toBe('Amin');
-    expect(result.vehicle_type).toBe('Sedan');
-    expect(result.down_payment).toBe('500');
+    expect(result.vehicle_type).toBe('Sedan 2019');
+    expect(result.down_payment).toBe('');
     expect(result.qualification_step).toBe('complete');
     expect(result.qualification_progress.predicted_bot_question).toBe('');
   });
@@ -1932,7 +1932,7 @@ describe('normalizeCollectorInput', () => {
     expect(result).toMatchObject({
       real_name: 'Juan Jose Castillo',
       phone: '+19107093650',
-      vehicle_type: 'sedan',
+      vehicle_type: 'sedan 2014',
       down_payment: '1500',
       required_down_payment: 1500,
       down_payment_sufficient: true,
@@ -1957,7 +1957,7 @@ describe('normalizeCollectorInput', () => {
     expect(result).toMatchObject({
       real_name: 'Juan Jose Castillo',
       phone: '+18049701204',
-      vehicle_type: 'sedan',
+      vehicle_type: 'sedan 2014',
       down_payment: '1500',
       required_down_payment: 1500,
       down_payment_sufficient: true,
@@ -2014,8 +2014,8 @@ describe('normalizeCollectorInput', () => {
       vehicle_type: '',
       down_payment: '',
     });
-    expect(normalizeCollectorInput({ message: '900 tengo10' }).down_payment).toBe('900');
-    expect(normalizeCollectorInput({ message: '900 tengo' }).down_payment).toBe('900');
+    expect(normalizeCollectorInput({ message: '900 tengo10' }).down_payment).toBe('');
+    expect(normalizeCollectorInput({ message: '900 tengo' }).down_payment).toBe('');
   });
 
   it('reads keyed facts from contaminated workflow memory without preserving the boundary digits', () => {
@@ -2023,7 +2023,7 @@ describe('normalizeCollectorInput', () => {
       message: '900 tengo10',
       qualification_memory: '2down payment: 10 + trade-in0; vehicle: SUV',
     });
-    expect(result.down_payment).toBe('900');
+    expect(result.down_payment).toBe('');
     expect(result.vehicle_type).toBe('SUV');
     expect(result.qualification_memory).not.toContain('trade-in0');
   });
@@ -2215,11 +2215,11 @@ describe('normalizeCollectorInput', () => {
     expect(result).toMatchObject({
       real_name: 'Leandro Bolzan',
       vehicle_type: 'SUV',
-      down_payment: '1000',
+      down_payment: '',
       previous_financing: 'yes',
       down_payment_sufficient: false,
       required_down_payment: 2000,
-      down_payment_amount: 1000,
+      down_payment_amount: null,
     });
   });
 
@@ -2388,7 +2388,7 @@ describe('normalizeCollectorInput', () => {
     });
 
     expect(result.real_name).toBe('Andres');
-    expect(result.vehicle_type).toBe('Civic');
+    expect(result.vehicle_type).toBe('Civic 2014');
     expect(normalizeRealName('Precio de Hailader')).toBe('');
   });
 
@@ -2449,7 +2449,7 @@ describe('normalizeCollectorInput', () => {
 
     expect(result).toMatchObject({
       real_name: 'Jaime',
-      vehicle_type: 'Civic',
+      vehicle_type: 'Civic 2015',
       vehicle_year: 2015,
       down_payment: '',
     });
@@ -2501,5 +2501,77 @@ describe('normalizeCollectorInput', () => {
 
     expect(result.real_name).toBe('Manuel');
     expect(normalizeRealName('Me Puede Mandar Fotos')).toBe('');
+  });
+
+  it('rounds 999 and hides a general down payment below 1000 without blocking routing', () => {
+    expect(normalizeCollectorInput({
+      source: 'action-cars',
+      real_name: 'QA Customer',
+      phone: '+13015550123',
+      vehicle_type: 'Honda Civic',
+      message: '999',
+    })).toMatchObject({
+      down_payment: '1000',
+      down_payment_amount: 1000,
+      qualification_complete: true,
+    });
+
+    expect(normalizeCollectorInput({
+      source: 'action-cars',
+      real_name: 'QA Customer',
+      phone: '+13015550124',
+      vehicle_type: 'Honda Civic',
+      message: '850',
+    })).toMatchObject({
+      down_payment: '',
+      down_payment_amount: null,
+      qualification_complete: true,
+    });
+  });
+
+  it('hides an Offlease down payment below 1500 while retaining the phone-plus-vehicle route', () => {
+    expect(normalizeCollectorInput({
+      source: 'fredericksburg',
+      real_name: 'QA Customer',
+      phone: '+13015550125',
+      vehicle_type: 'Honda Civic',
+      message: '1200',
+    })).toMatchObject({
+      down_payment: '',
+      down_payment_amount: null,
+      qualification_complete: true,
+    });
+
+    expect(normalizeCollectorInput({
+      source: 'fredericksburg',
+      real_name: 'QA Customer',
+      phone: '+13015550126',
+      vehicle_type: 'Honda Civic',
+      message: '1500',
+    }).down_payment).toBe('1500');
+  });
+
+  it.each([
+    ['Honda Civic 2006', 2006],
+    ['Honda Civic 2026', 2026],
+  ])('recognizes valid vehicle years only in the 2006-2026 range: %s', (message, year) => {
+    expect(normalizeCollectorInput({ message })).toMatchObject({ vehicle_year: year, down_payment: '' });
+  });
+
+  it.each(['2005', '1200', '2500', '3000'])('classifies an out-of-range four-digit value as down payment: %s', (message) => {
+    expect(normalizeCollectorInput({ vehicle_type: 'Honda Civic', message }).down_payment).toBe(message);
+  });
+
+  it('unifies a recognized vehicle year with the vehicle type and rejects a concatenated year amount', () => {
+    expect(normalizeCollectorInput({
+      vehicle_type: 'Civic 2015',
+      message: 'Civic 2015',
+      down_payment: '20165',
+    })).toMatchObject({
+      vehicle_type: 'Civic 2015',
+      vehicle_year: 2015,
+      down_payment: '',
+    });
+    expect(normalizeCollectorInput({ message: 'Corolla' }).vehicle_type).toBe('Corolla');
   });
 });

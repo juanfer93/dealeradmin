@@ -376,10 +376,30 @@ const amount = (value) => {
   return '';
 };
 const validAmount = (value) => amount(value);
+const GENERAL_DOWN_PAYMENT_MINIMUM = 1000;
+const OFFLEASE_DOWN_PAYMENT_MINIMUM = 1500;
+const OFFLEASE_DEALER_IDS = new Set(['fredericksburg', 'fredericksburg-2', 'fredericksburg 2', 'stafford']);
+const isOffleaseDealer = (value) => {
+  const normalized = clean(value).toLocaleLowerCase();
+  return OFFLEASE_DEALER_IDS.has(normalized) || /^offlease(?:\s+motors)?\s+(?:fredericksburg(?:\s*2)?|stafford)$/i.test(normalized);
+};
+const visibleDownPayment = (value, dealerOrSource) => {
+  const normalized = validAmount(value);
+  if (!normalized || /^no down payment$/i.test(normalized) || normalized === cashDownPayment) return normalized;
+  const match = normalized.match(/\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)/);
+  if (!match) return normalized;
+  const compact = match[1].replace(/,/g, '');
+  const amountValue = /^\d{1,3}(?:\.\d{3})+$/.test(compact) ? Number(compact.replace(/\./g, '')) : Number.parseFloat(compact);
+  if (!Number.isFinite(amountValue)) return normalized;
+  const effectiveAmount = amountValue === 999 ? 1000 : amountValue;
+  const rounded = amountValue === 999 ? '1000' : normalized;
+  const minimum = isOffleaseDealer(dealerOrSource) ? OFFLEASE_DOWN_PAYMENT_MINIMUM : GENERAL_DOWN_PAYMENT_MINIMUM;
+  return effectiveAmount < minimum ? '' : rounded;
+};
 const isVehicleYear = (value) => {
   const normalized = String(value ?? '').replace(/[$,\s]/g, '');
   const parsed = Number(normalized);
-  return /^\d{4}$/.test(normalized) && Number.isInteger(parsed) && parsed >= 1990 && parsed <= 2026;
+  return /^\d{4}$/.test(normalized) && Number.isInteger(parsed) && parsed >= 2006 && parsed <= 2026;
 };
 const isShortVehicleYear = (value) => {
   const normalized = String(value ?? '').replace(/[$,\s]/g, '');
@@ -514,9 +534,14 @@ const cleanVehicleValue = (value) => {
   const categoryOnly = /^(?:suv|sedan|truck|troka|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión|carro|auto|coche)$/i.test(candidate);
   return label || categoryOnly ? (label || candidate.replace(/^(?:troka|troca)$/i, 'truck').replace(/^camion(?:eta|etq)?$/i, 'truck').replace(/^camión(?:eta)?$/i, 'truck')) : '';
 };
+const isConcatenatedVehicleYearAmount = (value, vehicleYear) => {
+  const normalized = validAmount(value);
+  const yearPrefix = Number(normalized.slice(0, 4));
+  return vehicleYear !== null && /^\d{5,6}$/.test(normalized) && yearPrefix >= 2006 && yearPrefix <= 2026;
+};
 const vehicleYearFrom = (value) => {
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter(Boolean);
-  const years = /\b(19\d{2}|20(?:0\d|1\d|2[0-6])|0[5-9]|1\d|2[0-6])\b/g;
+  const years = /\b(20(?:0[6-9]|1\d|2[0-6])|0[5-9]|1\d|2[0-6])\b/g;
   const financialPrefix = /(?:\$|doy|dar(?:é|as|emos)?|pongo|poner|tengo|have|i have|i can put|puedo poner|down|payment|enganche|inicial|pago\s+inicial|cuota\s+inicial|deposit|dep[oó]sito)\s*(?:de|para|as|is|es|:)?\s*$/i;
   const financialSuffix = /^\s*(?:down|payment|enganche|inicial|pago\s+inicial|cuota\s+inicial|deposit|dep[oó]sito)\b/i;
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
@@ -616,14 +641,15 @@ const extractedVehicle = familyPassengerVanIntent.test(vehicleSource)
   );
 const existingAdvisorMarker = [memoryValue(['vehicle', 'vehicle_type']), inputData.vehicle_type].some(isAdvisorHandoffVehicle);
 const phone = phoneFrom(message, history, inputData.phone);
-const vehicle = extractedVehicle || (existingAdvisorMarker || phoneFromConversation || (isWhatsAppChannel(inputData.channel) && phone)
-  ? advisorHandoffVehicle
-  : '');
 const vehicleYear = [
   vehicleYearFrom(vehicleSource),
   vehicleYearFrom(inputData.vehicle_type),
   vehicleYearFrom(memoryValue(['vehicle', 'vehicle_type'])),
 ].find((value) => value !== null) ?? null;
+const vehicleBase = extractedVehicle || (existingAdvisorMarker || phoneFromConversation || (isWhatsAppChannel(inputData.channel) && phone)
+  ? advisorHandoffVehicle
+  : '');
+const vehicle = vehicleBase && vehicleYear !== null && vehicleBase !== advisorHandoffVehicle ? `${vehicleBase} ${vehicleYear}` : vehicleBase;
 // Prefer a phone found in the conversation before accepting custom/memory down values.
 // This prevents a stale area-code-only value (e.g. 443) from becoming a down payment.
 const memoryDown = memoryValue(['down payment', 'down_payment', 'downpayment']);
@@ -660,20 +686,22 @@ const effectivePreviousFinancing = previousFinancing || recoveredStaffordPreviou
 const confirmedQuestionDown = affirmativeDownConfirmation(latestInboundMessage)
   ? (questionedDownPayment(rawHistory) || questionedDownPayment(inputData.previous_predicted_bot_question || ''))
   : '';
-const cashDown = campaign ? '' : first(
+const cashDownCandidate = campaign ? '' : first(
   downFrom(rawMessage),
   downFrom(rawHistory),
   confirmedQuestionDown,
-  isPhoneAreaCodeAmount(memoryDown, phone) || (vehicleYear !== null && validAmount(memoryDown) === String(vehicleYear)) ? '' : memoryDown,
-  isPhoneAreaCodeAmount(inputDown, phone) || (vehicleYear !== null && validAmount(inputDown) === String(vehicleYear)) ? '' : validAmount(inputDown),
+  isPhoneAreaCodeAmount(memoryDown, phone) || (vehicleYear !== null && (validAmount(memoryDown) === String(vehicleYear) || isConcatenatedVehicleYearAmount(memoryDown, vehicleYear))) ? '' : memoryDown,
+  isPhoneAreaCodeAmount(inputDown, phone) || (vehicleYear !== null && (validAmount(inputDown) === String(vehicleYear) || isConcatenatedVehicleYearAmount(inputDown, vehicleYear))) ? '' : validAmount(inputDown),
 );
+const cashDown = isConcatenatedVehicleYearAmount(cashDownCandidate, vehicleYear) ? '' : cashDownCandidate;
 const tradeDown = campaign ? '' : first(tradeIn(message), tradeIn(historyForExtraction), tradeIn(memoryText(rawMemory)));
 const downCandidate = cashDown || tradeDown;
 const conversationalDownSource = `${message}; ${historyForExtraction}`;
+const source = clean(inputData.source).toLocaleLowerCase();
 let down = validAmount(cashDown && tradeInLanguage.test(conversationalDownSource) && !/trade[- ]?in/i.test(cashDown)
   ? `${cashDown} + trade-in`
   : downCandidate);
-const source = clean(inputData.source).toLocaleLowerCase();
+down = visibleDownPayment(down, source);
 const sourceAware = Boolean(source);
 const stafford = source === 'stafford';
 const requiresLocation = ['easterns', 'easterns-millersville'].includes(source);

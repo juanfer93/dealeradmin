@@ -17,7 +17,7 @@ import { addTestManualLead, getTestDealer } from './test-lead-store';
 import { hasTestDealerLeadDuplicate } from './test-lead-store';
 import { findDealerLeadDuplicate } from '../domain/lead-duplicate';
 
-type DealerRow = { id: string; ghl_location_id: string };
+type DealerRow = { id: string; name: string; ghl_location_id: string };
 type LeadRow = { id: string };
 
 type ManualLeadResult = {
@@ -48,15 +48,13 @@ export class ManualLeadService {
       throw new BadRequestException('El teléfono no tiene un formato válido');
     }
 
-    const messageText = buildManualLeadMessage(name, canonicalPhone, dto);
-
     if (!this.dataSource && process.env.NODE_ENV === 'test') {
       const dealer = getTestDealer(dealerId);
       if (!dealer) throw new NotFoundException('Dealer no encontrado o inactivo');
       if (hasTestDealerLeadDuplicate(dealer.id, name, canonicalPhone)) {
         throw new ConflictException(`No se puede subir ${name} con ${canonicalPhone} porque el nombre y teléfono ya existen en el dealer.`);
       }
-      const lead = addTestManualLead(dealerId, dto, canonicalPhone, messageText);
+      const lead = addTestManualLead(dealerId, dto, canonicalPhone, buildManualLeadMessage(name, canonicalPhone, { ...dto, dealer_name: dealer.name }));
       return { success: true, leadId: lead.id, message: 'Lead manual agregado correctamente.' };
     }
 
@@ -70,7 +68,7 @@ export class ManualLeadService {
 
     try {
       const dealers = (await queryRunner.query(
-        `SELECT id, ghl_location_id
+        `SELECT id, name, ghl_location_id
          FROM dealers
          WHERE id = $1 AND active = true
          LIMIT 1`,
@@ -79,6 +77,7 @@ export class ManualLeadService {
       if (dealers.length === 0) throw new NotFoundException('Dealer no encontrado o inactivo');
 
       const dealer = dealers[0];
+      const dealerMessageText = buildManualLeadMessage(name, canonicalPhone, { ...dto, dealer_name: dealer.name });
       const duplicate = await findDealerLeadDuplicate(queryRunner, dealer.id, name, canonicalPhone);
       if (duplicate) {
         if (duplicate.status === 'sent') {
@@ -144,7 +143,7 @@ export class ManualLeadService {
           dto.identification.trim(),
           dto.bank_account.trim(),
           dealer.id,
-          messageText,
+          dealerMessageText,
         ],
       );
 

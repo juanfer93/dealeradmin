@@ -95,4 +95,27 @@ describe('CopyLeadService', () => {
     expect(runner.commitTransaction).toHaveBeenCalledOnce();
     expect(runner.release).toHaveBeenCalledOnce();
   });
+
+  it('does not copy an insufficient Offlease down payment or its stale message text', async () => {
+    const runner = createRunner([
+      [{ ...sourceRow, source_dealer_name: 'Offlease Fredericksburg', down_payment: '1200', message_text: 'Jose Lopez +15551234567 Honda CR-V, 1200 down.' }],
+      [{ id: 'dealer-target', name: 'Dealer Target' }],
+      [],
+      [],
+      [],
+    ]);
+    const dataSource = { createQueryRunner: vi.fn(() => runner) };
+    const service = new CopyLeadService(dataSource as never);
+
+    await expect(service.execute('lead-1', { sourceDealerId: 'dealer-source', targetDealerId: 'dealer-target' }))
+      .resolves.toMatchObject({ success: true });
+
+    const calls = runner.query.mock.calls as unknown[][];
+    expect(calls[5]?.[1]).toEqual([
+      'lead-1', 'dealer-target', 'Honda CR-V', '', 'this month', 'proof of income: yes',
+      'yes', 'yes', null, 'Copied from Offlease Fredericksburg', expect.any(String),
+    ]);
+    const insertParams = calls[5]?.[1] as unknown[];
+    expect(String(insertParams?.[10])).not.toContain('1200');
+  });
 });

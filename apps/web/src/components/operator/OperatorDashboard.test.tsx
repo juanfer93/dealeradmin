@@ -42,6 +42,17 @@ describe('formatQualificationLabels', () => {
 });
 
 describe('operator qualification message normalization', () => {
+  it('rounds 999 and hides insufficient down payments in the UI and copied text', () => {
+    const base = {
+      id: '1', dealerId: 'd', name: 'Lead', phone: '+15550001111', vehicleType: 'SUV',
+      identification: null, bankAccount: null, documents: null, purchaseTimeline: null,
+      status: 'pending' as const, messageText: '', createdAt: '2026-09-15T12:00:00.000Z',
+    };
+    expect(formatLeadMessage({ ...base, dealerName: 'Dealer', downPayment: '999' })).toContain('1000 de down');
+    expect(formatLeadCopy({ ...base, dealerName: 'Dealer', downPayment: '850', messageText: 'Lead +15550001111 SUV, 850 de down.' })).not.toContain('850');
+    expect(formatLeadCopy({ ...base, dealerName: 'Offlease Fredericksburg', downPayment: '1200', messageText: 'Lead +15550001111 SUV, 1200 de down.' })).not.toContain('1200');
+  });
+
   it.each([
     'Dependiendo de los Precios',
     'Me Puede Enviar Fotos',
@@ -51,7 +62,7 @@ describe('operator qualification message normalization', () => {
       id: '1', dealerId: 'd', dealerName: 'Stafford', name: 'Edwin', phone: '+18572006717', vehicleType: 'suv',
       downPayment: '1000', identification: null, bankAccount: null, documents: null, purchaseTimeline: null,
       status: 'pending', messageText: `${storedName} +18572006717 suv, 1000 de down.`, createdAt: '2026-09-15T12:00:00.000Z',
-    })).toBe('Edwin +18572006717 suv, 1000 de down.');
+    })).toBe('Edwin +18572006717 suv.');
   });
 
   it('preserves the stored copy details after replacing only its stale name prefix', () => {

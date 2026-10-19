@@ -5,9 +5,10 @@ type ManualMessageLeadData = {
   bank_account?: string | null;
   purchase_timeline?: string | null;
   documents?: string | null;
+  dealer_name?: string | null;
 };
 
-import { CASH_DOWN_PAYMENT, isCashDownPayment, isNoDownPayment, normalizeDownPayment } from './down-payment';
+import { CASH_DOWN_PAYMENT, isCashDownPayment, isNoDownPayment, visibleDownPayment } from './down-payment';
 import { LOOKING_OPTIONS_LABEL, detectMessageLanguage, formatBankAccount, formatDocuments, formatIdentification, formatPurchaseTimeline } from './message-builder';
 
 function clean(value: string | null | undefined): string | undefined {
@@ -18,7 +19,7 @@ function clean(value: string | null | undefined): string | undefined {
 export function buildManualLeadMessage(name: string, phone: string, data: ManualMessageLeadData): string {
   const language = detectMessageLanguage(data);
   const vehicle = clean(data.vehicle_type);
-  const down = normalizeDownPayment(data.down_payment);
+  const down = visibleDownPayment(data.down_payment, data.dealer_name);
   const identification = formatIdentification(data.identification);
   const bankAccount = formatBankAccount(data.bank_account, language);
   const documents = formatDocuments(data.documents, language, Boolean(identification));

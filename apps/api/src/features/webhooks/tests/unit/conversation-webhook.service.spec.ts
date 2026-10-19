@@ -234,7 +234,7 @@ describe('ConversationWebhookService', () => {
       'capture',
     );
 
-    expect(normalized).toMatchObject({ down_payment: '1000', down_payment_sufficient: false });
+    expect(normalized).toMatchObject({ down_payment: '', down_payment_sufficient: false });
     expect(status.status).toBe('waiting_window');
   });
 
@@ -919,6 +919,20 @@ describe('ConversationWebhookService', () => {
   it('opens Stafford with only phone and vehicle because down is additive', () => {
     const now = new Date('2026-09-11T14:00:00.000Z');
     expect(evaluateStatus(staffordVehicleOnlySnapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'capture'))
+      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:00:15.000Z' });
+  });
+
+  it('routes a Stafford WhatsApp lead with a hidden $500 down payment to waiting_window', () => {
+    const normalized = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      phone: '+13015550123',
+      message: 'Honda Civic\n500',
+    });
+    expect(normalized).toMatchObject({ vehicle_type: 'Honda Civic', down_payment: '' });
+
+    const now = new Date('2026-09-11T14:00:00.000Z');
+    expect(evaluateStatus(normalized, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'capture'))
       .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:00:15.000Z' });
   });
 

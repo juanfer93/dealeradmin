@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { buildWhatsAppMessage } from '../../domain/message-builder';
 
 describe('qualification message normalization', () => {
+  it('rounds 999 and omits insufficient amounts from the advisor-facing copy', () => {
+    expect(buildWhatsAppMessage('Lead', '+15550001111', { down_payment: '999' })).toContain('1000 de down');
+    expect(buildWhatsAppMessage('Lead', '+15550001111', { down_payment: '850' })).not.toContain('850');
+    expect(buildWhatsAppMessage('Lead', '+15550001111', { down_payment: '1200', dealer_name: 'Offlease Fredericksburg' })).not.toContain('1200');
+    expect(buildWhatsAppMessage('Lead', '+15550001111', { down_payment: '1500', dealer_name: 'Offlease Fredericksburg' })).toContain('1500 de down');
+  });
+
   it('renders affirmative document evidence as labels instead of yes values', () => {
     const message = buildWhatsAppMessage('Luis', '+19196497529', {
       vehicle_type: 'Toyota Tacoma',

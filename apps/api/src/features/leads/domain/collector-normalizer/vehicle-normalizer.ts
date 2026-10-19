@@ -9,7 +9,7 @@ export const VEHICLE_TRIMS = /\b(?:\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touri
 export const VEHICLE_CONTEXT = /\b(?:tengo|tiene|tienen|ten[ií]an|have|has|got|carry|available|need|needs|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|love|like|prefer|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i;
 // GHL/Messenger often shortens a model year in pairs such as "Civic 2014/15".
 // Two-digit years are accepted only in vehicle context and map to 2005-2026.
-export const VEHICLE_YEAR_PATTERN = /\b(19\d{2}|20(?:0\d|1\d|2[0-6])|0[5-9]|1\d|2[0-6])\b/g;
+export const VEHICLE_YEAR_PATTERN = /\b(20(?:0[6-9]|1\d|2[0-6])|0[5-9]|1\d|2[0-6])\b/g;
 export const VEHICLE_YEAR_CONTEXT = /\b(?:vehicle|car|auto|carro|coche|veh[ií]culo|model|modelo|year|año|ano|f[- ]?\d{3})\b/i;
 const PHONE_LIKE_SEQUENCE = /(?<!\d)(?:\+?1[\s().,-]*)?(?:\([2-9]\d{2}\)|[2-9]\d{2})(?:[\s().,-]*\d){7}(?!\d)/g;
 export const FINANCIAL_AMOUNT_PREFIX = /(?:\$|doy|dar(?:é|as|emos)?|pongo|poner|tengo|have|i have|i can put|puedo poner|down|payment|enganche|inicial|pago\s+inicial|cuota\s+inicial|deposit|dep[oó]sito)\s*(?:de|para|as|is|es|:)?\s*$/i;

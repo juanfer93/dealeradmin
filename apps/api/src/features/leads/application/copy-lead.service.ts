@@ -9,6 +9,8 @@ import {
 import { DataSource } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { normalizeLeadName } from '../domain/lead-duplicate';
+import { buildWhatsAppMessage } from '../domain/message-builder';
+import { visibleDownPayment } from '../domain/down-payment';
 
 type LeadCopyInput = { sourceDealerId: string; targetDealerId: string };
 type LeadCopyResult = { success: true; leadId: string; sourceDealerId: string; targetDealerId: string };
@@ -117,6 +119,20 @@ export class CopyLeadService {
         throw new ConflictException('No se puede copiar: este lead ya está registrado en el dealer destino.');
       }
 
+      const sourceDownPayment = visibleDownPayment(source.down_payment, source.source_dealer_name);
+      const copiedDownPayment = visibleDownPayment(sourceDownPayment, targetRows[0].name);
+      const copiedMessage = copiedDownPayment
+        ? source.message_text
+        : buildWhatsAppMessage(sourceName || 'Lead', source.canonical_phone ?? '', {
+          vehicle_type: source.vehicle_type,
+          down_payment: copiedDownPayment,
+          purchase_timeline: source.purchase_timeline,
+          documents: source.documents,
+          identification: source.identification,
+          bank_account: source.bank_account,
+          dealer_name: targetRows[0].name,
+        });
+
       await queryRunner.query(
         `INSERT INTO lead_dealers (
            lead_id, dealer_id, vehicle_type, down_payment, purchase_timeline, documents,
@@ -127,14 +143,14 @@ export class CopyLeadService {
           leadId,
           input.targetDealerId,
           source.vehicle_type,
-          source.down_payment,
+          copiedDownPayment,
           source.purchase_timeline,
           source.documents,
           source.identification,
           source.bank_account,
           source.easterns_zone,
           `Copied from ${source.source_dealer_name}`,
-          source.message_text,
+          copiedMessage,
         ],
       );
 

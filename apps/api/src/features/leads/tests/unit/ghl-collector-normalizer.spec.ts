@@ -121,7 +121,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       chat_history_log: transcript,
     });
 
-    expect(result).toMatchObject({ vehicle_type: 'Sedan', vehicle_category: 'sedan', vehicle_year: 2016 });
+    expect(result).toMatchObject({ vehicle_type: 'Sedan 2016', vehicle_category: 'sedan', vehicle_year: 2016 });
     expect(result.missing_qualification).not.toContain('vehicle_type');
   });
 
@@ -357,7 +357,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     })).toMatchObject({
       real_name: 'Jose Luis Salcedo',
       phone: '+18435311632',
-      vehicle_type: 'Toyota 4Runner',
+      vehicle_type: 'Toyota 4Runner 2016',
       vehicle_year: 2016,
     });
   });
@@ -598,8 +598,8 @@ describe('HighLevel collector custom-code normalizer', () => {
       chat_history_log: 'I can put 1000 down',
     })).toMatchObject({
       vehicle_year: 2018,
-      down_payment: '1000',
-      down_payment_amount: 1000,
+      down_payment: '',
+      down_payment_amount: null,
     });
   });
 
@@ -615,7 +615,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       vehicle_type: 'Toyota Corolla',
       vehicle_category: 'sedan',
       required_down_payment: 1500,
-      down_payment: '1000',
+      down_payment: '',
       down_payment_sufficient: false,
       qualification_step: 'complete',
       qualification_complete: true,
@@ -637,8 +637,8 @@ describe('HighLevel collector custom-code normalizer', () => {
       previous_predicted_bot_question: 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?',
     })).toMatchObject({
       previous_financing: 'yes',
-      down_payment: '1000',
-      down_payment_amount: 1000,
+      down_payment: '',
+      down_payment_amount: null,
       qualification_step: 'complete',
     });
   });
@@ -653,7 +653,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       previous_predicted_bot_question: 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?',
     })).toMatchObject({
       previous_financing: 'no',
-      down_payment: '1000',
+      down_payment: '',
       down_payment_sufficient: false,
       qualification_step: 'complete',
     });
@@ -677,7 +677,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       message: answer,
       chat_history_log: 'Toyota Tacoma\n1000',
       previous_predicted_bot_question: 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?',
-    })).toMatchObject({ previous_financing: 'yes', down_payment: '1000', down_payment_sufficient: false });
+    })).toMatchObject({ previous_financing: 'yes', down_payment: '', down_payment_sufficient: false });
   });
 
   it('does not reuse an old financing question when the current predictor question is about the regular minimum in Custom Code', () => {
@@ -689,7 +689,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       message: 'Sí',
       chat_history_log: 'Toyota Tacoma\n1000\nPara aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?\nSí',
       previous_predicted_bot_question: 'Te comento que el mínimo para este vehículo es de $3000. ¿Crees que podrías conseguir más?',
-    })).toMatchObject({ previous_financing: '', down_payment: '1000', down_payment_sufficient: false });
+    })).toMatchObject({ previous_financing: '', down_payment: '', down_payment_sufficient: false });
   });
 
   it('repeats the financing-history question when Custom Code receives an unrelated answer', () => {
@@ -702,7 +702,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       message: 'Estoy en Baltimore',
       chat_history_log: 'Toyota Tacoma\n1000',
       previous_predicted_bot_question: question,
-    })).toMatchObject({ previous_financing: '', down_payment: '1000', down_payment_sufficient: false, next_question: '' });
+    })).toMatchObject({ previous_financing: '', down_payment: '', down_payment_sufficient: false, next_question: '' });
   });
 
   it.each([
@@ -720,8 +720,8 @@ describe('HighLevel collector custom-code normalizer', () => {
       chat_history_log: transcript,
       previous_predicted_bot_question: `Te comento que el mínimo para este vehículo es de $${minimum}. ¿Crees que podrías conseguir un poco más?`,
     })).toMatchObject({
-      down_payment: transcript.match(/Tengo (\d+)/)?.[1],
-      down_payment_amount: Number(transcript.match(/Tengo (\d+)/)?.[1]),
+      down_payment: Number(transcript.match(/Tengo (\d+)/)?.[1]) >= 1500 ? transcript.match(/Tengo (\d+)/)?.[1] : '',
+      down_payment_amount: Number(transcript.match(/Tengo (\d+)/)?.[1]) >= 1500 ? Number(transcript.match(/Tengo (\d+)/)?.[1]) : null,
       required_down_payment: Number(minimum),
       down_payment_sufficient: false,
     });
@@ -764,7 +764,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       vehicle_type: 'Sedan',
       message: 'Tengo 1000\nSí',
       chat_history_log: 'Tengo 1000\nSí',
-    })).toMatchObject({ down_payment: '1000', down_payment_sufficient: false });
+    })).toMatchObject({ down_payment: '', down_payment_sufficient: false });
   });
 
   it.each([
@@ -788,7 +788,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       message: transcript,
       chat_history_log: transcript,
       previous_predicted_bot_question: `Te comento que el mínimo para este vehículo es de $${minimum}. ¿Crees que podrías conseguir un poco más?`,
-    })).toMatchObject({ down_payment: amount, down_payment_sufficient: false });
+    })).toMatchObject({ down_payment: Number(amount) >= 1500 ? amount : '', down_payment_sufficient: false });
   });
 
   it('allows Offlease trade-in to satisfy the down-payment requirement', () => {
@@ -859,8 +859,8 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
 
     expect(result.real_name).toBe('Amin');
-    expect(result.vehicle_type).toBe('Sedan');
-    expect(result.down_payment).toBe('500');
+    expect(result.vehicle_type).toBe('Sedan 2019');
+    expect(result.down_payment).toBe('');
     expect(result.qualification_step).toBe('complete');
     expect(result.qualification_progress.predicted_bot_question).toBe('');
   });
@@ -879,7 +879,7 @@ describe('HighLevel collector custom-code normalizer', () => {
 
   it('ignores a stale area-code-only down field but keeps an explicit down amount in Custom Code', () => {
     expect(execute({ phone: '+14438626592', vehicle_type: 'SUV', message: 'A small SUV', down_payment: '443' }).down_payment).toBe('');
-    expect(execute({ phone: '+14438626592', message: 'I have 443 down' }).down_payment).toBe('443');
+    expect(execute({ phone: '+14438626592', message: 'I have 443 down' }).down_payment).toBe('');
   });
 
   it.each([
@@ -902,7 +902,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     ].join('\n');
 
     expect(execute({ channel: 'messenger', contact_name: 'Sarah Saints', chat_history_log: transcript, message: '5716946924' })).toMatchObject({
-      vehicle_type: 'Honda Civic EX',
+      vehicle_type: 'Honda Civic EX 2014',
       phone: '+15716946924',
     });
   });
@@ -948,7 +948,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       message: 'No se como trabajan ustedes',
     })).toMatchObject({
       phone: '+18046532943',
-      vehicle_type: '4Runner',
+      vehicle_type: '4Runner 2010',
     });
   });
 
@@ -1171,8 +1171,8 @@ describe('HighLevel collector custom-code normalizer', () => {
       ].join('\n'),
     });
 
-    expect(stafford).toMatchObject({ vehicle_type: 'sedan', down_payment: '1500', required_down_payment: 1500, down_payment_sufficient: true });
-    expect(fredericksburg).toMatchObject({ phone: '+18049701204', vehicle_type: 'sedan', down_payment: '1500', required_down_payment: 1500, down_payment_sufficient: true });
+    expect(stafford).toMatchObject({ vehicle_type: 'sedan 2014', down_payment: '1500', required_down_payment: 1500, down_payment_sufficient: true });
+    expect(fredericksburg).toMatchObject({ phone: '+18049701204', vehicle_type: 'sedan 2014', down_payment: '1500', required_down_payment: 1500, down_payment_sufficient: true });
   });
 
   it('uses only a declared chat name for WhatsApp in Custom Code', () => {
@@ -1282,7 +1282,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
 
     expect(result).toMatchObject({
-      vehicle_type: 'Subaru STI',
+      vehicle_type: 'Subaru STI 2017',
       vehicle_year: 2017,
     });
     expect(result.missing_qualification).not.toContain('vehicle_type');
@@ -1314,7 +1314,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     const result = execute({ message: transcript, chat_history_log: transcript, phone: '+12272599238' });
 
     expect(result).toMatchObject({
-      vehicle_type: 'Sedan',
+      vehicle_type: 'Sedan 2021',
       down_payment: '1000 + trade-in',
       identification: 'yes',
       has_income_proof: 'yes',
@@ -1605,7 +1605,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       chat_history_log: 'Tienes hondas civic 2014/15\nSoy Jaime !',
     })).toMatchObject({
       real_name: 'Jaime',
-      vehicle_type: 'Civic',
+      vehicle_type: 'Civic 2015',
       vehicle_year: 2015,
       down_payment: '',
     });
@@ -1630,5 +1630,43 @@ describe('HighLevel collector custom-code normalizer', () => {
     'Ana María López García Hernández Rivera',
   ])('rejects non-name text from becoming real_name: %s', (message) => {
     expect(execute({ channel: 'whatsapp', message }).real_name).toBe('');
+  });
+
+  it('rounds 999, hides insufficient Offlease amounts, and routes with phone plus vehicle', () => {
+    expect(execute({ source: 'action-cars', phone: '+13015550123', vehicle_type: 'Honda Civic', message: '999' })).toMatchObject({
+      down_payment: '1000',
+      down_payment_amount: 1000,
+      qualification_complete: true,
+    });
+    expect(execute({ source: 'fredericksburg', phone: '+13015550124', vehicle_type: 'Honda Civic', message: '1200' })).toMatchObject({
+      down_payment: '',
+      down_payment_amount: null,
+      qualification_complete: true,
+    });
+    expect(execute({ source: 'fredericksburg', phone: '+13015550125', vehicle_type: 'Honda Civic', message: '1500' }).down_payment).toBe('1500');
+  });
+
+  it.each([
+    ['Honda Civic 2006', 2006, ''],
+    ['Honda Civic 2026', 2026, ''],
+    ['2005', null, '2005'],
+    ['1200', null, '1200'],
+    ['2500', null, '2500'],
+    ['3000', null, '3000'],
+  ])('keeps valid years separate from out-of-range amounts in Custom Code: %s', (message, year, down) => {
+    expect(execute({ vehicle_type: 'Honda Civic', message })).toMatchObject({ vehicle_year: year, down_payment: down });
+  });
+
+  it('unifies Civic/Corolla years in vehicle_type and rejects a concatenated year amount in Custom Code', () => {
+    expect(execute({
+      vehicle_type: 'Civic 2015',
+      message: 'Civic 2015',
+      down_payment: '20165',
+    })).toMatchObject({
+      vehicle_type: 'Civic 2015',
+      vehicle_year: 2015,
+      down_payment: '',
+    });
+    expect(execute({ message: 'Corolla' }).vehicle_type).toBe('Corolla');
   });
 });

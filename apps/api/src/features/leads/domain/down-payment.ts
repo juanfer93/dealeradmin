@@ -6,6 +6,14 @@ const CASH_PATTERNS = [
   /\bpaga(?:r[aá]|r)?\s+de\s+contado\b/i,
 ];
 export const CASH_DOWN_PAYMENT = 'Pagara en cash / de contado';
+export const GENERAL_DOWN_PAYMENT_MINIMUM = 1000;
+export const OFFLEASE_DOWN_PAYMENT_MINIMUM = 1500;
+export const OFFLEASE_DEALER_IDS = new Set([
+  'fredericksburg',
+  'fredericksburg-2',
+  'fredericksburg 2',
+  'stafford',
+]);
 const TRADE_IN_PATTERNS = [
   /\btrade[\s-]?in\b/i,
   /\b(?:carro|auto|veh[ií]culo)\s+como\s+enganche\b/i,
@@ -31,8 +39,15 @@ const SUV_OR_VAN_PATTERN = /\b(?:suv|van|minivan|crossover|highlander|rav\s*4|4\
 const LUXURY_SEDAN_PATTERN = /\b(?:camaro|challenger|charger|mercedes(?:[- ]?benz)?|bmw|audi|lexus|acura|infiniti|genesis|cadillac|lincoln|volvo|tesla|porsche|jaguar)\b/i;
 const SEDAN_PATTERN = /\b(?:sedan|midsize|mid[- ]?size|medium[- ]?size|mediano|mediana|civic|corolla|camry|accord|altima|sentra|versa|maxima|malibu|jetta|passat|sonata|elantra|optima|forte|rio|impala|avalon|prius|mustang|coupe|hatchback)\b/i;
 
+function canonicalDownPayment(value: string | null | undefined): string {
+  const normalized = value?.trim() || '';
+  if (!normalized) return '';
+  if (isNoDownPayment(normalized)) return 'No down payment';
+  return CASH_PATTERNS.some((pattern) => pattern.test(normalized)) ? CASH_DOWN_PAYMENT : normalized;
+}
+
 function numericDownPayment(value: string | null | undefined): number | null {
-  const normalized = normalizeDownPayment(value);
+  const normalized = canonicalDownPayment(value);
   if (!normalized || isCashDownPayment(normalized)) return isCashDownPayment(normalized) ? Number.POSITIVE_INFINITY : null;
   const amount = normalized.match(/\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?)\b/i)?.[1];
   if (!amount) return null;
@@ -72,8 +87,9 @@ export function evaluateDownPayment(
 ): DownPaymentRequirement {
   const category = classifyVehicle(vehicle);
   const minimum = requiredDownPayment(vehicle);
-  const amount = numericDownPayment(downPayment);
-  const isCash = isCashDownPayment(downPayment);
+  const normalizedDownPayment = normalizeDownPayment(downPayment);
+  const amount = numericDownPayment(normalizedDownPayment);
+  const isCash = isCashDownPayment(normalizedDownPayment);
   return {
     category,
     minimum,
@@ -81,7 +97,7 @@ export function evaluateDownPayment(
     // A declared trade-in is an accepted form of down-payment evidence. It may
     // stand alone or be combined with cash; the cash minimum still applies when
     // there is no trade-in.
-    meetsMinimum: minimum !== null && (isCash || isTradeInDownPayment(downPayment) || (amount !== null && amount >= minimum)),
+    meetsMinimum: minimum !== null && (isCash || isTradeInDownPayment(normalizedDownPayment) || (amount !== null && amount >= minimum)),
   };
 }
 
@@ -89,11 +105,31 @@ export function hasRequiredDownPayment(vehicle: string | null | undefined, downP
   return evaluateDownPayment(vehicle, downPayment).meetsMinimum;
 }
 
+export function isOffleaseDealer(value: string | null | undefined): boolean {
+  const normalized = value?.trim().toLocaleLowerCase() || '';
+  return OFFLEASE_DEALER_IDS.has(normalized)
+    || /^offlease(?:\s+motors)?\s+(?:fredericksburg(?:\s*2)?|stafford)$/i.test(normalized);
+}
+
+export function downPaymentVisibilityMinimum(dealerOrSource?: string | null): number {
+  return isOffleaseDealer(dealerOrSource) ? OFFLEASE_DOWN_PAYMENT_MINIMUM : GENERAL_DOWN_PAYMENT_MINIMUM;
+}
+
 export function normalizeDownPayment(value: string | null | undefined): string {
-  const normalized = value?.trim() || '';
-  if (!normalized) return '';
-  if (isNoDownPayment(normalized)) return 'No down payment';
-  return CASH_PATTERNS.some((pattern) => pattern.test(normalized)) ? CASH_DOWN_PAYMENT : normalized;
+  const normalized = canonicalDownPayment(value);
+  if (!normalized || isNoDownPayment(normalized) || isCashDownPayment(normalized)) return normalized;
+  const amount = numericDownPayment(normalized);
+  if (amount === 999) return '1000';
+  if (amount !== null && amount < GENERAL_DOWN_PAYMENT_MINIMUM) return '';
+  return normalized;
+}
+
+export function visibleDownPayment(value: string | null | undefined, dealerOrSource?: string | null): string {
+  const normalized = normalizeDownPayment(value);
+  if (!normalized || isNoDownPayment(normalized) || isCashDownPayment(normalized)) return normalized;
+  const amount = numericDownPayment(normalized);
+  const minimum = downPaymentVisibilityMinimum(dealerOrSource);
+  return amount !== null && amount < minimum ? '' : normalized;
 }
 
 export function isNoDownPayment(value: string | null | undefined): boolean {

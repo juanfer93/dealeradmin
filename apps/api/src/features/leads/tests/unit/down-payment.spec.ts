@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyVehicle, evaluateDownPayment, hasRequiredDownPayment, isNoDownPayment, normalizeDownPayment } from '../../domain/down-payment';
+import { classifyVehicle, evaluateDownPayment, hasRequiredDownPayment, isNoDownPayment, normalizeDownPayment, visibleDownPayment } from '../../domain/down-payment';
 import { buildWhatsAppMessage } from '../../domain/message-builder';
 
 describe('normalización de pago inicial', () => {
@@ -10,6 +10,24 @@ describe('normalización de pago inicial', () => {
   it('preserva un down payment monetario', () => {
     expect(normalizeDownPayment('$3,500')).toBe('$3,500');
     expect(evaluateDownPayment('Sedan', '1.500')).toMatchObject({ amount: 1500, meetsMinimum: true });
+  });
+
+  it('redondea 999 a 1000 y oculta montos generales inferiores', () => {
+    expect(normalizeDownPayment('999')).toBe('1000');
+    expect(normalizeDownPayment('850')).toBe('');
+    expect(visibleDownPayment('999')).toBe('1000');
+    expect(evaluateDownPayment('Sedan', '999')).toMatchObject({ amount: 1000 });
+  });
+
+  it('aplica el mínimo de visibilidad de 1500 para Offlease sin alterar la regla de vehículo', () => {
+    expect(visibleDownPayment('1499', 'Offlease Fredericksburg')).toBe('');
+    expect(visibleDownPayment('1500', 'Offlease Fredericksburg')).toBe('1500');
+    expect(visibleDownPayment('1200', 'fredericksburg')).toBe('');
+  });
+
+  it.each(['stafford', 'fredericksburg', 'fredericksburg-2', 'fredericksburg 2'])('aplica el mismo mínimo Offlease a %s', (source) => {
+    expect(visibleDownPayment('1499', source)).toBe('');
+    expect(visibleDownPayment('1500', source)).toBe('1500');
   });
 
   it.each(['No tengo down payment', "I don't have a down payment", 'sin enganche'])('preserva la evidencia negativa %s en BD, pero no en el texto copiado', (value) => {
@@ -94,6 +112,6 @@ describe('normalización de pago inicial', () => {
   it('keeps the vehicle minimum as additive evidence without an Offlease promotion', () => {
     expect(evaluateDownPayment('Toyota Tacoma', '1000')).toMatchObject({ amount: 1000, meetsMinimum: false });
     expect(evaluateDownPayment('Toyota Tacoma', '1500')).toMatchObject({ amount: 1500, meetsMinimum: false });
-    expect(evaluateDownPayment('Toyota Tacoma', '999')).toMatchObject({ amount: 999, meetsMinimum: false });
+    expect(evaluateDownPayment('Toyota Tacoma', '999')).toMatchObject({ amount: 1000, meetsMinimum: false });
   });
 });

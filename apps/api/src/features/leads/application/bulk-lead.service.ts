@@ -9,7 +9,7 @@ import { findDealerLeadDuplicate } from '../domain/lead-duplicate';
 import { normalizePhone } from '../domain/phone-normalizer';
 import { addTestManualLead, getTestDealer, hasTestDealerLeadDuplicate } from './test-lead-store';
 
-type DealerRow = { id: string; ghl_location_id: string };
+type DealerRow = { id: string; name: string; ghl_location_id: string };
 type LeadRow = { id: string; first_name?: string | null; last_name?: string | null; canonical_phone?: string | null };
 type BulkRowResult = { rowNumber: number; name: string; phone: string; status: 'inserted' | 'duplicate' | 'invalid'; reason?: string; leadId?: string };
 
@@ -48,7 +48,7 @@ export class BulkLeadService {
 
     try {
       const dealers = await queryRunner.query(
-        `SELECT id, ghl_location_id FROM dealers WHERE id = $1 AND active = true LIMIT 1`,
+        `SELECT id, name, ghl_location_id FROM dealers WHERE id = $1 AND active = true LIMIT 1`,
         [dealerId],
       ) as DealerRow[];
       if (!dealers.length) throw new NotFoundException('Dealer no encontrado o inactivo');
@@ -149,7 +149,7 @@ export class BulkLeadService {
       ],
     ) as LeadRow[];
     leadId = inserted[0].id;
-    const message = buildManualLeadMessage(dto.name, canonicalPhone, dto);
+    const message = buildManualLeadMessage(dto.name, canonicalPhone, { ...dto, dealer_name: dealer.name });
     await queryRunner.query(
       `INSERT INTO lead_dealers
         (lead_id, dealer_id, vehicle_type, down_payment, purchase_timeline, documents, identification,

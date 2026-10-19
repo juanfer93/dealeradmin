@@ -1,4 +1,4 @@
-import { CASH_DOWN_PAYMENT, evaluateDownPayment } from '../down-payment';
+import { CASH_DOWN_PAYMENT, evaluateDownPayment, visibleDownPayment } from '../down-payment';
 import { ADVISOR_HANDOFF_VEHICLE, EMPTY } from './constants';
 import { extractPhone, extractRealNameFromText, extractDeclaredRealNameFromText, isLikelyBusinessName, isLikelyProfileDisplayName, isPhoneAreaCodeAmount, isPhoneOnlyLine, normalizeRealName, PHONE_LIKE_TEXT, profileNameFromInput, realNameFromQualificationMemory } from './contact-normalizer';
 import { detectLeadLanguage } from './language-normalizer';
@@ -340,10 +340,17 @@ function isVehicleYearValue(value: string): boolean {
   return /^\d{4}$/.test(normalized) && year >= VEHICLE_YEAR_MIN && year <= VEHICLE_YEAR_MAX;
 }
 
+function isConcatenatedVehicleYearAmount(value: string, vehicleYear: number | null): boolean {
+  if (vehicleYear === null) return false;
+  const normalized = value.replace(/[$,\s]/g, '');
+  const yearPrefix = Number(normalized.slice(0, 4));
+  return /^\d{5,6}$/.test(normalized) && yearPrefix >= VEHICLE_YEAR_MIN && yearPrefix <= VEHICLE_YEAR_MAX;
+}
+
 function isVehicleYearRangeToken(value: string): boolean {
   const normalized = value.replace(/[$,\s]/g, '');
   const year = Number(normalized);
-  return (/^\d{4}$/.test(normalized) && year >= 1900 && year <= VEHICLE_YEAR_MAX)
+  return (/^\d{4}$/.test(normalized) && year >= VEHICLE_YEAR_MIN && year <= VEHICLE_YEAR_MAX)
     || /^(?:0[5-9]|1\d|2[0-6])$/.test(normalized);
 }
 
@@ -354,7 +361,7 @@ function isShortVehicleYearValue(value: string): boolean {
 }
 
 function isVehicleYearRange(value: string): boolean {
-  const match = value.match(/\b(19\d{2}|20\d{2}|0[5-9]|1\d|2[0-6])\s*(?:-|–|—|\/|a|to)\s*(19\d{2}|20\d{2}|0[5-9]|1\d|2[0-6])\b/i);
+  const match = value.match(/\b(20\d{2}|0[5-9]|1\d|2[0-6])\s*(?:-|–|—|\/|a|to)\s*(20\d{2}|0[5-9]|1\d|2[0-6])\b/i);
   return Boolean(match && isVehicleYearRangeToken(match[1]) && isVehicleYearRangeToken(match[2]));
 }
 
@@ -586,14 +593,17 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     memoryValue(memory, ['vehicle_type', 'vehicle', 'type']),
     input.vehicle_type,
   ].some((value) => isAdvisorHandoffVehicle(value));
-  const vehicle = extractedVehicle || (hasExistingAdvisorMarker || phoneFromConversation || (isWhatsAppChannel(input.channel) && chatPhone)
-    ? ADVISOR_HANDOFF_VEHICLE
-    : EMPTY);
   const vehicleYear = [
     extractVehicleYear(vehicleSource),
     extractVehicleYear(input.vehicle_type),
     extractVehicleYear(memoryValue(memory, ['vehicle_type', 'vehicle', 'type'])),
   ].find((value): value is number => value !== null) ?? null;
+  const vehicleBase = extractedVehicle || (hasExistingAdvisorMarker || phoneFromConversation || (isWhatsAppChannel(input.channel) && chatPhone)
+    ? ADVISOR_HANDOFF_VEHICLE
+    : EMPTY);
+  const vehicle = vehicleBase && vehicleYear !== null && !isAdvisorHandoffVehicle(vehicleBase)
+    ? `${vehicleBase} ${vehicleYear}`
+    : vehicleBase;
   const hasRealVehicle = Boolean(vehicle) && !isAdvisorHandoffVehicle(vehicle);
   const explicitCashDown = firstValidAmount(
     extractLatestDownPayment(rawMessage),
@@ -619,12 +629,14 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     confirmedQuestionDown,
     extractStandaloneDownPayment(rawMessage),
     extractStandaloneDownPayment(rawHistory),
-    isPhoneAreaCodeAmount(memoryDown, chatPhone) || (vehicleYear !== null && normalizeAmount(memoryDown) === String(vehicleYear)) ? EMPTY : memoryDown,
-    campaignReply || isPhoneAreaCodeAmount(inputDown, chatPhone) || (vehicleYear !== null && normalizeAmount(inputDown) === String(vehicleYear)) ? EMPTY : inputDown,
+    isPhoneAreaCodeAmount(memoryDown, chatPhone) || (vehicleYear !== null && (normalizeAmount(memoryDown) === String(vehicleYear) || isConcatenatedVehicleYearAmount(normalizeAmount(memoryDown), vehicleYear))) ? EMPTY : memoryDown,
+    campaignReply || isPhoneAreaCodeAmount(inputDown, chatPhone) || (vehicleYear !== null && (normalizeAmount(inputDown) === String(vehicleYear) || isConcatenatedVehicleYearAmount(normalizeAmount(inputDown), vehicleYear))) ? EMPTY : inputDown,
   );
   const cashDown = isPhoneAreaCodeAmount(cashDownCandidate, chatPhone) && !explicitCashDown
     ? EMPTY
-    : cashDownCandidate;
+    : isConcatenatedVehicleYearAmount(normalizeAmount(cashDownCandidate), vehicleYear)
+      ? EMPTY
+      : cashDownCandidate;
   const tradeDown = firstValidAmount(
     extractTradeInDownPayment(messageForExtraction),
     extractTradeInDownPayment(historyForExtraction),
@@ -635,6 +647,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   let down = baseDown && TRADE_IN_INTENT.test(conversationalSource) && !/trade[- ]?in/i.test(baseDown)
     ? `${baseDown} + trade-in`
     : baseDown;
+  down = visibleDownPayment(down, input.source);
   const downPaymentRule = evaluateDownPayment(vehicle, down);
   const normalizedTimeline = normalizeTimeline(firstNonEmpty(
     extractTimeline(messageForExtraction),

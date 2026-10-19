@@ -2,7 +2,7 @@ import { BadRequestException, ServiceUnavailableException } from '@nestjs/common
 import type { QueryRunner } from 'typeorm';
 import { buildWhatsAppMessage } from '../../../leads/domain/message-builder';
 import { hasMinimumRoutingQualification, type CollectorLanguage } from '../../../leads/domain/collector-normalizer';
-import { normalizeDownPayment } from '../../../leads/domain/down-payment';
+import { visibleDownPayment } from '../../../leads/domain/down-payment';
 import { extractConversationLocation, extractLocationCandidates } from '../conversation-location';
 import type { GeoroutingService } from '../../../routing/domain/services/georouting.service';
 import {
@@ -391,7 +391,10 @@ export class ConversationQualificationFunctions {
     const preservesAssignment = Boolean(current?.routing_override || alreadySent);
     const assignedDealerId = preservesAssignment ? current?.assigned_dealer_id || routing.dealerId : routing.dealerId;
     const routingReason = preservesAssignment ? current?.routing_reason || routing.reason : routing.reason;
-    const messageText = buildWhatsAppMessage(snapshot.real_name || 'Lead', snapshot.phone, snapshot);
+    const messageText = buildWhatsAppMessage(snapshot.real_name || 'Lead', snapshot.phone, {
+      ...snapshot,
+      dealer_name: sourceDealer.name,
+    });
     const hasUnhandledReengagement = reengagement || Boolean(current?.has_unhandled_reengagement);
     await runner.query(
       `INSERT INTO lead_dealers
@@ -415,7 +418,7 @@ export class ConversationQualificationFunctions {
          reengagement_count = lead_dealers.reengagement_count + EXCLUDED.reengagement_count,
          updated_at = CURRENT_TIMESTAMP`,
       [
-        leadId, sourceDealer.id, snapshot.vehicle_type, normalizeDownPayment(snapshot.down_payment), snapshot.identification,
+        leadId, sourceDealer.id, snapshot.vehicle_type, visibleDownPayment(snapshot.down_payment, sourceDealer.name || source), snapshot.identification,
         snapshot.bank_account, snapshot.purchase_timeline, snapshot.documents, location.easterns_zone || '', assignedDealerId,
         current?.routing_override ?? false, routingReason, reengagement || current?.status !== 'sent' ? 'pending' : 'sent', messageText, hasUnhandledReengagement, reengagement, reengagement ? 1 : 0,
       ],
