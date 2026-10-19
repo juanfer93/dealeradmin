@@ -349,6 +349,15 @@ export class GhlGuardService {
       // row as well so its queued snapshot receives the same corrected lead
       // evidence instead of remaining on the stale profile label.
       if (targeted && syntheticConversationId && syntheticConversationId !== effectiveRow.id) {
+        await this.dataSource!.query(
+          `UPDATE conversations synthetic
+           SET qualification_snapshot = canonical.qualification_snapshot,
+               location_snapshot = canonical.location_snapshot,
+               updated_at = CURRENT_TIMESTAMP
+           FROM conversations canonical
+           WHERE synthetic.id = $1 AND canonical.id = $2`,
+          [syntheticConversationId, effectiveRow.id],
+        );
         await this.reconciliation.reconcileConversation(syntheticConversationId, new Date(), true, true, true);
       }
       const leadMetadataAfter = await this.readLeadMetadata(effectiveRow.id);
