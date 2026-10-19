@@ -1,6 +1,6 @@
 import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import type { DataSource } from 'typeorm';
-import { detectLeadLanguage, extractRecentMessagePhone, isAdvisorHandoffVehicle, isQualificationComplete, normalizeCollectorInput } from '../../../leads/domain/collector-normalizer';
+import { detectLeadLanguage, extractRecentMessagePhone, isAdvisorHandoffVehicle, isQualificationComplete, isStaffordWhatsAppVehicleLabel, normalizeCollectorInput } from '../../../leads/domain/collector-normalizer';
 import { evaluateDownPayment, normalizeDownPayment } from '../../../leads/domain/down-payment';
 import { findQueuedConversationDuplicate } from '../../../leads/domain/lead-duplicate';
 import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
@@ -235,6 +235,11 @@ export class ConversationReconciliationFunctions {
       if (snapshot.real_name) {
         const { firstName, lastName } = splitName(snapshot.real_name);
         await runner.query(`UPDATE leads SET first_name = $2, last_name = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [row.lead_id, firstName, lastName]);
+      } else if (targeted && isStaffordWhatsAppVehicleLabel(contactName, source, row.channel)) {
+        // A Stafford WhatsApp vehicle/offer label can be stored in the lead
+        // name before the transcript replay. Clear that contaminated display
+        // name when the full GHL history contains no buyer name.
+        await runner.query(`UPDATE leads SET first_name = '', last_name = '', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [row.lead_id]);
       }
       if (effectivePhone && effectivePhone !== row.canonical_phone) {
         await runner.query(

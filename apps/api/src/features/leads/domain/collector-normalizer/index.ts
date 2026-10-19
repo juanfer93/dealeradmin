@@ -84,8 +84,8 @@ function recoverStaffordPreviousFinancing(rawHistory: string, policy: CollectorF
   return beforeTimeline.some((line) => /^(?:yes|yeah|yep|si|sí|claro|correcto|tengo)$/i.test(line)) ? 'yes' : '';
 }
 
-function isStaffordWhatsAppVehicleLabel(value: string, policy: CollectorFlowPolicy, channel: string | null | undefined): boolean {
-  if (!policy.stafford || !isWhatsAppChannel(channel)) return false;
+export function isStaffordWhatsAppVehicleLabel(value: string, source: string | null | undefined, channel: string | null | undefined): boolean {
+  if (clean(source).toLocaleLowerCase() !== 'stafford' || !isWhatsAppChannel(channel)) return false;
   const candidate = clean(value);
   return /^(?:un|una|a|an|my|mi|the)\s+/i.test(candidate)
     && (VEHICLE_BRANDS.test(candidate) || VEHICLE_MODELS.test(candidate) || VEHICLE_CATEGORIES.test(candidate));
@@ -565,7 +565,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
       // WhatsApp gets a declared chat name first, then the profile name. The
       // message body and profile are separate fields in the webhook contract.
       ? whatsappNames
-        .map((candidate) => isStaffordWhatsAppVehicleLabel(candidate, policy, channel) ? EMPTY : normalizeRealName(candidate))
+        .map((candidate) => isStaffordWhatsAppVehicleLabel(candidate, input.source, channel) ? EMPTY : normalizeRealName(candidate))
         .find(Boolean) ?? EMPTY
       : (isLikelyBusinessName(suppliedName) || isLikelyProfileDisplayName(suppliedName)
         ? [...extractedNames, suppliedName]
