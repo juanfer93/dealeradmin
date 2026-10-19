@@ -637,9 +637,12 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   ].filter(Boolean).join('; ');
   const docs = mergeDocuments(firstNonEmpty(memoryDocumentFacts, input.documents), [rawHistory, rawMessage].filter(Boolean).join('\n'));
   const identification = firstNonEmpty(docs.id, memoryValue(memory, ['identification', 'id']), input.identification);
+  const bankAccountEvidence = conversationalEvidence(rawHistory, rawMessage).match(
+    /(?:yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available)[^;!?]{0,160}(?:bank account|cuenta bancaria|cuenta de banco)|(?:bank account|cuenta bancaria|cuenta de banco)[^;!?]{0,160}(?:yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available|no|not|sin|dont|don't|no tengo|i do not|do not have|not available)/i,
+  )?.[0] ?? '';
   const bankAccountRaw = firstNonEmpty(
     input.bank_account,
-    conversationalEvidence(rawHistory, rawMessage).match(/(?:bank account|cuenta bancaria)[^;]*(?:yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available|no|not|sin|dont|don't|no tengo|i do not|do not have|not available)/i)?.[0],
+    bankAccountEvidence,
     memoryValue(memory, ['bank account', 'bank_account']),
   );
   const bankAccount = yesNo(bankAccountRaw);

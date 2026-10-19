@@ -9,15 +9,6 @@ import { ACTIVE_RECONCILIATION_BATCH_SIZE, GHL_SOURCE_CONFIG, RECONCILIATION_LOC
 import { addProcessedImageEvidence, clean, extractNativeWhatsappPhone, inputIndicatesWhatsApp, isAttachmentEvidenceMessage, safePhone, splitName } from './conversation-webhook.helpers';
 import type { ConversationMessageRow, ConversationSnapshot, LocationSnapshot, MediaReconciliationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
 
-function targetedReplayMemory(value: string): string {
-  return value
-    .replace(/(?:^|;\s*)real_name:\s*[^;]*/gi, '')
-    .replace(/(?:^|;\s*)down payment:\s*[^;]*/gi, '')
-    .replace(/;\s*;/g, ';')
-    .replace(/^\s*;\s*|\s*;\s*$/g, '')
-    .trim();
-}
-
 export class ConversationReconciliationFunctions {
   constructor(
     private readonly dataSource: DataSource | undefined,
@@ -149,11 +140,11 @@ export class ConversationReconciliationFunctions {
         contact_name: contactName,
         vehicle_type: targeted ? '' : clean(current.vehicle_type),
         down_payment: targeted ? '' : clean(current.down_payment),
-        purchase_timeline: clean(current.purchase_timeline),
-        documents: clean(current.documents),
-        identification: clean(current.identification),
-        bank_account: clean(current.bank_account),
-        qualification_memory: targeted ? targetedReplayMemory(clean(current.qualification_memory)) : clean(current.qualification_memory),
+        purchase_timeline: targeted ? '' : clean(current.purchase_timeline),
+        documents: targeted ? '' : clean(current.documents),
+        identification: targeted ? '' : clean(current.identification),
+        bank_account: targeted ? '' : clean(current.bank_account),
+        qualification_memory: targeted ? '' : clean(current.qualification_memory),
         customer_location: clean(current.customer_location),
         previous_predicted_bot_question: clean(current.qualification_progress?.predicted_bot_question),
       });
@@ -170,12 +161,20 @@ export class ConversationReconciliationFunctions {
         ? current.vehicle_year
         : normalized.vehicle_year ?? (typeof current.vehicle_year === 'number' ? current.vehicle_year : null);
       const downPayment = normalizeDownPayment(targeted ? normalized.down_payment : preserveOrNormalize(current.down_payment, normalized.down_payment));
-      const purchaseTimeline = preserveOrNormalize(current.purchase_timeline, normalized.purchase_timeline);
-      const documents = preserveOrNormalize(current.documents, normalized.documents);
-      const identification = preserveOrNormalize(current.identification, normalized.identification);
-      const bankAccount = preserveOrNormalize(current.bank_account, normalized.bank_account);
-      const qualificationMemory = preserveOrNormalize(current.qualification_memory, normalized.qualification_memory);
-      const previousFinancing = normalized.previous_financing || (current.previous_financing === 'yes' || current.previous_financing === 'no' ? current.previous_financing : '');
+      const targetedOrExisting = (existing: unknown, incoming: unknown): string => {
+        const incomingValue = clean(incoming);
+        return targeted ? incomingValue || clean(existing) : preserveOrNormalize(existing, incomingValue);
+      };
+      const purchaseTimeline = targetedOrExisting(current.purchase_timeline, normalized.purchase_timeline);
+      const documents = targetedOrExisting(current.documents, normalized.documents);
+      const identification = targetedOrExisting(current.identification, normalized.identification);
+      const bankAccount = targetedOrExisting(current.bank_account, normalized.bank_account);
+      const qualificationMemory = targetedOrExisting(current.qualification_memory, normalized.qualification_memory);
+      const previousFinancing = targeted
+        ? normalized.previous_financing === 'yes' || normalized.previous_financing === 'no'
+          ? normalized.previous_financing
+          : current.previous_financing === 'yes' || current.previous_financing === 'no' ? current.previous_financing : ''
+        : normalized.previous_financing || (current.previous_financing === 'yes' || current.previous_financing === 'no' ? current.previous_financing : '');
       const downPaymentRule = evaluateDownPayment(vehicle, downPayment);
       const qualificationComplete = Boolean(current.qualification_complete) || isQualificationComplete({
         real_name: realName,

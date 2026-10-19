@@ -876,6 +876,14 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message }).has_income_proof).toBe(expected);
   });
 
+  it.each([
+    'I have a bank account',
+    'Yes, I have a bank account',
+    'Tengo cuenta bancaria',
+  ])('normalizes a natural bank-account answer into bank_account: %s', (message) => {
+    expect(normalizeCollectorInput({ message }).bank_account).toBe('yes');
+  });
+
   it.each(['I have my passport', 'Tengo mi pasaporte'])('treats passport as valid identification: %s', (message) => {
     expect(normalizeCollectorInput({ message }).identification).toBe('yes');
   });

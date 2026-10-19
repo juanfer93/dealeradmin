@@ -19,6 +19,10 @@ describe('ConversationReconciliationFunctions', () => {
             vehicle_type: 'Honda Civic',
             vehicle_year: 2010,
             down_payment: '15',
+            purchase_timeline: 'next month',
+            documents: 'identification: no; proof of income: no',
+            identification: 'no',
+            bank_account: 'no',
             qualification_memory: 'real_name: Me Puede Mandar Fotos; vehicle: Honda Civic; down payment: 15',
             qualification_complete: false,
           },
@@ -36,6 +40,7 @@ describe('ConversationReconciliationFunctions', () => {
         return [
           { body: 'Hola cómo está mi nombre es Manuel', direction: 'inbound', occurred_at: '2026-10-18T17:59:00.000Z' },
           { body: 'Ando buscando un Honda civic 2014/15', direction: 'inbound', occurred_at: '2026-10-18T18:00:00.000Z' },
+          { body: 'I have my ID and proof of income. I have a bank account. I want to buy this week.', direction: 'inbound', occurred_at: '2026-10-18T18:01:00.000Z' },
         ];
       }
       return [];
@@ -64,7 +69,16 @@ describe('ConversationReconciliationFunctions', () => {
     const leadUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE leads SET first_name'));
     expect(leadUpdate?.[1]).toEqual(['lead-manuel', 'Manuel', '']);
     const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot'));
-    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ real_name: 'Manuel', vehicle_type: 'Honda Civic', vehicle_year: 2015, down_payment: '' });
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({
+      real_name: 'Manuel',
+      vehicle_type: 'Honda Civic',
+      vehicle_year: 2015,
+      down_payment: '',
+      purchase_timeline: 'this week',
+      identification: 'yes',
+      bank_account: 'yes',
+    });
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2])).documents).toMatch(/proof of income: yes/);
     expect(JSON.parse(String(conversationUpdate?.[1]?.[2])).qualification_memory).not.toContain('down payment: 15');
     expect(conversationUpdate?.[1]?.[1]).toBe('queued');
   });
