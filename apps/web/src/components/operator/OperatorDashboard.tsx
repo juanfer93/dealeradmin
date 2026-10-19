@@ -203,6 +203,13 @@ export function formatLeadCopy(lead: Lead): string {
   return `${name} ${source.slice(phoneIndex)}`;
 }
 
+export function formatLeadListCopy(
+  leads: readonly Lead[] | null | undefined,
+  formatter: (lead: Lead) => string = formatLeadCopy,
+): string {
+  return leads?.map((lead) => formatter(lead)).join('\n\n') ?? '';
+}
+
 function formatDate(value: string, language: 'es' | 'en') {
   return new Intl.DateTimeFormat(language === 'es' ? 'es-CO' : 'en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
 }
@@ -322,8 +329,8 @@ export default function OperatorDashboard() {
   async function refreshQueue() { await loadLeads(status, selectedDealerIds.length > 1 ? undefined : selectedDealerId || undefined, selectedDealerIds.length > 1 ? selectedDealerIds : undefined); }
   function copyTextForLead(lead: Lead) { return status === 'wrote_again' ? formatReengagedContact(lead.name, lead.phone, lead.reengagementCount ?? 1, language) : formatLeadCopy(lead); }
   async function copyMessage(lead: Lead) { await navigator.clipboard.writeText(copyTextForLead(lead)); setCopiedLeadId(lead.id); window.setTimeout(() => setCopiedLeadId((current) => current === lead.id ? null : current), 1600); }
-  async function copyAllSelected() { if (!leads.length) return; await navigator.clipboard.writeText(leads.map(copyTextForLead).join('\n')); setCopiedLeadId('__all__'); window.setTimeout(() => setCopiedLeadId((current) => current === '__all__' ? null : current), 1600); }
-  async function copySelectedLeads() { const selected = leads.filter((lead) => selectedLeadIds.includes(lead.id)); if (!selected.length) return; await navigator.clipboard.writeText(selected.map(copyTextForLead).join('\n')); setCopiedLeadId('__selected__'); window.setTimeout(() => setCopiedLeadId((current) => current === '__selected__' ? null : current), 1600); }
+  async function copyAllSelected() { if (!leads.length) return; await navigator.clipboard.writeText(formatLeadListCopy(leads, copyTextForLead)); setCopiedLeadId('__all__'); window.setTimeout(() => setCopiedLeadId((current) => current === '__all__' ? null : current), 1600); }
+  async function copySelectedLeads() { const selected = leads.filter((lead) => selectedLeadIds.includes(lead.id)); if (!selected.length) return; await navigator.clipboard.writeText(formatLeadListCopy(selected, copyTextForLead)); setCopiedLeadId('__selected__'); window.setTimeout(() => setCopiedLeadId((current) => current === '__selected__' ? null : current), 1600); }
   function toggleLead(leadId: string) { setSelectedLeadIds((current) => current.includes(leadId) ? current.filter((id) => id !== leadId) : [...current, leadId]); }
   function toggleAllVisibleLeads() { setSelectedLeadIds((current) => allVisibleLeadsSelected ? current.filter((id) => !leads.some((lead) => lead.id === id)) : Array.from(new Set([...current, ...leads.map((lead) => lead.id)]))); }
   async function copyDealerLeads(dealerId: string) {
@@ -333,7 +340,7 @@ export default function OperatorDashboard() {
       if (!validPayloads.length) return;
       const dealerLeads = validPayloads.flatMap((payload) => payload.leads);
       if (!dealerLeads.length) { setError(t.app.errors.noLeadsToCopy); return; }
-      await navigator.clipboard.writeText(dealerLeads.map(formatLeadCopy).join('\n')); const key = `dealer-${dealerId}`; setCopiedLeadId(key); window.setTimeout(() => setCopiedLeadId((current) => current === key ? null : current), 1600);
+      await navigator.clipboard.writeText(formatLeadListCopy(dealerLeads)); const key = `dealer-${dealerId}`; setCopiedLeadId(key); window.setTimeout(() => setCopiedLeadId((current) => current === key ? null : current), 1600);
     } catch (copyError) { setError(copyError instanceof Error ? copyError.message : t.app.errors.copyFailed); }
   }
   async function markSent(lead: Lead) {

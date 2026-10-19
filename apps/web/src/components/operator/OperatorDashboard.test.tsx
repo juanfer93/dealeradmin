@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dealerIdentity, formatLeadCopy, formatLeadMessage, formatPurchaseTimelineLabel, formatQualificationLabels } from './OperatorDashboard';
+import { dealerIdentity, formatLeadCopy, formatLeadListCopy, formatLeadMessage, formatPurchaseTimelineLabel, formatQualificationLabels } from './OperatorDashboard';
 
 describe('dealerIdentity', () => {
   it('keeps Koons dealer names out of the Offlease group', () => {
@@ -98,5 +98,28 @@ describe('operator qualification message normalization', () => {
       downPayment: 'No down payment', identification: null, bankAccount: null, documents: null,
       purchaseTimeline: 'Quiere ver opciones', status: 'pending', messageText: '', createdAt: '2026-09-15T12:00:00.000Z',
     }, 'es')).toBe('Ana +15550000000 SUV, Quiere ver opciones.');
+  });
+});
+
+describe('lead list copy formatting', () => {
+  const lead = (id: string, name: string) => ({
+    id, dealerId: 'd', dealerName: 'Dealer', name, phone: `+1555000${id}`,
+    vehicleType: 'SUV', identification: null, bankAccount: null, documents: null,
+    purchaseTimeline: null, status: 'pending' as const, messageText: `${name} ${id}.`,
+    createdAt: '2026-09-15T12:00:00.000Z',
+  });
+
+  it('separates three leads with a blank line', () => {
+    expect(formatLeadListCopy([lead('1', 'Ana'), lead('2', 'Luis'), lead('3', 'Marta')], (item) => item.messageText))
+      .toBe('Ana 1.\n\nLuis 2.\n\nMarta 3.');
+  });
+
+  it('keeps a single lead without a trailing blank line', () => {
+    expect(formatLeadListCopy([lead('1', 'Ana')], (item) => item.messageText)).toBe('Ana 1.');
+  });
+
+  it('returns an empty string for empty or null input', () => {
+    expect(formatLeadListCopy([])).toBe('');
+    expect(formatLeadListCopy(null)).toBe('');
   });
 });

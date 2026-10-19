@@ -29,10 +29,13 @@ test.describe('Easterns routing, override y selección múltiple', () => {
 
     await page.getByLabel('Dealers: Easterns Rosedale').check();
     await page.getByLabel('Dealers: Easterns Laurel').check();
+    await page.getByLabel('Dealers: Offlease Fredericksburg').check();
     await expect(page.getByRole('button', { name: 'Copiar todo', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Copiar todo', exact: true }).click();
     await expect(page.getByRole('button', { name: '¡Todo copiado!', exact: true })).toBeVisible();
-    await expect(page.evaluate(() => navigator.clipboard.readText())).resolves.toContain('Andres Felipe');
+    const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clipboardText).toContain('Andres Felipe');
+    expect(clipboardText).toMatch(/\n\n/);
     await page.screenshot({ path: 'output/screenshots/day5-easterns-multi-copy.png', fullPage: true });
   });
 });
