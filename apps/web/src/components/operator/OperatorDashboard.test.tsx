@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dealerIdentity, formatLeadMessage, formatPurchaseTimelineLabel, formatQualificationLabels } from './OperatorDashboard';
+import { dealerIdentity, formatLeadCopy, formatLeadMessage, formatPurchaseTimelineLabel, formatQualificationLabels } from './OperatorDashboard';
 
 describe('dealerIdentity', () => {
   it('keeps Koons dealer names out of the Offlease group', () => {
@@ -42,6 +42,26 @@ describe('formatQualificationLabels', () => {
 });
 
 describe('operator qualification message normalization', () => {
+  it.each([
+    'Dependiendo de los Precios',
+    'Me Puede Enviar Fotos',
+    'Me Puede Mandar Fotos',
+  ])('always uses the current lead name in copied text when the stored prefix is "%s"', (storedName) => {
+    expect(formatLeadCopy({
+      id: '1', dealerId: 'd', dealerName: 'Stafford', name: 'Edwin', phone: '+18572006717', vehicleType: 'suv',
+      downPayment: '1000', identification: null, bankAccount: null, documents: null, purchaseTimeline: null,
+      status: 'pending', messageText: `${storedName} +18572006717 suv, 1000 de down.`, createdAt: '2026-09-15T12:00:00.000Z',
+    })).toBe('Edwin +18572006717 suv, 1000 de down.');
+  });
+
+  it('preserves the stored copy details after replacing only its stale name prefix', () => {
+    expect(formatLeadCopy({
+      id: '1', dealerId: 'd', dealerName: 'Stafford', name: 'Reyna Lizeth Rodriguez Ochoa', phone: '+15716913409', vehicleType: 'Nissan Altima',
+      downPayment: '3500', identification: null, bankAccount: null, documents: null, purchaseTimeline: 'lo más pronto posible',
+      status: 'pending', messageText: 'Me Puede Enviar Fotos +15716913409 Nissan Altima, 3500 de down, quiere comprar lo más pronto posible.', createdAt: '2026-09-15T12:00:00.000Z',
+    })).toBe('Reyna Lizeth Rodriguez Ochoa +15716913409 Nissan Altima, 3500 de down, quiere comprar lo más pronto posible.');
+  });
+
   it('hides affirmative yes values and localizes an urgent Spanish timeline', () => {
     const message = formatLeadMessage({
       id: '1', dealerId: 'd', dealerName: 'Stafford', name: 'Luis', phone: '+19196497529', vehicleType: 'Toyota Tacoma',

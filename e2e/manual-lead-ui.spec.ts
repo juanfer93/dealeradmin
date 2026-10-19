@@ -59,3 +59,38 @@ test('la copia E2E omite el no down payment y limpia el prefijo de compra al exp
   await expect(page.evaluate(() => navigator.clipboard.readText())).resolves.toBe('Elena Opciones +13019876544, SUV, Quiere ver opciones.');
   await expect(page.evaluate(() => navigator.clipboard.readText())).resolves.not.toContain('down');
 });
+
+test('la copia reemplaza un nombre técnico antiguo por el nombre actual del lead', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/login');
+  await page.fill('input[name="username"]', 'operator');
+  await page.fill('input[name="password"]', 'test-password');
+  await page.getByRole('button', { name: 'Ingresar' }).click();
+  await expect(page).toHaveURL(/\/app$/);
+
+  await page.getByRole('button', { name: /^Offlease Motors Stafford\s+\d+$/ }).click();
+  await page.getByRole('button', { name: /Agregar lead manual/i }).click();
+  const modal = page.getByRole('dialog', { name: 'Agregar lead manual' });
+  await modal.getByLabel(/Nombre completo/).fill('Reyna Lizeth E2E');
+  await modal.getByLabel(/Teléfono móvil/).fill('5716913408');
+  await modal.getByLabel(/Tipo de vehículo/).fill('Nissan Altima');
+  await modal.getByLabel(/Down payment/).fill('3500');
+  await modal.getByRole('button', { name: 'Agregar lead' }).click();
+  await expect(page.locator('tr').filter({ hasText: 'Reyna Lizeth E2E' })).toBeVisible();
+
+  await page.route('**/api/leads**', async (route) => {
+    if (!route.request().url().includes('status=pending')) return route.continue();
+    const response = await route.fetch();
+    const body = await response.json() as { leads: Array<{ name: string; phone: string; messageText: string }> };
+    const leads = body.leads.map((lead) => lead.name === 'Reyna Lizeth E2E'
+      ? { ...lead, messageText: `Me Puede Enviar Fotos ${lead.phone} Nissan Altima, 3500 de down.` }
+      : lead);
+    await route.fulfill({ response, json: { ...body, leads } });
+  });
+  await page.reload();
+  await page.getByRole('button', { name: /^Offlease Motors Stafford\s+\d+$/ }).click();
+  const leadRow = page.locator('tr').filter({ hasText: 'Reyna Lizeth E2E' });
+  await expect(leadRow).toBeVisible();
+  await leadRow.getByRole('button', { name: 'Copiar' }).click();
+  await expect(page.evaluate(() => navigator.clipboard.readText())).resolves.toBe('Reyna Lizeth E2E +15716913408 Nissan Altima, 3500 de down.');
+});
