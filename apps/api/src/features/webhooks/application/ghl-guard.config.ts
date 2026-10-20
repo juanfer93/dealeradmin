@@ -6,11 +6,13 @@ export const GHL_GUARD_DEFAULT_BATCH_SIZE = 1;
 export const GHL_GUARD_MAX_BATCH_SIZE = 2;
 export const GHL_GUARD_DEFAULT_CONCURRENCY = 1;
 export const GHL_GUARD_MAX_CONCURRENCY = 2;
-export const GHL_GUARD_DEFAULT_STALE_LOG_MS = 30 * 60 * 1000;
-export const GHL_GUARD_DEFAULT_TIMEOUT_MS = 15_000;
-export const GHL_GUARD_MAX_TIMEOUT_MS = 20_000;
-export const GHL_GUARD_DEFAULT_CONVERSATION_TIMEOUT_MS = 30_000;
-export const GHL_GUARD_MAX_CONVERSATION_TIMEOUT_MS = 35_000;
+// A guard conversation has a bounded execution window. A lease that survives
+// much longer than that can strand the conversation after a crashed invocation.
+export const GHL_GUARD_DEFAULT_STALE_LOG_MS = 2 * 60 * 1000;
+export const GHL_GUARD_DEFAULT_TIMEOUT_MS = 20_000;
+export const GHL_GUARD_MAX_TIMEOUT_MS = 30_000;
+export const GHL_GUARD_DEFAULT_CONVERSATION_TIMEOUT_MS = 60_000;
+export const GHL_GUARD_MAX_CONVERSATION_TIMEOUT_MS = 65_000;
 export const GHL_GUARD_DEFAULT_RETRY_DELAY_MS = GHL_GUARD_DEFAULT_INTERVAL_MS;
 export const GHL_GUARD_DEFAULT_CIRCUIT_FAILURE_THRESHOLD = 3;
 export const GHL_GUARD_DEFAULT_CIRCUIT_COOLDOWN_MS = GHL_GUARD_DEFAULT_RETRY_DELAY_MS;

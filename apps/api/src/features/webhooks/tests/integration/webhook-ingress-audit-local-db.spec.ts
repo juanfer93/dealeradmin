@@ -103,4 +103,33 @@ describeDatabase('webhook ingress audit against local PostgreSQL', () => {
       outcome: 'rejected',
     })]);
   });
+
+  it('closes a stale received row while preserving the raw payload', async () => {
+    const service = new WebhookIngressAuditService(dataSource);
+    const auditRequest = makeRequest(`local-audit-stale-${Date.now()}`);
+    const requestId = await service.begin(auditRequest as never, undefined);
+    if (!requestId) throw new Error('Expected a durable audit request id');
+    requestIds.push(requestId);
+
+    await dataSource.query(
+      `UPDATE webhook_ingress_logs
+       SET received_at = CURRENT_TIMESTAMP - INTERVAL '5 minutes'
+       WHERE request_id = $1`,
+      [requestId],
+    );
+
+    await expect(service.recoverStale(new Date())).resolves.toBeGreaterThanOrEqual(1);
+    const rows = await dataSource.query(
+      `SELECT outcome, error_code, completed_at, raw_body
+       FROM webhook_ingress_logs WHERE request_id = $1`,
+      [requestId],
+    ) as Array<Record<string, unknown>>;
+
+    expect(rows).toEqual([expect.objectContaining({
+      outcome: 'failed',
+      error_code: 'WEBHOOK_INGRESS_STALE',
+      raw_body: expect.stringContaining('Emmanuel audit evidence'),
+    })]);
+    expect(rows[0].completed_at).toBeTruthy();
+  });
 });

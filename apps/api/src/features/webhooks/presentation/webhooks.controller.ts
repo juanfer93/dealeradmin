@@ -74,7 +74,8 @@ export class WebhooksController {
 
   @Post('ghl/conversations/process-due')
   @UseGuards(HmacSignatureGuard)
-  processDueConversations(@Req() request: Request) {
+  async processDueConversations(@Req() request: Request) {
+    await this.ingressAudit.recoverStale();
     const requestedNow = request.header('X-DealerADMIN-Test-Now');
     return this.conversationWebhookService.processDueConversations(this.controlledTestNow(requestedNow), {
       // HTTP E2E runs against the real database but must only release the
@@ -87,7 +88,8 @@ export class WebhooksController {
 
   @Get('ghl/conversations/process-due')
   @UseGuards(HmacSignatureGuard)
-  processDueConversationsCron(@Req() request: Request) {
+  async processDueConversationsCron(@Req() request: Request) {
+    await this.ingressAudit.recoverStale();
     // GitHub Actions invokes this endpoint every five minutes. Keep the
     // request focused on due releases plus the GHL guard so the serverless
     // time budget is not consumed by the heavier active reconciliation pass.

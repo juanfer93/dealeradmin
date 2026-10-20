@@ -8,6 +8,8 @@ type RawBodyRequest = Request & { rawBody?: Buffer; webhookIngressRequestId?: st
 
 type AuditPayload = Record<string, unknown>;
 
+const DEFAULT_STALE_INGRESS_MS = 2 * 60 * 1000;
+
 export type WebhookIngressCompletion = {
   statusCode: number;
   connectionClosed?: boolean;
@@ -88,6 +90,11 @@ function outcomeForStatus(statusCode: number, connectionClosed = false): string 
   return 'completed';
 }
 
+function staleIngressMs(): number {
+  const configured = Number(process.env.WEBHOOK_INGRESS_STALE_MS ?? DEFAULT_STALE_INGRESS_MS);
+  return Number.isInteger(configured) && configured > 0 ? configured : DEFAULT_STALE_INGRESS_MS;
+}
+
 @Injectable()
 export class WebhookIngressAuditService {
   constructor(@Optional() @InjectDataSource() private readonly dataSource?: DataSource) {}
@@ -149,6 +156,35 @@ export class WebhookIngressAuditService {
     await this.update(requestId, `status_code = $2, outcome = $3, completed_at = CURRENT_TIMESTAMP,
       duration_ms = FLOOR(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - received_at)) * 1000)::integer`,
     [completion.statusCode, outcome]);
+  }
+
+  /**
+   * Closes audit rows left in `received` after a process/connection failure.
+   * The raw payload remains available for investigation; this method never
+   * replays the webhook and therefore cannot duplicate business data.
+   */
+  async recoverStale(now = new Date()): Promise<number> {
+    if (!this.dataSource) return 0;
+    const staleBefore = new Date(now.getTime() - staleIngressMs()).toISOString();
+    try {
+      const rows = await this.dataSource.query(
+        `UPDATE webhook_ingress_logs
+         SET outcome = 'failed',
+             error_code = COALESCE(error_code, 'WEBHOOK_INGRESS_STALE'),
+             completed_at = COALESCE(completed_at, $1::timestamptz),
+             duration_ms = COALESCE(duration_ms,
+               GREATEST(0, EXTRACT(EPOCH FROM ($1::timestamptz - received_at)) * 1000)::integer)
+         WHERE outcome = 'received'
+           AND completed_at IS NULL
+           AND received_at < $2::timestamptz
+         RETURNING request_id`,
+        [now.toISOString(), staleBefore],
+      ) as Array<{ request_id: string }>;
+      return rows.length;
+    } catch {
+      // Audit repair must never block due releases or Guard recovery.
+      return 0;
+    }
   }
 
   private async update(requestId: string | undefined, setClause: string, values: unknown[]): Promise<void> {

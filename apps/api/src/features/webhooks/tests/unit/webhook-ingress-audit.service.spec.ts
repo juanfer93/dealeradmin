@@ -76,4 +76,17 @@ describe('WebhookIngressAuditService', () => {
     await expect(service.markAuth({} as never, 'rejected', 'invalid_signature')).resolves.toBeUndefined();
     await expect(service.complete(undefined, { statusCode: 500 })).resolves.toBeUndefined();
   });
+
+  it('closes abandoned received rows without replaying their payloads', async () => {
+    const query = vi.fn().mockResolvedValue([{ request_id: 'stale-audit-1' }, { request_id: 'stale-audit-2' }]);
+    const service = new WebhookIngressAuditService({ query } as never);
+    const recovered = await service.recoverStale(new Date('2026-10-20T15:00:00.000Z'));
+
+    expect(recovered).toBe(2);
+    const [sql, values] = query.mock.calls[0] as [string, unknown[]];
+    expect(sql).toContain("outcome = 'failed'");
+    expect(sql).toContain("error_code, 'WEBHOOK_INGRESS_STALE'");
+    expect(sql).toContain("outcome = 'received'");
+    expect(values).toEqual(['2026-10-20T15:00:00.000Z', '2026-10-20T14:58:00.000Z']);
+  });
 });

@@ -216,7 +216,7 @@ export class GhlGuardPersistenceFunctions {
          WHERE status IN ('pending', 'running')
            AND (
              (lease_expires_at IS NOT NULL AND lease_expires_at < $1::timestamptz)
-             OR (lease_expires_at IS NULL AND COALESCE(started_at, scheduled_at) < $1::timestamptz - ($3::integer * INTERVAL '1 millisecond'))
+             OR COALESCE(started_at, scheduled_at) < $1::timestamptz - ($3::integer * INTERVAL '1 millisecond')
            )`,
         [now.toISOString(), ghlGuardRetryDelayMs(), ghlGuardStaleLogMs()],
       );

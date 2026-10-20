@@ -31,8 +31,8 @@ describe('GhlGuardService', () => {
 
     expect(ghlGuardBatchSize()).toBe(2);
     expect(ghlGuardConcurrency()).toBe(2);
-    expect(ghlGuardTimeoutMs()).toBe(20_000);
-    expect(ghlGuardConversationTimeoutMs()).toBe(35_000);
+    expect(ghlGuardTimeoutMs()).toBe(30_000);
+    expect(ghlGuardConversationTimeoutMs()).toBe(60_000);
   });
 
   it('allows the scheduled run to bypass the in-memory interval gate', async () => {

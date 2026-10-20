@@ -44,9 +44,10 @@ GHL_GUARD_ENABLED=true
 GHL_GUARD_INTERVAL_MS=300000
 GHL_GUARD_BATCH_SIZE=1
 GHL_GUARD_CONCURRENCY=1
-GHL_GUARD_TIMEOUT_MS=10000
+GHL_GUARD_TIMEOUT_MS=20000
 GHL_GUARD_MESSAGE_PAGE_LIMIT=100
 GHL_GUARD_MAX_PAGES=2
+WEBHOOK_INGRESS_STALE_MS=120000
 ```
 
-El guard procesa una conversación por ciclo por defecto (máximo dos), con una sola lectura concurrente y un deadline total máximo de 22 segundos por conversación. Las esperas entre reintentos también respetan ese deadline: si no queda tiempo suficiente, el intento termina como `GHL_TIMEOUT` sin iniciar otra llamada. Cada intento deja `scheduled_at`, `started_at`, `finished_at`, `attempt_count`, `next_retry_at` y `lease_expires_at` en `ghl_guard_logs`: una fila `pending`/`running` con lease vigente no se duplica, y un fallo vuelve a intentarse en el siguiente ciclo de cinco minutos. `duration_ms` conserva la duración calculada de cada intento, incluyendo los fallidos. El guard sigue siendo aditivo: nunca borra ni reemplaza datos existentes.
+El guard procesa una conversación por ciclo por defecto (máximo dos), con una sola lectura concurrente y un deadline total máximo de 60 segundos por conversación. Las esperas entre reintentos también respetan ese deadline: si no queda tiempo suficiente, el intento termina como `GHL_TIMEOUT` sin iniciar otra llamada. Cada intento deja `scheduled_at`, `started_at`, `finished_at`, `attempt_count`, `next_retry_at` y `lease_expires_at` en `ghl_guard_logs`: una fila `pending`/`running` con lease vigente no se duplica, un lease antiguo se recupera después de dos minutos y un fallo vuelve a intentarse en el siguiente ciclo de cinco minutos. `duration_ms` conserva la duración calculada de cada intento, incluyendo los fallidos. El guard sigue siendo aditivo: nunca borra ni reemplaza datos existentes.
