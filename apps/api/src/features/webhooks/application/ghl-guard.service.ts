@@ -10,11 +10,14 @@ import {
   ghlGuardBatchSize,
   ghlGuardConcurrency,
   ghlGuardConversationTimeoutMs,
+  ghlGuardCircuitCooldownMs,
+  ghlGuardCircuitFailureThreshold,
   GHL_GUARD_LOCK_KEY,
   ghlGuardEnabled,
   ghlGuardIntervalMs,
   ghlGuardRetryDelayMs,
   ghlGuardStaleLogMs,
+  ghlGuardTimeoutMs,
   GHL_GUARD_TOKEN_ENV_BY_SOURCE,
 } from './ghl-guard.config';
 import { GhlGuardClient, type GhlGuardMessage } from './ghl-guard.client';
@@ -51,6 +54,11 @@ type LeadMetadataRow = {
 type GuardAuditRow = {
   id: string;
   status: string;
+};
+
+type SourceCircuitState = {
+  consecutiveFailures: number;
+  openedUntil: number;
 };
 
 export type GhlGuardRunResult = {
@@ -98,6 +106,14 @@ function isConversationIdentityConflict(error: unknown): boolean {
       || String(candidate.message ?? '').includes('conversations_identity_unique'));
 }
 
+function isRetryableGuardFailure(errorCode: string): boolean {
+  return errorCode === 'GHL_TIMEOUT'
+    || errorCode === 'GHL_NETWORK_ERROR'
+    || errorCode === 'GHL_AUTH_TIMEOUT'
+    || errorCode === 'GHL_RATE_LIMITED'
+    || /^GHL_HTTP_5\d\d$/.test(errorCode);
+}
+
 function normalizeDirection(value: unknown): 'inbound' | 'outbound' | 'unknown' {
   const direction = String(value ?? '').trim().toLowerCase();
   if (direction === 'inbound') return 'inbound';
@@ -133,6 +149,7 @@ export class GhlGuardService {
   private lastRunAt = 0;
   private readonly pendingContactIds = new Set<string>();
   private pendingTargetedRetry: ReturnType<typeof setTimeout> | null = null;
+  private readonly sourceCircuits = new Map<SourceKey, SourceCircuitState>();
 
   constructor(
     private readonly dataSource: DataSource | undefined,
@@ -260,6 +277,85 @@ export class GhlGuardService {
     this.schedulePendingTargetedRun();
   }
 
+  private scheduleTransientRetry(row: GuardConversationRow, errorCode: string, source?: SourceKey): void {
+    if (!isRetryableGuardFailure(errorCode)) {
+      if (source) this.sourceCircuits.delete(source);
+      return;
+    }
+    if (source) {
+      const previous = this.sourceCircuits.get(source);
+      const consecutiveFailures = (previous?.consecutiveFailures ?? 0) + 1;
+      const openedUntil = consecutiveFailures >= ghlGuardCircuitFailureThreshold()
+        ? Date.now() + ghlGuardCircuitCooldownMs()
+        : previous?.openedUntil ?? 0;
+      this.sourceCircuits.set(source, { consecutiveFailures, openedUntil });
+      if (openedUntil > Date.now()) {
+        this.logger.warn(`GHL guard circuit opened source=${source} cooldown_ms=${ghlGuardCircuitCooldownMs()}`);
+      }
+    }
+    // A failed lookup/read must not depend solely on the next external cron
+    // invocation. Keep the retry contact-scoped so a transient GHL timeout
+    // cannot silently strand the conversation or replay other contacts.
+    this.enqueuePendingContactIds([row.ghl_contact_id]);
+  }
+
+  private async isSourceCircuitOpen(source: SourceKey): Promise<boolean> {
+    const state = this.sourceCircuits.get(source);
+    if (state?.openedUntil && state.openedUntil > Date.now()) return true;
+    if (state) {
+      this.sourceCircuits.delete(source);
+    }
+    if (!this.dataSource) return false;
+
+    try {
+      const rows = await this.dataSource.query(
+        `WITH recent AS (
+           SELECT status, error_code, created_at
+           FROM ghl_guard_logs
+           WHERE ghl_location_id = $1
+             AND status IN ('failed', 'succeeded')
+           ORDER BY created_at DESC
+           LIMIT $2
+         )
+         SELECT COUNT(*)::integer AS observed_count,
+           BOOL_AND(
+             status = 'failed'
+             AND (
+               error_code IN ('GHL_TIMEOUT', 'GHL_NETWORK_ERROR', 'GHL_AUTH_TIMEOUT', 'GHL_RATE_LIMITED')
+               OR error_code ~ '^GHL_HTTP_5[0-9][0-9]$'
+             )
+           ) AS all_transient,
+                MAX(created_at) AS latest_created_at
+         FROM recent`,
+        [this.sourceConfig[source].locationId, ghlGuardCircuitFailureThreshold()],
+      ) as Array<{ observed_count: number; all_transient: boolean | null; latest_created_at: string | null }>;
+      const row = rows[0];
+      const latestCreatedAt = row?.latest_created_at ? new Date(row.latest_created_at).getTime() : 0;
+      const open = Number(row?.observed_count ?? 0) >= ghlGuardCircuitFailureThreshold()
+        && row?.all_transient === true
+        && latestCreatedAt > Date.now() - ghlGuardCircuitCooldownMs();
+      if (open) {
+        this.sourceCircuits.set(source, {
+          consecutiveFailures: ghlGuardCircuitFailureThreshold(),
+          openedUntil: latestCreatedAt + ghlGuardCircuitCooldownMs(),
+        });
+      }
+      return open;
+    } catch (error) {
+      this.logger.warn(`GHL guard circuit health check failed source=${source}: ${error instanceof Error ? error.message : String(error)}`);
+      return false;
+    }
+  }
+
+  private resetSourceCircuit(source: SourceKey): void {
+    this.sourceCircuits.delete(source);
+  }
+
+  private circuitState(source: SourceKey): 'closed' | 'open' {
+    const state = this.sourceCircuits.get(source);
+    return state?.openedUntil != null && state.openedUntil > Date.now() ? 'open' : 'closed';
+  }
+
   private schedulePendingTargetedRun(): void {
     if (this.pendingContactIds.size === 0 || this.pendingTargetedRetry) return;
     const retry = setTimeout(() => {
@@ -283,6 +379,7 @@ export class GhlGuardService {
 
   private async processRow(row: GuardConversationRow, runId: string, now: Date, result: GhlGuardRunResult, targeted = false): Promise<void> {
     let logId: string | null = null;
+    let source: SourceKey | undefined;
     const startedAt = new Date();
     try {
       logId = await this.createLog(runId, row, 'pending', now);
@@ -292,7 +389,7 @@ export class GhlGuardService {
       }
       await this.updateLog(logId, 'running', { startedAt });
       const deadlineAt = Date.now() + ghlGuardConversationTimeoutMs();
-      const source = sourceForLocation(this.sourceConfig, row.ghl_location_id);
+      source = sourceForLocation(this.sourceConfig, row.ghl_location_id);
       if (!source) {
         this.recordFailure(result, row, 'SOURCE_NOT_CONFIGURED');
         await this.updateLog(logId, 'failed', { errorCode: 'SOURCE_NOT_CONFIGURED', finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });
@@ -302,6 +399,19 @@ export class GhlGuardService {
       if (!token) {
         this.recordFailure(result, row, 'GHL_TOKEN_MISSING');
         await this.updateLog(logId, 'failed', { errorCode: 'GHL_TOKEN_MISSING', source, finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });
+        return;
+      }
+      if (await this.isSourceCircuitOpen(source)) {
+        this.enqueuePendingContactIds([row.ghl_contact_id]);
+        await this.updateLog(logId, 'skipped', {
+          source,
+          errorCode: 'GHL_CIRCUIT_OPEN',
+          skipReason: 'circuit_open',
+          requestTimeoutMs: ghlGuardTimeoutMs(),
+          circuitState: 'open',
+          finishedAt: new Date(),
+          durationMs: Date.now() - startedAt.getTime(),
+        });
         return;
       }
       let effectiveRow = row;
@@ -315,16 +425,29 @@ export class GhlGuardService {
           return;
         }
         const lookup = await this.client.searchConversationByContact(token, row.ghl_location_id, row.ghl_contact_id, { deadlineAt });
-        lookupMetadata = { conversationLookup: { requestPath: lookup.requestPath, httpStatus: lookup.status, resolved: Boolean(lookup.data?.conversation?.id) } };
+        lookupMetadata = {
+          conversationLookup: {
+            requestPath: lookup.requestPath,
+            httpStatus: lookup.status,
+            resolved: Boolean(lookup.data?.conversation?.id),
+            attemptCount: lookup.attemptCount ?? null,
+            elapsedMs: lookup.elapsedMs ?? null,
+          },
+        };
         if (!lookup.ok || !lookup.data?.conversation?.id) {
           const errorCode = lookup.errorCode || 'GHL_CONVERSATION_NOT_FOUND';
           this.recordFailure(result, row, errorCode);
+          this.scheduleTransientRetry(row, errorCode, source);
           await this.updateLog(logId, 'failed', {
             errorCode,
             source,
             httpStatus: lookup.status,
             requestPath: lookup.requestPath,
             responsePayload: lookup.responsePayload,
+            requestAttempts: lookup.attemptCount,
+            requestElapsedMs: lookup.elapsedMs,
+            requestTimeoutMs: ghlGuardTimeoutMs(),
+            circuitState: this.circuitState(source),
             finishedAt: new Date(),
             durationMs: Date.now() - startedAt.getTime(),
             ...lookupMetadata,
@@ -358,12 +481,17 @@ export class GhlGuardService {
       if (!fetched.ok || !fetched.data) {
         const errorCode = fetched.errorCode || 'GHL_MESSAGES_READ_FAILED';
         this.recordFailure(result, row, errorCode);
+        this.scheduleTransientRetry(row, errorCode, source);
         await this.updateLog(logId, 'failed', {
           errorCode,
           source,
           httpStatus: fetched.status,
           requestPath: fetched.requestPath,
           responsePayload: fetched.responsePayload,
+          requestAttempts: fetched.attemptCount,
+          requestElapsedMs: fetched.elapsedMs,
+          requestTimeoutMs: ghlGuardTimeoutMs(),
+          circuitState: this.circuitState(source),
           finishedAt: new Date(),
           durationMs: Date.now() - startedAt.getTime(),
           ...lookupMetadata,
@@ -424,12 +552,17 @@ export class GhlGuardService {
           [syntheticConversationId],
         );
       }
+      this.resetSourceCircuit(source);
       await this.updateLog(logId, 'succeeded', {
         source,
         fetchedMessages: fetched.data.messages.length,
         insertedMessages: persisted.inserted,
         repairedMessages: persisted.repaired,
         responsePayload: fetched.data.responsePayload,
+        requestAttempts: fetched.attemptCount,
+        requestElapsedMs: fetched.elapsedMs,
+        requestTimeoutMs: ghlGuardTimeoutMs(),
+        circuitState: 'closed',
         httpStatus: fetched.status,
         requestPath: fetched.requestPath,
         pages: fetched.data.pages,
@@ -446,9 +579,12 @@ export class GhlGuardService {
       const errorCode = error instanceof Error ? error.name : 'GHL_GUARD_CONVERSATION_FAILED';
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.recordFailure(result, row, errorCode, errorMessage);
+      this.scheduleTransientRetry(row, errorCode, source);
       await this.safeUpdateLog(logId, 'failed', {
         errorCode,
         errorMessage,
+        requestTimeoutMs: ghlGuardTimeoutMs(),
+        circuitState: source ? this.circuitState(source) : undefined,
         finishedAt: new Date(),
         durationMs: Date.now() - startedAt.getTime(),
       });
@@ -772,6 +908,10 @@ export class GhlGuardService {
            response_payload = COALESCE($13::jsonb, response_payload),
            lead_metadata = COALESCE($18::jsonb, lead_metadata),
            completed_fields = COALESCE($19::jsonb, completed_fields),
+           request_attempt_count = COALESCE($20, request_attempt_count),
+           request_elapsed_ms = COALESCE($21, request_elapsed_ms),
+           request_timeout_ms = COALESCE($22, request_timeout_ms),
+           circuit_state = COALESCE($23::varchar, circuit_state),
            next_retry_at = CASE WHEN $2::varchar = 'failed' THEN CURRENT_TIMESTAMP + ($16::integer * INTERVAL '1 millisecond') ELSE next_retry_at END,
            lease_expires_at = CASE WHEN $2::varchar IN ('pending', 'running') THEN CURRENT_TIMESTAMP + ($17::integer * INTERVAL '1 millisecond') ELSE NULL END,
            metadata = jsonb_set(metadata || $14::jsonb, '{lifecycle}',
@@ -788,7 +928,11 @@ export class GhlGuardService {
         details.errorCode ?? null, details.responsePayload === undefined ? null : JSON.stringify(details.responsePayload), JSON.stringify(metadata), status,
         ghlGuardRetryDelayMs(), ghlGuardStaleLogMs(),
         details.leadMetadata === undefined || details.leadMetadata === null ? null : JSON.stringify(details.leadMetadata),
-        details.completedFields === undefined || details.completedFields === null ? null : JSON.stringify(details.completedFields)],
+        details.completedFields === undefined || details.completedFields === null ? null : JSON.stringify(details.completedFields),
+        details.requestAttempts ?? null,
+        details.requestElapsedMs ?? null,
+        details.requestTimeoutMs ?? null,
+        details.circuitState ?? null],
     ) as GuardAuditRow[];
     if (rows[0]?.id) return;
 

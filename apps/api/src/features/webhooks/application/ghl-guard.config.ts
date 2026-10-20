@@ -7,11 +7,13 @@ export const GHL_GUARD_MAX_BATCH_SIZE = 2;
 export const GHL_GUARD_DEFAULT_CONCURRENCY = 1;
 export const GHL_GUARD_MAX_CONCURRENCY = 2;
 export const GHL_GUARD_DEFAULT_STALE_LOG_MS = 30 * 60 * 1000;
-export const GHL_GUARD_DEFAULT_TIMEOUT_MS = 10_000;
-export const GHL_GUARD_MAX_TIMEOUT_MS = 15_000;
-export const GHL_GUARD_DEFAULT_CONVERSATION_TIMEOUT_MS = 20_000;
-export const GHL_GUARD_MAX_CONVERSATION_TIMEOUT_MS = 22_000;
+export const GHL_GUARD_DEFAULT_TIMEOUT_MS = 15_000;
+export const GHL_GUARD_MAX_TIMEOUT_MS = 20_000;
+export const GHL_GUARD_DEFAULT_CONVERSATION_TIMEOUT_MS = 30_000;
+export const GHL_GUARD_MAX_CONVERSATION_TIMEOUT_MS = 35_000;
 export const GHL_GUARD_DEFAULT_RETRY_DELAY_MS = GHL_GUARD_DEFAULT_INTERVAL_MS;
+export const GHL_GUARD_DEFAULT_CIRCUIT_FAILURE_THRESHOLD = 3;
+export const GHL_GUARD_DEFAULT_CIRCUIT_COOLDOWN_MS = GHL_GUARD_DEFAULT_RETRY_DELAY_MS;
 
 export const GHL_GUARD_TOKEN_ENV_BY_SOURCE: Record<SourceKey, string> = {
   stafford: 'GHL_PRIVATE_TOKEN_STAFFORD',
@@ -69,4 +71,14 @@ export function ghlGuardConversationTimeoutMs(): number {
 export function ghlGuardRetryDelayMs(): number {
   const value = Number(process.env.GHL_GUARD_RETRY_DELAY_MS ?? GHL_GUARD_DEFAULT_RETRY_DELAY_MS);
   return Number.isInteger(value) && value > 0 ? value : GHL_GUARD_DEFAULT_RETRY_DELAY_MS;
+}
+
+export function ghlGuardCircuitFailureThreshold(): number {
+  const value = Number(process.env.GHL_GUARD_CIRCUIT_FAILURE_THRESHOLD ?? GHL_GUARD_DEFAULT_CIRCUIT_FAILURE_THRESHOLD);
+  return Number.isInteger(value) && value > 0 ? value : GHL_GUARD_DEFAULT_CIRCUIT_FAILURE_THRESHOLD;
+}
+
+export function ghlGuardCircuitCooldownMs(): number {
+  const value = Number(process.env.GHL_GUARD_CIRCUIT_COOLDOWN_MS ?? GHL_GUARD_DEFAULT_CIRCUIT_COOLDOWN_MS);
+  return Number.isInteger(value) && value > 0 ? value : GHL_GUARD_DEFAULT_CIRCUIT_COOLDOWN_MS;
 }

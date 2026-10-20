@@ -37,6 +37,8 @@ export type GhlGuardFetchResult<T> = {
   errorCode?: string;
   requestPath?: string;
   responsePayload?: unknown;
+  attemptCount?: number;
+  elapsedMs?: number;
 };
 
 export type GhlGuardMessagesResult = {
@@ -105,11 +107,11 @@ export class GhlGuardClient {
   async searchLatestConversation(token: string, locationId: string, options?: GhlGuardRequestOptions): Promise<GhlGuardFetchResult<{ conversations: GhlGuardConversation[]; total: number }>> {
     const path = `/conversations/search?locationId=${encodeURIComponent(locationId)}&limit=1&sort=desc`;
     const response = await this.get<GhlSearchResponse>(path, token, options);
-    if (!response.ok) return { ok: false, status: response.status, errorCode: response.errorCode, requestPath: path, responsePayload: response.responsePayload };
+    if (!response.ok) return { ok: false, status: response.status, errorCode: response.errorCode, requestPath: path, responsePayload: response.responsePayload, attemptCount: response.attemptCount, elapsedMs: response.elapsedMs };
     const conversations = (response.data?.conversations ?? [])
       .filter((conversation): conversation is GhlGuardConversation => typeof conversation.id === 'string')
       .map((conversation) => ({ id: conversation.id, locationId: conversation.locationId }));
-    return { ok: true, status: response.status, requestPath: path, data: { conversations, total: Number(response.data?.total ?? 0) } };
+    return { ok: true, status: response.status, requestPath: path, data: { conversations, total: Number(response.data?.total ?? 0) }, attemptCount: response.attemptCount, elapsedMs: response.elapsedMs };
   }
 
   async searchConversationByContact(token: string, locationId: string, contactId: string, options?: GhlGuardRequestOptions): Promise<GhlGuardFetchResult<{ conversation: GhlGuardConversation | null; total: number }>> {
@@ -117,7 +119,7 @@ export class GhlGuardClient {
     // reduces latency and avoids making GHL scan/serialize unrelated history.
     const path = `/conversations/search?locationId=${encodeURIComponent(locationId)}&contactId=${encodeURIComponent(contactId)}&limit=${CONVERSATION_SEARCH_LIMIT}&sort=desc`;
     const response = await this.get<GhlSearchResponse>(path, token, options);
-    if (!response.ok) return { ok: false, status: response.status, errorCode: response.errorCode, requestPath: path, responsePayload: response.responsePayload };
+    if (!response.ok) return { ok: false, status: response.status, errorCode: response.errorCode, requestPath: path, responsePayload: response.responsePayload, attemptCount: response.attemptCount, elapsedMs: response.elapsedMs };
     const conversation = (response.data?.conversations ?? [])
       .find((candidate) => typeof candidate.id === 'string' && (!candidate.locationId || candidate.locationId === locationId));
     return {
@@ -128,6 +130,8 @@ export class GhlGuardClient {
         conversation: conversation?.id ? { id: conversation.id, locationId: conversation.locationId } : null,
         total: Number(response.data?.total ?? 0),
       },
+      attemptCount: response.attemptCount,
+      elapsedMs: response.elapsedMs,
     };
   }
 
@@ -136,6 +140,8 @@ export class GhlGuardClient {
     let lastMessageId: string | undefined;
     let pages = 0;
     let nextPage = true;
+    let requestAttempts = 0;
+    const startedAt = Date.now();
     const responsePayload: unknown[] = [];
     const requestPath = `/conversations/${encodeURIComponent(conversationId)}/messages`;
 
@@ -144,7 +150,8 @@ export class GhlGuardClient {
       if (lastMessageId) query.set('lastMessageId', lastMessageId);
       const path = `${requestPath}?${query.toString()}`;
       const response = await this.get<GhlMessagesResponse>(path, token, options);
-      if (!response.ok) return { ok: false, status: response.status, errorCode: response.errorCode, requestPath, responsePayload: response.responsePayload };
+      requestAttempts += response.attemptCount ?? 0;
+      if (!response.ok) return { ok: false, status: response.status, errorCode: response.errorCode, requestPath, responsePayload: response.responsePayload, attemptCount: requestAttempts, elapsedMs: Date.now() - startedAt };
 
       responsePayload.push(response.data);
       const payload = response.data?.messages;
@@ -162,14 +169,18 @@ export class GhlGuardClient {
       status: 200,
       requestPath,
       data: { messages, pages, truncated: nextPage, responsePayload },
+      attemptCount: requestAttempts,
+      elapsedMs: Date.now() - startedAt,
     };
   }
 
   private async get<T>(path: string, token: string, options: GhlGuardRequestOptions = {}): Promise<GhlGuardFetchResult<T>> {
     const attempts = 3;
+    const startedAt = Date.now();
+    const telemetry = (attemptCount: number) => ({ attemptCount, elapsedMs: Date.now() - startedAt });
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       const remainingMs = options.deadlineAt === undefined ? Infinity : options.deadlineAt - Date.now();
-      if (remainingMs <= 0) return { ok: false, status: 0, errorCode: 'GHL_TIMEOUT', requestPath: path };
+      if (remainingMs <= 0) return { ok: false, status: 0, errorCode: 'GHL_TIMEOUT', requestPath: path, ...telemetry(attempt) };
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), Math.max(1, Math.min(this.timeoutMs, remainingMs)));
       try {
@@ -183,28 +194,28 @@ export class GhlGuardClient {
           signal: controller.signal,
         });
         if (response.ok) {
-          return { ok: true, status: response.status, data: await response.json() as T };
+          return { ok: true, status: response.status, data: await response.json() as T, ...telemetry(attempt + 1) };
         }
         if (isRetryable(response.status) && attempt < attempts - 1) {
           const retryable = await this.waitForRetry(retryDelayMs(response, attempt), options.deadlineAt);
-          if (!retryable) return { ok: false, status: 0, errorCode: 'GHL_TIMEOUT', requestPath: path };
+          if (!retryable) return { ok: false, status: 0, errorCode: 'GHL_TIMEOUT', requestPath: path, ...telemetry(attempt + 1) };
           continue;
         }
         let responsePayload: unknown;
         try { responsePayload = await response.json(); } catch { /* Some gateway errors have no JSON body. */ }
-        return { ok: false, status: response.status, errorCode: safeErrorCode(response.status, undefined), responsePayload };
+        return { ok: false, status: response.status, errorCode: safeErrorCode(response.status, undefined), responsePayload, ...telemetry(attempt + 1) };
       } catch (error) {
         if (attempt < attempts - 1 && shouldRetryThrownError(error)) {
           const retryable = await this.waitForRetry(250 * (attempt + 1), options.deadlineAt);
-          if (!retryable) return { ok: false, status: 0, errorCode: 'GHL_TIMEOUT', requestPath: path };
+          if (!retryable) return { ok: false, status: 0, errorCode: 'GHL_TIMEOUT', requestPath: path, ...telemetry(attempt + 1) };
           continue;
         }
-        return { ok: false, status: 0, errorCode: safeErrorCode(0, error), requestPath: path };
+        return { ok: false, status: 0, errorCode: safeErrorCode(0, error), requestPath: path, ...telemetry(attempt + 1) };
       } finally {
         clearTimeout(timeout);
       }
     }
-    return { ok: false, status: 0, errorCode: 'GHL_NETWORK_ERROR' };
+    return { ok: false, status: 0, errorCode: 'GHL_NETWORK_ERROR', requestPath: path, ...telemetry(attempts) };
   }
 
   private async waitForRetry(delayMs: number, deadlineAt?: number): Promise<boolean> {

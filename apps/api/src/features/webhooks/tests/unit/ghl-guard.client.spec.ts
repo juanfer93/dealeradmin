@@ -14,7 +14,7 @@ describe('GhlGuardClient', () => {
 
     const result = await new GhlGuardClient().listMessages('pit-test-token', 'conversation/1');
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: true,
       status: 200,
       requestPath: '/conversations/conversation%2F1/messages',
@@ -30,6 +30,8 @@ describe('GhlGuardClient', () => {
           { messages: { messages: [{ id: 'm-2', body: '2018', direction: 'inbound' }], nextPage: false } },
         ],
       },
+      attemptCount: 2,
+      elapsedMs: expect.any(Number),
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const firstRequest = fetchMock.mock.calls[0]?.[1] as RequestInit;

@@ -27,11 +27,12 @@ describe('GhlGuardService', () => {
     process.env.GHL_GUARD_BATCH_SIZE = '25';
     process.env.GHL_GUARD_CONCURRENCY = '25';
     process.env.GHL_GUARD_TIMEOUT_MS = '60000';
+    process.env.GHL_GUARD_CONVERSATION_TIMEOUT_MS = '60000';
 
     expect(ghlGuardBatchSize()).toBe(2);
     expect(ghlGuardConcurrency()).toBe(2);
-    expect(ghlGuardTimeoutMs()).toBe(15_000);
-    expect(ghlGuardConversationTimeoutMs()).toBe(20_000);
+    expect(ghlGuardTimeoutMs()).toBe(20_000);
+    expect(ghlGuardConversationTimeoutMs()).toBe(35_000);
   });
 
   it('allows the scheduled run to bypass the in-memory interval gate', async () => {
@@ -289,6 +290,99 @@ describe('GhlGuardService', () => {
     expect(client.searchConversationByContact).toHaveBeenCalledWith('pit-test-token', row.ghl_location_id, row.ghl_contact_id, { deadlineAt: expect.any(Number) });
     expect(client.listMessages).toHaveBeenCalledWith('pit-test-token', 'ghl-real-conversation', { deadlineAt: expect.any(Number) });
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining("SET ghl_conversation_id = $2"), [row.id, 'ghl-real-conversation']);
+  });
+
+  it('retries a transient synthetic-conversation lookup failure by contact', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.GHL_GUARD_ENABLED = 'true';
+    process.env.GHL_GUARD_RETRY_DELAY_MS = '1';
+    process.env.GHL_PRIVATE_TOKEN_STAFFORD = 'pit-test-token';
+    vi.useFakeTimers();
+
+    const row = {
+      id: 'conversation-timeout', ghl_location_id: GHL_SOURCE_CONFIG.stafford.locationId,
+      ghl_contact_id: 'contact-timeout', ghl_conversation_id: 'contact:contact-timeout:messenger', status: 'partial',
+    };
+    const firstLockRunner = {
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : sql.includes('FROM conversations') ? [row] : []),
+      release: vi.fn(),
+    };
+    const secondLockRunner = {
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : []),
+      release: vi.fn(),
+    };
+    const dataSource = {
+      createQueryRunner: vi.fn().mockReturnValueOnce(firstLockRunner).mockReturnValueOnce(secondLockRunner),
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO ghl_guard_logs')) return [{ id: 'timeout-log' }];
+        if (sql.includes('UPDATE ghl_guard_logs')) return [{ id: 'timeout-log', status: 'failed' }];
+        return [];
+      }),
+    };
+    const client = {
+      searchConversationByContact: vi.fn().mockResolvedValue({
+        ok: false, status: 0, errorCode: 'GHL_TIMEOUT', requestPath: '/conversations/search',
+      }),
+      listMessages: vi.fn(),
+    };
+    const service = new GhlGuardService(dataSource as never, { reconcileConversation: vi.fn() } as never, GHL_SOURCE_CONFIG, client);
+
+    const result = await service.run(new Date('2026-10-16T12:00:00.000Z'), { contactIds: [row.ghl_contact_id], force: true });
+
+    expect(result).toMatchObject({ selected: 1, failed: 1 });
+    expect(client.searchConversationByContact).toHaveBeenCalledOnce();
+    expect(client.listMessages).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(dataSource.createQueryRunner).toHaveBeenCalledTimes(2);
+    expect(secondLockRunner.release).toHaveBeenCalledOnce();
+  });
+
+  it('opens a source circuit after repeated transient failures without calling GHL again', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.GHL_GUARD_ENABLED = 'true';
+    process.env.GHL_GUARD_RETRY_DELAY_MS = '1';
+    process.env.GHL_GUARD_CIRCUIT_FAILURE_THRESHOLD = '1';
+    process.env.GHL_GUARD_CIRCUIT_COOLDOWN_MS = '1000';
+    process.env.GHL_PRIVATE_TOKEN_STAFFORD = 'pit-test-token';
+    vi.useFakeTimers();
+
+    const row = {
+      id: 'conversation-circuit', ghl_location_id: GHL_SOURCE_CONFIG.stafford.locationId,
+      ghl_contact_id: 'contact-circuit', ghl_conversation_id: 'contact:contact-circuit:messenger', status: 'partial',
+    };
+    const makeLockRunner = () => ({
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : sql.includes('FROM conversations') ? [row] : []),
+      release: vi.fn(),
+    });
+    const firstLockRunner = makeLockRunner();
+    const secondLockRunner = makeLockRunner();
+    const dataSource = {
+      createQueryRunner: vi.fn().mockReturnValueOnce(firstLockRunner).mockReturnValueOnce(secondLockRunner),
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO ghl_guard_logs')) return [{ id: 'circuit-log' }];
+        if (sql.includes('UPDATE ghl_guard_logs')) return [{ id: 'circuit-log', status: 'skipped' }];
+        return [];
+      }),
+    };
+    const client = {
+      searchConversationByContact: vi.fn().mockResolvedValue({
+        ok: false, status: 0, errorCode: 'GHL_TIMEOUT', requestPath: '/conversations/search',
+      }),
+      listMessages: vi.fn(),
+    };
+    const service = new GhlGuardService(dataSource as never, { reconcileConversation: vi.fn() } as never, GHL_SOURCE_CONFIG, client);
+
+    await service.run(new Date('2026-10-16T12:00:00.000Z'), { contactIds: [row.ghl_contact_id], force: true });
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(client.searchConversationByContact).toHaveBeenCalledOnce();
+    expect(dataSource.query.mock.calls.some((call) => JSON.stringify(call).includes('GHL_CIRCUIT_OPEN'))).toBe(true);
+    vi.clearAllTimers();
   });
 
   it('reuses the conversation that won a synthetic-id identity race', async () => {
