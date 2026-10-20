@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { isPortfolioMode, portfolioWriteBlockedMessage } from '../../lib/portfolio-mode';
+import { isPortfolioMode, portfolioWriteBlockedMessage } from '../../infrastructure/portfolio/portfolio-repository';
 import { useLanguage } from '../../lib/i18n';
+import { createLead, updateLead } from '../../infrastructure/operator/lead-actions-api';
 
 type ManualLeadForm = {
   name: string;
@@ -124,12 +125,9 @@ export function AddLeadModal({ isOpen, onClose, dealerId, onLeadAdded, editingLe
     setLoading(true);
 
     try {
-      const response = await fetch(isEditMode && editingLead ? `/api/leads/${editingLead.id}` : `/api/dealers/${dealerId}/leads`, {
-        method: isEditMode ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(isEditMode ? { dealerId, ...formData } : formData),
-      });
+      const response = isEditMode && editingLead
+        ? await updateLead(editingLead.id, { dealerId, ...formData })
+        : await createLead(dealerId, formData);
       const body: unknown = await response.json().catch(() => undefined);
       if (!response.ok) throw new Error(getResponseMessage(body, t.modal.errors.save));
 

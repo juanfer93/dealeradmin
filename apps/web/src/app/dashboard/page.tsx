@@ -1,4 +1,4 @@
-import OperatorDashboard from '../../components/operator/OperatorDashboard';
+import OperatorDashboard from '../../presentation/operator/OperatorDashboard';
 
 export default function DashboardPage() {
   return <OperatorDashboard />;

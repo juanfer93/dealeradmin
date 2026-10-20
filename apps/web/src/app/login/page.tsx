@@ -3,6 +3,7 @@
 import { FormEvent, useRef, useState } from 'react';
 import { Logo } from '../../components/ui/logo';
 import { LanguageSwitch, useLanguage } from '../../lib/i18n';
+import { login } from '../../infrastructure/auth/auth-api';
 
 export default function LoginPage() {
   const { t } = useLanguage();
@@ -17,12 +18,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ username, password }),
-      });
+      const response = await login(username, password);
       if (!response.ok) {
         throw new Error(t.login.invalid);
       }

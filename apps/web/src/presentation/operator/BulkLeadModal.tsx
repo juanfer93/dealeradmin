@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { isPortfolioMode, portfolioWriteBlockedMessage } from '../../lib/portfolio-mode';
+import { isPortfolioMode, portfolioWriteBlockedMessage } from '../../infrastructure/portfolio/portfolio-repository';
 import { useLanguage } from '../../lib/i18n';
+import { importLeads } from '../../infrastructure/operator/lead-actions-api';
 
 type BulkRow = { rowNumber: number; name: string; phone: string; status: 'inserted' | 'duplicate' | 'invalid'; reason?: string };
 type BulkResponse = { summary: { received: number; inserted: number; duplicates: number; invalid: number }; rows: BulkRow[] };
@@ -39,7 +40,7 @@ export function BulkLeadModal({ isOpen, onClose, dealerId, onImported }: BulkLea
     if (isPortfolioMode) { setError(language === 'es' ? portfolioWriteBlockedMessage : 'Demo mode: this action is disabled to protect production data.'); return; }
     setLoading(true);
     try {
-      const response = await fetch(`/api/dealers/${dealerId}/leads/bulk`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ text }) });
+      const response = await importLeads(dealerId, text);
       const body: unknown = await response.json().catch(() => undefined);
       if (!response.ok) throw new Error(responseMessage(body, copy.errors.save));
       setResult(body as BulkResponse); onImported();

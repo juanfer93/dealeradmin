@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { isPortfolioMode, portfolioWriteBlockedMessage } from '../../lib/portfolio-mode';
+import { isPortfolioMode, portfolioWriteBlockedMessage } from '../../infrastructure/portfolio/portfolio-repository';
 import { useLanguage } from '../../lib/i18n';
+import { reassignLead } from '../../infrastructure/operator/lead-actions-api';
 
 const EASTERN_DEALERS = [
   { id: 'd1111111-1111-1111-1111-111111111111', name: 'Rosedale' },
@@ -29,12 +30,7 @@ export function ReassignDropdown({ leadId, currentDealerId, onReassigned }: Reas
     setError('');
     try {
       if (isPortfolioMode) throw new Error(language === 'es' ? portfolioWriteBlockedMessage : 'Demo mode: this action is disabled to protect production data.');
-      const response = await fetch(`/api/leads/${leadId}/reassign`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ currentDealerId, targetDealerId }),
-      });
+      const response = await reassignLead(leadId, currentDealerId, targetDealerId);
       if (!response.ok) throw new Error(t.reassign.error);
       await onReassigned();
     } catch (reassignError) {
