@@ -1,10 +1,10 @@
 import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import type { QueryRunner } from 'typeorm';
-import { buildWhatsAppMessage } from '../../../leads/domain/message-builder';
-import { hasMinimumRoutingQualification, type CollectorLanguage } from '../../../leads/domain/collector-normalizer';
-import { visibleDownPayment } from '../../../leads/domain/down-payment';
-import { extractConversationLocation, extractLocationCandidates } from '../conversation-location';
-import type { GeoroutingService } from '../../../routing/domain/services/georouting.service';
+import { buildWhatsAppMessage } from '../../../../leads/domain/message-builder';
+import { hasMinimumRoutingQualification, type CollectorLanguage } from '../../../../leads/domain/collector-normalizer';
+import { visibleDownPayment } from '../../../../leads/domain/down-payment';
+import { extractConversationLocation, extractLocationCandidates } from '../../conversation-location';
+import type { GeoroutingService } from '../../../../routing/domain/services/georouting.service';
 import {
   CONVERSATION_STABILIZATION_MS,
   GHL_SOURCE_CONFIG,

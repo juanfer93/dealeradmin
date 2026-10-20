@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ConversationQualificationFunctions } from '../../application/functions/conversation-qualification.functions';
+import { ConversationQualificationFunctions } from '../../application/functions/conversations/conversation-qualification.functions';
 
 describe('ConversationQualificationFunctions', () => {
   it('finds reengagement by historical snapshot phone across aliases of the same dealer', async () => {

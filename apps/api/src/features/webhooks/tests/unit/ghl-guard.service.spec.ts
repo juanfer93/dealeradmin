@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { GHL_SOURCE_CONFIG } from '../../application/functions/conversation-webhook.config';
+import { GHL_SOURCE_CONFIG } from '../../application/functions/conversations/conversation-webhook.config';
 import { ghlGuardBatchSize, ghlGuardConcurrency, ghlGuardConversationTimeoutMs, ghlGuardStaleLogMs, ghlGuardTimeoutMs } from '../../application/ghl-guard.config';
 import { GhlGuardService } from '../../application/ghl-guard.service';
 

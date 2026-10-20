@@ -6,14 +6,14 @@ import { GeoroutingService } from '../../routing/domain/services/georouting.serv
 import { recordTestConversationEvent } from './test-conversation-store';
 import { QUEUED_PAUSE_NOTIFIER } from '../presentation/queued-pause.tokens';
 import { type QueuedPauseNotifier } from './conversation-bot-pause';
-import { ConversationQueueService, type QueuedPauseDispatch } from './functions/conversation-queue.service';
-import { ConversationDueFunctions } from './functions/conversation-due.functions';
-import { ConversationEventFunctions } from './functions/conversation-event.functions';
-import { ConversationQualificationFunctions } from './functions/conversation-qualification.functions';
-import { ConversationReconciliationFunctions } from './functions/conversation-reconciliation.functions';
-import { InvalidPhoneNumber, UnresolvedLocationException } from './functions/conversation-webhook.errors';
-import { DUE_CONVERSATION_POLL_MS, GHL_SOURCE_CONFIG } from './functions/conversation-webhook.config';
-import { currentLocalNow, hash, inputIndicatesWhatsApp, normalizedChannel, safePhone, sourceKey } from './functions/conversation-webhook.helpers';
+import { ConversationQueueService, type QueuedPauseDispatch } from './functions/conversations/conversation-queue.service';
+import { ConversationDueFunctions } from './functions/conversations/conversation-due.functions';
+import { ConversationEventFunctions } from './functions/conversations/conversation-event.functions';
+import { ConversationQualificationFunctions } from './functions/conversations/conversation-qualification.functions';
+import { ConversationReconciliationFunctions } from './functions/conversations/conversation-reconciliation.functions';
+import { InvalidPhoneNumber, UnresolvedLocationException } from './functions/conversations/conversation-webhook.errors';
+import { DUE_CONVERSATION_POLL_MS, GHL_SOURCE_CONFIG } from './functions/conversations/conversation-webhook.config';
+import { currentLocalNow, hash, inputIndicatesWhatsApp, normalizedChannel, safePhone, sourceKey } from './functions/conversations/conversation-webhook.helpers';
 import { WebhookProcessingAuditService } from './webhook-processing-audit.service';
 import { GhlGuardService } from './ghl-guard.service';
 import type {
@@ -24,11 +24,11 @@ import type {
   LocationSnapshot,
   MediaReconciliationResponse,
   SourceKey,
-} from './functions/conversation-webhook.types';
+} from './functions/conversations/conversation-webhook.types';
 import type { CollectorLanguage } from '../../leads/domain/collector-normalizer';
 
-export * from './functions/conversation-webhook.config';
-export type * from './functions/conversation-webhook.types';
+export * from './functions/conversations/conversation-webhook.config';
+export type * from './functions/conversations/conversation-webhook.types';
 
 @Injectable()
 export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy {

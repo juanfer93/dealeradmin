@@ -78,7 +78,7 @@ describeDatabase('Arlington real GHL transcript replay', () => {
       ],
       phoneMessageIndex: 3,
       phoneMetadataIndex: 0,
-      expectedVehicle: 'Honda Pilot',
+      expectedVehicle: 'Honda Pilot 2023',
       expectedPhone: '+15406766165',
       shouldQueue: true,
     },

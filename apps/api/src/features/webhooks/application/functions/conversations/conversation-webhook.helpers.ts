@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { normalizePhone } from '../../../leads/domain/phone-normalizer';
+import { normalizePhone } from '../../../../leads/domain/phone-normalizer';
 import type { ConversationMessageRow, SourceKey, SourceConfigMap } from './conversation-webhook.types';
 
 export function asRecord(value: unknown): Record<string, unknown> {

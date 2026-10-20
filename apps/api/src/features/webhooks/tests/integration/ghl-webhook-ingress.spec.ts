@@ -93,7 +93,7 @@ describeDatabase('GHL webhook ingress regression for the three reported leads', 
       contactId: `${suffix}-jose-salcedo-contact`,
       conversationId: `${suffix}-jose-salcedo-conversation`,
       expectedPhone: '+18435311632',
-      expectedVehicle: 'Toyota 4Runner',
+      expectedVehicle: 'Toyota 4Runner 2016',
       expectedVehicleYear: 2016,
       messages: [
         { body: 'Buenos días, bueno quería que me diera una información para ver si tenían Toyota Runner del 2016 o 217-1819 20 alguno de esos modelos', name: 'Jose Luis Salcedo' },

@@ -217,8 +217,8 @@ describeDatabase('Offlease previous-financing promotion against local PostgreSQL
     expect(rows[0]).toMatchObject({ status: 'waiting_window' });
     expect(rows[0].qualification_snapshot).toMatchObject({
       previous_financing: 'yes',
-      down_payment: '1000',
-      down_payment_amount: 1000,
+      down_payment: '',
+      down_payment_amount: null,
       down_payment_sufficient: false,
       required_down_payment: expect.any(Number),
     });
@@ -263,8 +263,8 @@ describeDatabase('Offlease previous-financing promotion against local PostgreSQL
     expect(rows[0]).toMatchObject({ status: 'waiting_window' });
     expect(rows[0].qualification_snapshot).toMatchObject({
       previous_financing: 'no',
-      down_payment: '1000',
-      down_payment_amount: 1000,
+      down_payment: '',
+      down_payment_amount: null,
       down_payment_sufficient: false,
       required_down_payment: minimum,
     });

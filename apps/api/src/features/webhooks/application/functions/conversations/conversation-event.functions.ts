@@ -1,8 +1,8 @@
 import type { DataSource, QueryRunner } from 'typeorm';
-import { detectLeadLanguage, extractRecentMessagePhone, isAdvisorHandoffVehicle, isQualificationComplete, normalizeCollectorInput, normalizeRealName } from '../../../leads/domain/collector-normalizer';
-import { evaluateDownPayment, normalizeDownPayment } from '../../../leads/domain/down-payment';
-import { findQueuedConversationDuplicate } from '../../../leads/domain/lead-duplicate';
-import { normalizeGhlAttachments } from '../../domain/ghl-attachment-normalizer';
+import { detectLeadLanguage, extractRecentMessagePhone, isAdvisorHandoffVehicle, isQualificationComplete, normalizeCollectorInput, normalizeRealName } from '../../../../leads/domain/collector-normalizer';
+import { evaluateDownPayment, normalizeDownPayment } from '../../../../leads/domain/down-payment';
+import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-duplicate';
+import { normalizeGhlAttachments } from '../../../domain/ghl-attachment-normalizer';
 import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
 import { ConversationQualificationFunctions } from './conversation-qualification.functions';
 import { GHL_SOURCE_CONFIG } from './conversation-webhook.config';

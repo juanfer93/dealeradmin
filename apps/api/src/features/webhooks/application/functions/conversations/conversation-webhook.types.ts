@@ -1,5 +1,5 @@
 import type { GhlCustomerRepliedDto } from '@dealeradmin/contracts';
-import type { CollectorLanguage, QualificationProgress } from '../../../leads/domain/collector-normalizer';
+import type { CollectorLanguage, QualificationProgress } from '../../../../leads/domain/collector-normalizer';
 
 export type SourceKey = 'stafford' | 'fredericksburg' | 'fredericksburg-2' | 'easterns' | 'arlington' | 'koons-fred' | 'koons-fred-eng' | 'koons-culpeper' | 'action-cars' | 'easterns-millersville' | 'easterns-frederick';
 export type SourceConfig = {

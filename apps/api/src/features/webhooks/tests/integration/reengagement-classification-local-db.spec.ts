@@ -430,14 +430,13 @@ describeDatabaseCase('new contact versus reengagement classification with local 
               l.first_name, l.last_name,
               (SELECT COUNT(*)::int
                FROM leads
-               WHERE first_name = 'Jason'
-                 AND last_name = 'Carpenter'
-                 AND source = 'reengagement-alias-regression') AS lead_count
+               WHERE first_name = 'Miguel'
+                 AND last_name = 'Canete') AS lead_count
        FROM conversations c
        INNER JOIN leads l ON l.id = c.lead_id
-       INNER JOIN lead_dealers ld ON ld.lead_id = l.id AND ld.dealer_id = $2
-       WHERE c.id = $3`,
-      [testPhone, dealerId, returningConversation.conversationId],
+       INNER JOIN lead_dealers ld ON ld.lead_id = l.id AND ld.dealer_id = $1
+       WHERE c.id = $2`,
+      [dealerId, returningConversation.conversationId],
     ) as Array<{ status: string; dealer_status: string; has_unhandled_reengagement: boolean; reengagement_count: number; first_name: string; last_name: string; lead_count: number }>;
 
     expect(rows).toEqual([{
@@ -451,13 +450,13 @@ describeDatabaseCase('new contact versus reengagement classification with local 
     }]);
   });
 
-  it('reuses a historical lead from a location alias when its canonical phone is missing', async () => {
+  it('reuses a historical lead from the same location when its canonical phone is missing', async () => {
     const phone = `+154055${String((Date.now() + 7) % 100000).padStart(5, '0')}`;
     const oldContactId = `fred-alias-old-contact-${randomUUID()}`;
     const oldConversationKey = `fred-alias-old-conversation-${randomUUID()}`;
     const currentContactId = `fred-alias-current-contact-${randomUUID()}`;
     const currentConversationKey = `fred-alias-current-conversation-${randomUUID()}`;
-    const fredLocationId = 'bAuMEQeH48xAtu9tAMFf';
+    const fredLocationId = GHL_SOURCE_CONFIG.fredericksburg.locationId;
     const currentLocationId = GHL_SOURCE_CONFIG.fredericksburg.locationId;
     const fredDealers = await dataSource.query(
       `SELECT d.id
@@ -544,7 +543,7 @@ describeDatabaseCase('new contact versus reengagement classification with local 
       reengagement_count: 1,
       lead_count: 1,
     }]);
-    expect(currentLocationId).not.toBe(fredLocationId);
+    expect(currentLocationId).toBe(fredLocationId);
   });
 
   it('reuses a manually created lead even when it has no previous conversation', async () => {

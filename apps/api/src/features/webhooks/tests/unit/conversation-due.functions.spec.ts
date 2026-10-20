@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ConversationDueFunctions } from '../../application/functions/conversation-due.functions';
+import { ConversationDueFunctions } from '../../application/functions/conversations/conversation-due.functions';
 
 describe('ConversationDueFunctions', () => {
   it('runs the additive GHL guard without the heavy active reconciliation pass', async () => {

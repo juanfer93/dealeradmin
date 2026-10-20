@@ -7,7 +7,7 @@ import {
   QUEUED_PAUSE_HOURS,
   type QueuedPauseNotifier,
   type QueuedPausePayload,
-} from '../conversation-bot-pause';
+} from '../../conversation-bot-pause';
 
 type QueueSourceConfig = Record<string, { locationId: string }>;
 

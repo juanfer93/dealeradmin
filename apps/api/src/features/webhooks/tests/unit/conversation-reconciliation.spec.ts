@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ConversationReconciliationFunctions } from '../../application/functions/conversation-reconciliation.functions';
-import { GHL_SOURCE_CONFIG } from '../../application/functions/conversation-webhook.config';
+import { ConversationReconciliationFunctions } from '../../application/functions/conversations/conversation-reconciliation.functions';
+import { GHL_SOURCE_CONFIG } from '../../application/functions/conversations/conversation-webhook.config';
 
 describe('ConversationReconciliationFunctions', () => {
   it('repairs a bad profile label from the name explicitly declared in the transcript', async () => {

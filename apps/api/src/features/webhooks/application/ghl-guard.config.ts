@@ -1,4 +1,4 @@
-import type { SourceKey } from './functions/conversation-webhook.types';
+import type { SourceKey } from './functions/conversations/conversation-webhook.types';
 
 export const GHL_GUARD_LOCK_KEY = 'dealeradmin.ghl.guard.v1';
 export const GHL_GUARD_DEFAULT_INTERVAL_MS = 5 * 60 * 1000;

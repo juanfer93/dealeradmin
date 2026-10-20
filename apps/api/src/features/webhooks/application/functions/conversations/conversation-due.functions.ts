@@ -1,13 +1,13 @@
 import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import type { DataSource } from 'typeorm';
-import { findQueuedConversationDuplicate } from '../../../leads/domain/lead-duplicate';
+import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-duplicate';
 import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
 import { ConversationQualificationFunctions } from './conversation-qualification.functions';
 import { ConversationReconciliationFunctions } from './conversation-reconciliation.functions';
 import { DUE_CONVERSATION_BATCH_SIZE, GHL_SOURCE_CONFIG } from './conversation-webhook.config';
 import { clean } from './conversation-webhook.helpers';
 import type { ConversationSnapshot, LocationSnapshot, DueConversationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
-import type { GhlGuardRunResult, GhlGuardService } from '../ghl-guard.service';
+import type { GhlGuardRunResult, GhlGuardService } from '../../ghl-guard.service';
 
 export class ConversationDueFunctions {
   constructor(

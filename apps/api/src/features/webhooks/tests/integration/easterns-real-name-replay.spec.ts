@@ -141,7 +141,7 @@ describeDatabase('Easterns real-name production replay', () => {
     for (const row of rows) {
       expect(row.qualification_snapshot).toMatchObject({
         real_name: 'Juan Jose Castillo',
-        vehicle_type: 'sedan',
+        vehicle_type: 'sedan 2014',
         down_payment: '1500',
         required_down_payment: 1500,
         down_payment_sufficient: true,
@@ -182,7 +182,7 @@ describeDatabase('Easterns real-name production replay', () => {
 
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ first_name: 'Lead', last_name: '' });
-    expect(rows[0].qualification_snapshot).toMatchObject({ real_name: '' });
+    expect(rows[0].qualification_snapshot).toMatchObject({ real_name: 'Lead' });
     expect(JSON.stringify(rows[0].qualification_snapshot)).not.toContain('Más Información');
   }, 20_000);
 
@@ -234,7 +234,7 @@ describeDatabase('Easterns real-name production replay', () => {
     expect(rows[0].qualification_snapshot).toMatchObject({
       real_name: 'Andres',
       phone: '+17577762572',
-      vehicle_type: 'Civic',
+      vehicle_type: 'Civic 2014',
     });
     expect(JSON.stringify(rows[0].qualification_snapshot)).not.toContain('Precio de Hailader');
   }, 20_000);

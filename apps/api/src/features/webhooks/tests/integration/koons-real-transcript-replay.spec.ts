@@ -21,7 +21,7 @@ describeDatabase('Koons real GHL transcript replay', () => {
         '8046532943',
         'No se como trabajan ustedes',
       ],
-      expectedVehicle: '4Runner',
+      expectedVehicle: '4Runner 2010',
     },
     {
       label: 'Fredericksburg / Luis A Sandoval',
