@@ -21,7 +21,12 @@ export const FINANCIAL_CONTEXT_BEFORE_AMOUNT = /\b(?:down|payment|enganche|inici
 // instead of falling back to the advisor handoff marker.
 export function normalizeWhisperVehicleAliases(value: string): string {
   return clean(value)
+    .replace(/^ban$/i, 'van')
     .replace(/\bsedán\b/gi, 'Sedan')
+    // Spanish GHL/Messenger transcription can render "van" as "ban" in a
+    // vehicle request such as "ban con rampa". Keep the context boundary so
+    // an older trade-in phrase like "mi ban y 2000" is not reinterpreted.
+    .replace(/\bban\b(?=\s+(?:con|para)\b)/gi, 'van')
     .replace(/\b(?:andas|onda|ondas|honda)\s+y\s*vis\s+si\b/gi, 'Honda Civic')
     .replace(/\b(?:andas|onda|ondas)\s+civ(?:ic|is)\b/gi, 'Honda Civic')
     // GHL/Messenger transcription in the Culpeper replay rendered

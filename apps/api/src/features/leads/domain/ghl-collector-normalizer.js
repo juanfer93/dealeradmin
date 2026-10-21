@@ -94,7 +94,12 @@ const economicSedanIntent = /\b(?:carro|auto|coche|veh[ií]culo|algo)\s+econ[oó
 const familyPassengerVanIntent = /\b(?:algo\s+)?familiar\b[\s\S]{0,80}\bpasajeros?\b/i;
 const noDownPaymentResponse = /\b(?:no(?:\s+\w+){0,3}\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)?)\b/i;
 const normalizeWhisperVehicleAliases = (value) => clean(value)
+  .replace(/^ban$/i, 'van')
   .replace(/\bsedán\b/gi, 'Sedan')
+  // Spanish GHL/Messenger transcription can render "van" as "ban" in a
+  // vehicle request such as "ban con rampa". Keep the context boundary so
+  // an older trade-in phrase like "mi ban y 2000" is not reinterpreted.
+  .replace(/\bban\b(?=\s+(?:con|para)\b)/gi, 'van')
   .replace(/\b(?:andas|onda|ondas|honda)\s+y\s*vis\s+si\b/gi, 'Honda Civic')
   .replace(/\b(?:andas|onda|ondas)\s+civ(?:ic|is)\b/gi, 'Honda Civic')
   // GHL/Messenger transcription in the Culpeper replay rendered

@@ -530,6 +530,25 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.vehicle_type).not.toBe('Quiere hablar con un asesor');
   });
 
+  it('normalizes the Spanish transcription "ban" as a van', () => {
+    const result = execute({
+      source: 'fredericksburg-2',
+      channel: 'messenger',
+      real_name: 'Samuelito Sandoval',
+      phone: '+15712685358',
+      vehicle_type: 'Quiere hablar con un asesor',
+      message: 'Tendrá alguna ban con Rampla para transporte de adulto mayor',
+      chat_history_log: 'Tendrá alguna ban con Rampla para transporte de adulto mayor',
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Samuelito Sandoval',
+      phone: '+15712685358',
+      vehicle_type: 'van',
+    });
+    expect(result.missing_qualification).not.toContain('vehicle_type');
+  });
+
   it.each([
     ['U coche 🚗 pequeño', 'Sedan'],
     ['un coche pekeno', 'Sedan'],
