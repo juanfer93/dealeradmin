@@ -478,6 +478,48 @@ describe('GhlGuardService', () => {
     expect(client.listMessages).not.toHaveBeenCalled();
   });
 
+  it('persists a run-level audit row when the database runner cannot connect', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.GHL_GUARD_ENABLED = 'true';
+    process.env.GHL_PRIVATE_TOKEN_STAFFORD = 'pit-test-token';
+
+    const lockRunner = {
+      connect: vi.fn().mockRejectedValue(new Error('server conn crashed?')),
+      query: vi.fn(),
+      release: vi.fn(),
+    };
+    const dataSource = {
+      createQueryRunner: vi.fn().mockReturnValue(lockRunner),
+      query: vi.fn().mockResolvedValue([]),
+    };
+    const client = { listMessages: vi.fn() };
+    const service = new GhlGuardService(dataSource as never, { reconcileConversation: vi.fn() } as never, GHL_SOURCE_CONFIG, client);
+
+    const result = await service.run(new Date('2026-10-16T12:00:00.000Z'), {
+      contactIds: ['contact-run-connect-failure'],
+      force: true,
+    });
+
+    expect(result).toMatchObject({ selected: 0, failed: 1 });
+    expect(result.errors).toEqual([{
+      conversationId: null,
+      ghlLocationId: null,
+      ghlContactId: null,
+      errorCode: 'Error',
+      errorMessage: 'server conn crashed?',
+    }]);
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO ghl_guard_logs'),
+      expect.arrayContaining([expect.any(String), null, null, null, null, 'failed']),
+    );
+    expect(JSON.parse(String(dataSource.query.mock.calls[0]?.[1]?.[12]))).toEqual(expect.objectContaining({
+      errorCode: 'Error',
+      errorMessage: 'server conn crashed?',
+      targetContactIds: ['contact-run-connect-failure'],
+    }));
+    expect(client.listMessages).not.toHaveBeenCalled();
+  });
+
   it('accepts an idempotent audit transition when RETURNING is empty but the row has the target state', async () => {
     const dataSource = {
       query: vi.fn()

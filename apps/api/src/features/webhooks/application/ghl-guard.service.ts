@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
-import type { DataSource } from 'typeorm';
+import type { DataSource, QueryRunner } from 'typeorm';
 import { GHL_SOURCE_CONFIG, RECONCILIATION_LOCATION_IDS } from './functions/conversations/conversation-webhook.config';
 import type { SourceConfigMap, SourceKey } from './functions/conversations/conversation-webhook.types';
 import { ConversationReconciliationFunctions } from './functions/conversations/conversation-reconciliation.functions';
@@ -75,9 +75,10 @@ export class GhlGuardService {
     this.lastRunAt = now.getTime();
 
     const result: GhlGuardRunResult = { ...empty, skipped: false };
-    const lockRunner = this.dataSource.createQueryRunner();
-    await lockRunner.connect();
+    let lockRunner: QueryRunner | null = null;
     try {
+      lockRunner = this.dataSource.createQueryRunner();
+      await lockRunner.connect();
       const locked = await lockRunner.query(`SELECT pg_try_advisory_lock(hashtext($1)) AS locked`, [GHL_GUARD_LOCK_KEY]) as Array<{ locked: boolean }>;
       if (!locked[0]?.locked) {
         const skipped = { ...result, skipped: true, skipReason: 'advisory_lock' as const };
@@ -156,12 +157,14 @@ export class GhlGuardService {
     } catch (error) {
       const errorCode = error instanceof Error ? error.name : 'GHL_GUARD_RUN_FAILED';
       const errorMessage = error instanceof Error ? error.message : String(error);
-      await this.persistence.log(runId, null, 'failed', { errorCode, errorMessage });
+      await this.persistence.log(runId, null, 'failed', { errorCode, errorMessage, targetContactIds: contactIds });
       this.recordFailure(result, null, errorCode, errorMessage);
       return result;
     } finally {
-      try { await lockRunner.query(`SELECT pg_advisory_unlock(hashtext($1))`, [GHL_GUARD_LOCK_KEY]); } catch { /* best effort */ }
-      await lockRunner.release();
+      if (lockRunner) {
+        try { await lockRunner.query(`SELECT pg_advisory_unlock(hashtext($1))`, [GHL_GUARD_LOCK_KEY]); } catch { /* best effort */ }
+        await lockRunner.release();
+      }
       this.running = false;
       this.schedulePendingTargetedRun();
     }
