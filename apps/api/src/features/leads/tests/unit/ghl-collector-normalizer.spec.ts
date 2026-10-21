@@ -201,6 +201,41 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
   });
 
+  it.each(['Bomltimo', 'baltimor', 'baltmore', 'baltimroe', 'balitmore', 'baltimre', 'baltimorre', 'baltimoro', 'balitmor', 'baltimo'])('canonicalizes Easterns Baltimore spelling variant %s for the locations lookup in Custom Code', (message) => {
+    expect(execute({
+      source: 'easterns',
+      channel: 'messenger',
+      real_name: 'Javier Rodriguez',
+      phone: '+13016134765',
+      vehicle_type: 'truck',
+      message,
+    })).toMatchObject({
+      customer_location: 'Baltimore',
+      qualification_step: 'complete',
+      qualification_complete: true,
+    });
+  });
+
+  it('does not apply fuzzy Baltimore correction outside Easterns in Custom Code', () => {
+    expect(execute({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      phone: '+13016134765',
+      vehicle_type: 'truck',
+      message: 'Bomltimo',
+    }).customer_location).toBe('');
+  });
+
+  it('keeps Millersville outside the Baltimore fuzzy correction used by its round robin in Custom Code', () => {
+    expect(execute({
+      source: 'easterns-millersville',
+      channel: 'messenger',
+      phone: '+13016134765',
+      vehicle_type: 'truck',
+      message: 'Bomltimo',
+    }).customer_location).toBe('');
+  });
+
   it('normalizes comma-separated grouped phone evidence from Ruben in Custom Code', () => {
     const result = execute({
       source: 'koons-culpeper',

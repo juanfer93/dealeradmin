@@ -437,6 +437,43 @@ describe('normalizeCollectorInput', () => {
     expect(result).toMatchObject({ down_payment: '', down_payment_sufficient: false, next_question: '' });
   });
 
+  it.each(['Bomltimo', 'baltimor', 'baltmore', 'baltimroe', 'balitmore', 'baltimre', 'baltimorre', 'baltimoro', 'balitmor', 'baltimo'])('canonicalizes Easterns Baltimore spelling variant %s for the locations lookup', (message) => {
+    const result = normalizeCollectorInput({
+      source: 'easterns',
+      channel: 'messenger',
+      real_name: 'Javier Rodriguez',
+      phone: '+13016134765',
+      vehicle_type: 'truck',
+      message,
+    });
+
+    expect(result).toMatchObject({
+      customer_location: 'Baltimore',
+      qualification_step: 'complete',
+      qualification_complete: true,
+    });
+  });
+
+  it('does not apply fuzzy Baltimore correction outside Easterns', () => {
+    expect(normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      phone: '+13016134765',
+      vehicle_type: 'truck',
+      message: 'Bomltimo',
+    }).customer_location).toBe('');
+  });
+
+  it('keeps Millersville outside the Baltimore fuzzy correction used by its round robin', () => {
+    expect(normalizeCollectorInput({
+      source: 'easterns-millersville',
+      channel: 'messenger',
+      phone: '+13016134765',
+      vehicle_type: 'truck',
+      message: 'Bomltimo',
+    }).customer_location).toBe('');
+  });
+
   it('normalizes structured image interpretation as ordinary inbound evidence', () => {
     const result = normalizeCollectorInput({
       channel: 'messenger',

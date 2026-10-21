@@ -302,7 +302,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
        WHERE c.ghl_contact_id = $1`,
       [snapshotContactId],
     ) as Array<{ status: string; qualification_snapshot: Record<string, unknown> }>;
-    expect(persisted[0]).toMatchObject({ status: 'queued' });
+    expect(persisted[0]).toMatchObject({ status: 'waiting_window' });
     expect(persisted[0].qualification_snapshot).toMatchObject({
       real_name: 'Snapshot Fallback Buyer',
       vehicle_type: 'Toyota Tacoma',

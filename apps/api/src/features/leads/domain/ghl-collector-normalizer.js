@@ -210,6 +210,30 @@ const phoneLikeText = (value) => {
   return /\b(?:mi|my)\s+(?:n[uú]mero|number|phone|tel[eé]fono|telephone|contact)\b/i.test(candidate)
     || digits.length >= 7;
 };
+const locationSpellingVariants = /\b(?:baltimore|baltimor|baltmore|baltimroe|balitmore|baltimre|baltimorre|baltimoro|balitmor|baltimo|bomltimo)\b/i;
+const editDistanceAtMost = (left, right, limit) => {
+  if (Math.abs(left.length - right.length) > limit) return false;
+  let previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+  for (let row = 1; row <= left.length; row += 1) {
+    const current = [row];
+    let minimum = current[0];
+    for (let column = 1; column <= right.length; column += 1) {
+      const value = Math.min(current[column - 1] + 1, previous[column] + 1, previous[column - 1] + (left[row - 1] === right[column - 1] ? 0 : 1));
+      current[column] = value;
+      minimum = Math.min(minimum, value);
+    }
+    if (minimum > limit) return false;
+    previous = current;
+  }
+  return previous[right.length] <= limit;
+};
+const isBaltimoreVariant = (value) => {
+  const candidate = clean(value).toLocaleLowerCase();
+  if (locationSpellingVariants.test(candidate)) return true;
+  return (candidate.match(/[a-z]+/g) || [])
+    .filter((token) => token.length >= 6 && token.length <= 12 && token.startsWith('b'))
+    .some((token) => editDistanceAtMost(token, 'baltimore', 3));
+};
 const nameDeclaration = /(?:me llamo|mi nombre es|soy|yo soy|my name is|my name['’]s|i am|i['’]m|this is|call me(?!\s+at\b)|ll[aá]mame)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i;
 const realNameToken = "[\\p{L}\\p{M}]+(?:[-'][\\p{L}\\p{M}]+)*";
 const realNamePattern = new RegExp(`^${realNameToken}(?:\\s+${realNameToken})*$`, 'u');
@@ -228,7 +252,7 @@ const isValidRealName = (value) => {
 };
 const normalizeRealName = (value) => {
   const candidate = normalizeNameSuffixPunctuation(value);
-  if (!candidate || invalidRealNames.has(candidate.toLowerCase()) || phoneLikeText(candidate) || !isValidRealName(candidate) || technicalNameLabel.test(candidate) || locationResponse.test(candidate) || profileDisplayLabelMarkers.test(candidate) || singleWordNameBlocklist.test(candidate) || qualificationResponseMarkers.test(candidate) || genericVehicleIntent.test(candidate) || inventoryIntent.test(candidate) || greetingOnly.test(candidate) || isVehicleStatement(candidate)) return '';
+  if (!candidate || invalidRealNames.has(candidate.toLowerCase()) || phoneLikeText(candidate) || !isValidRealName(candidate) || technicalNameLabel.test(candidate) || locationResponse.test(candidate) || profileDisplayLabelMarkers.test(candidate) || singleWordNameBlocklist.test(candidate) || isBaltimoreVariant(candidate) || qualificationResponseMarkers.test(candidate) || genericVehicleIntent.test(candidate) || inventoryIntent.test(candidate) || greetingOnly.test(candidate) || isVehicleStatement(candidate)) return '';
   if (candidate.length > 100 || candidate.split(/\s+/).length > 5) return '';
   return formatPersonalName(candidate);
 };
@@ -719,8 +743,31 @@ down = visibleDownPayment(down, source);
 const sourceAware = Boolean(source);
 const stafford = source === 'stafford';
 const requiresLocation = ['easterns', 'easterns-millersville'].includes(source);
+const allowFuzzyBaltimore = source === 'easterns';
 const phoneSatisfiedByNative = stafford && isWhatsAppChannel(inputData.channel);
-const customerLocation = first(inputData.customer_location, `${history}; ${message}`.match(/\b(?:Baltimore|Laurel|Sterling|Millersville|Frederick|Fredericksburg|Woodbridge|Alexandria|Culpeper|Stafford)\b/i)?.[0] || '');
+const customerLocationAliases = [
+  ['Baltimore', /\bbaltimore\b/i],
+  ['Laurel', /\blaurel\b/i],
+  ['Sterling', /\bsterling\b/i],
+  ['Millersville', /\bmillersville\b/i],
+  ['Frederick', /\bfrederick\b/i],
+  ['Fredericksburg', /\bfredericksburg\b/i],
+  ['Woodbridge', /\bwoodbridge\b/i],
+  ['Alexandria', /\balexandria\b/i],
+  ['Culpeper', /\bculpeper\b/i],
+  ['Stafford', /\bstafford\b/i],
+];
+const normalizeCustomerLocation = (value, allowFuzzyBaltimore) => {
+  const candidate = clean(value);
+  return allowFuzzyBaltimore && isBaltimoreVariant(candidate) ? 'Baltimore' : candidate;
+};
+const suppliedCustomerLocation = first(inputData.customer_location);
+const transcriptText = `${history}; ${message}`;
+const exactTranscriptAlias = customerLocationAliases.find(([, pattern]) => pattern.test(transcriptText));
+const exactTranscriptLocation = exactTranscriptAlias ? transcriptText.match(exactTranscriptAlias[1])?.[0] || exactTranscriptAlias[0] : '';
+const customerLocation = suppliedCustomerLocation
+  ? normalizeCustomerLocation(suppliedCustomerLocation, allowFuzzyBaltimore)
+  : exactTranscriptLocation || (allowFuzzyBaltimore && isBaltimoreVariant(`${history}; ${message}`) ? 'Baltimore' : '');
 const vehicleCategory = /\b(?:truck|troka|troca|trokita|troquita|troque|trokas|pickup|pick[- ]?up|camioneta|camion|camión|tacoma|tundra|f[- ]?150|f[- ]?250|f[- ]?350|maverick|ranger|silverado|sierra|colorado|frontier|titan|ridgeline|gladiator|ram)\b/i.test(vehicle)
   ? 'truck'
   : /\b(?:suv|van|minivan|crossover|highlander|rav\s*4|4\s*runner|sienna|grand caravan|caravan|pacifica|odyssey|transit|promaster|pilot|passport|cr[- ]?v|hr[- ]?v|tahoe|suburban|traverse|equinox|blazer|yukon|acadia|terrain|wrangler|cherokee|compass|renegade|durango|explorer|expedition|escape|edge|armada|rogue|pathfinder|sportage|telluride|sorento|palisade|santa fe|tucson|forester|outback|ascent|atlas|tiguan|cayenne|range rover|defender)\b/i.test(vehicle)

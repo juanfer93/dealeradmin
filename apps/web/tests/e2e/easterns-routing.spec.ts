@@ -35,7 +35,7 @@ test.describe('Easterns routing, override y selección múltiple', () => {
     await expect(page.getByRole('button', { name: '¡Todo copiado!', exact: true })).toBeVisible();
     const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
     expect(clipboardText).toContain('Andres Felipe');
-    expect(clipboardText).toMatch(/\n\n/);
+    expect(clipboardText.replace(/\r\n/g, '\n')).toMatch(/\n\n/);
     await page.screenshot({ path: 'output/screenshots/day5-easterns-multi-copy.png', fullPage: true });
   });
 });
