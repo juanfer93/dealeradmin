@@ -421,6 +421,22 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
   });
 
+  it('replays the spoken rava variant with its vehicle year in Custom Code', () => {
+    expect(execute({
+      source: 'fredericksburg-2',
+      channel: 'messenger',
+      real_name: 'Nati de Leon',
+      phone: '+14847193424',
+      message: 'Una rava de 2020',
+    })).toMatchObject({
+      real_name: 'Nati de Leon',
+      phone: '+14847193424',
+      vehicle_type: 'RAV4 2020',
+      vehicle_year: 2020,
+      qualification_complete: true,
+    });
+  });
+
   it.each([
     '4Runner',
     '4runner',

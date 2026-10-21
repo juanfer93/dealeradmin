@@ -1243,6 +1243,24 @@ describe('normalizeCollectorInput', () => {
     });
   });
 
+  it('replays the spoken rava variant with its vehicle year', () => {
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg-2',
+      channel: 'messenger',
+      real_name: 'Nati de Leon',
+      phone: '+14847193424',
+      message: 'Una rava de 2020',
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Nati de Leon',
+      phone: '+14847193424',
+      vehicle_type: 'RAV4 2020',
+      vehicle_year: 2020,
+      qualification_complete: true,
+    });
+  });
+
   it('replays the exact Luis A Sandoval GHL inbound transcript as a routable Tacoma lead', () => {
     const transcript = [
       'Dónde queda moon?',
