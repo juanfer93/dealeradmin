@@ -27,6 +27,50 @@ export class GhlGuardPersistenceFunctions {
 
   constructor(private readonly dataSource: DataSource | undefined) {}
 
+  async claimQueuedReplay(conversationId: string, allowTargetedReplay = false): Promise<{ allowed: boolean; claimed: boolean }> {
+    if (!this.dataSource) return { allowed: false, claimed: false };
+    const runner = this.dataSource.createQueryRunner();
+    await runner.connect();
+    await runner.startTransaction();
+    try {
+      const rows = await runner.query(
+        `SELECT status, queued_guard_replay_count
+         FROM conversations
+         WHERE id = $1
+         FOR UPDATE`,
+        [conversationId],
+      ) as Array<{ status: string; queued_guard_replay_count: number | string | null }>;
+      const row = rows[0];
+      if (!row) {
+        await runner.rollbackTransaction();
+        return { allowed: false, claimed: false };
+      }
+      if (row.status !== 'queued') {
+        await runner.commitTransaction();
+        return { allowed: true, claimed: false };
+      }
+      if (Number(row.queued_guard_replay_count ?? 0) > 0) {
+        await runner.commitTransaction();
+        return { allowed: allowTargetedReplay, claimed: false };
+      }
+      const claimedRows = await runner.query(
+        `UPDATE conversations
+         SET queued_guard_replay_count = queued_guard_replay_count + 1,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1 AND status = 'queued' AND queued_guard_replay_count = 0
+         RETURNING id`,
+        [conversationId],
+      ) as Array<{ id: string }>;
+      await runner.commitTransaction();
+      return { allowed: claimedRows.length > 0, claimed: claimedRows.length > 0 };
+    } catch (error) {
+      if (runner.isTransactionActive) await runner.rollbackTransaction();
+      throw error;
+    } finally {
+      await runner.release();
+    }
+  }
+
   async persistMessages(row: GuardConversationRow, messages: GhlGuardMessage[], allowTargetedStatuses = false): Promise<PersistResult> {
     const runner = this.dataSource!.createQueryRunner();
     await runner.connect();

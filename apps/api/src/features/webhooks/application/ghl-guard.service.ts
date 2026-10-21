@@ -122,7 +122,8 @@ export class GhlGuardService {
            ORDER BY latest_guard.created_at DESC
            LIMIT 1
          ) last_guard ON TRUE
-         WHERE status NOT IN ('queued', 'sent', 'duplicate_ignored', 'ignored_channel', 'stale_phone_ignored')
+         WHERE (status NOT IN ('queued', 'sent', 'duplicate_ignored', 'ignored_channel', 'stale_phone_ignored')
+            OR (status = 'queued' AND queued_guard_replay_count = 0))
            AND ghl_location_id = ANY($2::text[])
            AND NOT EXISTS (
              SELECT 1 FROM ghl_guard_logs active_guard
@@ -232,6 +233,20 @@ export class GhlGuardService {
           durationMs: Date.now() - startedAt.getTime(),
         });
         return;
+      }
+      if (row.status === 'queued') {
+        const queuedReplay = await this.persistence.claimQueuedReplay(row.id, targeted);
+        if (!queuedReplay.allowed) {
+          await this.persistence.updateLog(logId, 'skipped', {
+            source,
+            skipReason: 'queued_replay_already_consumed',
+            queuedReplay: true,
+            finishedAt: new Date(),
+            durationMs: Date.now() - startedAt.getTime(),
+          });
+          return;
+        }
+        if (queuedReplay.claimed) await this.persistence.updateLog(logId, 'running', { queuedReplay: true });
       }
       let effectiveRow = row;
       let syntheticConversationId: string | null = null;
