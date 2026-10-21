@@ -182,28 +182,42 @@ export class GhlGuardClient {
       const remainingMs = options.deadlineAt === undefined ? Infinity : options.deadlineAt - Date.now();
       if (remainingMs <= 0) return { ok: false, status: 0, errorCode: 'GHL_TIMEOUT', requestPath: path, ...telemetry(attempt) };
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), Math.max(1, Math.min(this.timeoutMs, remainingMs)));
+      const requestTimeoutMs = Math.max(1, Math.min(this.timeoutMs, remainingMs));
+      let timeout: ReturnType<typeof setTimeout> | undefined;
       try {
-        const response = await fetch(`${this.baseUrl}${path}`, {
-          method: 'GET',
-          headers: {
-            Accept: 'application/json',
-            Authorization: `Bearer ${token}`,
-            Version: this.version,
-          },
-          signal: controller.signal,
+        const request = (async (): Promise<GhlGuardFetchResult<T>> => {
+          const response = await fetch(`${this.baseUrl}${path}`, {
+            method: 'GET',
+            headers: {
+              Accept: 'application/json',
+              Authorization: `Bearer ${token}`,
+              Version: this.version,
+            },
+            signal: controller.signal,
+          });
+          if (response.ok) {
+            return { ok: true, status: response.status, data: await response.json() as T, ...telemetry(attempt + 1) };
+          }
+          if (isRetryable(response.status) && attempt < attempts - 1) {
+            const retryable = await this.waitForRetry(retryDelayMs(response, attempt), options.deadlineAt);
+            if (!retryable) return { ok: false, status: 0, errorCode: 'GHL_TIMEOUT', requestPath: path, ...telemetry(attempt + 1) };
+            return { ok: false, status: response.status, errorCode: 'GHL_RETRY', ...telemetry(attempt + 1) };
+          }
+          let responsePayload: unknown;
+          try { responsePayload = await response.json(); } catch { /* Some gateway errors have no JSON body. */ }
+          return { ok: false, status: response.status, errorCode: safeErrorCode(response.status, undefined), responsePayload, ...telemetry(attempt + 1) };
+        })();
+        const timeoutError = new Error(`GHL request timed out after ${requestTimeoutMs}ms`);
+        timeoutError.name = 'AbortError';
+        const timedOut = new Promise<never>((_, reject) => {
+          timeout = setTimeout(() => {
+            controller.abort();
+            reject(timeoutError);
+          }, requestTimeoutMs);
         });
-        if (response.ok) {
-          return { ok: true, status: response.status, data: await response.json() as T, ...telemetry(attempt + 1) };
-        }
-        if (isRetryable(response.status) && attempt < attempts - 1) {
-          const retryable = await this.waitForRetry(retryDelayMs(response, attempt), options.deadlineAt);
-          if (!retryable) return { ok: false, status: 0, errorCode: 'GHL_TIMEOUT', requestPath: path, ...telemetry(attempt + 1) };
-          continue;
-        }
-        let responsePayload: unknown;
-        try { responsePayload = await response.json(); } catch { /* Some gateway errors have no JSON body. */ }
-        return { ok: false, status: response.status, errorCode: safeErrorCode(response.status, undefined), responsePayload, ...telemetry(attempt + 1) };
+        const result = await Promise.race([request, timedOut]);
+        if (result.errorCode === 'GHL_RETRY' && attempt < attempts - 1) continue;
+        return result;
       } catch (error) {
         if (attempt < attempts - 1 && shouldRetryThrownError(error)) {
           const retryable = await this.waitForRetry(250 * (attempt + 1), options.deadlineAt);
@@ -212,7 +226,7 @@ export class GhlGuardClient {
         }
         return { ok: false, status: 0, errorCode: safeErrorCode(0, error), requestPath: path, ...telemetry(attempt + 1) };
       } finally {
-        clearTimeout(timeout);
+        if (timeout) clearTimeout(timeout);
       }
     }
     return { ok: false, status: 0, errorCode: 'GHL_NETWORK_ERROR', requestPath: path, ...telemetry(attempts) };

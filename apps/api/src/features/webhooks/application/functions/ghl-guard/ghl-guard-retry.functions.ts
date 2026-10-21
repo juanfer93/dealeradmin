@@ -23,12 +23,15 @@ export class GhlGuardRetryFunctions {
     private readonly enqueuePendingContactIds: (contactIds: string[]) => void,
   ) {}
 
-  scheduleTransientRetry(row: GuardConversationRow, errorCode: string, source?: SourceKey): void {
-    if (!isRetryableGuardFailure(errorCode)) {
+  scheduleTransientRetry(row: GuardConversationRow, errorCode: string, source?: SourceKey, errorMessage?: string): void {
+    if (!isRetryableGuardFailure(errorCode, errorMessage)) {
       if (source) this.sourceCircuits.delete(source);
       return;
     }
-    if (source) {
+    // Only remote GHL failures should open the source circuit. A transient
+    // Neon/TypeORM connection failure should retry the contact without
+    // suppressing healthy GHL reads for the entire source.
+    if (source && errorCode.startsWith('GHL_')) {
       const previous = this.sourceCircuits.get(source);
       const consecutiveFailures = (previous?.consecutiveFailures ?? 0) + 1;
       const openedUntil = consecutiveFailures >= ghlGuardCircuitFailureThreshold()
@@ -39,8 +42,8 @@ export class GhlGuardRetryFunctions {
         this.logger.warn(`GHL guard circuit opened source=${source} cooldown_ms=${ghlGuardCircuitCooldownMs()}`);
       }
     }
-    // Keep the retry contact-scoped so a transient GHL failure cannot strand
-    // the conversation or replay unrelated contacts.
+    // Keep the retry contact-scoped so a transient GHL/Neon failure cannot
+    // strand the conversation or replay unrelated contacts.
     this.enqueuePendingContactIds([row.ghl_contact_id]);
   }
 

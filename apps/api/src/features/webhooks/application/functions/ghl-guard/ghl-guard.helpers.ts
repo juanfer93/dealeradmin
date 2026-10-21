@@ -18,12 +18,18 @@ export function isConversationIdentityConflict(error: unknown): boolean {
       || String(candidate.message ?? '').includes('conversations_identity_unique'));
 }
 
-export function isRetryableGuardFailure(errorCode: string): boolean {
-  return errorCode === 'GHL_TIMEOUT'
+export function isRetryableGuardFailure(errorCode: string, errorMessage = ''): boolean {
+  if (errorCode === 'GHL_TIMEOUT'
     || errorCode === 'GHL_NETWORK_ERROR'
     || errorCode === 'GHL_AUTH_TIMEOUT'
     || errorCode === 'GHL_RATE_LIMITED'
-    || /^GHL_HTTP_5\d\d$/.test(errorCode);
+    || /^GHL_HTTP_5\d\d$/.test(errorCode)) return true;
+
+  // TypeORM/pg can surface a dropped Neon connection after the GHL read has
+  // completed. Treat only known transport failures as transient; permanent
+  // SQL errors must still fail loudly and must not spin in a retry loop.
+  return /^(QueryFailedError|Error|error)$/.test(errorCode)
+    && /server conn crashed|connection terminated|connection reset|connection refused|econnreset|socket hang up|authentication.*timed out|\btimeout\b|\btimed out\b/i.test(errorMessage);
 }
 
 export function normalizeDirection(value: unknown): 'inbound' | 'outbound' | 'unknown' {

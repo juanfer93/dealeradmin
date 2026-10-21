@@ -395,7 +395,7 @@ export class GhlGuardService {
       const errorCode = error instanceof Error ? error.name : 'GHL_GUARD_CONVERSATION_FAILED';
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.recordFailure(result, row, errorCode, errorMessage);
-      this.retryFunctions.scheduleTransientRetry(row, errorCode, source);
+      this.retryFunctions.scheduleTransientRetry(row, errorCode, source, errorMessage);
       await this.persistence.safeUpdateLog(logId, 'failed', {
         errorCode,
         errorMessage,

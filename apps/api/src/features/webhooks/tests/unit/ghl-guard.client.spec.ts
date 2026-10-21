@@ -4,6 +4,7 @@ import { GhlGuardClient } from '../../application/ghl-guard.client';
 describe('GhlGuardClient', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('paginates GHL messages and sends the PIT-compatible headers', async () => {
@@ -115,5 +116,15 @@ describe('GhlGuardClient', () => {
 
     expect(result).toMatchObject({ ok: false, status: 0, errorCode: 'GHL_TIMEOUT' });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('bounds a response body that hangs after fetch resolves', async () => {
+    process.env.GHL_GUARD_TIMEOUT_MS = '5';
+    const response = new Response('{}', { status: 200 });
+    response.json = () => new Promise<unknown>(() => {});
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+
+    await expect(new GhlGuardClient().listMessages('pit-test-token', 'conversation-1'))
+      .resolves.toMatchObject({ ok: false, status: 0, errorCode: 'GHL_TIMEOUT' });
   });
 });
