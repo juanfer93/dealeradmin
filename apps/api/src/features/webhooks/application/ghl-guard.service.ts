@@ -99,6 +99,16 @@ export class GhlGuardService {
            ORDER BY latest_guard.created_at DESC
            LIMIT 1
          ) last_guard ON TRUE
+         LEFT JOIN LATERAL (
+           SELECT retry_guard.next_retry_at
+           FROM ghl_guard_logs retry_guard
+           WHERE retry_guard.conversation_id = conversations.id
+             AND retry_guard.status = 'failed'
+             AND retry_guard.next_retry_at IS NOT NULL
+             AND retry_guard.next_retry_at <= CURRENT_TIMESTAMP
+           ORDER BY retry_guard.next_retry_at ASC, retry_guard.created_at ASC
+           LIMIT 1
+         ) due_retry ON TRUE
          WHERE status NOT IN ('sent', 'ignored_channel', 'stale_phone_ignored')
            AND ghl_location_id = ANY($2::text[])
            AND ghl_contact_id = ANY($3::text[])
@@ -108,7 +118,9 @@ export class GhlGuardService {
                AND active_guard.status IN ('pending', 'running')
                AND COALESCE(active_guard.lease_expires_at, active_guard.started_at, active_guard.scheduled_at) > CURRENT_TIMESTAMP
            )
-         ORDER BY CASE status WHEN 'duplicate_ignored' THEN 0 WHEN 'partial' THEN 1 WHEN 'waiting_window' THEN 2 WHEN 'stale_phone_ignored' THEN 3 WHEN 'queued' THEN 4 ELSE 5 END,
+         ORDER BY CASE WHEN due_retry.next_retry_at IS NOT NULL THEN 0 ELSE 1 END,
+                  due_retry.next_retry_at ASC NULLS LAST,
+                  CASE status WHEN 'duplicate_ignored' THEN 0 WHEN 'partial' THEN 1 WHEN 'waiting_window' THEN 2 WHEN 'stale_phone_ignored' THEN 3 WHEN 'queued' THEN 4 ELSE 5 END,
                   last_guard.created_at NULLS FIRST,
                   last_message_at DESC NULLS LAST,
                   updated_at DESC
@@ -122,6 +134,16 @@ export class GhlGuardService {
            ORDER BY latest_guard.created_at DESC
            LIMIT 1
          ) last_guard ON TRUE
+         LEFT JOIN LATERAL (
+           SELECT retry_guard.next_retry_at
+           FROM ghl_guard_logs retry_guard
+           WHERE retry_guard.conversation_id = conversations.id
+             AND retry_guard.status = 'failed'
+             AND retry_guard.next_retry_at IS NOT NULL
+             AND retry_guard.next_retry_at <= CURRENT_TIMESTAMP
+           ORDER BY retry_guard.next_retry_at ASC, retry_guard.created_at ASC
+           LIMIT 1
+         ) due_retry ON TRUE
          WHERE (status NOT IN ('queued', 'sent', 'duplicate_ignored', 'ignored_channel', 'stale_phone_ignored')
             OR (status = 'queued' AND queued_guard_replay_count = 0))
            AND ghl_location_id = ANY($2::text[])
@@ -137,7 +159,9 @@ export class GhlGuardService {
                AND retry_guard.status = 'failed'
                AND retry_guard.next_retry_at > CURRENT_TIMESTAMP
            )
-         ORDER BY last_guard.created_at NULLS FIRST,
+         ORDER BY CASE WHEN due_retry.next_retry_at IS NOT NULL THEN 0 ELSE 1 END,
+                  due_retry.next_retry_at ASC NULLS LAST,
+                  last_guard.created_at NULLS FIRST,
                   last_message_at DESC NULLS LAST,
                   updated_at DESC
          LIMIT $1`,
@@ -197,6 +221,24 @@ export class GhlGuardService {
     if (typeof unref === 'function') unref.call(retry);
   }
 
+  private async findLocalCanonicalConversation(row: GuardConversationRow): Promise<{ id: string; ghl_conversation_id: string; status: string } | null> {
+    if (!this.dataSource) return null;
+    const rows = await this.dataSource.query(
+      `SELECT canonical.id, canonical.ghl_conversation_id, canonical.status
+       FROM conversations canonical
+       WHERE canonical.ghl_location_id = $1
+         AND canonical.ghl_contact_id = $2
+         AND canonical.id <> $3
+         AND canonical.ghl_conversation_id IS NOT NULL
+         AND canonical.ghl_conversation_id NOT LIKE 'contact:%'
+       ORDER BY canonical.last_message_at DESC NULLS LAST, canonical.updated_at DESC
+       LIMIT 1`,
+      [row.ghl_location_id, row.ghl_contact_id, row.id],
+    ) as Array<{ id: string; ghl_conversation_id: string; status: string }>;
+    const canonical = rows[0];
+    return canonical?.ghl_conversation_id ? canonical : null;
+  }
+
   private async processRow(row: GuardConversationRow, runId: string, now: Date, result: GhlGuardRunResult, targeted = false): Promise<void> {
     let logId: string | null = null;
     let source: SourceKey | undefined;
@@ -253,6 +295,26 @@ export class GhlGuardService {
       let conversationId = row.ghl_conversation_id?.trim() ?? '';
       let lookupMetadata: Record<string, unknown> = {};
       if (needsConversationLookup(row.ghl_conversation_id)) {
+        const localCanonical = await this.findLocalCanonicalConversation(row);
+        if (localCanonical) {
+          conversationId = localCanonical.ghl_conversation_id;
+          syntheticConversationId = row.id;
+          effectiveRow = {
+            ...row,
+            id: localCanonical.id,
+            ghl_conversation_id: localCanonical.ghl_conversation_id,
+            status: localCanonical.status,
+          };
+          lookupMetadata = {
+            conversationLookup: {
+              resolved: true,
+              source: 'local_canonical_sibling',
+              localConversationId: localCanonical.id,
+            },
+          };
+        }
+      }
+      if (needsConversationLookup(row.ghl_conversation_id) && !syntheticConversationId) {
         if (!this.client.searchConversationByContact) {
           this.recordFailure(result, row, 'GHL_CONVERSATION_LOOKUP_UNAVAILABLE');
           await this.persistence.updateLog(logId, 'failed', { errorCode: 'GHL_CONVERSATION_LOOKUP_UNAVAILABLE', source, finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });

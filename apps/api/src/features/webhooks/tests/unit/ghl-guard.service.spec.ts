@@ -62,6 +62,29 @@ describe('GhlGuardService', () => {
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('skip_reason'), expect.arrayContaining(['in_memory_interval']));
   });
 
+  it('prioritizes durable guard retries that are already due', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.GHL_GUARD_ENABLED = 'true';
+
+    const lockRunner = {
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : []),
+      release: vi.fn(),
+    };
+    const dataSource = {
+      createQueryRunner: vi.fn().mockReturnValue(lockRunner),
+      query: vi.fn().mockResolvedValue([]),
+    };
+    const service = new GhlGuardService(dataSource as never, { reconcileConversation: vi.fn() } as never);
+
+    await service.run(new Date('2026-10-22T12:00:00.000Z'), { force: true });
+
+    const selection = lockRunner.query.mock.calls.find(([sql]) => String(sql).includes('FROM conversations'))?.[0] as string;
+    expect(selection).toContain('due_retry.next_retry_at IS NOT NULL');
+    expect(selection).toContain('CASE WHEN due_retry.next_retry_at IS NOT NULL THEN 0 ELSE 1 END');
+    expect(selection).toContain('due_retry.next_retry_at ASC NULLS LAST');
+  });
+
   it('reports when the advisory lock prevents a guard cycle', async () => {
     process.env.NODE_ENV = 'production';
     process.env.GHL_GUARD_ENABLED = 'true';
@@ -185,7 +208,7 @@ describe('GhlGuardService', () => {
     expect(persistRunner.commitTransaction).toHaveBeenCalledOnce();
     const selectionCall = lockRunner.query.mock.calls.find(([sql]) => String(sql).includes('FROM conversations')) as [string, unknown[]] | undefined;
     expect(selectionCall?.[0]).toContain('LEFT JOIN LATERAL');
-    expect(selectionCall?.[0]).toContain('ORDER BY last_guard.created_at NULLS FIRST');
+    expect(selectionCall?.[0]).toContain('ORDER BY CASE WHEN due_retry.next_retry_at IS NOT NULL THEN 0 ELSE 1 END');
     const insertLogCall = dataSource.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO ghl_guard_logs')) as [string, unknown[]] | undefined;
     expect(insertLogCall?.[0]).toContain("CURRENT_TIMESTAMP + ($8::integer * INTERVAL '1 millisecond')");
     expect(insertLogCall?.[1]?.[7]).toBe(ghlGuardStaleLogMs());
@@ -348,6 +371,55 @@ describe('GhlGuardService', () => {
     expect(client.searchConversationByContact).toHaveBeenCalledWith('pit-test-token', row.ghl_location_id, row.ghl_contact_id, { deadlineAt: expect.any(Number) });
     expect(client.listMessages).toHaveBeenCalledWith('pit-test-token', 'ghl-real-conversation', { deadlineAt: expect.any(Number) });
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining("SET ghl_conversation_id = $2"), [row.id, 'ghl-real-conversation']);
+  });
+
+  it('uses a local canonical sibling before calling the slow GHL conversation search', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.GHL_GUARD_ENABLED = 'true';
+    process.env.GHL_PRIVATE_TOKEN_STAFFORD = 'pit-test-token';
+
+    const row = {
+      id: 'conversation-synthetic-local', ghl_location_id: GHL_SOURCE_CONFIG.stafford.locationId,
+      ghl_contact_id: 'contact-local', ghl_conversation_id: 'contact:contact-local:messenger', status: 'partial',
+    };
+    const canonical = {
+      id: 'conversation-canonical-local', ghl_conversation_id: 'ghl-local-conversation', status: 'partial',
+    };
+    const lockRunner = {
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : sql.includes('FROM conversations') ? [row] : []),
+      release: vi.fn(),
+    };
+    const persistRunner = {
+      connect: vi.fn(), startTransaction: vi.fn(), isTransactionActive: true,
+      query: vi.fn(async (sql: string) => sql.includes('FOR UPDATE') ? [{ id: canonical.id, status: canonical.status }] : sql.includes('INSERT INTO conversation_messages') ? [{ id: 'message-local' }] : []),
+      commitTransaction: vi.fn(), rollbackTransaction: vi.fn(), release: vi.fn(),
+    };
+    const dataSource = {
+      createQueryRunner: vi.fn().mockReturnValueOnce(lockRunner).mockReturnValueOnce(persistRunner),
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('SELECT canonical.id')) return [canonical];
+        if (sql.includes('INSERT INTO ghl_guard_logs')) return [{ id: 'guard-log-local' }];
+        if (sql.includes('UPDATE ghl_guard_logs')) return [{ id: 'guard-log-local', status: 'succeeded' }];
+        return [];
+      }),
+    };
+    const client = {
+      searchConversationByContact: vi.fn(),
+      listMessages: vi.fn().mockResolvedValue({
+        ok: true, status: 200, requestPath: '/conversations/ghl-local-conversation/messages',
+        data: { messages: [{ id: 'message-local', body: 'Busco una troca', direction: 'inbound', dateAdded: '2026-10-22T12:00:00.000Z' }], pages: 1, truncated: false, responsePayload: [] },
+      }),
+    };
+    const reconciliation = { reconcileConversation: vi.fn().mockResolvedValue(undefined) };
+    const service = new GhlGuardService(dataSource as never, reconciliation as never, GHL_SOURCE_CONFIG, client);
+
+    const result = await service.run(new Date('2026-10-22T12:00:00.000Z'), { contactIds: [row.ghl_contact_id], force: true });
+
+    expect(result).toMatchObject({ selected: 1, fetched: 1, inserted: 1, failed: 0 });
+    expect(client.searchConversationByContact).not.toHaveBeenCalled();
+    expect(client.listMessages).toHaveBeenCalledWith('pit-test-token', canonical.ghl_conversation_id, { deadlineAt: expect.any(Number) });
+    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('WITH moved AS'), [row.id, canonical.id]);
   });
 
   it('retries a transient synthetic-conversation lookup failure by contact', async () => {
