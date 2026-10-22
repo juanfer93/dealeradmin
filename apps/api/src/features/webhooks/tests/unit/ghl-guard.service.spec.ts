@@ -495,6 +495,53 @@ describe('GhlGuardService', () => {
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining("SET status = 'duplicate_ignored'"), [row.id]);
   });
 
+  it('synchronizes the synthetic snapshot after a scheduled split reconciliation', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.GHL_GUARD_ENABLED = 'true';
+    process.env.GHL_GUARD_INTERVAL_MS = '1';
+    process.env.GHL_PRIVATE_TOKEN_STAFFORD = 'pit-test-token';
+
+    const row = {
+      id: 'conversation-scheduled-synthetic', ghl_location_id: GHL_SOURCE_CONFIG.stafford.locationId,
+      ghl_contact_id: 'contact-scheduled-split', ghl_conversation_id: 'contact:contact-scheduled-split:messenger', status: 'partial',
+    };
+    const winner = { id: 'conversation-scheduled-real', status: 'partial' };
+    const lockRunner = {
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : sql.includes('FROM conversations') ? [row] : []),
+      release: vi.fn(),
+    };
+    const persistRunner = {
+      connect: vi.fn(), startTransaction: vi.fn(), isTransactionActive: true,
+      query: vi.fn(async (sql: string) => sql.includes('FOR UPDATE') ? [{ id: winner.id, status: winner.status }] : sql.includes('INSERT INTO conversation_messages') ? [{ id: 'scheduled-split-message' }] : []),
+      commitTransaction: vi.fn(), rollbackTransaction: vi.fn(), release: vi.fn(),
+    };
+    const dataSource = {
+      createQueryRunner: vi.fn().mockReturnValueOnce(lockRunner).mockReturnValueOnce(persistRunner),
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO ghl_guard_logs')) return [{ id: 'scheduled-split-log' }];
+        if (sql.includes('UPDATE ghl_guard_logs')) return [{ id: 'scheduled-split-log', status: 'succeeded' }];
+        if (sql.includes('SET ghl_conversation_id = $2')) throw { code: '23505', constraint: 'conversations_identity_unique', message: 'duplicate key value violates unique constraint' };
+        if (sql.includes('WHERE ghl_location_id = $1 AND ghl_contact_id = $2 AND ghl_conversation_id = $3')) return [winner];
+        if (sql.includes('WITH moved AS')) return [{ moved_count: 1, updated_count: 1 }];
+        return [];
+      }),
+    };
+    const client = {
+      searchConversationByContact: vi.fn().mockResolvedValue({ ok: true, status: 200, requestPath: '/conversations/search', data: { conversation: { id: 'ghl-scheduled-real' }, total: 1 } }),
+      listMessages: vi.fn().mockResolvedValue({ ok: true, status: 200, requestPath: '/conversations/ghl-scheduled-real/messages', data: { messages: [{ id: 'scheduled-split-message', body: 'Busco una troca', direction: 'inbound', dateAdded: '2026-10-16T11:59:00.000Z' }], pages: 1, truncated: false, responsePayload: [] } }),
+    };
+    const reconciliation = { reconcileConversation: vi.fn().mockResolvedValue(undefined) };
+    const service = new GhlGuardService(dataSource as never, reconciliation as never, GHL_SOURCE_CONFIG, client);
+
+    const result = await service.run(new Date('2026-10-16T12:00:00.000Z'));
+
+    expect(result).toMatchObject({ selected: 1, fetched: 1, inserted: 1, failed: 0 });
+    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('SET qualification_snapshot = canonical.qualification_snapshot'), [row.id, winner.id]);
+    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(winner.id, expect.any(Date), true, true);
+    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(row.id, expect.any(Date), true, true, true);
+  });
+
   it('surfaces guard-log persistence failures and does not call GHL without an audit row', async () => {
     process.env.NODE_ENV = 'production';
     process.env.GHL_GUARD_ENABLED = 'true';

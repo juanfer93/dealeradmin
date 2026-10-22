@@ -364,7 +364,7 @@ export class GhlGuardService {
       // maps to an already-canonical GHL conversation. Reconcile the local
       // row as well so its queued snapshot receives the same corrected lead
       // evidence instead of remaining on the stale profile label.
-      if (targeted && syntheticConversationId && syntheticConversationId !== effectiveRow.id) {
+      if (syntheticConversationId && syntheticConversationId !== effectiveRow.id) {
         await this.dataSource!.query(
           `UPDATE conversations synthetic
            SET qualification_snapshot = canonical.qualification_snapshot,
