@@ -105,6 +105,7 @@ describe('GhlGuardService', () => {
     const result = await service.run(new Date('2026-10-16T12:00:00.000Z'), { force: true });
 
     expect(result).toMatchObject({ enabled: true, skipped: true, skipReason: 'advisory_lock', selected: 0, fetched: 0, inserted: 0, repaired: 0, failed: 0 });
+    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE ghl_guard_logs'), expect.any(Array));
     expect(lockRunner.release).toHaveBeenCalledOnce();
   });
 
@@ -558,11 +559,14 @@ describe('GhlGuardService', () => {
       listMessages: vi.fn(),
     };
     const service = new GhlGuardService(dataSource as never, { reconcileConversation: vi.fn() } as never, GHL_SOURCE_CONFIG, client);
+    const runSpy = vi.spyOn(service, 'run');
 
     await service.run(new Date('2026-10-16T12:00:00.000Z'), { contactIds: [row.ghl_contact_id], force: true });
     await vi.advanceTimersByTimeAsync(1);
 
     expect(client.searchConversationByContact).toHaveBeenCalledOnce();
+    const deferredResult = await (runSpy.mock.results[1]?.value as Promise<unknown>);
+    expect(deferredResult).toMatchObject({ selected: 1, failed: 1 });
     expect(dataSource.query.mock.calls.some((call) => JSON.stringify(call).includes('GHL_CIRCUIT_OPEN'))).toBe(true);
     vi.clearAllTimers();
   });
@@ -741,7 +745,8 @@ describe('GhlGuardService', () => {
       expect.stringContaining('INSERT INTO ghl_guard_logs'),
       expect.arrayContaining([expect.any(String), null, null, null, null, 'failed']),
     );
-    expect(JSON.parse(String(dataSource.query.mock.calls[0]?.[1]?.[12]))).toEqual(expect.objectContaining({
+    const auditInsert = dataSource.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO ghl_guard_logs'));
+    expect(JSON.parse(String(auditInsert?.[1]?.[12]))).toEqual(expect.objectContaining({
       errorCode: 'Error',
       errorMessage: 'server conn crashed?',
       targetContactIds: ['contact-run-connect-failure'],

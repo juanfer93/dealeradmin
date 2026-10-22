@@ -80,6 +80,11 @@ export class GhlGuardService {
     let lockRunner: QueryRunner | null = null;
     let leaseAcquired = false;
     try {
+      // A previous serverless invocation can die before its finally block
+      // releases the lease. Recover only rows whose own lease/age is already
+      // stale before attempting the global lease, so a scheduler cycle that
+      // observes a busy global lease still cleans up abandoned work.
+      await this.persistence.recoverStaleLogs(now);
       lockRunner = this.dataSource.createQueryRunner();
       await lockRunner.connect();
       const leaseRows = await lockRunner.query(
@@ -294,6 +299,7 @@ export class GhlGuardService {
       }
       if (await this.retryFunctions.isSourceCircuitOpen(source)) {
         this.enqueuePendingContactIds([row.ghl_contact_id]);
+        this.recordFailure(result, row, 'GHL_CIRCUIT_OPEN', 'GHL source circuit is open; retrying the contact later');
         await this.persistence.updateLog(logId, 'skipped', {
           source,
           errorCode: 'GHL_CIRCUIT_OPEN',
