@@ -48,6 +48,7 @@ import { GhlGuardAuditDetails1710000037000 } from './database/migrations/1710000
 import { GhlGuardSkipReason1710000038000 } from './database/migrations/1710000038000-GhlGuardSkipReason';
 import { GhlGuardRequestMetrics1710000040000 } from './database/migrations/1710000040000-GhlGuardRequestMetrics';
 import { QueuedGuardReplay1710000041000 } from './database/migrations/1710000041000-QueuedGuardReplay';
+import { GhlGuardGlobalLease1710000042000 } from './database/migrations/1710000042000-GhlGuardGlobalLease';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -97,6 +98,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             GhlGuardSkipReason1710000038000,
             GhlGuardRequestMetrics1710000040000,
             QueuedGuardReplay1710000041000,
+            GhlGuardGlobalLease1710000042000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,

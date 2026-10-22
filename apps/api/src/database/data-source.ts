@@ -39,6 +39,7 @@ import { GhlGuardAuditDetails1710000037000 } from './migrations/1710000037000-Gh
 import { GhlGuardSkipReason1710000038000 } from './migrations/1710000038000-GhlGuardSkipReason';
 import { GhlGuardRequestMetrics1710000040000 } from './migrations/1710000040000-GhlGuardRequestMetrics';
 import { QueuedGuardReplay1710000041000 } from './migrations/1710000041000-QueuedGuardReplay';
+import { GhlGuardGlobalLease1710000042000 } from './migrations/1710000042000-GhlGuardGlobalLease';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -91,6 +92,7 @@ export const AppDataSource = new DataSource({
     GhlGuardSkipReason1710000038000,
     GhlGuardRequestMetrics1710000040000,
     QueuedGuardReplay1710000041000,
+    GhlGuardGlobalLease1710000042000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,

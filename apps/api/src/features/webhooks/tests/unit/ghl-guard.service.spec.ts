@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GHL_SOURCE_CONFIG } from '../../application/functions/conversations/conversation-webhook.config';
-import { ghlGuardBatchSize, ghlGuardConcurrency, ghlGuardConversationTimeoutMs, ghlGuardStaleLogMs, ghlGuardTimeoutMs } from '../../application/ghl-guard.config';
+import { ghlGuardBatchSize, ghlGuardConcurrency, ghlGuardConversationTimeoutMs, ghlGuardLeaseMs, ghlGuardStaleLogMs, ghlGuardTimeoutMs } from '../../application/ghl-guard.config';
 import { GhlGuardService } from '../../application/ghl-guard.service';
 
 describe('GhlGuardService', () => {
@@ -28,11 +28,13 @@ describe('GhlGuardService', () => {
     process.env.GHL_GUARD_CONCURRENCY = '25';
     process.env.GHL_GUARD_TIMEOUT_MS = '60000';
     process.env.GHL_GUARD_CONVERSATION_TIMEOUT_MS = '60000';
+    process.env.GHL_GUARD_LEASE_MS = '999999';
 
     expect(ghlGuardBatchSize()).toBe(2);
     expect(ghlGuardConcurrency()).toBe(2);
     expect(ghlGuardTimeoutMs()).toBe(30_000);
     expect(ghlGuardConversationTimeoutMs()).toBe(60_000);
+    expect(ghlGuardLeaseMs()).toBe(600_000);
   });
 
   it('allows the scheduled run to bypass the in-memory interval gate', async () => {
@@ -42,7 +44,7 @@ describe('GhlGuardService', () => {
 
     const lockRunner = {
       connect: vi.fn(),
-      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : []),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [{ owner_id: 'lease-owner' }] : []),
       release: vi.fn(),
     };
     const dataSource = {
@@ -68,7 +70,7 @@ describe('GhlGuardService', () => {
 
     const lockRunner = {
       connect: vi.fn(),
-      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : []),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [{ owner_id: 'lease-owner' }] : []),
       release: vi.fn(),
     };
     const dataSource = {
@@ -91,7 +93,7 @@ describe('GhlGuardService', () => {
 
     const lockRunner = {
       connect: vi.fn(),
-      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: false }] : []),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [] : []),
       release: vi.fn(),
     };
     const dataSource = {
@@ -114,13 +116,13 @@ describe('GhlGuardService', () => {
 
     const firstLockRunner = {
       connect: vi.fn(),
-      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: false }] : []),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [] : []),
       release: vi.fn(),
     };
     const secondLockRunner = {
       connect: vi.fn(),
       query: vi.fn(async (sql: string) => {
-        if (sql.includes('pg_try_advisory_lock')) return [{ locked: true }];
+        if (sql.includes('INSERT INTO ghl_guard_leases')) return [{ owner_id: 'lease-owner' }];
         if (sql.includes('FROM conversations')) return [];
         return [];
       }),
@@ -160,7 +162,7 @@ describe('GhlGuardService', () => {
     const lockRunner = {
       connect: vi.fn(),
       query: vi.fn(async (sql: string) => {
-        if (sql.includes('pg_try_advisory_lock')) return [{ locked: true }];
+        if (sql.includes('INSERT INTO ghl_guard_leases')) return [{ owner_id: 'lease-owner' }];
         if (sql.includes('FROM conversations')) return [row];
         return [];
       }),
@@ -237,7 +239,7 @@ describe('GhlGuardService', () => {
     };
     const lockRunner = {
       connect: vi.fn(),
-      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : sql.includes('FROM conversations') ? [row] : []),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [{ owner_id: 'lease-owner' }] : sql.includes('FROM conversations') ? [row] : []),
       release: vi.fn(),
     };
     const persistRunner = {
@@ -291,7 +293,7 @@ describe('GhlGuardService', () => {
     };
     const lockRunner = {
       connect: vi.fn(),
-      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : sql.includes('FROM conversations') ? [row] : []),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [{ owner_id: 'lease-owner' }] : sql.includes('FROM conversations') ? [row] : []),
       release: vi.fn(),
     };
     const replayClaimRunner = {
@@ -342,7 +344,7 @@ describe('GhlGuardService', () => {
     };
     const lockRunner = {
       connect: vi.fn(),
-      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : sql.includes('FROM conversations') ? [row] : []),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [{ owner_id: 'lease-owner' }] : sql.includes('FROM conversations') ? [row] : []),
       release: vi.fn(),
     };
     const persistRunner = {
@@ -387,7 +389,7 @@ describe('GhlGuardService', () => {
     };
     const lockRunner = {
       connect: vi.fn(),
-      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : sql.includes('FROM conversations') ? [row] : []),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [{ owner_id: 'lease-owner' }] : sql.includes('FROM conversations') ? [row] : []),
       release: vi.fn(),
     };
     const persistRunner = {
@@ -435,12 +437,12 @@ describe('GhlGuardService', () => {
     };
     const firstLockRunner = {
       connect: vi.fn(),
-      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : sql.includes('FROM conversations') ? [row] : []),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [{ owner_id: 'lease-owner' }] : sql.includes('FROM conversations') ? [row] : []),
       release: vi.fn(),
     };
     const secondLockRunner = {
       connect: vi.fn(),
-      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : []),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [{ owner_id: 'lease-owner' }] : []),
       release: vi.fn(),
     };
     const dataSource = {
@@ -486,7 +488,7 @@ describe('GhlGuardService', () => {
     };
     const makeLockRunner = () => ({
       connect: vi.fn(),
-      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : sql.includes('FROM conversations') ? [row] : []),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [{ owner_id: 'lease-owner' }] : sql.includes('FROM conversations') ? [row] : []),
       release: vi.fn(),
     });
     const firstLockRunner = makeLockRunner();
@@ -528,7 +530,7 @@ describe('GhlGuardService', () => {
     const winner = { id: 'conversation-real-winner', status: 'partial' };
     const lockRunner = {
       connect: vi.fn(),
-      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : sql.includes('FROM conversations') ? [row] : []),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [{ owner_id: 'lease-owner' }] : sql.includes('FROM conversations') ? [row] : []),
       release: vi.fn(),
     };
     const persistRunner = {
@@ -580,7 +582,7 @@ describe('GhlGuardService', () => {
     const winner = { id: 'conversation-scheduled-real', status: 'partial' };
     const lockRunner = {
       connect: vi.fn(),
-      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : sql.includes('FROM conversations') ? [row] : []),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [{ owner_id: 'lease-owner' }] : sql.includes('FROM conversations') ? [row] : []),
       release: vi.fn(),
     };
     const persistRunner = {
@@ -629,7 +631,7 @@ describe('GhlGuardService', () => {
     };
     const lockRunner = {
       connect: vi.fn(),
-      query: vi.fn(async (sql: string) => sql.includes('pg_try_advisory_lock') ? [{ locked: true }] : sql.includes('FROM conversations') ? [row] : []),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [{ owner_id: 'lease-owner' }] : sql.includes('FROM conversations') ? [row] : []),
       release: vi.fn(),
     };
     const dataSource = {

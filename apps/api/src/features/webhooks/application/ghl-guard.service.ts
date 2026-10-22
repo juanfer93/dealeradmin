@@ -21,6 +21,7 @@ import {
   GHL_GUARD_LOCK_KEY,
   ghlGuardEnabled,
   ghlGuardIntervalMs,
+  ghlGuardLeaseMs,
   ghlGuardRetryDelayMs,
   ghlGuardTimeoutMs,
   GHL_GUARD_TOKEN_ENV_BY_SOURCE,
@@ -76,11 +77,27 @@ export class GhlGuardService {
 
     const result: GhlGuardRunResult = { ...empty, skipped: false };
     let lockRunner: QueryRunner | null = null;
+    let leaseAcquired = false;
     try {
       lockRunner = this.dataSource.createQueryRunner();
       await lockRunner.connect();
-      const locked = await lockRunner.query(`SELECT pg_try_advisory_lock(hashtext($1)) AS locked`, [GHL_GUARD_LOCK_KEY]) as Array<{ locked: boolean }>;
-      if (!locked[0]?.locked) {
+      const leaseRows = await lockRunner.query(
+        `INSERT INTO ghl_guard_leases
+           (lease_key, owner_id, acquired_at, lease_expires_at, updated_at)
+         VALUES ($1, $2, CURRENT_TIMESTAMP,
+                 CURRENT_TIMESTAMP + ($3::integer * INTERVAL '1 millisecond'),
+                 CURRENT_TIMESTAMP)
+         ON CONFLICT (lease_key) DO UPDATE
+           SET owner_id = EXCLUDED.owner_id,
+               acquired_at = EXCLUDED.acquired_at,
+               lease_expires_at = EXCLUDED.lease_expires_at,
+               updated_at = EXCLUDED.updated_at
+         WHERE ghl_guard_leases.lease_expires_at <= CURRENT_TIMESTAMP
+         RETURNING owner_id`,
+        [GHL_GUARD_LOCK_KEY, runId, ghlGuardLeaseMs()],
+      ) as Array<{ owner_id: string }>;
+      leaseAcquired = leaseRows.length > 0;
+      if (!leaseAcquired) {
         const skipped = { ...result, skipped: true, skipReason: 'advisory_lock' as const };
         this.logger.warn('GHL guard skipped reason=advisory_lock');
         this.enqueuePendingContactIds(contactIds);
@@ -187,7 +204,14 @@ export class GhlGuardService {
       return result;
     } finally {
       if (lockRunner) {
-        try { await lockRunner.query(`SELECT pg_advisory_unlock(hashtext($1))`, [GHL_GUARD_LOCK_KEY]); } catch { /* best effort */ }
+        if (leaseAcquired) {
+          try {
+            await lockRunner.query(
+              `DELETE FROM ghl_guard_leases WHERE lease_key = $1 AND owner_id = $2`,
+              [GHL_GUARD_LOCK_KEY, runId],
+            );
+          } catch { /* best effort */ }
+        }
         await lockRunner.release();
       }
       this.running = false;

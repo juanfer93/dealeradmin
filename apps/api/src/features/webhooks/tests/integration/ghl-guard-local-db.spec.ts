@@ -21,6 +21,45 @@ describeDatabase('GHL Guard retry and split recovery against local PostgreSQL', 
     if (dataSource?.isInitialized) await dataSource.destroy();
   });
 
+  it('reclaims an expired global lease after the previous invocation disappears', async () => {
+    const leaseKey = `${suffix}-global-lease`;
+    const firstOwner = `${suffix}-owner-a`;
+    const secondOwner = `${suffix}-owner-b`;
+    const acquire = async (ownerId: string) => dataSource.query(
+      `INSERT INTO ghl_guard_leases
+         (lease_key, owner_id, acquired_at, lease_expires_at, updated_at)
+       VALUES ($1, $2, CURRENT_TIMESTAMP,
+               CURRENT_TIMESTAMP + ($3::integer * INTERVAL '1 millisecond'),
+               CURRENT_TIMESTAMP)
+       ON CONFLICT (lease_key) DO UPDATE
+         SET owner_id = EXCLUDED.owner_id,
+             acquired_at = EXCLUDED.acquired_at,
+             lease_expires_at = EXCLUDED.lease_expires_at,
+             updated_at = EXCLUDED.updated_at
+       WHERE ghl_guard_leases.lease_expires_at <= CURRENT_TIMESTAMP
+       RETURNING owner_id`,
+      [leaseKey, ownerId, 60_000],
+    ) as Promise<Array<{ owner_id: string }>>;
+
+    try {
+      const firstClaim = await acquire(firstOwner);
+      expect(firstClaim).toEqual([{ owner_id: firstOwner }]);
+
+      const blockedClaim = await acquire(secondOwner);
+      expect(blockedClaim).toEqual([]);
+
+      await dataSource.query(
+        `UPDATE ghl_guard_leases SET lease_expires_at = CURRENT_TIMESTAMP - INTERVAL '1 second' WHERE lease_key = $1`,
+        [leaseKey],
+      );
+
+      const reclaimedClaim = await acquire(secondOwner);
+      expect(reclaimedClaim).toEqual([{ owner_id: secondOwner }]);
+    } finally {
+      await dataSource.query('DELETE FROM ghl_guard_leases WHERE lease_key = $1', [leaseKey]);
+    }
+  }, 10_000);
+
   it('prioritizes a due timeout, bypasses search for a local sibling, and unifies the split', async () => {
     process.env.NODE_ENV = 'production';
     process.env.GHL_GUARD_ENABLED = 'true';

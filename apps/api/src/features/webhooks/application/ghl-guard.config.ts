@@ -14,6 +14,8 @@ export const GHL_GUARD_MAX_TIMEOUT_MS = 30_000;
 export const GHL_GUARD_DEFAULT_CONVERSATION_TIMEOUT_MS = 60_000;
 export const GHL_GUARD_MAX_CONVERSATION_TIMEOUT_MS = 65_000;
 export const GHL_GUARD_DEFAULT_RETRY_DELAY_MS = GHL_GUARD_DEFAULT_INTERVAL_MS;
+export const GHL_GUARD_DEFAULT_LEASE_MS = 3 * 60 * 1000;
+export const GHL_GUARD_MAX_LEASE_MS = 10 * 60 * 1000;
 export const GHL_GUARD_DEFAULT_CIRCUIT_FAILURE_THRESHOLD = 3;
 export const GHL_GUARD_DEFAULT_CIRCUIT_COOLDOWN_MS = GHL_GUARD_DEFAULT_RETRY_DELAY_MS;
 
@@ -73,6 +75,11 @@ export function ghlGuardConversationTimeoutMs(): number {
 export function ghlGuardRetryDelayMs(): number {
   const value = Number(process.env.GHL_GUARD_RETRY_DELAY_MS ?? GHL_GUARD_DEFAULT_RETRY_DELAY_MS);
   return Number.isInteger(value) && value > 0 ? value : GHL_GUARD_DEFAULT_RETRY_DELAY_MS;
+}
+
+export function ghlGuardLeaseMs(): number {
+  const value = Number(process.env.GHL_GUARD_LEASE_MS ?? GHL_GUARD_DEFAULT_LEASE_MS);
+  return Number.isInteger(value) && value > 0 ? Math.min(value, GHL_GUARD_MAX_LEASE_MS) : GHL_GUARD_DEFAULT_LEASE_MS;
 }
 
 export function ghlGuardCircuitFailureThreshold(): number {
