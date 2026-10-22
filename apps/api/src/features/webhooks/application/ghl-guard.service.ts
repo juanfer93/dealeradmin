@@ -23,6 +23,7 @@ import {
   ghlGuardIntervalMs,
   ghlGuardLeaseMs,
   ghlGuardRetryDelayMs,
+  ghlGuardStaleLogMs,
   ghlGuardTimeoutMs,
   GHL_GUARD_TOKEN_ENV_BY_SOURCE,
 } from './ghl-guard.config';
@@ -162,7 +163,9 @@ export class GhlGuardService {
            LIMIT 1
          ) due_retry ON TRUE
          WHERE (status NOT IN ('queued', 'sent', 'duplicate_ignored', 'ignored_channel', 'stale_phone_ignored')
-            OR (status = 'queued' AND queued_guard_replay_count = 0))
+            OR (status = 'queued' AND queued_guard_replay_count = 0
+              AND (queued_guard_replay_claimed_at IS NULL
+                OR queued_guard_replay_claimed_at <= CURRENT_TIMESTAMP - ($3::integer * INTERVAL '1 millisecond'))))
            AND ghl_location_id = ANY($2::text[])
            AND NOT EXISTS (
              SELECT 1 FROM ghl_guard_logs active_guard
@@ -184,7 +187,7 @@ export class GhlGuardService {
          LIMIT $1`,
         targeted
           ? [Math.max(ghlGuardBatchSize(), Math.min(contactIds.length * 3, 10)), RECONCILIATION_LOCATION_IDS, contactIds]
-          : [ghlGuardBatchSize(), RECONCILIATION_LOCATION_IDS],
+          : [ghlGuardBatchSize(), RECONCILIATION_LOCATION_IDS, ghlGuardStaleLogMs()],
       ) as GuardConversationRow[];
       result.selected = rows.length;
       // Rows belonging to one explicitly targeted contact must be serialized:
@@ -266,6 +269,8 @@ export class GhlGuardService {
   private async processRow(row: GuardConversationRow, runId: string, now: Date, result: GhlGuardRunResult, targeted = false): Promise<void> {
     let logId: string | null = null;
     let source: SourceKey | undefined;
+    let queuedReplayClaimed = false;
+    let queuedReplayCompleted = false;
     const startedAt = new Date();
     try {
       logId = await this.persistence.createLog(runId, row, 'pending', now);
@@ -312,7 +317,8 @@ export class GhlGuardService {
           });
           return;
         }
-        if (queuedReplay.claimed) await this.persistence.updateLog(logId, 'running', { queuedReplay: true });
+        queuedReplayClaimed = queuedReplay.claimed;
+        if (queuedReplayClaimed) await this.persistence.updateLog(logId, 'running', { queuedReplay: true });
       }
       let effectiveRow = row;
       let syntheticConversationId: string | null = null;
@@ -473,6 +479,13 @@ export class GhlGuardService {
         );
       }
       this.retryFunctions.resetSourceCircuit(source);
+      if (queuedReplayClaimed) {
+        const completed = await this.persistence.completeQueuedReplay(row.id);
+        if (!completed) {
+          throw new Error('GHL_GUARD_QUEUED_REPLAY_COMPLETION_NOT_PERSISTED');
+        }
+        queuedReplayCompleted = true;
+      }
       await this.persistence.updateLog(logId, 'succeeded', {
         source,
         fetchedMessages: fetched.data.messages.length,
@@ -508,6 +521,14 @@ export class GhlGuardService {
         finishedAt: new Date(),
         durationMs: Date.now() - startedAt.getTime(),
       });
+    } finally {
+      if (queuedReplayClaimed && !queuedReplayCompleted) {
+        try {
+          await this.persistence.releaseQueuedReplay(row.id);
+        } catch (error) {
+          this.logger.error(`GHL queued replay release failed conversation=${row.id}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
     }
   }
 

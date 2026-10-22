@@ -172,4 +172,78 @@ describeDatabase('GHL Guard retry and split recovery against local PostgreSQL', 
       await dataSource.query('DELETE FROM leads WHERE ghl_contact_id = ANY($1::text[])', [contacts]);
     }
   }, 30_000);
+
+  it('does not consume a queued replay after GHL_TIMEOUT and retries it successfully', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.GHL_GUARD_ENABLED = 'true';
+    process.env.GHL_GUARD_BATCH_SIZE = '1';
+    process.env.GHL_GUARD_RETRY_DELAY_MS = '600000';
+    process.env.GHL_PRIVATE_TOKEN_STAFFORD = 'local-test-token';
+
+    const contactId = `${suffix}-queued-timeout-contact`;
+    const conversationGhlId = `${suffix}-queued-timeout-native`;
+    let conversationIds: string[] = [];
+
+    try {
+      const [lead] = await dataSource.query(
+        `INSERT INTO leads (first_name, last_name, ghl_contact_id, ghl_location_id, source)
+         VALUES ('Queued', 'Retry', $1, $2, 'local-test')
+         RETURNING id`,
+        [contactId, locationId],
+      ) as Array<{ id: string }>;
+      const conversations = await dataSource.query(
+        `INSERT INTO conversations
+           (lead_id, ghl_location_id, ghl_contact_id, ghl_conversation_id, channel, status, last_message_at)
+         VALUES
+           ($1, $2, $3, $4, 'messenger', 'queued', CURRENT_TIMESTAMP)
+         RETURNING id, ghl_conversation_id`,
+        [lead.id, locationId, contactId, conversationGhlId],
+      ) as Array<{ id: string; ghl_conversation_id: string }>;
+      conversationIds = conversations.map((row) => row.id);
+      const queued = conversations[0];
+
+      const listMessages = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false, status: 0, errorCode: 'GHL_TIMEOUT', requestPath: `/conversations/${conversationGhlId}/messages`,
+        })
+        .mockResolvedValueOnce({
+          ok: true, status: 200, requestPath: `/conversations/${conversationGhlId}/messages`,
+          data: {
+            messages: [{ id: `${suffix}-queued-retry-message`, body: 'reintento exitoso', direction: 'inbound', dateAdded: new Date().toISOString() }],
+            pages: 1, truncated: false, responsePayload: [],
+          },
+        });
+      const service = new GhlGuardService(
+        dataSource,
+        { reconcileConversation: vi.fn().mockResolvedValue(undefined) } as never,
+        GHL_SOURCE_CONFIG,
+        { listMessages },
+      );
+
+      const first = await service.run(new Date(), { contactIds: [contactId], force: true });
+      expect(first).toMatchObject({ selected: 1, failed: 1 });
+
+      const afterFailure = await dataSource.query(
+        `SELECT queued_guard_replay_count, queued_guard_replay_claimed_at
+         FROM conversations WHERE id = $1`,
+        [queued.id],
+      ) as Array<{ queued_guard_replay_count: number; queued_guard_replay_claimed_at: string | null }>;
+      expect(afterFailure[0]).toMatchObject({ queued_guard_replay_count: 0, queued_guard_replay_claimed_at: null });
+
+      const second = await service.run(new Date(), { contactIds: [contactId], force: true });
+      expect(second).toMatchObject({ selected: 1, fetched: 1, failed: 0 });
+      expect(listMessages).toHaveBeenCalledTimes(2);
+
+      const afterSuccess = await dataSource.query(
+        `SELECT queued_guard_replay_count, queued_guard_replay_claimed_at
+         FROM conversations WHERE id = $1`,
+        [queued.id],
+      ) as Array<{ queued_guard_replay_count: number; queued_guard_replay_claimed_at: string | null }>;
+      expect(afterSuccess[0]).toMatchObject({ queued_guard_replay_count: 1, queued_guard_replay_claimed_at: null });
+    } finally {
+      await dataSource.query('DELETE FROM ghl_guard_logs WHERE ghl_contact_id = $1', [contactId]);
+      if (conversationIds.length > 0) await dataSource.query('DELETE FROM conversations WHERE id = ANY($1::uuid[])', [conversationIds]);
+      await dataSource.query('DELETE FROM leads WHERE ghl_contact_id = $1', [contactId]);
+    }
+  }, 30_000);
 });

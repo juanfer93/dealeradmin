@@ -249,13 +249,14 @@ describe('GhlGuardService', () => {
     };
     const replayClaimRunner = {
       connect: vi.fn(), startTransaction: vi.fn(), isTransactionActive: true,
-      query: vi.fn(async (sql: string) => sql.includes('FOR UPDATE') ? [{ status: row.status, queued_guard_replay_count: 0 }] : sql.includes('queued_guard_replay_count = queued_guard_replay_count + 1') ? [{ id: row.id }] : []),
+      query: vi.fn(async (sql: string) => sql.includes('FOR UPDATE') ? [{ status: row.status, queued_guard_replay_count: 0, queued_guard_replay_claimed_at: null }] : sql.includes('queued_guard_replay_claimed_at = CURRENT_TIMESTAMP') ? [{ id: row.id }] : []),
       commitTransaction: vi.fn(), rollbackTransaction: vi.fn(), release: vi.fn(),
     };
     const dataSource = {
       createQueryRunner: vi.fn().mockReturnValueOnce(lockRunner).mockReturnValueOnce(replayClaimRunner).mockReturnValueOnce(persistRunner),
       query: vi.fn(async (sql: string) => {
         if (sql.includes('INSERT INTO ghl_guard_logs')) return [{ id: 'targeted-log' }];
+        if (sql.includes('UPDATE conversations') && sql.includes('queued_guard_replay_count')) return [{ id: row.id }];
         if (sql.includes('UPDATE ghl_guard_logs')) return [{ id: 'targeted-log', status: 'succeeded' }];
         return [];
       }),
@@ -298,7 +299,7 @@ describe('GhlGuardService', () => {
     };
     const replayClaimRunner = {
       connect: vi.fn(), startTransaction: vi.fn(), isTransactionActive: true,
-      query: vi.fn(async (sql: string) => sql.includes('FOR UPDATE') ? [{ status: row.status, queued_guard_replay_count: 0 }] : sql.includes('queued_guard_replay_count = queued_guard_replay_count + 1') ? [{ id: row.id }] : []),
+      query: vi.fn(async (sql: string) => sql.includes('FOR UPDATE') ? [{ status: row.status, queued_guard_replay_count: 0, queued_guard_replay_claimed_at: null }] : sql.includes('queued_guard_replay_claimed_at = CURRENT_TIMESTAMP') ? [{ id: row.id }] : []),
       commitTransaction: vi.fn(), rollbackTransaction: vi.fn(), release: vi.fn(),
     };
     const persistRunner = {
@@ -310,6 +311,7 @@ describe('GhlGuardService', () => {
       createQueryRunner: vi.fn().mockReturnValueOnce(lockRunner).mockReturnValueOnce(replayClaimRunner).mockReturnValueOnce(persistRunner),
       query: vi.fn(async (sql: string) => {
         if (sql.includes('INSERT INTO ghl_guard_logs')) return [{ id: 'queued-replay-log' }];
+        if (sql.includes('UPDATE conversations') && sql.includes('queued_guard_replay_count')) return [{ id: row.id }];
         if (sql.includes('UPDATE ghl_guard_logs')) return [{ id: 'queued-replay-log', status: 'succeeded' }];
         return [];
       }),
@@ -329,7 +331,55 @@ describe('GhlGuardService', () => {
     expect(replayClaimRunner.commitTransaction).toHaveBeenCalledOnce();
     const selectionCall = lockRunner.query.mock.calls.find(([sql]) => String(sql).includes('FROM conversations')) as [string, unknown[]] | undefined;
     expect(selectionCall?.[0]).toContain("status = 'queued' AND queued_guard_replay_count = 0");
-    expect(replayClaimRunner.query).toHaveBeenCalledWith(expect.stringContaining('queued_guard_replay_count = queued_guard_replay_count + 1'), [row.id]);
+    expect(replayClaimRunner.query).toHaveBeenCalledWith(expect.stringContaining('queued_guard_replay_claimed_at = CURRENT_TIMESTAMP'), [row.id, expect.any(Number)]);
+  });
+
+  it('releases a queued replay claim when GHL times out so the next cycle can retry', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.GHL_GUARD_ENABLED = 'true';
+    process.env.GHL_GUARD_RETRY_DELAY_MS = '600000';
+    process.env.GHL_PRIVATE_TOKEN_STAFFORD = 'pit-test-token';
+
+    const row = {
+      id: 'conversation-queued-timeout',
+      ghl_location_id: GHL_SOURCE_CONFIG.stafford.locationId,
+      ghl_contact_id: 'contact-queued-timeout',
+      ghl_conversation_id: 'ghl-queued-timeout',
+      status: 'queued',
+    };
+    const lockRunner = {
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [{ owner_id: 'lease-owner' }] : sql.includes('FROM conversations') ? [row] : []),
+      release: vi.fn(),
+    };
+    const replayClaimRunner = {
+      connect: vi.fn(), startTransaction: vi.fn(), isTransactionActive: true,
+      query: vi.fn(async (sql: string) => sql.includes('FOR UPDATE')
+        ? [{ status: row.status, queued_guard_replay_count: 0, queued_guard_replay_claimed_at: null }]
+        : sql.includes('queued_guard_replay_claimed_at = CURRENT_TIMESTAMP') ? [{ id: row.id }] : []),
+      commitTransaction: vi.fn(), rollbackTransaction: vi.fn(), release: vi.fn(),
+    };
+    const dataSource = {
+      createQueryRunner: vi.fn().mockReturnValueOnce(lockRunner).mockReturnValueOnce(replayClaimRunner),
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO ghl_guard_logs')) return [{ id: 'queued-timeout-log' }];
+        if (sql.includes('UPDATE conversations') && sql.includes('queued_guard_replay_claimed_at = NULL')) return [{ id: row.id }];
+        if (sql.includes('UPDATE ghl_guard_logs')) return [{ id: 'queued-timeout-log', status: 'failed' }];
+        return [];
+      }),
+    };
+    const client = {
+      listMessages: vi.fn().mockResolvedValue({
+        ok: false, status: 0, errorCode: 'GHL_TIMEOUT', requestPath: '/conversations/ghl-queued-timeout/messages',
+      }),
+    };
+    const service = new GhlGuardService(dataSource as never, { reconcileConversation: vi.fn() } as never, GHL_SOURCE_CONFIG, client);
+
+    const result = await service.run(new Date('2026-10-22T12:00:00.000Z'));
+
+    expect(result).toMatchObject({ skipped: false, selected: 1, failed: 1 });
+    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('queued_guard_replay_claimed_at = NULL'), [row.id]);
+    expect(dataSource.query).not.toHaveBeenCalledWith(expect.stringContaining('queued_guard_replay_count = queued_guard_replay_count + 1'), [row.id]);
   });
 
   it('resolves a synthetic conversation id by contact and persists the real GHL id', async () => {

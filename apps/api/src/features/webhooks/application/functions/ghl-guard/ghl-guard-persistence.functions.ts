@@ -34,12 +34,12 @@ export class GhlGuardPersistenceFunctions {
     await runner.startTransaction();
     try {
       const rows = await runner.query(
-        `SELECT status, queued_guard_replay_count
+        `SELECT status, queued_guard_replay_count, queued_guard_replay_claimed_at
          FROM conversations
          WHERE id = $1
          FOR UPDATE`,
         [conversationId],
-      ) as Array<{ status: string; queued_guard_replay_count: number | string | null }>;
+      ) as Array<{ status: string; queued_guard_replay_count: number | string | null; queued_guard_replay_claimed_at: string | null }>;
       const row = rows[0];
       if (!row) {
         await runner.rollbackTransaction();
@@ -53,13 +53,20 @@ export class GhlGuardPersistenceFunctions {
         await runner.commitTransaction();
         return { allowed: allowTargetedReplay, claimed: false };
       }
+      if (row.queued_guard_replay_claimed_at
+        && new Date(row.queued_guard_replay_claimed_at).getTime() > Date.now() - ghlGuardStaleLogMs()) {
+        await runner.commitTransaction();
+        return { allowed: false, claimed: false };
+      }
       const claimedRows = await runner.query(
         `UPDATE conversations
-         SET queued_guard_replay_count = queued_guard_replay_count + 1,
+         SET queued_guard_replay_claimed_at = CURRENT_TIMESTAMP,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $1 AND status = 'queued' AND queued_guard_replay_count = 0
+           AND (queued_guard_replay_claimed_at IS NULL
+             OR queued_guard_replay_claimed_at <= CURRENT_TIMESTAMP - ($2::integer * INTERVAL '1 millisecond'))
          RETURNING id`,
-        [conversationId],
+        [conversationId, ghlGuardStaleLogMs()],
       ) as Array<{ id: string }>;
       await runner.commitTransaction();
       return { allowed: claimedRows.length > 0, claimed: claimedRows.length > 0 };
@@ -69,6 +76,34 @@ export class GhlGuardPersistenceFunctions {
     } finally {
       await runner.release();
     }
+  }
+
+  async completeQueuedReplay(conversationId: string): Promise<boolean> {
+    if (!this.dataSource) return false;
+    const rows = await this.dataSource.query(
+      `UPDATE conversations
+       SET queued_guard_replay_count = queued_guard_replay_count + 1,
+           queued_guard_replay_claimed_at = NULL,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND status = 'queued'
+         AND queued_guard_replay_count = 0
+         AND queued_guard_replay_claimed_at IS NOT NULL
+       RETURNING id`,
+      [conversationId],
+    ) as Array<{ id: string }>;
+    return rows.length > 0;
+  }
+
+  async releaseQueuedReplay(conversationId: string): Promise<void> {
+    if (!this.dataSource) return;
+    await this.dataSource.query(
+      `UPDATE conversations
+       SET queued_guard_replay_claimed_at = NULL,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND status = 'queued'
+         AND queued_guard_replay_count = 0`,
+      [conversationId],
+    );
   }
 
   async persistMessages(row: GuardConversationRow, messages: GhlGuardMessage[], allowTargetedStatuses = false): Promise<PersistResult> {
