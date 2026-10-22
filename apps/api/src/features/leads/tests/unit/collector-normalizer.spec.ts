@@ -1881,6 +1881,20 @@ describe('normalizeCollectorInput', () => {
     expect(result.missing_qualification).not.toContain('vehicle_type');
   });
 
+  it('normalizes Spanish turismo passenger wording to Sedan', () => {
+    const result = normalizeCollectorInput({
+      channel: 'messenger',
+      message: 'Pues un turismo para viajar al trabajo',
+      vehicle_type: ADVISOR_HANDOFF_VEHICLE,
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'Sedan',
+      vehicle_category: 'sedan',
+    });
+    expect(result.missing_qualification).not.toContain('vehicle_type');
+  });
+
   it('replays Orlando Jones Jr. without losing the suffix, small-car category, or down payment', () => {
     const result = normalizeCollectorInput({
       source: 'action-cars',

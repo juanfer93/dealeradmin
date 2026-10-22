@@ -263,7 +263,7 @@ function extractVehicle(message: string): string {
     }
     // A transcript can contain several facts (for example "Sedan" followed by
     // a Subaru trade-in). Return the vehicle token, never the complete transcript.
-    const category = withoutOtherFacts.match(/\b(suv|sedan|trucks?|troka|trocas?|trokitas?|troquitas?|troques?|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i)?.[1];
+    const category = withoutOtherFacts.match(/\b(suv|sedan|turismos?|trucks?|troka|trocas?|trokitas?|troquitas?|troques?|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|camionetq|camion|camión)\b/i)?.[1];
     const transcriptionModelAlias = /\b(?:odisea|paila|tajo)\b/i.test(candidate);
     const hasModel = VEHICLE_MODELS.test(withoutOtherFacts) || transcriptionModelAlias;
     const brand = withoutOtherFacts.match(VEHICLE_BRANDS)?.[0] ?? EMPTY;

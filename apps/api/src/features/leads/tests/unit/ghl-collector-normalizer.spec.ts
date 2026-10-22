@@ -84,6 +84,24 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(explicit.vehicle_type).toBe('Toyota Tacoma');
   });
 
+  it('normalizes Spanish turismo passenger wording to Sedan', () => {
+    const result = execute({
+      source: 'fredericksburg-2',
+      channel: 'messenger',
+      real_name: 'Ez Arnd',
+      phone: '+12409700122',
+      message: '2409700122',
+      chat_history_log: '¿Cuál es el proceso de compra?\nPues un turismo para viajar al trabajo\n2409700122',
+      vehicle_type: 'Quiere hablar con un asesor',
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'Sedan',
+      vehicle_category: 'sedan',
+      missing_qualification: [],
+    });
+  });
+
   it('preserves Toi/Moisés Stafford WhatsApp qualification memory', () => {
     const result = execute({
       source: 'stafford',
