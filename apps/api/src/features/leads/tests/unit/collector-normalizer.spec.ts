@@ -1110,6 +1110,27 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message }).vehicle_type).toBe(expected);
   });
 
+  it('does not treat the Spanish verb phrase "van a llamar" as a vehicle', () => {
+    const phrase = 'Para qué me pidieron el número si no me van a llamar';
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      phone: '+18043076139',
+      message: phrase,
+      chat_history_log: ['Tacoma', 'Tienen tacomas', '8043076139', '2000', phrase].join('\n'),
+      qualification_memory: 'real_name: Adil Paredes; vehicle: Tacoma; down payment: 2000',
+      vehicle_type: 'Tacoma',
+      down_payment: '2000',
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'Tacoma',
+      vehicle_category: 'truck',
+      required_down_payment: 3000,
+      down_payment_sufficient: false,
+    });
+  });
+
   it('keeps Arlington plural troca intent and ignores the phone line as down payment', () => {
     const transcript = ['Que trocas tiene', '540-746-5136'].join('\n');
     const result = normalizeCollectorInput({

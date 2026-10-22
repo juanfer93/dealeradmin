@@ -503,6 +503,16 @@ const questionedDownPayment = (value) => {
     || lastQuestion.match(new RegExp(`\\$?[ \\t]*(${amountToken})`, 'i'))?.[1];
   return validAmount(amount);
 };
+// In Spanish, "van a llamar/hacer/comprar" is a verb phrase, not a vehicle
+// answer. Only let `van` survive when the message presents it explicitly as a
+// vehicle (for example "una van", "mi van", "van con rampa", or a standalone
+// "van"). This prevents a later conversational sentence from overriding an
+// earlier model such as Tacoma.
+const isFalsePositiveVanVerb = (value) => {
+  const candidate = clean(value);
+  if (!/\bvan\s+a\s+[a-záéíóúüñ]+(?:ar|er|ir)\b/i.test(candidate)) return false;
+  return !/(?:^|\b)(?:una?\s+|mi\s+|my\s+|tengo\s+|tiene\s+|busco\s+|buscando\s+|quiero\s+|looking\s+for\s+|need\s+|needs\s+|have\s+|has\s+)(?:van)\b|^van$|\bvan\s+(?:con|para|de)\b/i.test(candidate);
+};
 const vehicleFrom = (text) => {
   const source = String(text ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source || campaign) return '';
@@ -511,6 +521,7 @@ const vehicleFrom = (text) => {
   for (const [lineIndex, line] of lines.entries()) {
     const candidate = normalizeWhisperVehicleAliases(stripCampaignButtonPhrases(line));
     if (!candidate || isCampaignButton(candidate) || isNonVehicleIntent(candidate)) continue;
+    if (isFalsePositiveVanVerb(candidate)) continue;
     // Internal structured fields can appear beside the buyer's evidence. They
     // describe a field, not a new vehicle answer, and must not override the
     // actual vehicle with a later `vehicle_type: SUV` marker.

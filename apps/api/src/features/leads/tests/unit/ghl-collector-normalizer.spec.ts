@@ -549,6 +549,27 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.missing_qualification).not.toContain('vehicle_type');
   });
 
+  it('does not treat the Spanish verb phrase "van a llamar" as a vehicle', () => {
+    const phrase = 'Para qué me pidieron el número si no me van a llamar';
+    const result = execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      phone: '+18043076139',
+      message: phrase,
+      chat_history_log: ['Tacoma', 'Tienen tacomas', '8043076139', '2000', phrase].join('\n'),
+      qualification_memory: 'real_name: Adil Paredes; vehicle: Tacoma; down payment: 2000',
+      vehicle_type: 'Tacoma',
+      down_payment: '2000',
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'Tacoma',
+      vehicle_category: 'truck',
+      required_down_payment: 3000,
+      down_payment_sufficient: false,
+    });
+  });
+
   it.each([
     ['U coche 🚗 pequeño', 'Sedan'],
     ['un coche pekeno', 'Sedan'],
