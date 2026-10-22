@@ -22,6 +22,8 @@ export type ConversationRow = {
   first_message_at?: string | Date;
   ready_at?: string | null;
   next_attempt_at?: string | null;
+  waiting_window_attempts?: number;
+  waiting_window_started_at?: string | null;
   isExisting?: boolean;
   hasPreviousMessage?: boolean;
 };

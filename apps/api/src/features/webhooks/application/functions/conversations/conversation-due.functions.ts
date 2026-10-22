@@ -4,7 +4,7 @@ import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-d
 import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
 import { ConversationQualificationFunctions } from './conversation-qualification.functions';
 import { ConversationReconciliationFunctions } from './conversation-reconciliation.functions';
-import { DUE_CONVERSATION_BATCH_SIZE, GHL_SOURCE_CONFIG } from './conversation-webhook.config';
+import { DUE_CONVERSATION_BATCH_SIZE, GHL_SOURCE_CONFIG, WAITING_WINDOW_MAX_ATTEMPTS, WAITING_WINDOW_RETRY_INTERVAL_MS } from './conversation-webhook.config';
 import { clean } from './conversation-webhook.helpers';
 import type { ConversationSnapshot, LocationSnapshot, DueConversationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
 import type { GhlGuardRunResult, GhlGuardService } from '../../ghl-guard.service';
@@ -68,12 +68,13 @@ export class ConversationDueFunctions {
     try {
       const rows = await runner.query(
         `SELECT c.id, c.ghl_location_id, c.ghl_contact_id, c.ghl_conversation_id, c.qualification_snapshot, c.location_snapshot, c.ready_at,
+                c.waiting_window_attempts,
                 l.id AS lead_id, l.first_name, l.last_name
          FROM conversations c JOIN leads l ON l.id = c.lead_id
          WHERE c.id = $1 AND c.status = 'waiting_window' AND c.next_attempt_at <= $2
          FOR UPDATE`,
         [id, now.toISOString()],
-      ) as Array<{ id: string; ghl_location_id: string; ghl_contact_id: string; ghl_conversation_id: string; qualification_snapshot: ConversationSnapshot; location_snapshot: LocationSnapshot; ready_at: string | null; lead_id: string; first_name: string | null; last_name: string | null }>;
+      ) as Array<{ id: string; ghl_location_id: string; ghl_contact_id: string; ghl_conversation_id: string; qualification_snapshot: ConversationSnapshot; location_snapshot: LocationSnapshot; ready_at: string | null; waiting_window_attempts: number | string | null; lead_id: string; first_name: string | null; last_name: string | null }>;
       if (!rows[0]) {
         await runner.rollbackTransaction();
         return false;
@@ -82,12 +83,28 @@ export class ConversationDueFunctions {
       const configuredSource = Object.entries(this.sourceConfig).find(([, config]) => config.locationId === row.ghl_location_id)?.[0];
       if (!configuredSource) throw new BadRequestException(`Fuente GHL no configurada para la Location ID ${row.ghl_location_id}`);
       const source = configuredSource as SourceKey;
+      const waitingWindowAttempts = Number(row.waiting_window_attempts ?? 0);
+      if (waitingWindowAttempts < WAITING_WINDOW_MAX_ATTEMPTS) {
+        const nextAttemptAt = new Date(now.getTime() + WAITING_WINDOW_RETRY_INTERVAL_MS).toISOString();
+        await runner.query(
+          `UPDATE conversations
+           SET status = 'waiting_window', next_attempt_at = $2::timestamptz,
+               waiting_window_started_at = COALESCE(waiting_window_started_at, $3::timestamptz),
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [id, nextAttemptAt, now.toISOString()],
+        );
+        await runner.commitTransaction();
+        return false;
+      }
       const dealer = await this.qualification.findSourceDealer(runner, row.ghl_location_id, source, row.qualification_snapshot.language, clean(row.qualification_snapshot.assigned_dealer_id) || undefined);
       const status = this.qualification.statusForConversation(row.qualification_snapshot, row.location_snapshot, dealer, source, now, 'due', row.ready_at);
       if (status.status !== 'ready') {
         await runner.query(
           `UPDATE conversations SET status = $2, next_attempt_at = $3,
              ready_at = CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued') THEN COALESCE(ready_at, $4::timestamptz) ELSE ready_at END,
+             waiting_window_attempts = CASE WHEN $2::varchar = 'waiting_window' THEN waiting_window_attempts ELSE 0 END,
+             waiting_window_started_at = CASE WHEN $2::varchar = 'waiting_window' THEN COALESCE(waiting_window_started_at, $4::timestamptz) ELSE NULL END,
              updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
           [id, status.status, status.nextAttemptAt, now.toISOString()],
         );
@@ -102,12 +119,12 @@ export class ConversationDueFunctions {
         id,
       );
       if (queuedDuplicate) {
-        await runner.query(`UPDATE conversations SET status = 'duplicate_ignored', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
+        await runner.query(`UPDATE conversations SET status = 'duplicate_ignored', next_attempt_at = NULL, waiting_window_attempts = 0, waiting_window_started_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
         await runner.commitTransaction();
         return false;
       }
       await this.qualification.syncLeadDealer(runner, dealer, row.lead_id, row.qualification_snapshot, row.location_snapshot, source);
-      await runner.query(`UPDATE conversations SET status = 'queued', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
+      await runner.query(`UPDATE conversations SET status = 'queued', next_attempt_at = NULL, waiting_window_attempts = 0, waiting_window_started_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
       queuedPauseEvent = await this.queueService.createQueuedPauseEvent(runner, 'waiting_window', 'queued', {
         conversationId: row.id,
         ghlConversationId: row.ghl_conversation_id,

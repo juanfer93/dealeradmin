@@ -454,9 +454,9 @@ export class GhlGuardService {
         : 0;
       const leadMetadataBefore = await this.persistence.readLeadMetadata(effectiveRow.id);
       if (targeted) {
-        await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true, true);
+        await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true, true, true);
       } else {
-        await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true);
+        await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true, false, true);
       }
       // A targeted replay can discover that a synthetic local conversation
       // maps to an already-canonical GHL conversation. Reconcile the local
@@ -472,7 +472,7 @@ export class GhlGuardService {
            WHERE synthetic.id = $1 AND canonical.id = $2`,
           [syntheticConversationId, effectiveRow.id],
         );
-        await this.reconciliation.reconcileConversation(syntheticConversationId, new Date(), true, true, true);
+        await this.reconciliation.reconcileConversation(syntheticConversationId, new Date(), true, true, true, true);
       }
       const leadMetadataAfter = await this.persistence.readLeadMetadata(effectiveRow.id);
       const completedFields = completedFieldsBetween(leadMetadataBefore, leadMetadataAfter);

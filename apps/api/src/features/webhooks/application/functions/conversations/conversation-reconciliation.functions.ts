@@ -5,7 +5,7 @@ import { evaluateDownPayment, normalizeDownPayment } from '../../../../leads/dom
 import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-duplicate';
 import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
 import { ConversationQualificationFunctions } from './conversation-qualification.functions';
-import { ACTIVE_RECONCILIATION_BATCH_SIZE, GHL_SOURCE_CONFIG, RECONCILIATION_LOCATION_IDS, CONVERSATION_STABILIZATION_MS } from './conversation-webhook.config';
+import { ACTIVE_RECONCILIATION_BATCH_SIZE, GHL_SOURCE_CONFIG, RECONCILIATION_LOCATION_IDS, CONVERSATION_STABILIZATION_MS, WAITING_WINDOW_MAX_ATTEMPTS, WAITING_WINDOW_RETRY_INTERVAL_MS } from './conversation-webhook.config';
 import { addProcessedImageEvidence, clean, extractNativeWhatsappPhone, inputIndicatesWhatsApp, isAttachmentEvidenceMessage, safePhone, splitName } from './conversation-webhook.helpers';
 import type { ConversationMessageRow, ConversationSnapshot, LocationSnapshot, MediaReconciliationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
 
@@ -48,7 +48,7 @@ export class ConversationReconciliationFunctions {
     for (const row of rows) await this.reconcileConversation(row.id, now);
   }
 
-  async reconcileConversation(id: string, now: Date, propagateErrors = false, additiveOnly = false, targeted = false): Promise<void> {
+  async reconcileConversation(id: string, now: Date, propagateErrors = false, additiveOnly = false, targeted = false, countWaitingWindowAttempt = false): Promise<void> {
     const runner = this.dataSource!.createQueryRunner();
     let queuedPauseEvent: QueuedPauseDispatch | null = null;
     await runner.connect();
@@ -56,7 +56,7 @@ export class ConversationReconciliationFunctions {
     try {
       const rows = await runner.query(
         `SELECT c.id, c.channel, c.ghl_location_id, c.ghl_contact_id, c.ghl_conversation_id, c.status,
-                c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at, c.last_message_at,
+        c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at, c.last_message_at, c.waiting_window_attempts,
                 l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name
          FROM conversations c
          JOIN leads l ON l.id = c.lead_id
@@ -78,6 +78,7 @@ export class ConversationReconciliationFunctions {
         ready_at: string | null;
         next_attempt_at: string | null;
         last_message_at: string | null;
+        waiting_window_attempts: number | string | null;
         lead_id: string;
         canonical_phone: string | null;
         first_name: string | null;
@@ -252,20 +253,35 @@ export class ConversationReconciliationFunctions {
       const recentlyCaptured = Number.isFinite(lastMessageAt) && now.getTime() - lastMessageAt < CONVERSATION_STABILIZATION_MS;
       const phase = row.status === 'partial' && snapshot.qualification_complete && recentlyCaptured ? 'capture' : 'due';
       const activeWindow = row.status === 'waiting_window' && row.next_attempt_at && new Date(row.next_attempt_at).getTime() > now.getTime();
+      const waitingWindowGrace = row.status === 'waiting_window'
+        && (activeWindow || Number(row.waiting_window_attempts ?? 0) < WAITING_WINDOW_MAX_ATTEMPTS);
       const preserveTargetedStatus = targeted && (row.status === 'queued' || row.status === 'duplicate_ignored');
       const status = preserveTargetedStatus
         ? { status: row.status as 'queued' | 'duplicate_ignored', nextAttemptAt: null }
-        : activeWindow
-        ? { status: 'waiting_window' as const, nextAttemptAt: row.next_attempt_at }
+        : waitingWindowGrace
+        ? { status: 'waiting_window' as const, nextAttemptAt: row.next_attempt_at || new Date(now.getTime() + WAITING_WINDOW_RETRY_INTERVAL_MS).toISOString() }
         : this.qualification.statusForConversation(snapshot, location, dealer, source, now, phase, row.ready_at || row.last_message_at);
+      const currentWaitingWindowAttempts = Number(row.waiting_window_attempts ?? 0);
+      const shouldCountWaitingWindowAttempt = countWaitingWindowAttempt
+        && row.status === 'waiting_window'
+        && status.status === 'waiting_window'
+        && currentWaitingWindowAttempts < WAITING_WINDOW_MAX_ATTEMPTS;
+      const nextAttemptAt = shouldCountWaitingWindowAttempt
+        ? new Date(now.getTime() + WAITING_WINDOW_RETRY_INTERVAL_MS).toISOString()
+        : status.nextAttemptAt;
+      const nextWaitingWindowAttempts = shouldCountWaitingWindowAttempt
+        ? currentWaitingWindowAttempts + 1
+        : currentWaitingWindowAttempts;
       await runner.query(
         `UPDATE conversations
          SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
              next_attempt_at = $5,
              ready_at = CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued') THEN COALESCE(ready_at, $6::timestamptz) ELSE ready_at END,
+             waiting_window_attempts = CASE WHEN $2::varchar = 'waiting_window' THEN $7 ELSE 0 END,
+             waiting_window_started_at = CASE WHEN $2::varchar = 'waiting_window' THEN COALESCE(waiting_window_started_at, $6::timestamptz) ELSE NULL END,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $1`,
-        [id, status.status, JSON.stringify(snapshot), JSON.stringify(location), status.nextAttemptAt, now.toISOString()],
+        [id, status.status, JSON.stringify(snapshot), JSON.stringify(location), nextAttemptAt, now.toISOString(), nextWaitingWindowAttempts],
       );
       if (!preserveTargetedStatus && status.status === 'ready') {
         const duplicate = await findQueuedConversationDuplicate(runner, dealer.id, snapshot.real_name || contactName, snapshot.phone, id);

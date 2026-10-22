@@ -2,6 +2,57 @@ import { describe, expect, it, vi } from 'vitest';
 import { ConversationDueFunctions } from '../../application/functions/conversations/conversation-due.functions';
 
 describe('ConversationDueFunctions', () => {
+  it('keeps waiting_window open for the next five-minute recovery cycle without consuming a successful attempt', async () => {
+    const now = new Date('2026-10-16T22:30:00.000Z');
+    const runner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query: vi.fn()
+        .mockResolvedValueOnce([{
+          id: 'conversation-waiting',
+          ghl_location_id: 'stafford-location',
+          ghl_contact_id: 'contact-waiting',
+          ghl_conversation_id: 'ghl-waiting',
+          qualification_snapshot: { language: 'en', assigned_dealer_id: 'dealer-stafford' },
+          location_snapshot: {},
+          ready_at: '2026-10-16T22:00:00.000Z',
+          waiting_window_attempts: 0,
+          lead_id: 'lead-waiting',
+          first_name: 'Test',
+          last_name: 'Lead',
+        }])
+        .mockResolvedValueOnce([]),
+    };
+    const dataSource = {
+      query: vi.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: 'conversation-waiting' }]),
+      createQueryRunner: vi.fn().mockReturnValue(runner),
+    };
+    const service = new ConversationDueFunctions(
+      dataSource as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      { stafford: { locationId: 'stafford-location' } } as never,
+      undefined,
+    );
+
+    const result = await service.processDueConversations(now, { reconcileActive: false, runGuard: false });
+
+    expect(result.processed).toBe(0);
+    expect(runner.query).toHaveBeenCalledWith(
+      expect.stringContaining("SET status = 'waiting_window', next_attempt_at = $2::timestamptz"),
+      ['conversation-waiting', '2026-10-16T22:35:00.000Z', '2026-10-16T22:30:00.000Z'],
+    );
+    expect(runner.query.mock.calls[1][0]).not.toContain('waiting_window_attempts = waiting_window_attempts');
+    expect(runner.commitTransaction).toHaveBeenCalledOnce();
+  });
+
   it('runs the additive GHL guard without the heavy active reconciliation pass', async () => {
     const dataSource = {
       query: vi.fn()

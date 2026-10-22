@@ -70,7 +70,7 @@ export class ConversationQueueService {
       // Keep the operator's sent relation while cycling the conversation
       // through queued so the existing durable bot-silence event is emitted.
       await runner.query(
-        `UPDATE conversations SET status = 'sent', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        `UPDATE conversations SET status = 'sent', next_attempt_at = NULL, waiting_window_attempts = 0, waiting_window_started_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
         [conversation.id],
       );
       queuedPauseEvent = await this.createQueuedPauseEvent(runner, 'sent', 'queued', {
@@ -83,7 +83,7 @@ export class ConversationQueueService {
         emittedAt,
       });
       await runner.query(
-        `UPDATE conversations SET status = 'queued', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        `UPDATE conversations SET status = 'queued', next_attempt_at = NULL, waiting_window_attempts = 0, waiting_window_started_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
         [conversation.id],
       );
       await runner.commitTransaction();
