@@ -89,6 +89,7 @@ export class ConversationDueFunctions {
         await runner.query(
           `UPDATE conversations
            SET status = 'waiting_window', next_attempt_at = $2::timestamptz,
+               waiting_window_attempts = LEAST(waiting_window_attempts + 1, ${WAITING_WINDOW_MAX_ATTEMPTS}),
                waiting_window_started_at = COALESCE(waiting_window_started_at, $3::timestamptz),
                updated_at = CURRENT_TIMESTAMP
            WHERE id = $1`,

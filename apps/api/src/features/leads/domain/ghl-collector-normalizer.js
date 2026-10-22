@@ -91,6 +91,10 @@ const economicCarIntent = /\b(?:carro|auto|coche|veh[ií]culo)\s+econ[oó]mic[oa
 // "Algo económico" followed by "Normal". Keep it as a sedan category during
 // late GHL reconciliation instead of falling back to advisor handoff.
 const economicSedanIntent = /\b(?:carro|auto|coche|veh[ií]culo|algo)\s+econ[oó]mic[oa]s?\b/i;
+// When a buyer is explicitly undecided, use Sedan as the safe default so the
+// lead can continue through routing instead of remaining partial. This is a
+// fallback only: explicit vehicle evidence still wins below.
+const indecisiveVehicleIntent = /\b(?:anything\s+(?:you\s+)?(?:have|got|offer|carry|available|in\s+stock)|whatever\s+(?:you\s+have|you(?:'ve|\s+have)?\s+got|is\s+available)|(?:i(?:'m|\s+am)\s+)?(?:not\s+sure|unsure|undecided|do\s+not\s+know|don't\s+know|have\s+no\s+idea|no\s+idea|no\s+preference)\s+(?:about\s+|on\s+|what\s+|which\s+)?(?:vehicle|car|auto|coche|carro|truck|suv|sedan)?|(?:it\s+)?does(?:n't|\s+not)\s+matter\s+(?:what|which)\s+(?:vehicle|car|auto|coche|carro)|i\s+do(?:n't|\s+not)\s+care\s+(?:what|which)\s+(?:vehicle|car|auto|coche|carro)|(?:any|whatever)\s+(?:vehicle|car|auto|coche|carro)|(?:no\s+(?:sé|se)\s+(?:qué|que)|no\s+tengo\s+(?:idea|preferencia|claro\s+qué|claro\s+que)|estoy\s+indecis[oa]|no\s+estoy\s+segur[oa]|me\s+da\s+igual|me\s+es\s+igual)\s*(?:de\s+|sobre\s+|qué\s+|que\s+)?(?:carro|auto|coche|veh[ií]culo|vehiculo|camioneta)|(?:cualquiera|lo\s+que\s+sea|el\s+que\s+sea|la\s+que\s+sea)(?:\s+(?:carro|auto|coche|veh[ií]culo|vehiculo))?)\b/i;
 const familyPassengerVanIntent = /\b(?:algo\s+)?familiar\b[\s\S]{0,80}\bpasajeros?\b/i;
 const noDownPaymentResponse = /\b(?:no(?:\s+\w+){0,3}\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)?)\b/i;
 const normalizeWhisperVehicleAliases = (value) => clean(value)
@@ -683,6 +687,11 @@ const vehicleSource = [historyForExtraction, rawMessage].filter(Boolean).join('\
 const phoneFromConversation = phoneFrom(message, history);
 // Keep the WhatsApp/Messenger shorthand "carro económico" as the stable
 // Sedan category.
+const explicitVehicle = first(
+  campaign ? '' : cleanVehicleValue(vehicleFrom(vehicleSource)),
+  cleanVehicleValue(memoryValue(['vehicle', 'vehicle_type'])),
+  cleanVehicleValue(inputData.vehicle_type),
+);
 const extractedVehicle = familyPassengerVanIntent.test(vehicleSource)
   ? 'van'
   : economicSedanIntent.test(vehicleSource)
@@ -691,11 +700,7 @@ const extractedVehicle = familyPassengerVanIntent.test(vehicleSource)
       ? 'Sedan'
       : /\b(?:four|4)[-\s]?door\s+sports?\s+cars?\b/i.test(vehicleSource)
         ? 'Sedan'
-    : first(
-    campaign ? '' : cleanVehicleValue(vehicleFrom(vehicleSource)),
-    cleanVehicleValue(memoryValue(['vehicle', 'vehicle_type'])),
-    cleanVehicleValue(inputData.vehicle_type),
-  );
+        : explicitVehicle || (indecisiveVehicleIntent.test(vehicleSource) ? 'Sedan' : '');
 const existingAdvisorMarker = [memoryValue(['vehicle', 'vehicle_type']), inputData.vehicle_type].some(isAdvisorHandoffVehicle);
 const phone = phoneFrom(message, history, inputData.phone);
 const vehicleYear = [

@@ -264,6 +264,7 @@ export class ConversationReconciliationFunctions {
       const currentWaitingWindowAttempts = Number(row.waiting_window_attempts ?? 0);
       const shouldCountWaitingWindowAttempt = countWaitingWindowAttempt
         && row.status === 'waiting_window'
+        && (!row.next_attempt_at || new Date(row.next_attempt_at).getTime() <= now.getTime())
         && status.status === 'waiting_window'
         && currentWaitingWindowAttempts < WAITING_WINDOW_MAX_ATTEMPTS;
       const nextAttemptAt = shouldCountWaitingWindowAttempt

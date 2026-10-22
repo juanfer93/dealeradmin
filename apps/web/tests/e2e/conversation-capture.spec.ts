@@ -63,6 +63,38 @@ test('normaliza los casos reales de Action Midsize y Stafford Toi', async ({ req
   }
 });
 
+test('captura una solicitud indecisa de Messenger como Sedan por defecto', async ({ request }) => {
+  const suffix = `ghl-e2e-indecisive-sedan-${Date.now()}`;
+  const messages = ['What vehicles are eligible?', 'Anything you got', '814 603 0494'];
+
+  for (const [index, message] of messages.entries()) {
+    const eventId = `${suffix}-${index + 1}`;
+    const response = await request.post('http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/action-cars', {
+      data: JSON.stringify({
+        message_body: message,
+        contact_phone: '+18146030494',
+        contact_name: 'Tom C Cordwell QA',
+        channel: 'messenger',
+        event_id: eventId,
+      }),
+      headers: {
+        'content-type': 'application/json',
+        'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
+        'X-DealerADMIN-Contact-ID': `${suffix}-contact`,
+        'X-DealerADMIN-Conversation-ID': `${suffix}-conversation`,
+        'X-DealerADMIN-Message-ID': `${eventId}-message`,
+      },
+    });
+
+    expect(response.status(), `indecisive message ${index + 1}`).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      accepted: true,
+      source: 'action-cars',
+      status: 'processed',
+    });
+  }
+});
+
 test('recibe cada Customer Replied con el contact id y conversation id sin depender de custom fields', async ({ request }) => {
   const suffix = `ghl-e2e-single-${Date.now()}`;
   const response = await request.post('http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/stafford', {

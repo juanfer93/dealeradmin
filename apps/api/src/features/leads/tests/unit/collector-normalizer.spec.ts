@@ -12,6 +12,42 @@ describe('normalizeCollectorInput', () => {
     }).vehicle_type).toBe('Sedan');
   });
 
+  it.each([
+    ['What vehicles are eligible?\nAnything you got\n814 603 0494', 'en'],
+    ['No sé qué carro quiero\n814 603 0494', 'es'],
+    ['I am not sure what vehicle I want\n814 603 0494', 'en'],
+    ['No tengo preferencia de vehículo\n814 603 0494', 'es'],
+  ])('defaults an indecisive %s conversation to Sedan', (transcript, language) => {
+    const result = normalizeCollectorInput({
+      source: 'action-cars',
+      channel: 'messenger',
+      real_name: 'Indecisive Buyer',
+      message: transcript.split('\n').at(-1) ?? '',
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      phone: '+18146030494',
+      vehicle_type: 'Sedan',
+      vehicle_category: 'sedan',
+      qualification_complete: true,
+      missing_qualification: [],
+      qualification_progress: { language },
+    });
+  });
+
+  it('keeps an explicit vehicle ahead of a later indecision phrase', () => {
+    const result = normalizeCollectorInput({
+      source: 'action-cars',
+      channel: 'messenger',
+      real_name: 'Vehicle Buyer',
+      message: 'I am not sure anymore',
+      chat_history_log: 'Toyota Tacoma\nI am not sure anymore\n814 603 0494',
+    });
+
+    expect(result.vehicle_type).toBe('Toyota Tacoma');
+  });
+
   it('normalizes Katherine Amaya\'s Spanish truck and down-payment answer', () => {
     const result = normalizeCollectorInput({
       source: 'koons-fredericksburg',

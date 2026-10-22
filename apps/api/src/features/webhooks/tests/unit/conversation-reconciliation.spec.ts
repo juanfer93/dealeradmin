@@ -66,6 +66,58 @@ describe('ConversationReconciliationFunctions', () => {
     expect(qualification.statusForConversation).not.toHaveBeenCalled();
   });
 
+  it('does not count the same waiting_window cycle twice after the due workflow already rescheduled it', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('SELECT c.id, c.channel')) {
+        return [{
+          id: 'conversation-rescheduled',
+          channel: 'messenger',
+          ghl_location_id: GHL_SOURCE_CONFIG.stafford.locationId,
+          ghl_contact_id: 'rescheduled-contact',
+          ghl_conversation_id: 'ghl-rescheduled',
+          status: 'waiting_window',
+          qualification_snapshot: { real_name: 'Waiting Lead', phone: '+17035550123', vehicle_type: 'Sedan', qualification_complete: false, language: 'en' },
+          location_snapshot: { city: null, state: null, zip_code: null, easterns_zone: null },
+          ready_at: '2026-10-18T18:00:00.000Z',
+          next_attempt_at: '2026-10-18T18:10:00.000Z',
+          last_message_at: '2026-10-18T17:59:00.000Z',
+          waiting_window_attempts: 1,
+          lead_id: 'lead-rescheduled',
+          canonical_phone: '+17035550123',
+          first_name: 'Waiting',
+          last_name: 'Lead',
+        }];
+      }
+      if (sql.includes('SELECT cm.body')) return [{ body: 'Todavía busco un Sedan.', direction: 'inbound', occurred_at: '2026-10-18T17:59:00.000Z' }];
+      return [];
+    });
+    const runner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query,
+    };
+    const qualification = {
+      resolveLocation: vi.fn().mockResolvedValue({ city: null, state: null, zip_code: null, easterns_zone: null }),
+      findSourceDealer: vi.fn().mockResolvedValue({ id: 'dealer-stafford', timezone: 'America/New_York', routing_config: {} }),
+      statusForConversation: vi.fn().mockReturnValue({ status: 'waiting_window', nextAttemptAt: '2026-10-18T18:15:00.000Z' }),
+      syncLeadDealer: vi.fn(),
+    };
+    const reconciliation = new ConversationReconciliationFunctions(
+      { createQueryRunner: () => runner } as never,
+      qualification as never,
+      { createQueuedPauseEvent: vi.fn(), dispatchQueuedPauseEvent: vi.fn() } as never,
+    );
+
+    await reconciliation.reconcileConversation('conversation-rescheduled', new Date('2026-10-18T18:05:00.000Z'), true, true, false, true);
+
+    const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(conversationUpdate?.[1]?.[6]).toBe(1);
+  });
+
   it('repairs a bad profile label from the name explicitly declared in the transcript', async () => {
     const query = vi.fn(async (sql: string, _params?: unknown[]) => {
       if (sql.includes('SELECT c.id, c.channel')) {

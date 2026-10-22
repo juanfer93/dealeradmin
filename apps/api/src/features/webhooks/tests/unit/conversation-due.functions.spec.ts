@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ConversationDueFunctions } from '../../application/functions/conversations/conversation-due.functions';
 
 describe('ConversationDueFunctions', () => {
-  it('keeps waiting_window open for the next five-minute recovery cycle without consuming a successful attempt', async () => {
+  it('consumes one bounded waiting_window attempt when the due workflow reschedules a recovery cycle', async () => {
     const now = new Date('2026-10-16T22:30:00.000Z');
     const runner = {
       connect: vi.fn(),
@@ -49,7 +49,7 @@ describe('ConversationDueFunctions', () => {
       expect.stringContaining("SET status = 'waiting_window', next_attempt_at = $2::timestamptz"),
       ['conversation-waiting', '2026-10-16T22:35:00.000Z', '2026-10-16T22:30:00.000Z'],
     );
-    expect(runner.query.mock.calls[1][0]).not.toContain('waiting_window_attempts = waiting_window_attempts');
+    expect(runner.query.mock.calls[1][0]).toContain('waiting_window_attempts = LEAST(waiting_window_attempts + 1, 5)');
     expect(runner.commitTransaction).toHaveBeenCalledOnce();
   });
 

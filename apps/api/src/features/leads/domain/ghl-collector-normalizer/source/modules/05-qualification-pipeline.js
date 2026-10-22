@@ -299,6 +299,11 @@ const vehicleSource = [historyForExtraction, rawMessage].filter(Boolean).join('\
 const phoneFromConversation = phoneFrom(message, history);
 // Keep the WhatsApp/Messenger shorthand "carro económico" as the stable
 // Sedan category.
+const explicitVehicle = first(
+  campaign ? '' : cleanVehicleValue(vehicleFrom(vehicleSource)),
+  cleanVehicleValue(memoryValue(['vehicle', 'vehicle_type'])),
+  cleanVehicleValue(inputData.vehicle_type),
+);
 const extractedVehicle = familyPassengerVanIntent.test(vehicleSource)
   ? 'van'
   : economicSedanIntent.test(vehicleSource)
@@ -307,11 +312,7 @@ const extractedVehicle = familyPassengerVanIntent.test(vehicleSource)
       ? 'Sedan'
       : /\b(?:four|4)[-\s]?door\s+sports?\s+cars?\b/i.test(vehicleSource)
         ? 'Sedan'
-    : first(
-    campaign ? '' : cleanVehicleValue(vehicleFrom(vehicleSource)),
-    cleanVehicleValue(memoryValue(['vehicle', 'vehicle_type'])),
-    cleanVehicleValue(inputData.vehicle_type),
-  );
+        : explicitVehicle || (indecisiveVehicleIntent.test(vehicleSource) ? 'Sedan' : '');
 const existingAdvisorMarker = [memoryValue(['vehicle', 'vehicle_type']), inputData.vehicle_type].some(isAdvisorHandoffVehicle);
 const phone = phoneFrom(message, history, inputData.phone);
 const vehicleYear = [

@@ -56,6 +56,34 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
   });
 
+  it('defaults English and Spanish indecision to Sedan while preserving explicit vehicles', () => {
+    const english = execute({
+      source: 'action-cars',
+      channel: 'messenger',
+      real_name: 'Tom C Cordwell',
+      message: '814 603 0494',
+      chat_history_log: 'What vehicles are eligible?\nAnything you got\n814 603 0494',
+    });
+    const spanish = execute({
+      source: 'action-cars',
+      channel: 'messenger',
+      real_name: 'Comprador indeciso',
+      message: '814 603 0494',
+      chat_history_log: 'No sé qué carro quiero\n814 603 0494',
+    });
+    const explicit = execute({
+      source: 'action-cars',
+      channel: 'messenger',
+      real_name: 'Vehicle Buyer',
+      message: 'I am not sure anymore',
+      chat_history_log: 'Toyota Tacoma\nI am not sure anymore\n814 603 0494',
+    });
+
+    expect(english).toMatchObject({ vehicle_type: 'Sedan', qualification_complete: true, missing_qualification: [] });
+    expect(spanish).toMatchObject({ vehicle_type: 'Sedan', qualification_complete: true, missing_qualification: [] });
+    expect(explicit.vehicle_type).toBe('Toyota Tacoma');
+  });
+
   it('preserves Toi/Moisés Stafford WhatsApp qualification memory', () => {
     const result = execute({
       source: 'stafford',
