@@ -1,4 +1,5 @@
 export type MessageLeadData = {
+  language?: 'es' | 'en' | null;
   vehicle_type?: string | null;
   down_payment?: string | null;
   previous_financing?: 'yes' | 'no' | '' | null;
@@ -105,6 +106,7 @@ export function formatPurchaseTimeline(value: string | null | undefined, languag
 }
 
 export function detectMessageLanguage(data: MessageLeadData): 'es' | 'en' {
+  if (data.language === 'es' || data.language === 'en') return data.language;
   const text = Object.values(data).filter(Boolean).join(' ').toLowerCase();
   const explicitLanguage = [
     { phrase: /\bquiere\s+comprar\b/i, language: 'es' as const },

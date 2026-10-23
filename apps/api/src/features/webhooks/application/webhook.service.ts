@@ -307,6 +307,7 @@ export class WebhookService {
       const purchaseTimeline = normalizePurchaseTimeline(normalized.purchase_timeline) ?? '';
       const messageText = buildWhatsAppMessage(leadName, canonicalPhone, {
         ...payload.lead,
+        language: normalized.qualification_progress.language,
         vehicle_type: normalized.vehicle_type || currentLeadDealer?.vehicle_type || '',
         down_payment: normalizeDownPayment(normalized.down_payment) || currentLeadDealer?.down_payment || '',
         previous_financing: normalized.previous_financing,

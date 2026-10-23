@@ -1,7 +1,29 @@
 import type { DataSource } from 'typeorm';
 
-const FIXTURE_CONTACT_IDS = ['e2e-ui-maria', 'e2e-ui-carlos', 'e2e-ui-andres', 'e2e-webhook-contact'];
-const FIXTURE_PHONES = ['+15559876543', '+15551234567', '+15550001111', '+15551234568'];
+const FIXTURE_CONTACT_IDS = [
+  'e2e-ui-maria',
+  'e2e-ui-carlos',
+  'e2e-ui-andres',
+  'e2e-webhook-contact',
+  'e2e-language-1',
+  'e2e-language-2',
+  'e2e-language-3',
+  'e2e-language-4',
+  'e2e-language-5',
+  'e2e-language-6',
+];
+const FIXTURE_PHONES = [
+  '+15559876543',
+  '+15551234567',
+  '+15550001111',
+  '+15551234568',
+  '+18045550101',
+  '+18045550102',
+  '+18045550103',
+  '+18045550104',
+  '+18045550105',
+  '+18045550106',
+];
 const FIXTURE_SOURCES = ['E2E Manual Console', 'E2E Bulk Console', 'Manual Console', 'Manual Bulk Console'];
 
 /**

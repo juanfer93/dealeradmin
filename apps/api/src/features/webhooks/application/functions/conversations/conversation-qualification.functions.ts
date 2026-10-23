@@ -393,6 +393,7 @@ export class ConversationQualificationFunctions {
     const routingReason = preservesAssignment ? current?.routing_reason || routing.reason : routing.reason;
     const messageText = buildWhatsAppMessage(snapshot.real_name || 'Lead', snapshot.phone, {
       ...snapshot,
+      language: snapshot.qualification_progress?.language ?? snapshot.language,
       dealer_name: sourceDealer.name,
     });
     const hasUnhandledReengagement = reengagement || Boolean(current?.has_unhandled_reengagement);

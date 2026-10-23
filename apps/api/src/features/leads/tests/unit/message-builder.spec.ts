@@ -40,6 +40,34 @@ describe('qualification message normalization', () => {
     expect(message).not.toContain('bank account yes');
   });
 
+  it.each([
+    ['Honda Civic', '1000', '1000 down'],
+    ['Toyota Corolla', '$1,500', '$1,500 down'],
+    ['Toyota Tacoma', '2000 dollars', '2000 dollars down'],
+    ['SUV', '3000', '3000 down'],
+    ['Ford F-150', '1000 + trade-in', '1000 + trade-in down'],
+    ['Sedan', '4000', '4000 down'],
+  ] as const)('uses the explicit normalized English language for %s', (vehicle_type, down_payment, expectedDown) => {
+    const message = buildWhatsAppMessage('English Buyer', '+18045550123', {
+      language: 'en',
+      vehicle_type,
+      down_payment,
+    });
+
+    expect(message).toContain(expectedDown);
+    expect(message).not.toContain(' de down');
+  });
+
+  it('keeps the explicit normalized Spanish language for sparse normalized fields', () => {
+    const message = buildWhatsAppMessage('Comprador', '+18045550124', {
+      language: 'es',
+      vehicle_type: 'Honda Civic',
+      down_payment: '1000',
+    });
+
+    expect(message).toContain('1000 de down');
+  });
+
   it('adds the prior-financing evidence beside a below-standard Offlease down payment', () => {
     const message = buildWhatsAppMessage('Leandro Bolzan', '+17257103809', {
       vehicle_type: 'SUV',
