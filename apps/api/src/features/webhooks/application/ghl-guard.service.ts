@@ -228,7 +228,7 @@ export class GhlGuardService {
       const concurrency = targeted ? 1 : Math.min(ghlGuardConcurrency(), rows.length);
       for (let offset = 0; offset < rows.length; offset += concurrency) {
         const batch = rows.slice(offset, offset + concurrency);
-        await Promise.all(batch.map((row) => this.processRow(row, runId, now, result, targeted)));
+        await Promise.all(batch.map((row) => this.processRow(row, runId, now, result, targeted, queuedOnly)));
       }
       return result;
     } catch (error) {
@@ -298,7 +298,7 @@ export class GhlGuardService {
     return canonical?.ghl_conversation_id ? canonical : null;
   }
 
-  private async processRow(row: GuardConversationRow, runId: string, now: Date, result: GhlGuardRunResult, targeted = false): Promise<void> {
+  private async processRow(row: GuardConversationRow, runId: string, now: Date, result: GhlGuardRunResult, targeted = false, queuedOnly = false): Promise<void> {
     let logId: string | null = null;
     let source: SourceKey | undefined;
     let queuedReplayClaimed = false;
@@ -339,7 +339,8 @@ export class GhlGuardService {
         return;
       }
       if (row.status === 'queued') {
-        const queuedReplay = await this.persistence.claimQueuedReplay(row.id, targeted);
+        const allowQueuedReplay = targeted || queuedOnly;
+        const queuedReplay = await this.persistence.claimQueuedReplay(row.id, allowQueuedReplay);
         if (!queuedReplay.allowed) {
           await this.persistence.updateLog(logId, 'skipped', {
             source,
@@ -458,7 +459,8 @@ export class GhlGuardService {
         return;
       }
       result.fetched += fetched.data.messages.length;
-      const persisted = await this.persistence.persistMessages(effectiveRow, fetched.data.messages, targeted);
+      const allowQueuedReplay = targeted || queuedOnly;
+      const persisted = await this.persistence.persistMessages(effectiveRow, fetched.data.messages, allowQueuedReplay);
       if (persisted.skipped) {
         await this.persistence.updateLog(logId, 'skipped', {
           source,
@@ -480,7 +482,7 @@ export class GhlGuardService {
         ? await this.persistence.mergeSyntheticConversationMessages(syntheticConversationId, effectiveRow.id)
         : 0;
       const leadMetadataBefore = await this.persistence.readLeadMetadata(effectiveRow.id);
-      if (targeted) {
+      if (targeted || queuedOnly) {
         await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true, true, false);
       } else {
         await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true, false, false);
