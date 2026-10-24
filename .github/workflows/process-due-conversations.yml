@@ -1,10 +1,10 @@
 name: Process due conversations
 
 on:
-  # Keep exactly one scheduler. Offset schedules multiply runs and make
-  # independent cycles contend for the same conversation rows.
+  # Keep exactly one scheduler. Start at minute 2 instead of minute 0 so the
+  # five-minute cadence avoids GitHub's busiest top-of-hour dispatch window.
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '2-59/5 * * * *'
   workflow_dispatch:
     inputs:
       contact_ids:
