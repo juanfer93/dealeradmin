@@ -169,5 +169,14 @@ jobs:
               sleep "$retry_delay_seconds"
               continue
             fi
+            if [ "$retryable" = "true" ]; then
+              echo "::error::GHL guard remained busy after ${max_attempts} attempts"
+              exit 1
+            fi
+            accepted="$(node -p 'JSON.parse(process.argv[1]).accepted ? "true" : "false"' "$summary")"
+            if [ "$accepted" != "true" ]; then
+              echo "::error::GHL guard did not accept the scheduled cycle"
+              exit 1
+            fi
             exit 0
           done

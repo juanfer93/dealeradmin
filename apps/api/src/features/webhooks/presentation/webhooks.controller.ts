@@ -122,7 +122,8 @@ export class WebhooksController {
       // and avoid unnecessary lease contention.
       force: contactIds.length > 0,
     });
-    return { accepted: true, guard };
+    const accepted = !guard.skipped || guard.skipReason === 'in_memory_interval';
+    return { accepted, guard };
   }
 
   @Post('ghl/conversations/:conversationId/reconcile-media')

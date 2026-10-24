@@ -109,6 +109,38 @@ describe('GhlGuardService', () => {
     expect(lockRunner.release).toHaveBeenCalledOnce();
   });
 
+  it('does not let an advisory-lock skip suppress the next scheduler attempt', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.GHL_GUARD_ENABLED = 'true';
+    process.env.GHL_GUARD_INTERVAL_MS = '300000';
+
+    const firstLockRunner = {
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [] : []),
+      release: vi.fn(),
+    };
+    const secondLockRunner = {
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [{ owner_id: 'lease-owner' }] : []),
+      release: vi.fn(),
+    };
+    const dataSource = {
+      createQueryRunner: vi.fn()
+        .mockReturnValueOnce(firstLockRunner)
+        .mockReturnValueOnce(secondLockRunner),
+      query: vi.fn().mockResolvedValue([]),
+    };
+    const service = new GhlGuardService(dataSource as never, { reconcileConversation: vi.fn() } as never);
+    const firstRun = new Date('2026-10-24T12:00:00.000Z');
+
+    const skipped = await service.run(firstRun, { force: true });
+    const retried = await service.run(new Date(firstRun.getTime() + 1000));
+
+    expect(skipped).toMatchObject({ skipped: true, skipReason: 'advisory_lock' });
+    expect(retried).toMatchObject({ skipped: false, selected: 0, failed: 0 });
+    expect(dataSource.createQueryRunner).toHaveBeenCalledTimes(2);
+  });
+
   it('retries targeted contacts after an advisory-lock skip instead of dropping them', async () => {
     process.env.NODE_ENV = 'production';
     process.env.GHL_GUARD_ENABLED = 'true';

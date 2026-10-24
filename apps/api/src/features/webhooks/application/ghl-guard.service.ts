@@ -74,7 +74,6 @@ export class GhlGuardService {
     }
     if (!targeted && !options.force && now.getTime() - this.lastRunAt < ghlGuardIntervalMs()) return skip('in_memory_interval');
     this.running = true;
-    this.lastRunAt = now.getTime();
 
     const result: GhlGuardRunResult = { ...empty, skipped: false };
     let lockRunner: QueryRunner | null = null;
@@ -110,6 +109,10 @@ export class GhlGuardService {
         await this.persistence.logSkip(runId, 'advisory_lock', contactIds, empty.enabled);
         return skipped;
       }
+      // Only mark the interval after this invocation actually owns the lease.
+      // A contention skip must not suppress the next scheduler attempt in the
+      // same warm instance.
+      this.lastRunAt = now.getTime();
       await this.persistence.recoverStaleLogs(now);
       const rows = await lockRunner.query(
         targeted
