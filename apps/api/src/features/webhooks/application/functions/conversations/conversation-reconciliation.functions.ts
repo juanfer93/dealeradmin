@@ -283,7 +283,9 @@ export class ConversationReconciliationFunctions {
         && currentWaitingWindowAttempts < WAITING_WINDOW_MAX_ATTEMPTS;
       const nextAttemptAt = shouldCountWaitingWindowAttempt
         ? new Date(now.getTime() + WAITING_WINDOW_RETRY_INTERVAL_MS).toISOString()
-        : status.nextAttemptAt;
+        : status.status === 'waiting_window'
+          ? status.nextAttemptAt ?? new Date(now.getTime() + WAITING_WINDOW_RETRY_INTERVAL_MS).toISOString()
+          : status.nextAttemptAt;
       const nextWaitingWindowAttempts = status.status === 'waiting_window'
         ? Math.max(1, shouldCountWaitingWindowAttempt ? currentWaitingWindowAttempts + 1 : currentWaitingWindowAttempts)
         : 0;

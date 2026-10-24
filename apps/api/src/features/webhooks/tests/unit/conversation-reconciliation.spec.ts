@@ -70,6 +70,8 @@ describe('ConversationReconciliationFunctions', () => {
       expect.anything(),
     );
     expect(conversationUpdate?.[1]?.[1]).toBe('waiting_window');
+    expect(conversationUpdate?.[1]?.[4]).toBe('2026-10-24T14:29:43.606Z');
+    expect(conversationUpdate?.[1]?.[6]).toBe(1);
   });
 
   it('preserves the lead canonical phone when Messenger history has no phone candidate', async () => {

@@ -5,7 +5,7 @@ import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-d
 import { normalizeGhlAttachments } from '../../../domain/ghl-attachment-normalizer';
 import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
 import { ConversationQualificationFunctions } from './conversation-qualification.functions';
-import { GHL_SOURCE_CONFIG } from './conversation-webhook.config';
+import { GHL_SOURCE_CONFIG, WAITING_WINDOW_RETRY_INTERVAL_MS } from './conversation-webhook.config';
 import {
   addProcessedImageEvidence,
   clean,
@@ -282,6 +282,9 @@ export class ConversationEventFunctions {
         return { accepted: true, eventId: event.event_id, conversationId: conversation.id, source, status: 'processed' };
       }
       const status = this.qualification.statusForConversation(snapshot, location, resolvedDealer, source, now, 'capture');
+      const persistedNextAttemptAt = status.status === 'waiting_window'
+        ? status.nextAttemptAt ?? new Date(now.getTime() + WAITING_WINDOW_RETRY_INTERVAL_MS).toISOString()
+        : status.nextAttemptAt;
       await runner.query(
         `UPDATE conversations
          SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
@@ -290,7 +293,7 @@ export class ConversationEventFunctions {
              waiting_window_started_at = CASE WHEN $2::varchar = 'waiting_window' THEN $7::timestamptz ELSE NULL END,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $1`,
-        [conversation.id, status.status, JSON.stringify(snapshot), JSON.stringify(location), occurredAt, status.nextAttemptAt, now.toISOString()],
+        [conversation.id, status.status, JSON.stringify(snapshot), JSON.stringify(location), occurredAt, persistedNextAttemptAt, now.toISOString()],
       );
       if (status.status === 'ready') {
         await this.qualification.syncLeadDealer(runner, resolvedDealer, lead.id, snapshot, location, source);
