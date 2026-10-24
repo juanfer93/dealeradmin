@@ -1,10 +1,11 @@
 name: Process due conversations
 
 on:
-  # Keep exactly one scheduler. Start at minute 2 instead of minute 0 so the
-  # five-minute cadence avoids GitHub's busiest top-of-hour dispatch window.
+  # Keep exactly one scheduler with a standard five-minute expression. The
+  # offset range expression stopped producing scheduled runs in production;
+  # the regular cadence is easier for GitHub Actions to resume and observe.
   schedule:
-    - cron: '2-59/5 * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       contact_ids:
