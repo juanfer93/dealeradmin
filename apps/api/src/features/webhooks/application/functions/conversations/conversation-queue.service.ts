@@ -8,6 +8,7 @@ import {
   type QueuedPauseNotifier,
   type QueuedPausePayload,
 } from '../../conversation-bot-pause';
+import { configureWebhookTransactionSafety } from '../../transaction-safety';
 
 type QueueSourceConfig = Record<string, { locationId: string }>;
 
@@ -48,6 +49,7 @@ export class ConversationQueueService {
     await runner.connect();
     await runner.startTransaction();
     try {
+      await configureWebhookTransactionSafety(runner);
       const rows = await runner.query(
         `SELECT c.id, c.status, c.ghl_location_id, c.ghl_contact_id, c.ghl_conversation_id, c.lead_id
          FROM conversations c

@@ -27,6 +27,7 @@ import type {
   SourceConfigMap,
   SourceKey,
 } from './conversation-webhook.types';
+import { configureWebhookTransactionSafety } from '../../transaction-safety';
 
 export class ConversationEventFunctions {
   constructor(
@@ -47,6 +48,7 @@ export class ConversationEventFunctions {
     await runner.connect();
     await runner.startTransaction();
     try {
+      await configureWebhookTransactionSafety(runner);
       const occurredAt = parseOccurredAt(event.occurred_at);
       const insertedEvents = await runner.query(
         `INSERT INTO webhook_events (event_id, event_type, ghl_location_id, status, payload_hash, raw_transcript, capture_contract, capture_schema_version, received_at)

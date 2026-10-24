@@ -8,6 +8,7 @@ import { ConversationQualificationFunctions } from './conversation-qualification
 import { ACTIVE_RECONCILIATION_BATCH_SIZE, GHL_SOURCE_CONFIG, RECONCILIATION_LOCATION_IDS, CONVERSATION_STABILIZATION_MS, WAITING_WINDOW_MAX_ATTEMPTS, WAITING_WINDOW_RETRY_INTERVAL_MS } from './conversation-webhook.config';
 import { addProcessedImageEvidence, clean, extractNativeWhatsappPhone, inputIndicatesWhatsApp, isAttachmentEvidenceMessage, safePhone, splitName } from './conversation-webhook.helpers';
 import type { ConversationMessageRow, ConversationSnapshot, LocationSnapshot, MediaReconciliationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
+import { configureWebhookTransactionSafety } from '../../transaction-safety';
 
 export class ConversationReconciliationFunctions {
   constructor(
@@ -54,6 +55,7 @@ export class ConversationReconciliationFunctions {
     await runner.connect();
     await runner.startTransaction();
     try {
+      await configureWebhookTransactionSafety(runner);
       const rows = await runner.query(
         `SELECT c.id, c.channel, c.ghl_location_id, c.ghl_contact_id, c.ghl_conversation_id, c.status,
         c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at, c.last_message_at, c.waiting_window_attempts,

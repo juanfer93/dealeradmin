@@ -21,6 +21,7 @@ import type {
   LeadMetadataRow,
   PersistResult,
 } from './ghl-guard.types';
+import { configureWebhookTransactionSafety } from '../../transaction-safety';
 
 export class GhlGuardPersistenceFunctions {
   private readonly logger = new Logger(GhlGuardPersistenceFunctions.name);
@@ -33,6 +34,7 @@ export class GhlGuardPersistenceFunctions {
     await runner.connect();
     await runner.startTransaction();
     try {
+      await configureWebhookTransactionSafety(runner);
       const rows = await runner.query(
         `SELECT status, queued_guard_replay_count, queued_guard_replay_claimed_at
          FROM conversations
@@ -111,6 +113,7 @@ export class GhlGuardPersistenceFunctions {
     await runner.connect();
     await runner.startTransaction();
     try {
+      await configureWebhookTransactionSafety(runner);
       const protectedRows = await runner.query(
         `SELECT id, status FROM conversations
          WHERE id = $1 AND status NOT IN (${allowTargetedStatuses ? "'sent', 'ignored_channel', 'stale_phone_ignored'" : "'queued', 'sent', 'duplicate_ignored', 'ignored_channel', 'stale_phone_ignored'"})

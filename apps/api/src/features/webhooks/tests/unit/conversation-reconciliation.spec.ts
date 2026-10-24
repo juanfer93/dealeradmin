@@ -51,6 +51,7 @@ describe('ConversationReconciliationFunctions', () => {
 
     await reconciliation.reconcileConversation('conversation-messenger-phone', new Date('2026-10-18T18:05:00.000Z'));
 
+    expect(String(query.mock.calls[0]?.[0])).toContain("idle_in_transaction_session_timeout = '15s'");
     const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
     expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ phone: '+13015550123' });
   });

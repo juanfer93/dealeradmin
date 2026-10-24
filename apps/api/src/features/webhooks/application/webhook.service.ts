@@ -18,6 +18,7 @@ import { applyTestWebhookLead } from '../../leads/application/test-lead-store';
 import { GeoroutingService } from '../../routing/domain/services/georouting.service';
 import { hasMinimumRoutingQualification, normalizeCollectorInput, normalizeRealName } from '../../leads/domain/collector-normalizer';
 import { buildDealeradminCaptureContract } from '../../leads/domain/dealeradmin-capture';
+import { configureWebhookTransactionSafety } from './transaction-safety';
 
 type PersistedWebhookResponse = {
   accepted: true;
@@ -85,6 +86,7 @@ export class WebhookService {
     await queryRunner.startTransaction();
 
     try {
+      await configureWebhookTransactionSafety(queryRunner);
       const payloadHash = createHash('sha256').update(rawBody).digest('hex');
       const isMessengerChannel = /(?:^|[^a-z])(?:messenger|facebook)(?:$|[^a-z])/i.test(payload.lead.channel ?? '');
       // Messenger's contact/profile name is the identity source. WhatsApp's

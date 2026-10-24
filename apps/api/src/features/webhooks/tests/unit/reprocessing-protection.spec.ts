@@ -40,6 +40,7 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
     });
 
     expect(result).toEqual({ accepted: true, eventId: 'evt-smart-merge-1', status: 'processed' });
+    expect(String(queryRunner.query.mock.calls[0]?.[0])).toContain("idle_in_transaction_session_timeout = '15s'");
 
     const leadLookup = queryRunner.query.mock.calls.find(([sql]) => sql.includes('FROM leads') && sql.includes('scoped_ld')) as [string, unknown[]] | undefined;
     expect(leadLookup?.[0]).toContain('COALESCE(scoped_ld.assigned_dealer_id, scoped_ld.dealer_id) = $5');

@@ -8,6 +8,7 @@ import { DUE_CONVERSATION_BATCH_SIZE, GHL_SOURCE_CONFIG, WAITING_WINDOW_MAX_ATTE
 import { clean } from './conversation-webhook.helpers';
 import type { ConversationSnapshot, LocationSnapshot, DueConversationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
 import type { GhlGuardRunResult, GhlGuardService } from '../../ghl-guard.service';
+import { configureWebhookTransactionSafety } from '../../transaction-safety';
 
 export class ConversationDueFunctions {
   constructor(
@@ -92,7 +93,7 @@ export class ConversationDueFunctions {
       // conversation row indefinitely. SKIP LOCKED below handles contention;
       // these guards clean up the connection if the request disappears after
       // PostgreSQL has executed a statement but before the client commits.
-      await runner.query(`SET LOCAL lock_timeout = '2s'; SET LOCAL statement_timeout = '30s'; SET LOCAL idle_in_transaction_session_timeout = '15s'`);
+      await configureWebhookTransactionSafety(runner);
       const rows = await runner.query(
         `SELECT c.id, c.ghl_location_id, c.ghl_contact_id, c.ghl_conversation_id, c.qualification_snapshot, c.location_snapshot, c.ready_at,
                 c.waiting_window_attempts,
