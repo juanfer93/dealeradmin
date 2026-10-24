@@ -3,6 +3,9 @@ name: Process due conversations
 on:
   schedule:
     - cron: '*/5 * * * *'
+    # GitHub may delay or drop scheduled events under load. This offset is a
+    # redundant trigger; the release path is idempotent and lock-safe.
+    - cron: '2-59/5 * * * *'
   workflow_dispatch:
     inputs:
       contact_ids:
