@@ -121,8 +121,7 @@ jobs:
       group: process-due-queued-backup
       cancel-in-progress: false
     steps:
-      - name: Run one queued backup replay (best effort)
-        continue-on-error: true
+      - name: Run one queued backup replay (required)
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |

@@ -42,6 +42,9 @@ export type GhlGuardRunResult = {
   inserted: number;
   repaired: number;
   failed: number;
+  queuedReplaySelected?: number;
+  queuedReplayCompleted?: number;
+  queuedReplayFailed?: number;
   errors?: GhlGuardFailure[];
 };
 

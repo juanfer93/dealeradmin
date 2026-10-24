@@ -222,6 +222,11 @@ export class GhlGuardService {
           : [ghlGuardBatchSize(), RECONCILIATION_LOCATION_IDS, ghlGuardStaleLogMs()],
       ) as GuardConversationRow[];
       result.selected = rows.length;
+      if (queuedOnly) {
+        result.queuedReplaySelected = rows.length;
+        result.queuedReplayCompleted = 0;
+        result.queuedReplayFailed = 0;
+      }
       // Rows belonging to one explicitly targeted contact must be serialized:
       // an older conversation may contain the name that repairs a later queued
       // conversation sharing the same lead.
@@ -342,6 +347,10 @@ export class GhlGuardService {
         const allowQueuedReplay = targeted || queuedOnly;
         const queuedReplay = await this.persistence.claimQueuedReplay(row.id, allowQueuedReplay);
         if (!queuedReplay.allowed) {
+          if (queuedOnly) {
+            result.queuedReplayFailed = (result.queuedReplayFailed ?? 0) + 1;
+            this.recordFailure(result, row, 'GHL_GUARD_QUEUED_REPLAY_BUSY');
+          }
           await this.persistence.updateLog(logId, 'skipped', {
             source,
             skipReason: 'queued_replay_already_consumed',
@@ -462,6 +471,32 @@ export class GhlGuardService {
       const allowQueuedReplay = targeted || queuedOnly;
       const persisted = await this.persistence.persistMessages(effectiveRow, fetched.data.messages, allowQueuedReplay);
       if (persisted.skipped) {
+        // The queued row can be a synthetic local snapshot whose canonical
+        // sibling is already protected (for example, sent). The backup still
+        // executed the GHL read successfully, so consume the one queued replay
+        // instead of leaving the row permanently eligible at count=0.
+        if (queuedReplayClaimed) {
+          const completed = await this.persistence.completeQueuedReplay(row.id);
+          if (!completed) throw new Error('GHL_GUARD_QUEUED_REPLAY_COMPLETION_NOT_PERSISTED');
+          queuedReplayCompleted = true;
+          if (queuedOnly) result.queuedReplayCompleted = (result.queuedReplayCompleted ?? 0) + 1;
+          await this.persistence.updateLog(logId, 'succeeded', {
+            source,
+            queuedReplay: true,
+            persistenceSkipped: true,
+            fetchedMessages: fetched.data.messages.length,
+            responsePayload: fetched.data.responsePayload,
+            httpStatus: fetched.status,
+            requestPath: fetched.requestPath,
+            pages: fetched.data.pages,
+            truncated: fetched.data.truncated,
+            reconciled: false,
+            finishedAt: new Date(),
+            durationMs: Date.now() - startedAt.getTime(),
+            ...lookupMetadata,
+          });
+          return;
+        }
         await this.persistence.updateLog(logId, 'skipped', {
           source,
           fetchedMessages: fetched.data.messages.length,
@@ -520,6 +555,7 @@ export class GhlGuardService {
           throw new Error('GHL_GUARD_QUEUED_REPLAY_COMPLETION_NOT_PERSISTED');
         }
         queuedReplayCompleted = true;
+        if (queuedOnly) result.queuedReplayCompleted = (result.queuedReplayCompleted ?? 0) + 1;
       }
       await this.persistence.updateLog(logId, 'succeeded', {
         source,
@@ -547,6 +583,9 @@ export class GhlGuardService {
       const errorCode = error instanceof Error ? error.name : 'GHL_GUARD_CONVERSATION_FAILED';
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.recordFailure(result, row, errorCode, errorMessage);
+      if (queuedOnly && queuedReplayClaimed && !queuedReplayCompleted) {
+        result.queuedReplayFailed = (result.queuedReplayFailed ?? 0) + 1;
+      }
       this.retryFunctions.scheduleTransientRetry(row, errorCode, source, errorMessage);
       await this.persistence.safeUpdateLog(logId, 'failed', {
         errorCode,

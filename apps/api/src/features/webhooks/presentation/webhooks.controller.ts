@@ -124,7 +124,11 @@ export class WebhooksController {
       // and avoid unnecessary lease contention.
       force: contactIds.length > 0 || queuedOnly,
     });
-    const accepted = !guard.skipped || guard.skipReason === 'in_memory_interval';
+    const accepted = queuedOnly
+      ? !guard.skipped
+        && guard.failed === 0
+        && (guard.queuedReplaySelected ?? 0) === (guard.queuedReplayCompleted ?? 0)
+      : !guard.skipped || guard.skipReason === 'in_memory_interval';
     return { accepted, guard };
   }
 
