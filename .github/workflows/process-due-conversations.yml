@@ -128,7 +128,11 @@ jobs:
           set -euo pipefail
           test -n "$CRON_SECRET"
           backup_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/run-guard?queued_backup=true"
-          max_attempts=3
+          # A webhook-triggered Guard may legitimately hold the global lease
+          # while it finishes a slow GHL read. Keep retrying the same backup
+          # cycle long enough for that lease to clear; advisory-lock skips are
+          # not a completed replay and must never end the cycle early.
+          max_attempts=9
           retry_delay_seconds=20
 
           for attempt in $(seq 1 "$max_attempts"); do
