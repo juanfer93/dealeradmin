@@ -94,6 +94,8 @@ export type ConversationWebhookResponse = {
 export type DueConversationResponse = {
   accepted: true;
   processed: number;
+  advanced: number;
+  skipped: number;
   guard?: {
     enabled: boolean;
     skipped: boolean;

@@ -10,6 +10,9 @@ import type { ConversationSnapshot, LocationSnapshot, DueConversationResponse, S
 import type { GhlGuardRunResult, GhlGuardService } from '../../ghl-guard.service';
 import { configureWebhookTransactionSafety } from '../../transaction-safety';
 
+const DUE_RELEASE_RETRY_ATTEMPTS = 3;
+const DUE_RELEASE_RETRY_DELAY_MS = 100;
+
 export class ConversationDueFunctions {
   constructor(
     private readonly dataSource: DataSource | undefined,
@@ -22,7 +25,7 @@ export class ConversationDueFunctions {
 
   async processDueConversations(now: Date, options: { reconcileActive?: boolean; runGuard?: boolean; guardContactIds?: string[]; forceGuard?: boolean; dueContactIds?: string[] } = {}): Promise<DueConversationResponse> {
     if (!this.dataSource) {
-      if (process.env.NODE_ENV === 'test') return { accepted: true, processed: 0 };
+      if (process.env.NODE_ENV === 'test') return { accepted: true, processed: 0, advanced: 0, skipped: 0 };
       throw new ServiceUnavailableException('Database connection is not available');
     }
     const dueContactIds = [...new Set((options.dueContactIds ?? []).map((value) => value.trim()).filter(Boolean))];
@@ -54,12 +57,18 @@ export class ConversationDueFunctions {
         [now.toISOString(), DUE_CONVERSATION_BATCH_SIZE],
       ) as Array<{ id: string }>;
     let processed = 0;
+    let advanced = 0;
+    let skipped = 0;
     for (const row of due) {
       try {
-        if (await this.releaseDueConversation(row.id, now)) processed += 1;
+        const release = await this.releaseDueConversationWithRetry(row.id, now);
+        if (release.terminal) processed += 1;
+        if (release.advanced) advanced += 1;
+        else skipped += 1;
       } catch {
-        // One locked or malformed conversation must not stop the remaining
-        // five-minute cycles. The row stays due and is retried next cycle.
+        // One malformed conversation must not stop the remaining five-minute
+        // cycles. Keep it visible as deferred so the caller can retry it.
+        skipped += 1;
       }
     }
     if (options.reconcileActive !== false) await this.reconciliation.reconcileActiveConversations(now);
@@ -78,9 +87,32 @@ export class ConversationDueFunctions {
     return {
       accepted: true,
       processed,
+      advanced,
+      skipped,
       ...(guardResult ? { guard: guardResult } : {}),
       ...(guardError ? { guardError } : {}),
     };
+  }
+
+  private async releaseDueConversationWithRetry(id: string, now: Date): Promise<{ advanced: boolean; terminal: boolean }> {
+    for (let attempt = 1; attempt <= DUE_RELEASE_RETRY_ATTEMPTS; attempt += 1) {
+      const terminal = await this.releaseDueConversation(id, now);
+      if (terminal) return { advanced: true, terminal: true };
+
+      const remaining = await this.dataSource!.query(
+        `SELECT status, next_attempt_at FROM conversations WHERE id = $1`,
+        [id],
+      ) as Array<{ status: string; next_attempt_at: string | null }>;
+      const row = remaining[0];
+      const stillDue = row?.status === 'waiting_window'
+        && row.next_attempt_at !== null
+        && new Date(row.next_attempt_at).getTime() <= now.getTime();
+      if (!stillDue) return { advanced: row !== undefined, terminal: false };
+      if (attempt < DUE_RELEASE_RETRY_ATTEMPTS) {
+        await new Promise((resolve) => setTimeout(resolve, DUE_RELEASE_RETRY_DELAY_MS));
+      }
+    }
+    return { advanced: false, terminal: false };
   }
 
   private async releaseDueConversation(id: string, now: Date): Promise<boolean> {

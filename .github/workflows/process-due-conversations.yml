@@ -67,11 +67,15 @@ jobs:
             process.stdout.write(JSON.stringify({
               ok,
               processed: result.processed ?? 0,
+              advanced: result.advanced ?? 0,
+              skipped: result.skipped ?? 0,
             }, null, 2));
           } catch (error) {
             process.stdout.write(JSON.stringify({
               ok: false,
               processed: null,
+              advanced: null,
+              skipped: null,
               error: `Invalid JSON response: ${error instanceof Error ? error.message : String(error)}`,
             }, null, 2));
           }
@@ -80,6 +84,10 @@ jobs:
             printf '%s\n' "$summary"
 
             if node -e 'process.exit(JSON.parse(process.argv[1]).ok ? 0 : 1)' "$summary"; then
+              skipped="$(node -p 'JSON.parse(process.argv[1]).skipped ?? 0' "$summary")"
+              if [ "$skipped" -gt 0 ]; then
+                echo "Due release left ${skipped} cycle(s) deferred after bounded retries"
+              fi
               exit 0
             fi
 

@@ -31,7 +31,8 @@ describe('ConversationDueFunctions', () => {
     const dataSource = {
       query: vi.fn()
         .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([{ id: 'conversation-waiting' }]),
+        .mockResolvedValueOnce([{ id: 'conversation-waiting' }])
+        .mockResolvedValueOnce([{ status: 'waiting_window', next_attempt_at: '2026-10-16T22:35:00.000Z' }]),
       createQueryRunner: vi.fn().mockReturnValue(runner),
     };
     const service = new ConversationDueFunctions(
@@ -46,6 +47,8 @@ describe('ConversationDueFunctions', () => {
     const result = await service.processDueConversations(now, { reconcileActive: false, runGuard: false });
 
     expect(result.processed).toBe(0);
+    expect(result.advanced).toBe(1);
+    expect(result.skipped).toBe(0);
     expect(runner.query).toHaveBeenCalledWith(
       expect.stringContaining("SET status = 'waiting_window', next_attempt_at = $2::timestamptz"),
       ['conversation-waiting', '2026-10-16T22:35:00.000Z', '2026-10-16T22:30:00.000Z'],
@@ -206,7 +209,7 @@ describe('ConversationDueFunctions', () => {
       runGuard: false,
     });
 
-    expect(result).toEqual({ accepted: true, processed: 0 });
+    expect(result).toEqual({ accepted: true, processed: 0, advanced: 0, skipped: 0 });
     expect(guard.run).not.toHaveBeenCalled();
   });
 
@@ -246,7 +249,37 @@ describe('ConversationDueFunctions', () => {
       forceGuard: true,
     });
 
-    expect(result).toMatchObject({ accepted: true, processed: 1, guard: { skipped: true, skipReason: 'advisory_lock' } });
+    expect(result).toMatchObject({ accepted: true, processed: 1, advanced: 1, skipped: 0, guard: { skipped: true, skipReason: 'advisory_lock' } });
     expect(releaseDueConversation).toHaveBeenCalledWith('conversation-ready', expect.any(Date));
+  });
+
+  it('retries a due row skipped by SKIP LOCKED until its cycle advances', async () => {
+    const dataSource = {
+      query: vi.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: 'contended-contact' }])
+        .mockResolvedValueOnce([{ status: 'waiting_window', next_attempt_at: '2026-10-16T22:30:00.000Z' }])
+        .mockResolvedValueOnce([{ status: 'waiting_window', next_attempt_at: '2026-10-16T22:35:00.000Z' }]),
+    };
+    const service = new ConversationDueFunctions(
+      dataSource as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      undefined,
+      undefined,
+    );
+    const releaseDueConversation = vi
+      .spyOn(service as unknown as { releaseDueConversation: (id: string, now: Date) => Promise<boolean> }, 'releaseDueConversation')
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(false);
+
+    const result = await service.processDueConversations(new Date('2026-10-16T22:30:00.000Z'), {
+      reconcileActive: false,
+      runGuard: false,
+    });
+
+    expect(result).toMatchObject({ accepted: true, processed: 0, advanced: 1, skipped: 0 });
+    expect(releaseDueConversation).toHaveBeenCalledTimes(2);
   });
 });
