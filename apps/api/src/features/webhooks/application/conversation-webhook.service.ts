@@ -214,7 +214,12 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     if (this.duePollInFlight) return;
     this.duePollInFlight = true;
     try {
-      await this.processDueConversations(undefined, { reconcileActive: true });
+      // The five-minute waiting-window release must stay independent from
+      // the global GHL Guard lease. The scheduled workflow owns the separate
+      // queued backup pass; running the Guard from this 30-second poll lets a
+      // webhook-triggered or background Guard hold the advisory lock and
+      // starve that backup cycle.
+      await this.processDueConversations(undefined, { reconcileActive: true, runGuard: false });
     } catch {
       // Polling is best effort; the next cycle retries the pending work.
     } finally {
