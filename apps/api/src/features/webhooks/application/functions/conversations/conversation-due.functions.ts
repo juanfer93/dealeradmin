@@ -19,22 +19,39 @@ export class ConversationDueFunctions {
     private readonly guard?: GhlGuardService,
   ) {}
 
-  async processDueConversations(now: Date, options: { reconcileActive?: boolean; runGuard?: boolean; guardContactIds?: string[]; forceGuard?: boolean } = {}): Promise<DueConversationResponse> {
+  async processDueConversations(now: Date, options: { reconcileActive?: boolean; runGuard?: boolean; guardContactIds?: string[]; forceGuard?: boolean; dueContactIds?: string[] } = {}): Promise<DueConversationResponse> {
     if (!this.dataSource) {
       if (process.env.NODE_ENV === 'test') return { accepted: true, processed: 0 };
       throw new ServiceUnavailableException('Database connection is not available');
     }
-    await this.dataSource.query(
-      `UPDATE conversations SET next_attempt_at = $1::timestamptz, updated_at = CURRENT_TIMESTAMP
-       WHERE status = 'waiting_window' AND next_attempt_at IS NULL`,
-      [now.toISOString()],
-    );
-    const due = await this.dataSource.query(
-      `SELECT c.id FROM conversations c
-       WHERE c.status = 'waiting_window' AND c.next_attempt_at IS NOT NULL AND c.next_attempt_at <= $1
-       ORDER BY c.next_attempt_at ASC LIMIT $2`,
-      [now.toISOString(), DUE_CONVERSATION_BATCH_SIZE],
-    ) as Array<{ id: string }>;
+    const dueContactIds = [...new Set((options.dueContactIds ?? []).map((value) => value.trim()).filter(Boolean))];
+    if (dueContactIds.length > 0) {
+      await this.dataSource.query(
+        `UPDATE conversations SET next_attempt_at = $1::timestamptz, updated_at = CURRENT_TIMESTAMP
+         WHERE status = 'waiting_window' AND next_attempt_at IS NULL AND ghl_contact_id = ANY($2::text[])`,
+        [now.toISOString(), dueContactIds],
+      );
+    } else {
+      await this.dataSource.query(
+        `UPDATE conversations SET next_attempt_at = $1::timestamptz, updated_at = CURRENT_TIMESTAMP
+         WHERE status = 'waiting_window' AND next_attempt_at IS NULL`,
+        [now.toISOString()],
+      );
+    }
+    const due = dueContactIds.length > 0
+      ? await this.dataSource.query(
+        `SELECT c.id FROM conversations c
+         WHERE c.status = 'waiting_window' AND c.next_attempt_at IS NOT NULL AND c.next_attempt_at <= $1
+           AND c.ghl_contact_id = ANY($3::text[])
+         ORDER BY c.next_attempt_at ASC LIMIT $2`,
+        [now.toISOString(), DUE_CONVERSATION_BATCH_SIZE, dueContactIds],
+      ) as Array<{ id: string }>
+      : await this.dataSource.query(
+        `SELECT c.id FROM conversations c
+         WHERE c.status = 'waiting_window' AND c.next_attempt_at IS NOT NULL AND c.next_attempt_at <= $1
+         ORDER BY c.next_attempt_at ASC LIMIT $2`,
+        [now.toISOString(), DUE_CONVERSATION_BATCH_SIZE],
+      ) as Array<{ id: string }>;
     let processed = 0;
     for (const row of due) {
       if (await this.releaseDueConversation(row.id, now)) processed += 1;

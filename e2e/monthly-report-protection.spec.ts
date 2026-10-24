@@ -38,6 +38,23 @@ test('GHL guard cron accepts a contact-scoped reprocess request', async ({ reque
   expect(await response.json()).toMatchObject({ accepted: true });
 });
 
+test('due release and GHL guard are independently protected and independently executable', async ({ request }) => {
+  const dueOnlyUnauthorized = await request.get('http://127.0.0.1:3010/api/webhooks/ghl/conversations/process-due-only');
+  expect(dueOnlyUnauthorized.status()).toBe(401);
+
+  const dueOnly = await request.get('http://127.0.0.1:3010/api/webhooks/ghl/conversations/process-due-only', {
+    headers: { Authorization: 'Bearer test-cron-secret' },
+  });
+  expect(dueOnly.status()).toBe(200);
+  expect(await dueOnly.json()).toMatchObject({ accepted: true });
+
+  const guard = await request.get('http://127.0.0.1:3010/api/webhooks/ghl/conversations/run-guard', {
+    headers: { Authorization: 'Bearer test-cron-secret' },
+  });
+  expect(guard.status()).toBe(200);
+  expect(await guard.json()).toMatchObject({ accepted: true, guard: expect.any(Object) });
+});
+
 test('reports view shows the real disabled state without setup instructions', async ({ page }) => {
   await page.goto('/login');
   await page.fill('input[name="username"]', 'operator');

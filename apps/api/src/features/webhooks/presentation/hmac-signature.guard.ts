@@ -55,7 +55,11 @@ export class HmacSignatureGuard implements CanActivate {
 
     if (
       request.method === 'GET'
-      && request.path.endsWith('/webhooks/ghl/conversations/process-due')
+      && (
+        request.path.endsWith('/webhooks/ghl/conversations/process-due')
+        || request.path.endsWith('/webhooks/ghl/conversations/process-due-only')
+        || request.path.endsWith('/webhooks/ghl/conversations/run-guard')
+      )
       && verifySharedSecret(bearerSecret, cronSecret ?? '')
     ) {
       void this.ingressAudit?.markAuth(request, 'accepted', 'cron_secret');

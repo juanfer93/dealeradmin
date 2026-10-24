@@ -90,20 +90,41 @@ export class WebhooksController {
   @UseGuards(HmacSignatureGuard)
   async processDueConversationsCron(@Req() request: Request) {
     await this.ingressAudit.recoverStale();
-    // GitHub Actions invokes this endpoint every five minutes. Keep the
-    // request focused on due releases plus the GHL guard so the serverless
-    // time budget is not consumed by the heavier active reconciliation pass.
-    // The guard then fetches GHL messages and applies the existing additive
-    // normalizer to fill only data missing locally because of latency.
+    // This combined endpoint remains available for manual/legacy callers.
+    // The scheduled workflow uses process-due-only and run-guard separately
+    // so a slow or leased Guard cannot delay due-window release.
+    const guardContactIds = this.queryContactIds(request);
     return this.conversationWebhookService.processDueConversations(undefined, {
       reconcileActive: false,
       runGuard: true,
-      forceGuard: true,
-      guardContactIds: String(request.query.contact_ids ?? '')
-        .split(',')
-        .map((value) => value.trim())
-        .filter(Boolean),
+      forceGuard: guardContactIds.length > 0,
+      guardContactIds,
     });
+  }
+
+  @Get('ghl/conversations/process-due-only')
+  @UseGuards(HmacSignatureGuard)
+  async processDueConversationsOnlyCron(@Req() request: Request) {
+    await this.ingressAudit.recoverStale();
+    return this.conversationWebhookService.processDueConversations(undefined, {
+      reconcileActive: false,
+      runGuard: false,
+      dueContactIds: this.queryContactIds(request),
+    });
+  }
+
+  @Get('ghl/conversations/run-guard')
+  @UseGuards(HmacSignatureGuard)
+  async runGuardCron(@Req() request: Request) {
+    await this.ingressAudit.recoverStale();
+    const contactIds = this.queryContactIds(request);
+    const guard = await this.conversationWebhookService.runGhlGuard(undefined, {
+      contactIds,
+      // Targeted repairs bypass the interval; scheduled global runs respect it
+      // and avoid unnecessary lease contention.
+      force: contactIds.length > 0,
+    });
+    return { accepted: true, guard };
   }
 
   @Post('ghl/conversations/:conversationId/reconcile-media')
@@ -118,5 +139,12 @@ export class WebhooksController {
   private controlledTestNow(value: string | undefined): Date | undefined {
     const parsed = value ? new Date(value) : undefined;
     return process.env.NODE_ENV !== 'production' && parsed && !Number.isNaN(parsed.getTime()) ? parsed : undefined;
+  }
+
+  private queryContactIds(request: Request): string[] {
+    return String(request.query.contact_ids ?? '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
   }
 }

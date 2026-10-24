@@ -195,12 +195,12 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     }
   }
 
-  async processDueConversations(now = currentLocalNow(), options: { reconcileActive?: boolean; runGuard?: boolean; guardContactIds?: string[]; forceGuard?: boolean } = {}): Promise<DueConversationResponse> {
+  async processDueConversations(now = currentLocalNow(), options: { reconcileActive?: boolean; runGuard?: boolean; guardContactIds?: string[]; forceGuard?: boolean; dueContactIds?: string[] } = {}): Promise<DueConversationResponse> {
     return this.dueFunctions.processDueConversations(now, options);
   }
 
-  async runGhlGuard(now = currentLocalNow()) {
-    return this.guard.run(now);
+  async runGhlGuard(now = currentLocalNow(), options: { contactIds?: string[]; force?: boolean } = {}) {
+    return this.guard.run(now, options);
   }
 
   async releaseDueConversation(id: string, now = currentLocalNow()): Promise<boolean> {

@@ -118,4 +118,44 @@ describe('ConversationDueFunctions', () => {
     expect(result).toEqual({ accepted: true, processed: 0 });
     expect(guard.run).not.toHaveBeenCalled();
   });
+
+  it('keeps the due release successful when the GHL guard is blocked by the global lease', async () => {
+    const dataSource = {
+      query: vi.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: 'conversation-ready' }]),
+    };
+    const guard = {
+      run: vi.fn().mockResolvedValue({
+        enabled: true,
+        skipped: true,
+        skipReason: 'advisory_lock',
+        selected: 0,
+        fetched: 0,
+        inserted: 0,
+        repaired: 0,
+        failed: 0,
+      }),
+    };
+    const service = new ConversationDueFunctions(
+      dataSource as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      undefined,
+      guard as never,
+    );
+    const releaseDueConversation = vi
+      .spyOn(service as unknown as { releaseDueConversation: (id: string, now: Date) => Promise<boolean> }, 'releaseDueConversation')
+      .mockResolvedValue(true);
+
+    const result = await service.processDueConversations(new Date('2026-10-16T22:30:00.000Z'), {
+      reconcileActive: false,
+      runGuard: true,
+      forceGuard: true,
+    });
+
+    expect(result).toMatchObject({ accepted: true, processed: 1, guard: { skipped: true, skipReason: 'advisory_lock' } });
+    expect(releaseDueConversation).toHaveBeenCalledWith('conversation-ready', expect.any(Date));
+  });
 });

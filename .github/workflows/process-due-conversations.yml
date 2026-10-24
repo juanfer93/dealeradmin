@@ -12,14 +12,13 @@ on:
 
 permissions: {}
 
-concurrency:
-  group: process-due-conversations
-  cancel-in-progress: false
-
 jobs:
-  process-due:
+  release-due:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 2
+    concurrency:
+      group: process-due-release
+      cancel-in-progress: false
     steps:
       - name: Release due conversations
         env:
@@ -28,7 +27,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$CRON_SECRET"
-          base_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/process-due"
+          base_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/process-due-only"
           target_url="$base_url"
           if [ -n "$CONTACT_IDS" ]; then
             target_url="$target_url?contact_ids=$CONTACT_IDS"
@@ -39,7 +38,7 @@ jobs:
           for attempt in $(seq 1 "$max_attempts"); do
             echo "process-due attempt ${attempt}/${max_attempts}"
             if response="$(curl --fail-with-body --silent --show-error --request GET \
-              --connect-timeout 10 --max-time 120 \
+              --connect-timeout 10 --max-time 60 \
               --header "Authorization: Bearer $CRON_SECRET" \
               "$target_url")"; then
               curl_status=0
@@ -61,49 +60,16 @@ jobs:
           const raw = process.argv[2] ?? '';
           try {
             const result = JSON.parse(raw);
-            const guard = result.guard ?? null;
-            const transientErrorCodes = new Set([
-              'GHL_TIMEOUT',
-              'GHL_NETWORK_ERROR',
-              'GHL_AUTH_TIMEOUT',
-              'GHL_RATE_LIMITED',
-              'GHL_CIRCUIT_OPEN',
-              'GHL_GUARD_STALE_RUN',
-            ]);
-            const transientFailures = Array.isArray(guard?.errors)
-              && guard.errors.length > 0
-              && guard.errors.every((failure) => {
-                const code = String(failure?.errorCode ?? '');
-                return transientErrorCodes.has(code) || /^GHL_HTTP_5\d\d$/.test(code);
-              });
-            const retryable = Boolean(
-              (guard?.skipped === true
-                && ['advisory_lock', 'already_running'].includes(guard.skipReason))
-              || transientFailures
-              || Boolean(result.guardError),
-            );
-            const intervalSkip = guard?.skipped === true && guard.skipReason === 'in_memory_interval';
-            const ok = Boolean(
-              guard
-              && guard.enabled === true
-              && (guard.skipped !== true || intervalSkip)
-              && (guard.failed ?? 0) === 0
-              && !result.guardError,
-            );
+            const ok = result.accepted === true;
             process.stdout.write(JSON.stringify({
               ok,
-              retryable,
-              processed: result.processed ?? null,
-              guard,
-              guardError: result.guardError ?? null,
+              processed: result.processed ?? 0,
             }, null, 2));
           } catch (error) {
             process.stdout.write(JSON.stringify({
               ok: false,
-              retryable: true,
               processed: null,
-              guard: null,
-              guardError: `Invalid JSON response: ${error instanceof Error ? error.message : String(error)}`,
+              error: `Invalid JSON response: ${error instanceof Error ? error.message : String(error)}`,
             }, null, 2));
           }
           NODE
@@ -114,24 +80,35 @@ jobs:
               exit 0
             fi
 
-            retryable="$(node -p 'JSON.parse(process.argv[1]).retryable ? "true" : "false"' "$summary")"
-            if [ "$retryable" = "true" ] && [ "$attempt" -lt "$max_attempts" ]; then
-              retry_contact_ids="$(node - "$summary" <<'NODE'
-          const result = JSON.parse(process.argv[2]);
-          const ids = (result.guard?.errors ?? [])
-            .map((failure) => typeof failure?.ghlContactId === 'string' ? failure.ghlContactId.trim() : '')
-            .filter(Boolean);
-          process.stdout.write(encodeURIComponent([...new Set(ids)].join(',')));
-          NODE
-              )"
-              if [ -n "$retry_contact_ids" ]; then
-                target_url="$base_url?contact_ids=$retry_contact_ids"
-                echo "Retrying failed contacts after ${retry_delay_seconds}s"
-              else
-                echo "Guard did not complete; retrying after ${retry_delay_seconds}s"
-              fi
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              echo "Due release did not return accepted=true; retrying after ${retry_delay_seconds}s"
               sleep "$retry_delay_seconds"
               continue
             fi
             exit 1
           done
+
+  run-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    concurrency:
+      group: process-due-guard
+      cancel-in-progress: false
+    steps:
+      - name: Run GHL guard (best effort)
+        continue-on-error: true
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          CONTACT_IDS: ${{ inputs.contact_ids }}
+        run: |
+          set -u
+          test -n "$CRON_SECRET"
+          guard_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/run-guard"
+          if [ -n "$CONTACT_IDS" ]; then
+            guard_url="$guard_url?contact_ids=$CONTACT_IDS"
+          fi
+          echo "Running GHL guard as best effort; advisory_lock/already_running must not fail due release"
+          curl --silent --show-error --request GET \
+            --connect-timeout 10 --max-time 180 \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            "$guard_url" || echo "GHL guard request was unavailable; due release already completed"
