@@ -1891,6 +1891,22 @@ describe('normalizeCollectorInput', () => {
   });
 
   it.each([
+    ['carros económicos', 'Sedan'],
+    ['economical car', 'Sedan'],
+    ['affordable car', 'Sedan'],
+    ['Camaros', 'Camaro'],
+  ])('normalizes vehicle wording %s to %s', (message, expected) => {
+    const result = normalizeCollectorInput({
+      channel: 'messenger',
+      message,
+      vehicle_type: message,
+      chat_history_log: message,
+    });
+
+    expect(result.vehicle_type).toBe(expected);
+  });
+
+  it.each([
     ['U coche 🚗 pequeño', 'Sedan'],
     ['un coche pekeno', 'Sedan'],
     ['auto chico', 'Sedan'],

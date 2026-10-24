@@ -56,6 +56,22 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
   });
 
+  it.each([
+    ['carro economico', 'Sedan'],
+    ['carros económicos', 'Sedan'],
+    ['economical car', 'Sedan'],
+    ['Camaros', 'Camaro'],
+  ])('canonicalizes %s as %s in the deployed Custom Code body', (vehicle, expected) => {
+    const result = execute({
+      channel: 'messenger',
+      message: vehicle,
+      vehicle_type: vehicle,
+      chat_history_log: vehicle,
+    });
+
+    expect(result.vehicle_type).toBe(expected);
+  });
+
   it('defaults English and Spanish indecision to Sedan while preserving explicit vehicles', () => {
     const english = execute({
       source: 'action-cars',

@@ -201,6 +201,7 @@ const cleanVehicleValue = (value) => {
   if (isCampaignButton(value) || isNonVehicleIntent(value)) return '';
   const candidate = clean(value).replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
   if (!candidate) return '';
+  if (economicCarIntent.test(candidate)) return 'Sedan';
   // Do not allow arbitrary Custom Code/memory text to become vehicle_type.
   // Keep exact categories and recognized make/model labels only.
   const label = vehicleLabel(candidate);

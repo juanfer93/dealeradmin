@@ -20,7 +20,7 @@ export { isValidRealName, normalizeRealName, realNameFromQualificationMemory } f
 export { detectLeadLanguage } from './language-normalizer';
 export { isAdvisorHandoffVehicle } from './flow-policy';
 
-const ECONOMIC_SEDAN_INTENT = /\b(?:carro|auto|coche|veh[ií]culo|algo)\s+econ[oó]mic[oa]s?\b/i;
+const ECONOMIC_SEDAN_INTENT = /\b(?:(?:carro|carros|auto|autos|coche|coches|veh[ií]culo|veh[ií]culos)\s+econ[oó]mic[oa]s?|(?:economic|economical|affordable|budget)\s+(?:car|cars|auto|vehicle)|algo\s+econ[oó]mic[oa]?)\b/i;
 const GENERIC_SEDAN_INTENT = /\b(?:small|compact|affordable|budget|economical)\s+(?:car|auto|coche|carro|vehicle)\b|\b(?:carro|auto|coche|veh[ií]culo)[\s\W_]{1,8}(?:pequeñ[oa]|pequen[oa]|peken[oa]|chic[oa])\b/i;
 const FOUR_DOOR_SPORTS_CAR_INTENT = /\b(?:four|4)[-\s]?door\s+sports?\s+cars?\b/i;
 const FAMILY_PASSENGER_VAN_INTENT = /\b(?:algo\s+)?familiar\b[\s\S]{0,80}\bpasajeros?\b/i;
