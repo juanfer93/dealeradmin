@@ -6,6 +6,7 @@ on:
     # GitHub may delay or drop scheduled events under load. This offset is a
     # redundant trigger; the release path is idempotent and lock-safe.
     - cron: '2-59/5 * * * *'
+    - cron: '4-59/5 * * * *'
   workflow_dispatch:
     inputs:
       contact_ids:
@@ -35,8 +36,8 @@ jobs:
           if [ -n "$CONTACT_IDS" ]; then
             target_url="$target_url?contact_ids=$CONTACT_IDS"
           fi
-          max_attempts=3
-          retry_delay_seconds=30
+          max_attempts=4
+          retry_delay_seconds=10
 
           for attempt in $(seq 1 "$max_attempts"); do
             echo "process-due attempt ${attempt}/${max_attempts}"
@@ -86,7 +87,13 @@ jobs:
             if node -e 'process.exit(JSON.parse(process.argv[1]).ok ? 0 : 1)' "$summary"; then
               skipped="$(node -p 'JSON.parse(process.argv[1]).skipped ?? 0' "$summary")"
               if [ "$skipped" -gt 0 ]; then
-                echo "Due release left ${skipped} cycle(s) deferred after bounded retries"
+                if [ "$attempt" -lt "$max_attempts" ]; then
+                  echo "Due release left ${skipped} cycle(s) deferred; retrying after ${retry_delay_seconds}s"
+                  sleep "$retry_delay_seconds"
+                  continue
+                fi
+                echo "::error::Due release left ${skipped} cycle(s) deferred after ${max_attempts} attempts"
+                exit 1
               fi
               exit 0
             fi

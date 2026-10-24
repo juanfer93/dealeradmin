@@ -95,8 +95,19 @@ export class ConversationDueFunctions {
   }
 
   private async releaseDueConversationWithRetry(id: string, now: Date): Promise<{ advanced: boolean; terminal: boolean }> {
+    let lastError: unknown;
     for (let attempt = 1; attempt <= DUE_RELEASE_RETRY_ATTEMPTS; attempt += 1) {
-      const terminal = await this.releaseDueConversation(id, now);
+      let terminal: boolean;
+      try {
+        terminal = await this.releaseDueConversation(id, now);
+      } catch (error) {
+        lastError = error;
+        if (attempt < DUE_RELEASE_RETRY_ATTEMPTS) {
+          await new Promise((resolve) => setTimeout(resolve, DUE_RELEASE_RETRY_DELAY_MS));
+          continue;
+        }
+        throw lastError;
+      }
       if (terminal) return { advanced: true, terminal: true };
 
       const remaining = await this.dataSource!.query(

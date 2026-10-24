@@ -136,6 +136,8 @@ describe('ConversationDueFunctions', () => {
     const releaseDueConversation = vi
       .spyOn(service as unknown as { releaseDueConversation: (id: string, now: Date) => Promise<boolean> }, 'releaseDueConversation')
       .mockRejectedValueOnce(new Error('lock timeout'))
+      .mockRejectedValueOnce(new Error('lock timeout'))
+      .mockRejectedValueOnce(new Error('lock timeout'))
       .mockResolvedValueOnce(true);
 
     const result = await service.processDueConversations(new Date('2026-10-16T22:30:00.000Z'), {
@@ -144,6 +146,34 @@ describe('ConversationDueFunctions', () => {
     });
 
     expect(result.processed).toBe(1);
+    expect(releaseDueConversation).toHaveBeenCalledTimes(4);
+  });
+
+  it('retries a transient release error before leaving a due cycle skipped', async () => {
+    const dataSource = {
+      query: vi.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: 'transient-contact' }]),
+    };
+    const service = new ConversationDueFunctions(
+      dataSource as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      undefined,
+      undefined,
+    );
+    const releaseDueConversation = vi
+      .spyOn(service as unknown as { releaseDueConversation: (id: string, now: Date) => Promise<boolean> }, 'releaseDueConversation')
+      .mockRejectedValueOnce(new Error('temporary database failure'))
+      .mockResolvedValueOnce(true);
+
+    const result = await service.processDueConversations(new Date('2026-10-16T22:30:00.000Z'), {
+      reconcileActive: false,
+      runGuard: false,
+    });
+
+    expect(result).toMatchObject({ accepted: true, processed: 1, advanced: 1, skipped: 0 });
     expect(releaseDueConversation).toHaveBeenCalledTimes(2);
   });
 
