@@ -55,6 +55,67 @@ describe('ConversationDueFunctions', () => {
     expect(runner.commitTransaction).toHaveBeenCalledOnce();
   });
 
+  it('queues the conversation after the fifth waiting_window cycle even when qualification is still incomplete', async () => {
+    const now = new Date('2026-10-16T22:55:00.000Z');
+    const runner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query: vi.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{
+          id: 'conversation-terminal',
+          ghl_location_id: 'easterns-location',
+          ghl_contact_id: 'contact-terminal',
+          ghl_conversation_id: 'ghl-terminal',
+          qualification_snapshot: { language: 'en', phone: '+12025550123' },
+          location_snapshot: {},
+          ready_at: '2026-10-16T22:00:00.000Z',
+          waiting_window_attempts: 5,
+          lead_id: 'lead-terminal',
+          first_name: 'Terminal',
+          last_name: 'Lead',
+        }])
+        .mockResolvedValue([]),
+    };
+    const dataSource = {
+      query: vi.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: 'conversation-terminal' }]),
+      createQueryRunner: vi.fn().mockReturnValue(runner),
+    };
+    const qualification = {
+      findSourceDealer: vi.fn().mockResolvedValue({ id: 'dealer-easterns', name: 'Easterns Rosedale', routing_config: {} }),
+      statusForConversation: vi.fn().mockReturnValue({ status: 'partial', nextAttemptAt: null }),
+      syncLeadDealer: vi.fn().mockResolvedValue(undefined),
+    };
+    const queueService = {
+      createQueuedPauseEvent: vi.fn().mockResolvedValue(null),
+      dispatchQueuedPauseEvent: vi.fn(),
+    };
+    const service = new ConversationDueFunctions(
+      dataSource as never,
+      qualification as never,
+      queueService as never,
+      {} as never,
+      { easterns: { locationId: 'easterns-location' } } as never,
+      undefined,
+    );
+
+    const result = await service.processDueConversations(now, { reconcileActive: false, runGuard: false });
+
+    expect(result.processed).toBe(1);
+    expect(qualification.syncLeadDealer).toHaveBeenCalledOnce();
+    expect(runner.query).toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE conversations SET status = 'queued'"),
+      ['conversation-terminal'],
+    );
+    expect(runner.commitTransaction).toHaveBeenCalledOnce();
+  });
+
   it('continues releasing other due contacts when one contact is locked or fails', async () => {
     const dataSource = {
       query: vi.fn()

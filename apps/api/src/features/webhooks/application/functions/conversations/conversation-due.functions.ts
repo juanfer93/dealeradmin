@@ -125,9 +125,14 @@ export class ConversationDueFunctions {
         await runner.commitTransaction();
         return false;
       }
+      // The fifth due cycle is the terminal waiting-window backstop. A lead
+      // must never be stranded in waiting_window because an optional
+      // qualification/location detail is still incomplete; the queued phase
+      // is the durable handoff that lets the downstream workflow continue.
+      const terminalWaitingWindowCycle = waitingWindowAttempts >= WAITING_WINDOW_MAX_ATTEMPTS;
       const dealer = await this.qualification.findSourceDealer(runner, row.ghl_location_id, source, row.qualification_snapshot.language, clean(row.qualification_snapshot.assigned_dealer_id) || undefined);
       const status = this.qualification.statusForConversation(row.qualification_snapshot, row.location_snapshot, dealer, source, now, 'due', row.ready_at);
-      if (status.status !== 'ready') {
+      if (status.status !== 'ready' && !terminalWaitingWindowCycle) {
         await runner.query(
           `UPDATE conversations SET status = $2, next_attempt_at = $3,
              ready_at = CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued') THEN COALESCE(ready_at, $4::timestamptz) ELSE ready_at END,
