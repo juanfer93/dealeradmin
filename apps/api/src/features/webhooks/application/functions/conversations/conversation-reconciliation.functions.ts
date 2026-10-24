@@ -127,7 +127,10 @@ export class ConversationReconciliationFunctions {
         : null;
       const existingPhone = safePhone(current.phone) || safePhone(row.canonical_phone);
       const candidatePhone = recentPhone || nativeWhatsappPhone || '';
-      const effectivePhone = additiveOnly ? existingPhone || candidatePhone : candidatePhone;
+      // A Messenger transcript often contains no phone because GHL already
+      // provides it on the lead. Never erase that persisted phone during an
+      // active reconciliation just because the latest messages omit it.
+      const effectivePhone = candidatePhone || existingPhone || '';
       const normalized = normalizeCollectorInput({
         source,
         channel: row.channel,

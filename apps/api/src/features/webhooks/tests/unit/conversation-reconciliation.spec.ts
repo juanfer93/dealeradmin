@@ -3,6 +3,58 @@ import { ConversationReconciliationFunctions } from '../../application/functions
 import { GHL_SOURCE_CONFIG } from '../../application/functions/conversations/conversation-webhook.config';
 
 describe('ConversationReconciliationFunctions', () => {
+  it('preserves the lead canonical phone when Messenger history has no phone candidate', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('SELECT c.id, c.channel')) {
+        return [{
+          id: 'conversation-messenger-phone',
+          channel: 'messenger',
+          ghl_location_id: GHL_SOURCE_CONFIG.easterns.locationId,
+          ghl_contact_id: 'messenger-phone-contact',
+          ghl_conversation_id: 'contact:messenger-phone-contact:messenger',
+          status: 'partial',
+          qualification_snapshot: { real_name: 'Messenger Lead', phone: '', vehicle_type: 'SUV', qualification_complete: false },
+          location_snapshot: { city: null, state: null, zip_code: null, easterns_zone: null },
+          ready_at: null,
+          next_attempt_at: null,
+          last_message_at: '2026-10-18T17:59:00.000Z',
+          waiting_window_attempts: 0,
+          lead_id: 'lead-messenger-phone',
+          canonical_phone: '+13015550123',
+          first_name: 'Messenger',
+          last_name: 'Lead',
+        }];
+      }
+      if (sql.includes('SELECT cm.body')) return [{ body: 'I am looking for an SUV.', direction: 'inbound', occurred_at: '2026-10-18T17:59:00.000Z' }];
+      return [];
+    });
+    const runner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query,
+    };
+    const qualification = {
+      resolveLocation: vi.fn().mockResolvedValue({ city: null, state: null, zip_code: null, easterns_zone: null }),
+      findSourceDealer: vi.fn().mockResolvedValue({ id: 'dealer-easterns', timezone: 'America/New_York', routing_config: { group: 'Easterns' } }),
+      statusForConversation: vi.fn().mockReturnValue({ status: 'partial', nextAttemptAt: null }),
+      syncLeadDealer: vi.fn(),
+    };
+    const reconciliation = new ConversationReconciliationFunctions(
+      { createQueryRunner: () => runner } as never,
+      qualification as never,
+      { createQueuedPauseEvent: vi.fn(), dispatchQueuedPauseEvent: vi.fn() } as never,
+    );
+
+    await reconciliation.reconcileConversation('conversation-messenger-phone', new Date('2026-10-18T18:05:00.000Z'));
+
+    const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ phone: '+13015550123' });
+  });
+
   it('counts only a successful Guard reconciliation and schedules the next five-minute cycle', async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('SELECT c.id, c.channel')) {
