@@ -235,6 +235,7 @@ export class GhlGuardService {
         const batch = rows.slice(offset, offset + concurrency);
         await Promise.all(batch.map((row) => this.processRow(row, runId, now, result, targeted, queuedOnly)));
       }
+      if (queuedOnly) result.pendingQueuedReplayCount = await this.countPendingQueuedReplays();
       return result;
     } catch (error) {
       const errorCode = error instanceof Error ? error.name : 'GHL_GUARD_RUN_FAILED';
@@ -604,6 +605,19 @@ export class GhlGuardService {
         }
       }
     }
+  }
+
+  private async countPendingQueuedReplays(): Promise<number> {
+    if (!this.dataSource) return 0;
+    const rows = await this.dataSource.query(
+      `SELECT COUNT(*)::int AS count
+       FROM conversations
+       WHERE status = 'queued'
+         AND queued_guard_replay_count = 0
+         AND ghl_location_id = ANY($1::text[])`,
+      [RECONCILIATION_LOCATION_IDS],
+    ) as Array<{ count: number | string }>;
+    return Number(rows[0]?.count ?? 0);
   }
 
   private recordFailure(

@@ -128,6 +128,7 @@ export class WebhooksController {
       ? !guard.skipped
         && guard.failed === 0
         && (guard.queuedReplaySelected ?? 0) === (guard.queuedReplayCompleted ?? 0)
+        && guard.pendingQueuedReplayCount === 0
       : !guard.skipped || guard.skipReason === 'in_memory_interval';
     return { accepted, guard };
   }
