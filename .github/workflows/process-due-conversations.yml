@@ -91,6 +91,8 @@ jobs:
   run-guard:
     runs-on: ubuntu-latest
     timeout-minutes: 6
+    needs: release-due
+    if: ${{ always() }}
     concurrency:
       group: process-due-guard
       cancel-in-progress: false
@@ -101,14 +103,68 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           CONTACT_IDS: ${{ inputs.contact_ids }}
         run: |
-          set -u
+          set -euo pipefail
           test -n "$CRON_SECRET"
           guard_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/run-guard"
           if [ -n "$CONTACT_IDS" ]; then
             guard_url="$guard_url?contact_ids=$CONTACT_IDS"
           fi
-          echo "Running GHL guard as best effort; advisory_lock/already_running must not fail due release"
-          curl --silent --show-error --request GET \
-            --connect-timeout 10 --max-time 180 \
-            --header "Authorization: Bearer $CRON_SECRET" \
-            "$guard_url" || echo "GHL guard request was unavailable; due release already completed"
+          max_attempts=6
+          retry_delay_seconds=30
+
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "run-guard attempt ${attempt}/${max_attempts}"
+            if response="$(curl --fail-with-body --silent --show-error --request GET \
+              --connect-timeout 10 --max-time 180 \
+              --header "Authorization: Bearer $CRON_SECRET" \
+              "$guard_url")"; then
+              curl_status=0
+            else
+              curl_status=$?
+            fi
+
+            if [ "$curl_status" -ne 0 ]; then
+              echo "GHL guard HTTP request failed with status ${curl_status}"
+              if [ "$attempt" -lt "$max_attempts" ]; then
+                sleep "$retry_delay_seconds"
+                continue
+              fi
+              exit "$curl_status"
+            fi
+
+            summary="$(node - "$response" <<'NODE'
+          const raw = process.argv[2] ?? '';
+          try {
+            const result = JSON.parse(raw);
+            const guard = result.guard ?? null;
+            const retryable = Boolean(
+              guard?.skipped === true
+              && ['already_running', 'advisory_lock'].includes(guard.skipReason),
+            );
+            process.stdout.write(JSON.stringify({
+              retryable,
+              accepted: result.accepted === true,
+              skipped: guard?.skipped === true,
+              skipReason: guard?.skipReason ?? null,
+            }, null, 2));
+          } catch (error) {
+            process.stdout.write(JSON.stringify({
+              retryable: true,
+              accepted: false,
+              skipped: false,
+              skipReason: null,
+              error: `Invalid JSON response: ${error instanceof Error ? error.message : String(error)}`,
+            }, null, 2));
+          }
+          NODE
+            )"
+            printf '%s\n' "$summary"
+
+            retryable="$(node -p 'JSON.parse(process.argv[1]).retryable ? "true" : "false"' "$summary")"
+            if [ "$retryable" = "true" ] && [ "$attempt" -lt "$max_attempts" ]; then
+              echo "GHL guard is busy; retrying after ${retry_delay_seconds}s"
+              sleep "$retry_delay_seconds"
+              continue
+            fi
+            exit 0
+          done
