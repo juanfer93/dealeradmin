@@ -222,7 +222,14 @@ export class ConversationQualificationFunctions {
         if (assigned) return assigned;
       }
       if (candidates.length < 2) throw new BadRequestException(`El grupo alternado ${alternatingGroup} requiere al menos dos dealers activos`);
-      await runner.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [alternatingGroup]);
+      const lockRows = await runner.query(
+        `SELECT pg_try_advisory_xact_lock(hashtext($1)) AS acquired`,
+        [alternatingGroup],
+      ) as Array<{ acquired: boolean }>;
+      // Dealer rotation is best effort. Never leave a waiting-window cycle
+      // blocked behind another invocation; the first configured candidate is
+      // the deterministic fallback when the rotation lock is busy.
+      if (lockRows[0]?.acquired === false) return candidates[0];
       const lastAssignments = await runner.query(
         `SELECT COALESCE(ld.assigned_dealer_id, ld.dealer_id) AS dealer_id
          FROM lead_dealers ld

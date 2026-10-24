@@ -10,6 +10,20 @@ describe('Easterns georouting engine', () => {
     return { service: new GeoroutingService({ query } as never), query };
   }
 
+  it('uses the deterministic first dealer when the overlap lock is busy', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('FROM locations')) return [{ state_code: 'MD', easterns_routing_zone: 'baltimore_overlap' }];
+      if (sql.includes('pg_try_advisory_xact_lock')) return [{ acquired: false }];
+      throw new Error('history query should not run while the lock is busy');
+    });
+    const service = new GeoroutingService({ query } as never);
+
+    await expect(service.resolveDealer({ city: 'Baltimore', state: 'MD' })).resolves.toMatchObject({
+      dealerId: EASTERN_DEALER_IDS.rosedale,
+      reason: 'Baltimore Overlap: Round-Robin (Previous: Laurel/None)',
+    });
+  });
+
   it('consulta locations para inferir el estado de una ciudad completa que no estaba en el mapa corto', async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('locations')) return [{ state_code: 'VA' }];

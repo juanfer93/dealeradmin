@@ -2,6 +2,26 @@ import { describe, expect, it, vi } from 'vitest';
 import { ConversationQualificationFunctions } from '../../application/functions/conversations/conversation-qualification.functions';
 
 describe('ConversationQualificationFunctions', () => {
+  it('does not wait on the alternating dealer lock when another cycle owns it', async () => {
+    const runner = {
+      query: vi.fn()
+        .mockResolvedValueOnce([
+          { id: 'dealer-first', code: 'first', name: 'First', timezone: 'America/New_York', routing_config: { allocation_key: 'easterns-millersville', allocation_order: 0 } },
+          { id: 'dealer-second', code: 'second', name: 'Second', timezone: 'America/New_York', routing_config: { allocation_key: 'easterns-millersville', allocation_order: 1 } },
+        ])
+        .mockResolvedValueOnce([{ acquired: false }]),
+    };
+
+    const result = await new ConversationQualificationFunctions(
+      undefined,
+      { 'easterns-millersville': { locationId: 'millersville-location', defaultChannel: 'messenger', alternatingGroup: 'easterns-millersville' } } as never,
+    ).findSourceDealer(runner as never, 'millersville-location', 'easterns-millersville');
+
+    expect(result.id).toBe('dealer-first');
+    expect(runner.query.mock.calls[1]?.[0]).toContain('pg_try_advisory_xact_lock');
+    expect(runner.query).toHaveBeenCalledTimes(2);
+  });
+
   it('finds reengagement by historical snapshot phone across aliases of the same dealer', async () => {
     const historicalLead = {
       id: 'lead-jason-carpenter',

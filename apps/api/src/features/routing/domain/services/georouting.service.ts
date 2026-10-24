@@ -177,7 +177,13 @@ export class GeoroutingService {
     queryClient: QueryClient,
     sourceGhlLocationId?: string,
   ): Promise<string | null> {
-    await queryClient.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`easterns:${reasonPrefix}`]);
+    const lockRows = await queryClient.query(
+      'SELECT pg_try_advisory_xact_lock(hashtext($1)) AS acquired',
+      [`easterns:${reasonPrefix}`],
+    ) as Array<{ acquired: boolean }>;
+    // Round-robin history is advisory only. A busy lock must not hold a
+    // qualification transaction or strand a waiting-window cycle.
+    if (lockRows[0]?.acquired === false) return null;
     const scope = sourceGhlLocationId?.trim() || '';
     const locationPatterns = reasonPrefix === 'Baltimore Overlap'
       ? ['%baltimore%']

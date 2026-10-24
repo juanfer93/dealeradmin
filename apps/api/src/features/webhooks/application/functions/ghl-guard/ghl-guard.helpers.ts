@@ -25,6 +25,12 @@ export function isRetryableGuardFailure(errorCode: string, errorMessage = ''): b
     || errorCode === 'GHL_RATE_LIMITED'
     || /^GHL_HTTP_5\d\d$/.test(errorCode)) return true;
 
+  // A serverless connection can release a TypeORM runner while a prior
+  // database operation is unwinding. The conversation remains recoverable;
+  // retry it instead of leaving the Guard's partial row stranded.
+  if (errorCode === 'QueryRunnerAlreadyReleasedError'
+    || /query runner already released/i.test(errorMessage)) return true;
+
   // TypeORM/pg can surface a dropped Neon connection after the GHL read has
   // completed. Treat only known transport failures as transient; permanent
   // SQL errors must still fail loudly and must not spin in a retry loop.
