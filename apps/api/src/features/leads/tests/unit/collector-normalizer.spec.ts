@@ -1126,6 +1126,31 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message }).vehicle_type).toBe(expected);
   });
 
+  it('normalizes an English HEMI Durangos request to Dodge Durango', () => {
+    const result = normalizeCollectorInput({
+      source: 'koons-culpeper',
+      channel: 'messenger',
+      real_name: 'Ryan Claddy',
+      phone: '+14342701737',
+      message: 'They have that',
+      chat_history_log: [
+        'Do u have any hemi Durangos down there',
+        '4342701737',
+        'Maybe like 1k or so',
+        'Need to no if it is a hemi or not',
+        'Next Friday',
+        'They have that',
+      ].join('\n'),
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'Dodge Durango',
+      qualification_complete: true,
+    });
+    expect(result.vehicle_type).not.toBe(ADVISOR_HANDOFF_VEHICLE);
+    expect(result.missing_qualification).not.toContain('vehicle_type');
+  });
+
   it.each(['Quiero financiar un auto', 'Este carro menos de 8K', 'Más información', '2014'])('does not promote non-vehicle text to vehicle_type: %s', (message) => {
     expect(normalizeCollectorInput({ vehicle_type: message, message }).vehicle_type).toBe('');
   });
