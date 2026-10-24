@@ -1166,6 +1166,21 @@ describe('ConversationWebhookService', () => {
     expect(dataSource.query.mock.calls.some(([sql]) => String(sql).includes("status IN ('partial', 'waiting_window', 'stale_phone_ignored')"))).toBe(false);
   });
 
+  it('keeps the internal due poll independent from slow reconciliation and Guard work', async () => {
+    const service = new ConversationWebhookService();
+    const processDue = vi.spyOn(service, 'processDueConversations').mockResolvedValue({
+      accepted: true,
+      processed: 0,
+      advanced: 0,
+      skipped: 0,
+      remainingDue: 0,
+    });
+
+    await (service as unknown as { pollDueConversations: () => Promise<void> }).pollDueConversations();
+
+    expect(processDue).toHaveBeenCalledWith(undefined, { reconcileActive: false, runGuard: false });
+  });
+
   it('reabre un webhook marcado como failed para que un reintento no se pierda como duplicado', async () => {
     const queryRunner = {
       connect: vi.fn(),
