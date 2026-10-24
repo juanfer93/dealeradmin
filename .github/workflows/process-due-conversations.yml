@@ -110,7 +110,7 @@ jobs:
     needs: release-due
     # Waiting-cycle release must not wait on the GHL Guard. Keep this long,
     # advisory-lock-prone operation only for an explicitly targeted repair.
-    if: ${{ always() && inputs.contact_ids != '' }}
+    if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.contact_ids != '' }}
     concurrency:
       group: process-due-guard
       cancel-in-progress: false
