@@ -25,19 +25,23 @@ export class ConversationDueFunctions {
 
   async processDueConversations(now: Date, options: { reconcileActive?: boolean; runGuard?: boolean; guardContactIds?: string[]; forceGuard?: boolean; dueContactIds?: string[] } = {}): Promise<DueConversationResponse> {
     if (!this.dataSource) {
-      if (process.env.NODE_ENV === 'test') return { accepted: true, processed: 0, advanced: 0, skipped: 0 };
+      if (process.env.NODE_ENV === 'test') return { accepted: true, processed: 0, advanced: 0, skipped: 0, remainingDue: 0 };
       throw new ServiceUnavailableException('Database connection is not available');
     }
     const dueContactIds = [...new Set((options.dueContactIds ?? []).map((value) => value.trim()).filter(Boolean))];
     if (dueContactIds.length > 0) {
       await this.dataSource.query(
-        `UPDATE conversations SET next_attempt_at = $1::timestamptz, updated_at = CURRENT_TIMESTAMP
+        `UPDATE conversations SET next_attempt_at = $1::timestamptz, updated_at = CURRENT_TIMESTAMP,
+             waiting_window_attempts = GREATEST(waiting_window_attempts, 1),
+             waiting_window_started_at = COALESCE(waiting_window_started_at, $1::timestamptz)
          WHERE status = 'waiting_window' AND next_attempt_at IS NULL AND ghl_contact_id = ANY($2::text[])`,
         [now.toISOString(), dueContactIds],
       );
     } else {
       await this.dataSource.query(
-        `UPDATE conversations SET next_attempt_at = $1::timestamptz, updated_at = CURRENT_TIMESTAMP
+        `UPDATE conversations SET next_attempt_at = $1::timestamptz, updated_at = CURRENT_TIMESTAMP,
+             waiting_window_attempts = GREATEST(waiting_window_attempts, 1),
+             waiting_window_started_at = COALESCE(waiting_window_started_at, $1::timestamptz)
          WHERE status = 'waiting_window' AND next_attempt_at IS NULL`,
         [now.toISOString()],
       );
@@ -71,6 +75,22 @@ export class ConversationDueFunctions {
         skipped += 1;
       }
     }
+    let remainingDue = 0;
+    if (due.length >= DUE_CONVERSATION_BATCH_SIZE || skipped > 0) {
+      const remainingRows = dueContactIds.length > 0
+        ? await this.dataSource.query(
+          `SELECT COUNT(*)::int AS count FROM conversations
+           WHERE status = 'waiting_window' AND next_attempt_at IS NOT NULL AND next_attempt_at <= $1
+             AND ghl_contact_id = ANY($2::text[])`,
+          [now.toISOString(), dueContactIds],
+        ) as Array<{ count: number | string }>
+        : await this.dataSource.query(
+          `SELECT COUNT(*)::int AS count FROM conversations
+           WHERE status = 'waiting_window' AND next_attempt_at IS NOT NULL AND next_attempt_at <= $1`,
+          [now.toISOString()],
+        ) as Array<{ count: number | string }>;
+      remainingDue = Number(remainingRows?.[0]?.count ?? 0);
+    }
     if (options.reconcileActive !== false) await this.reconciliation.reconcileActiveConversations(now);
     let guardResult: GhlGuardRunResult | undefined;
     let guardError: string | undefined;
@@ -89,6 +109,7 @@ export class ConversationDueFunctions {
       processed,
       advanced,
       skipped,
+      remainingDue,
       ...(guardResult ? { guard: guardResult } : {}),
       ...(guardError ? { guardError } : {}),
     };

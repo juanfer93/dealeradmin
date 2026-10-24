@@ -284,9 +284,9 @@ export class ConversationReconciliationFunctions {
       const nextAttemptAt = shouldCountWaitingWindowAttempt
         ? new Date(now.getTime() + WAITING_WINDOW_RETRY_INTERVAL_MS).toISOString()
         : status.nextAttemptAt;
-      const nextWaitingWindowAttempts = shouldCountWaitingWindowAttempt
-        ? currentWaitingWindowAttempts + 1
-        : currentWaitingWindowAttempts;
+      const nextWaitingWindowAttempts = status.status === 'waiting_window'
+        ? Math.max(1, shouldCountWaitingWindowAttempt ? currentWaitingWindowAttempts + 1 : currentWaitingWindowAttempts)
+        : 0;
       await runner.query(
         `UPDATE conversations
          SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,

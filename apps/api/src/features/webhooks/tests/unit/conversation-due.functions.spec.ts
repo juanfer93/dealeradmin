@@ -239,7 +239,7 @@ describe('ConversationDueFunctions', () => {
       runGuard: false,
     });
 
-    expect(result).toEqual({ accepted: true, processed: 0, advanced: 0, skipped: 0 });
+    expect(result).toEqual({ accepted: true, processed: 0, advanced: 0, skipped: 0, remainingDue: 0 });
     expect(guard.run).not.toHaveBeenCalled();
   });
 

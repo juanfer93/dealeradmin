@@ -96,6 +96,7 @@ export type DueConversationResponse = {
   processed: number;
   advanced: number;
   skipped: number;
+  remainingDue: number;
   guard?: {
     enabled: boolean;
     skipped: boolean;

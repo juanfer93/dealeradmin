@@ -286,7 +286,7 @@ export class ConversationEventFunctions {
         `UPDATE conversations
          SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
              last_message_at = GREATEST(COALESCE(last_message_at, $5::timestamptz), $5::timestamptz), ready_at = CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued') THEN COALESCE(ready_at, $7::timestamptz) ELSE ready_at END,
-             next_attempt_at = $6, waiting_window_attempts = 0,
+             next_attempt_at = $6, waiting_window_attempts = CASE WHEN $2::varchar = 'waiting_window' THEN 1 ELSE 0 END,
              waiting_window_started_at = CASE WHEN $2::varchar = 'waiting_window' THEN $7::timestamptz ELSE NULL END,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $1`,
