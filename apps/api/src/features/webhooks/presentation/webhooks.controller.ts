@@ -105,7 +105,6 @@ export class WebhooksController {
   @Get('ghl/conversations/process-due-only')
   @UseGuards(HmacSignatureGuard)
   async processDueConversationsOnlyCron(@Req() request: Request) {
-    await this.ingressAudit.recoverStale();
     return this.conversationWebhookService.processDueConversations(undefined, {
       reconcileActive: false,
       runGuard: false,
@@ -116,7 +115,6 @@ export class WebhooksController {
   @Get('ghl/conversations/run-guard')
   @UseGuards(HmacSignatureGuard)
   async runGuardCron(@Req() request: Request) {
-    await this.ingressAudit.recoverStale();
     const contactIds = this.queryContactIds(request);
     const guard = await this.conversationWebhookService.runGhlGuard(undefined, {
       contactIds,

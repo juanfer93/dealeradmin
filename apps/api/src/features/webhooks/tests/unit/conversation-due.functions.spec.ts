@@ -12,6 +12,7 @@ describe('ConversationDueFunctions', () => {
       release: vi.fn(),
       isTransactionActive: true,
       query: vi.fn()
+        .mockResolvedValueOnce([])
         .mockResolvedValueOnce([{
           id: 'conversation-waiting',
           ghl_location_id: 'stafford-location',
@@ -49,8 +50,37 @@ describe('ConversationDueFunctions', () => {
       expect.stringContaining("SET status = 'waiting_window', next_attempt_at = $2::timestamptz"),
       ['conversation-waiting', '2026-10-16T22:35:00.000Z', '2026-10-16T22:30:00.000Z'],
     );
-    expect(runner.query.mock.calls[1][0]).toContain('waiting_window_attempts = LEAST(waiting_window_attempts + 1, 5)');
+    expect(runner.query.mock.calls[0][0]).toContain("idle_in_transaction_session_timeout = '15s'");
+    expect(runner.query.mock.calls[2][0]).toContain('waiting_window_attempts = LEAST(waiting_window_attempts + 1, 5)');
     expect(runner.commitTransaction).toHaveBeenCalledOnce();
+  });
+
+  it('continues releasing other due contacts when one contact is locked or fails', async () => {
+    const dataSource = {
+      query: vi.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: 'locked-contact' }, { id: 'healthy-contact' }]),
+    };
+    const service = new ConversationDueFunctions(
+      dataSource as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      undefined,
+      undefined,
+    );
+    const releaseDueConversation = vi
+      .spyOn(service as unknown as { releaseDueConversation: (id: string, now: Date) => Promise<boolean> }, 'releaseDueConversation')
+      .mockRejectedValueOnce(new Error('lock timeout'))
+      .mockResolvedValueOnce(true);
+
+    const result = await service.processDueConversations(new Date('2026-10-16T22:30:00.000Z'), {
+      reconcileActive: false,
+      runGuard: false,
+    });
+
+    expect(result.processed).toBe(1);
+    expect(releaseDueConversation).toHaveBeenCalledTimes(2);
   });
 
   it('runs the additive GHL guard without the heavy active reconciliation pass', async () => {

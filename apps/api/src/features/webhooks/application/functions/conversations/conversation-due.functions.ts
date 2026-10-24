@@ -54,7 +54,12 @@ export class ConversationDueFunctions {
       ) as Array<{ id: string }>;
     let processed = 0;
     for (const row of due) {
-      if (await this.releaseDueConversation(row.id, now)) processed += 1;
+      try {
+        if (await this.releaseDueConversation(row.id, now)) processed += 1;
+      } catch {
+        // One locked or malformed conversation must not stop the remaining
+        // five-minute cycles. The row stays due and is retried next cycle.
+      }
     }
     if (options.reconcileActive !== false) await this.reconciliation.reconcileActiveConversations(now);
     let guardResult: GhlGuardRunResult | undefined;
@@ -83,13 +88,18 @@ export class ConversationDueFunctions {
     await runner.connect();
     await runner.startTransaction();
     try {
+      // A cancelled serverless request must not leave a transaction holding a
+      // conversation row indefinitely. SKIP LOCKED below handles contention;
+      // these guards clean up the connection if the request disappears after
+      // PostgreSQL has executed a statement but before the client commits.
+      await runner.query(`SET LOCAL lock_timeout = '2s'; SET LOCAL statement_timeout = '30s'; SET LOCAL idle_in_transaction_session_timeout = '15s'`);
       const rows = await runner.query(
         `SELECT c.id, c.ghl_location_id, c.ghl_contact_id, c.ghl_conversation_id, c.qualification_snapshot, c.location_snapshot, c.ready_at,
                 c.waiting_window_attempts,
                 l.id AS lead_id, l.first_name, l.last_name
          FROM conversations c JOIN leads l ON l.id = c.lead_id
          WHERE c.id = $1 AND c.status = 'waiting_window' AND c.next_attempt_at <= $2
-         FOR UPDATE`,
+         FOR UPDATE SKIP LOCKED`,
         [id, now.toISOString()],
       ) as Array<{ id: string; ghl_location_id: string; ghl_contact_id: string; ghl_conversation_id: string; qualification_snapshot: ConversationSnapshot; location_snapshot: LocationSnapshot; ready_at: string | null; waiting_window_attempts: number | string | null; lead_id: string; first_name: string | null; last_name: string | null }>;
       if (!rows[0]) {
