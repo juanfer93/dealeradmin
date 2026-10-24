@@ -1,10 +1,8 @@
 name: Process due conversations
 
 on:
-  # Keep exactly one scheduler. Offset schedules multiply runs and make
-  # independent cycles contend for the same conversation rows.
-  schedule:
-    - cron: '*/5 * * * *'
+  # Temporarily disabled at the user's request. Manual dispatch remains
+  # available for an explicitly authorized recovery.
   workflow_dispatch:
     inputs:
       contact_ids:
