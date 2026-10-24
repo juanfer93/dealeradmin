@@ -99,12 +99,39 @@ describe('ConversationWebhookService', () => {
       { contactId, testNow },
     );
 
-    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining("ghl_conversation_id NOT LIKE 'contact:%'"), [GHL_SOURCE_CONFIG[source].locationId, contactId]);
+    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining("ghl_conversation_id NOT LIKE 'contact:%'"), [GHL_SOURCE_CONFIG[source].locationId, contactId, 'messenger', `contact:${contactId}:messenger`]);
     expect(eventFunctions.persistEvent).toHaveBeenCalledWith(expect.objectContaining({
       ghl_contact_id: contactId,
       ghl_conversation_id: `contact:${contactId}:messenger`,
     }), source, expect.any(String), testNow);
     expect(guard.run).toHaveBeenCalledWith(testNow, { contactIds: [contactId] });
+  });
+
+  it('requests contact reconciliation when GHL creates a second native conversation id', async () => {
+    const source = 'action-cars' as const;
+    const contactId = 'mike-ferry-contact';
+    const nativeConversationId = 'ghl-phone-conversation';
+    const dataSource = { query: vi.fn().mockResolvedValue([{ '?column?': 1 }]) };
+    const service = new ConversationWebhookService(dataSource as never);
+    const eventFunctions = (service as unknown as { eventFunctions: { persistEvent: ReturnType<typeof vi.fn> } }).eventFunctions;
+    eventFunctions.persistEvent = vi.fn().mockResolvedValue({
+      accepted: true,
+      eventId: 'evt-mike-phone',
+      conversationId: nativeConversationId,
+      source,
+      status: 'processed',
+    });
+    const guard = (service as unknown as { guard: { run: ReturnType<typeof vi.fn> } }).guard;
+    guard.run = vi.fn().mockResolvedValue({ enabled: true, skipped: false, selected: 2, fetched: 2, inserted: 2, repaired: 0, failed: 0 });
+
+    await service.acceptCustomerReplied(
+      { message_body: '503 990 3482', contact_name: 'Mike Ferry', contact_phone: '+15039903482', channel: 'messenger' },
+      source,
+      { contactId, conversationId: nativeConversationId, testNow: new Date('2026-10-24T14:29:28.606Z') },
+    );
+
+    expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining("ghl_conversation_id <> $4"), [GHL_SOURCE_CONFIG[source].locationId, contactId, 'messenger', nativeConversationId]);
+    expect(guard.run).toHaveBeenCalledWith(expect.any(Date), { contactIds: [contactId] });
   });
 
   it('does not launch the targeted guard when a synthetic conversation has no canonical sibling', async () => {

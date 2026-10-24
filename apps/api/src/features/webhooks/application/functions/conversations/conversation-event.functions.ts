@@ -147,7 +147,10 @@ export class ConversationEventFunctions {
         customer_location: clean(previousSnapshot.customer_location),
         previous_predicted_bot_question: clean((conversation.qualification_snapshot?.qualification_progress as { predicted_bot_question?: unknown } | undefined)?.predicted_bot_question),
       });
-      const effectivePhone = eligiblePhone;
+      // Messenger may deliver a follow-up under a new native conversation id
+      // without repeating the phone. Keep the contact-level canonical phone
+      // instead of rebuilding this conversation with an empty phone.
+      const effectivePhone = eligiblePhone || safePhone(lead.canonical_phone) || '';
       if (effectivePhone && effectivePhone !== lead.canonical_phone) {
         await runner.query(
           `UPDATE leads

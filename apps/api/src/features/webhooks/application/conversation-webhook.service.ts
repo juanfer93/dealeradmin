@@ -139,7 +139,6 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     }
 
     const nativeConversationId = event.ghl_conversation_id?.trim() || null;
-    const isSyntheticConversation = !nativeConversationId || nativeConversationId.startsWith('contact:');
     const conversationId = nativeConversationId || `contact:${contactId}:${event.channel}`;
     const locationId = event.ghl_location_id || sourceConfig.locationId;
     const raw = rawBody || JSON.stringify(input);
@@ -156,30 +155,30 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       ghl_conversation_id: conversationId,
       event_id: eventId,
     }, source, raw, headers.testNow);
-    if (isSyntheticConversation) {
-      await this.triggerTargetedGuardIfSplit(locationId, contactId, headers.testNow, message);
-    }
+    await this.triggerTargetedGuardIfSplit(locationId, contactId, event.channel, headers.testNow, message, conversationId);
     return response;
   }
 
   /**
-   * A webhook without a native conversation id is stored under a contact-scoped
-   * synthetic id. If that contact already has a canonical GHL conversation, or
-   * the message looks like a phone candidate, ask the guard to reconcile only
-   * this contact. This avoids waiting for the global batch and never replays
-   * other dealers or contacts.
+   * If the contact has a sibling native conversation, ask the guard to
+   * reconcile only this contact. This also covers GHL creating a second native
+   * conversation for the same contact, which is common when a Messenger
+   * campaign changes language. The phone-shaped fallback remains for synthetic
+   * conversations that do not have a sibling yet.
    */
-  private async triggerTargetedGuardIfSplit(locationId: string, contactId: string, now?: Date, message = ''): Promise<void> {
+  private async triggerTargetedGuardIfSplit(locationId: string, contactId: string, channel: string, now?: Date, message = '', currentConversationId?: string): Promise<void> {
     try {
       const split = await this.dataSource!.query(
         `SELECT 1
          FROM conversations
          WHERE ghl_location_id = $1
            AND ghl_contact_id = $2
+           AND channel = $3
            AND ghl_conversation_id IS NOT NULL
            AND ghl_conversation_id NOT LIKE 'contact:%'
+           AND ghl_conversation_id <> $4
          LIMIT 1`,
-        [locationId, contactId],
+        [locationId, contactId, channel, currentConversationId || `contact:${contactId}:${channel}`],
       ) as Array<Record<string, unknown>>;
       // A malformed phone can be the first webhook delivered while the valid
       // follow-up is already visible in GHL. In that case there is no native

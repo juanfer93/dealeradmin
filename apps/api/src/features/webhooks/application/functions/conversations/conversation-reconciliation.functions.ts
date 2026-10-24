@@ -98,18 +98,27 @@ export class ConversationReconciliationFunctions {
       }
       const source = configured[0] as SourceKey;
       const current = row.qualification_snapshot ?? {} as ConversationSnapshot;
+      // GHL can create more than one native conversation for the same contact
+      // (for example when an Action campaign changes language). Qualification
+      // evidence belongs to the contact/location/channel, not to whichever
+      // native id happened to receive the latest message.
       const messages = await runner.query(
         `SELECT cm.body, cm.direction, cm.occurred_at, cm.raw_payload,
                 ca.extracted_text AS attachment_extracted_text
          FROM conversation_messages cm
+         INNER JOIN conversations sibling
+           ON sibling.id = cm.conversation_id
          LEFT JOIN conversation_attachments ca
            ON ca.conversation_message_id = cm.id
           AND ca.processing_status = 'done'
           AND ca.media_kind = 'image'
           AND ca.extracted_text IS NOT NULL
-         WHERE cm.conversation_id = $1 AND cm.direction = 'inbound'
+         WHERE sibling.ghl_location_id = $1
+           AND sibling.ghl_contact_id = $2
+           AND sibling.channel = $3
+           AND cm.direction = 'inbound'
          ORDER BY cm.occurred_at ASC, cm.created_at ASC`,
-        [id],
+        [row.ghl_location_id, row.ghl_contact_id, row.channel],
       ) as ConversationMessageRow[];
       if (source === 'fredericksburg-2' && messages.some((message) => inputIndicatesWhatsApp(message.raw_payload, row.channel))) {
         await runner.query(`UPDATE conversations SET status = 'ignored_channel', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);

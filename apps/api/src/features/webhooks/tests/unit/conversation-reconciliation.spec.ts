@@ -3,6 +3,75 @@ import { ConversationReconciliationFunctions } from '../../application/functions
 import { GHL_SOURCE_CONFIG } from '../../application/functions/conversations/conversation-webhook.config';
 
 describe('ConversationReconciliationFunctions', () => {
+  it('reconciles vehicle and phone evidence across native sibling conversations', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('SELECT c.id, c.channel')) {
+        return [{
+          id: 'conversation-phone',
+          channel: 'messenger',
+          ghl_location_id: GHL_SOURCE_CONFIG['action-cars'].locationId,
+          ghl_contact_id: 'mike-ferry-contact',
+          ghl_conversation_id: 'ghl-phone-conversation',
+          status: 'partial',
+          qualification_snapshot: { real_name: 'Mike Ferry', phone: '', vehicle_type: 'Quiere hablar con un asesor', qualification_complete: false, language: 'en' },
+          location_snapshot: { city: null, state: null, zip_code: null, easterns_zone: null },
+          ready_at: null,
+          next_attempt_at: null,
+          last_message_at: '2026-10-24T14:29:28.606Z',
+          waiting_window_attempts: 0,
+          lead_id: 'lead-mike-ferry',
+          canonical_phone: null,
+          first_name: 'Mike',
+          last_name: 'Ferry',
+        }];
+      }
+      if (sql.includes('INNER JOIN conversations sibling')) {
+        return [
+          { body: 'SUV 07 09 chevy trailblazer', direction: 'inbound', occurred_at: '2026-10-24T14:24:17.459Z' },
+          { body: '503 990 3482', direction: 'inbound', occurred_at: '2026-10-24T14:29:28.606Z' },
+        ];
+      }
+      return [];
+    });
+    const runner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query,
+    };
+    const qualification = {
+      resolveLocation: vi.fn().mockResolvedValue({ city: null, state: null, zip_code: null, easterns_zone: null }),
+      findSourceDealer: vi.fn().mockResolvedValue({ id: 'dealer-action-en', timezone: 'America/New_York', routing_config: {} }),
+      statusForConversation: vi.fn().mockReturnValue({ status: 'waiting_window', nextAttemptAt: '2026-10-24T14:29:43.606Z' }),
+      syncLeadDealer: vi.fn(),
+    };
+    const reconciliation = new ConversationReconciliationFunctions(
+      { createQueryRunner: () => runner } as never,
+      qualification as never,
+      { createQueuedPauseEvent: vi.fn(), dispatchQueuedPauseEvent: vi.fn() } as never,
+    );
+
+    await reconciliation.reconcileConversation('conversation-phone', new Date('2026-10-24T14:29:35.000Z'), true);
+
+    const siblingQuery = query.mock.calls.find(([sql]) => sql.includes('INNER JOIN conversations sibling')) as [string, unknown[]] | undefined;
+    expect(siblingQuery?.[1]).toEqual([GHL_SOURCE_CONFIG['action-cars'].locationId, 'mike-ferry-contact', 'messenger']);
+    const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ phone: '+15039903482', vehicle_type: 'SUV' });
+    expect(qualification.statusForConversation).toHaveBeenCalledWith(
+      expect.objectContaining({ phone: '+15039903482', vehicle_type: 'SUV' }),
+      expect.any(Object),
+      expect.any(Object),
+      'action-cars',
+      expect.any(Date),
+      'capture',
+      expect.anything(),
+    );
+    expect(conversationUpdate?.[1]?.[1]).toBe('waiting_window');
+  });
+
   it('preserves the lead canonical phone when Messenger history has no phone candidate', async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('SELECT c.id, c.channel')) {
