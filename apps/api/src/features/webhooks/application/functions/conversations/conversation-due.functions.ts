@@ -32,7 +32,7 @@ export class ConversationDueFunctions {
     if (dueContactIds.length > 0) {
       await this.dataSource.query(
         `UPDATE conversations SET next_attempt_at = $1::timestamptz, updated_at = CURRENT_TIMESTAMP,
-             waiting_window_attempts = GREATEST(waiting_window_attempts, 1),
+             waiting_window_attempts = GREATEST(waiting_window_attempts, 0),
              waiting_window_started_at = COALESCE(waiting_window_started_at, $1::timestamptz)
          WHERE status = 'waiting_window' AND next_attempt_at IS NULL AND ghl_contact_id = ANY($2::text[])`,
         [now.toISOString(), dueContactIds],
@@ -40,7 +40,7 @@ export class ConversationDueFunctions {
     } else {
       await this.dataSource.query(
         `UPDATE conversations SET next_attempt_at = $1::timestamptz, updated_at = CURRENT_TIMESTAMP,
-             waiting_window_attempts = GREATEST(waiting_window_attempts, 1),
+             waiting_window_attempts = GREATEST(waiting_window_attempts, 0),
              waiting_window_started_at = COALESCE(waiting_window_started_at, $1::timestamptz)
          WHERE status = 'waiting_window' AND next_attempt_at IS NULL`,
         [now.toISOString()],
@@ -176,16 +176,17 @@ export class ConversationDueFunctions {
       if (!configuredSource) throw new BadRequestException(`Fuente GHL no configurada para la Location ID ${row.ghl_location_id}`);
       const source = configuredSource as SourceKey;
       const waitingWindowAttempts = Number(row.waiting_window_attempts ?? 0);
-      if (waitingWindowAttempts < WAITING_WINDOW_MAX_ATTEMPTS) {
+      const nextWaitingWindowAttempts = Math.min(waitingWindowAttempts + 1, WAITING_WINDOW_MAX_ATTEMPTS);
+      if (nextWaitingWindowAttempts < WAITING_WINDOW_MAX_ATTEMPTS) {
         const nextAttemptAt = new Date(now.getTime() + WAITING_WINDOW_RETRY_INTERVAL_MS).toISOString();
         await runner.query(
           `UPDATE conversations
            SET status = 'waiting_window', next_attempt_at = $2::timestamptz,
-               waiting_window_attempts = LEAST(waiting_window_attempts + 1, ${WAITING_WINDOW_MAX_ATTEMPTS}),
+               waiting_window_attempts = $4,
                waiting_window_started_at = COALESCE(waiting_window_started_at, $3::timestamptz),
                updated_at = CURRENT_TIMESTAMP
            WHERE id = $1`,
-          [id, nextAttemptAt, now.toISOString()],
+          [id, nextAttemptAt, now.toISOString(), nextWaitingWindowAttempts],
         );
         await runner.commitTransaction();
         return false;
@@ -194,7 +195,7 @@ export class ConversationDueFunctions {
       // must never be stranded in waiting_window because an optional
       // qualification/location detail is still incomplete; the queued phase
       // is the durable handoff that lets the downstream workflow continue.
-      const terminalWaitingWindowCycle = waitingWindowAttempts >= WAITING_WINDOW_MAX_ATTEMPTS;
+      const terminalWaitingWindowCycle = nextWaitingWindowAttempts >= WAITING_WINDOW_MAX_ATTEMPTS;
       const dealer = await this.qualification.findSourceDealer(runner, row.ghl_location_id, source, row.qualification_snapshot.language, clean(row.qualification_snapshot.assigned_dealer_id) || undefined);
       const status = this.qualification.statusForConversation(row.qualification_snapshot, row.location_snapshot, dealer, source, now, 'due', row.ready_at);
       if (status.status !== 'ready' && !terminalWaitingWindowCycle) {
@@ -222,7 +223,7 @@ export class ConversationDueFunctions {
         return false;
       }
       await this.qualification.syncLeadDealer(runner, dealer, row.lead_id, row.qualification_snapshot, row.location_snapshot, source);
-      await runner.query(`UPDATE conversations SET status = 'queued', next_attempt_at = NULL, waiting_window_attempts = 0, waiting_window_started_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
+      await runner.query(`UPDATE conversations SET status = 'queued', next_attempt_at = NULL, waiting_window_attempts = $2, waiting_window_started_at = COALESCE(waiting_window_started_at, $3::timestamptz), updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id, nextWaitingWindowAttempts, now.toISOString()]);
       queuedPauseEvent = await this.queueService.createQueuedPauseEvent(runner, 'waiting_window', 'queued', {
         conversationId: row.id,
         ghlConversationId: row.ghl_conversation_id,

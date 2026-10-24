@@ -17,7 +17,10 @@ permissions: {}
 jobs:
   release-due:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    # Four 60-second HTTP attempts plus three 10-second backoffs need more
+    # than two minutes. Keep the timeout above the retry budget so a slow
+    # Vercel invocation is retried instead of leaving due rows stranded.
+    timeout-minutes: 6
     concurrency:
       group: process-due-release
       cancel-in-progress: false
@@ -104,6 +107,50 @@ jobs:
               sleep "$retry_delay_seconds"
               continue
             fi
+            exit 1
+          done
+
+  queued-backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    needs: release-due
+    # The backup replay is independent of due-release success. If the release
+    # job fails, already-queued contacts must still get their one Guard replay.
+    if: ${{ always() && needs.release-due.result != 'cancelled' }}
+    concurrency:
+      group: process-due-queued-backup
+      cancel-in-progress: false
+    steps:
+      - name: Run one queued backup replay (best effort)
+        continue-on-error: true
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$CRON_SECRET"
+          backup_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/run-guard?queued_backup=true"
+          max_attempts=3
+          retry_delay_seconds=20
+
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "queued-backup attempt ${attempt}/${max_attempts}"
+            if response="$(curl --fail-with-body --silent --show-error --request GET \
+              --connect-timeout 10 --max-time 180 \
+              --header "Authorization: Bearer $CRON_SECRET" \
+              "$backup_url")"; then
+              curl_status=0
+            else
+              curl_status=$?
+            fi
+            printf '%s\n' "$response"
+            if [ "$curl_status" -eq 0 ] && node -e 'process.exit(JSON.parse(process.argv[1]).accepted ? 0 : 1)' "$response"; then
+              exit 0
+            fi
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              sleep "$retry_delay_seconds"
+              continue
+            fi
+            echo "::error::Queued backup replay did not complete after ${max_attempts} attempts"
             exit 1
           done
 

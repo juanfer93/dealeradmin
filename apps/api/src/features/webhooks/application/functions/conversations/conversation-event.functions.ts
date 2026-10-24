@@ -282,18 +282,21 @@ export class ConversationEventFunctions {
         return { accepted: true, eventId: event.event_id, conversationId: conversation.id, source, status: 'processed' };
       }
       const status = this.qualification.statusForConversation(snapshot, location, resolvedDealer, source, now, 'capture');
+      const enteringWaitingWindow = status.status === 'waiting_window' && conversation.status !== 'waiting_window';
       const persistedNextAttemptAt = status.status === 'waiting_window'
-        ? status.nextAttemptAt ?? new Date(now.getTime() + WAITING_WINDOW_RETRY_INTERVAL_MS).toISOString()
+        ? enteringWaitingWindow
+          ? new Date(now.getTime() + WAITING_WINDOW_RETRY_INTERVAL_MS).toISOString()
+          : conversation.next_attempt_at ?? status.nextAttemptAt ?? new Date(now.getTime() + WAITING_WINDOW_RETRY_INTERVAL_MS).toISOString()
         : status.nextAttemptAt;
       await runner.query(
         `UPDATE conversations
          SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
              last_message_at = GREATEST(COALESCE(last_message_at, $5::timestamptz), $5::timestamptz), ready_at = CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued') THEN COALESCE(ready_at, $7::timestamptz) ELSE ready_at END,
-             next_attempt_at = $6, waiting_window_attempts = CASE WHEN $2::varchar = 'waiting_window' THEN 1 ELSE 0 END,
-             waiting_window_started_at = CASE WHEN $2::varchar = 'waiting_window' THEN $7::timestamptz ELSE NULL END,
+             next_attempt_at = $6, waiting_window_attempts = CASE WHEN $2::varchar = 'waiting_window' THEN CASE WHEN $8::boolean THEN 0 ELSE COALESCE(waiting_window_attempts, 0) END ELSE 0 END,
+             waiting_window_started_at = CASE WHEN $2::varchar = 'waiting_window' THEN COALESCE(waiting_window_started_at, $7::timestamptz) ELSE NULL END,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $1`,
-        [conversation.id, status.status, JSON.stringify(snapshot), JSON.stringify(location), occurredAt, persistedNextAttemptAt, now.toISOString()],
+        [conversation.id, status.status, JSON.stringify(snapshot), JSON.stringify(location), occurredAt, persistedNextAttemptAt, now.toISOString(), enteringWaitingWindow],
       );
       if (status.status === 'ready') {
         await this.qualification.syncLeadDealer(runner, resolvedDealer, lead.id, snapshot, location, source);

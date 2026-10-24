@@ -51,10 +51,10 @@ describe('ConversationDueFunctions', () => {
     expect(result.skipped).toBe(0);
     expect(runner.query).toHaveBeenCalledWith(
       expect.stringContaining("SET status = 'waiting_window', next_attempt_at = $2::timestamptz"),
-      ['conversation-waiting', '2026-10-16T22:35:00.000Z', '2026-10-16T22:30:00.000Z'],
+      ['conversation-waiting', '2026-10-16T22:35:00.000Z', '2026-10-16T22:30:00.000Z', 1],
     );
     expect(runner.query.mock.calls[0][0]).toContain("idle_in_transaction_session_timeout = '15s'");
-    expect(runner.query.mock.calls[2][0]).toContain('waiting_window_attempts = LEAST(waiting_window_attempts + 1, 5)');
+    expect(runner.query.mock.calls[2][0]).toContain('waiting_window_attempts = $4');
     expect(runner.commitTransaction).toHaveBeenCalledOnce();
   });
 
@@ -77,7 +77,7 @@ describe('ConversationDueFunctions', () => {
           qualification_snapshot: { language: 'en', phone: '+12025550123' },
           location_snapshot: {},
           ready_at: '2026-10-16T22:00:00.000Z',
-          waiting_window_attempts: 5,
+          waiting_window_attempts: 4,
           lead_id: 'lead-terminal',
           first_name: 'Terminal',
           last_name: 'Lead',
@@ -114,7 +114,7 @@ describe('ConversationDueFunctions', () => {
     expect(qualification.syncLeadDealer).toHaveBeenCalledOnce();
     expect(runner.query).toHaveBeenCalledWith(
       expect.stringContaining("UPDATE conversations SET status = 'queued'"),
-      ['conversation-terminal'],
+      ['conversation-terminal', 5, '2026-10-16T22:55:00.000Z'],
     );
     expect(runner.commitTransaction).toHaveBeenCalledOnce();
   });

@@ -116,11 +116,13 @@ export class WebhooksController {
   @UseGuards(HmacSignatureGuard)
   async runGuardCron(@Req() request: Request) {
     const contactIds = this.queryContactIds(request);
+    const queuedOnly = request.query.queued_backup === 'true';
     const guard = await this.conversationWebhookService.runGhlGuard(undefined, {
       contactIds,
+      queuedOnly,
       // Targeted repairs bypass the interval; scheduled global runs respect it
       // and avoid unnecessary lease contention.
-      force: contactIds.length > 0,
+      force: contactIds.length > 0 || queuedOnly,
     });
     const accepted = !guard.skipped || guard.skipReason === 'in_memory_interval';
     return { accepted, guard };

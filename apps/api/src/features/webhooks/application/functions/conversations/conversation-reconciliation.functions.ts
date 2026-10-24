@@ -281,13 +281,16 @@ export class ConversationReconciliationFunctions {
         && (!row.next_attempt_at || new Date(row.next_attempt_at).getTime() <= now.getTime())
         && status.status === 'waiting_window'
         && currentWaitingWindowAttempts < WAITING_WINDOW_MAX_ATTEMPTS;
+      const enteringWaitingWindow = status.status === 'waiting_window' && row.status !== 'waiting_window';
       const nextAttemptAt = shouldCountWaitingWindowAttempt
         ? new Date(now.getTime() + WAITING_WINDOW_RETRY_INTERVAL_MS).toISOString()
         : status.status === 'waiting_window'
-          ? status.nextAttemptAt ?? new Date(now.getTime() + WAITING_WINDOW_RETRY_INTERVAL_MS).toISOString()
+          ? enteringWaitingWindow
+            ? new Date(now.getTime() + WAITING_WINDOW_RETRY_INTERVAL_MS).toISOString()
+            : row.next_attempt_at ?? status.nextAttemptAt ?? new Date(now.getTime() + WAITING_WINDOW_RETRY_INTERVAL_MS).toISOString()
           : status.nextAttemptAt;
       const nextWaitingWindowAttempts = status.status === 'waiting_window'
-        ? Math.max(1, shouldCountWaitingWindowAttempt ? currentWaitingWindowAttempts + 1 : currentWaitingWindowAttempts)
+        ? shouldCountWaitingWindowAttempt ? currentWaitingWindowAttempts + 1 : currentWaitingWindowAttempts
         : 0;
       await runner.query(
         `UPDATE conversations

@@ -239,7 +239,7 @@ describe('GhlGuardService', () => {
 
     expect(result).toMatchObject({ enabled: true, skipped: false, selected: 1, fetched: 1, inserted: 1, repaired: 0, failed: 0 });
     expect(client.listMessages).toHaveBeenCalledWith('pit-test-token', 'ghl-conversation-1', { deadlineAt: expect.any(Number) });
-    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(row.id, expect.any(Date), true, true, false, true);
+    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(row.id, expect.any(Date), true, true, false, false);
     expect(persistRunner.commitTransaction).toHaveBeenCalledOnce();
     const selectionCall = lockRunner.query.mock.calls.find(([sql]) => String(sql).includes('FROM conversations')) as [string, unknown[]] | undefined;
     expect(selectionCall?.[0]).toContain('LEFT JOIN LATERAL');
@@ -306,7 +306,7 @@ describe('GhlGuardService', () => {
     const result = await service.run(new Date('2026-10-16T12:00:00.000Z'), { contactIds: ['contact-targeted'] });
 
     expect(result).toMatchObject({ skipped: false, selected: 1, fetched: 1, inserted: 1, failed: 0 });
-    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(row.id, expect.any(Date), true, true, true, true);
+    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(row.id, expect.any(Date), true, true, true, false);
     const selectionCall = lockRunner.query.mock.calls.find(([sql]) => String(sql).includes('FROM conversations')) as [string, unknown[]] | undefined;
     expect(selectionCall?.[0]).toContain('ghl_contact_id = ANY($3::text[])');
     expect(selectionCall?.[1]).toEqual([expect.any(Number), expect.arrayContaining([row.ghl_location_id]), ['contact-targeted']]);
@@ -647,8 +647,8 @@ describe('GhlGuardService', () => {
     const result = await service.run(new Date('2026-10-16T12:00:00.000Z'), { contactIds: ['contact-race'] });
 
     expect(result).toMatchObject({ selected: 1, fetched: 1, inserted: 1, failed: 0 });
-    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(winner.id, expect.any(Date), true, true, true, true);
-    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(row.id, expect.any(Date), true, true, true, true);
+    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(winner.id, expect.any(Date), true, true, true, false);
+    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(row.id, expect.any(Date), true, true, true, false);
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('SET qualification_snapshot = canonical.qualification_snapshot'), [row.id, winner.id]);
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('WITH moved AS'), [row.id, winner.id]);
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('WHERE ghl_location_id = $1 AND ghl_contact_id = $2 AND ghl_conversation_id = $3'), [row.ghl_location_id, row.ghl_contact_id, 'ghl-real-winner']);
@@ -698,8 +698,8 @@ describe('GhlGuardService', () => {
 
     expect(result).toMatchObject({ selected: 1, fetched: 1, inserted: 1, failed: 0 });
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('SET qualification_snapshot = canonical.qualification_snapshot'), [row.id, winner.id]);
-    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(winner.id, expect.any(Date), true, true, false, true);
-    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(row.id, expect.any(Date), true, true, true, true);
+    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(winner.id, expect.any(Date), true, true, false, false);
+    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(row.id, expect.any(Date), true, true, true, false);
   });
 
   it('surfaces guard-log persistence failures and does not call GHL without an audit row', async () => {

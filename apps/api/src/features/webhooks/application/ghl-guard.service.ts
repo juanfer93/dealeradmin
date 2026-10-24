@@ -55,10 +55,11 @@ export class GhlGuardService {
     );
   }
 
-  async run(now = new Date(), options: { contactIds?: string[]; force?: boolean } = {}): Promise<GhlGuardRunResult> {
+  async run(now = new Date(), options: { contactIds?: string[]; force?: boolean; queuedOnly?: boolean } = {}): Promise<GhlGuardRunResult> {
     const empty: GhlGuardRunResult = { enabled: ghlGuardEnabled(), skipped: true, selected: 0, fetched: 0, inserted: 0, repaired: 0, failed: 0 };
     const runId = randomUUID();
     const contactIds = [...new Set((options.contactIds ?? []).map((value) => value.trim()).filter(Boolean))];
+    const queuedOnly = options.queuedOnly === true;
     const skip = async (reason: GhlGuardSkipReason): Promise<GhlGuardRunResult> => {
       const target = contactIds.length > 0 ? ` contacts=${contactIds.join(',')}` : '';
       this.logger.warn(`GHL guard skipped reason=${reason}${target}`);
@@ -138,6 +139,7 @@ export class GhlGuardService {
          WHERE status NOT IN ('sent', 'ignored_channel', 'stale_phone_ignored')
            AND ghl_location_id = ANY($2::text[])
            AND ghl_contact_id = ANY($3::text[])
+           ${queuedOnly ? "AND status = 'queued' AND queued_guard_replay_count = 0" : ''}
            AND NOT EXISTS (
              SELECT 1 FROM ghl_guard_logs active_guard
              WHERE active_guard.conversation_id = conversations.id
@@ -150,6 +152,28 @@ export class GhlGuardService {
                   last_guard.created_at NULLS FIRST,
                   last_message_at DESC NULLS LAST,
                   updated_at DESC
+         LIMIT $1`
+          : queuedOnly
+          ? `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status
+         FROM conversations
+         LEFT JOIN LATERAL (
+           SELECT latest_guard.created_at
+           FROM ghl_guard_logs latest_guard
+           WHERE latest_guard.conversation_id = conversations.id
+           ORDER BY latest_guard.created_at DESC
+           LIMIT 1
+         ) last_guard ON TRUE
+         WHERE status = 'queued' AND queued_guard_replay_count = 0
+           AND (queued_guard_replay_claimed_at IS NULL
+             OR queued_guard_replay_claimed_at <= CURRENT_TIMESTAMP - ($3::integer * INTERVAL '1 millisecond'))
+           AND ghl_location_id = ANY($2::text[])
+           AND NOT EXISTS (
+             SELECT 1 FROM ghl_guard_logs active_guard
+             WHERE active_guard.conversation_id = conversations.id
+               AND active_guard.status IN ('pending', 'running')
+               AND COALESCE(active_guard.lease_expires_at, active_guard.started_at, active_guard.scheduled_at) > CURRENT_TIMESTAMP
+           )
+         ORDER BY last_guard.created_at NULLS FIRST, updated_at DESC
          LIMIT $1`
           : `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status
          FROM conversations
@@ -457,9 +481,9 @@ export class GhlGuardService {
         : 0;
       const leadMetadataBefore = await this.persistence.readLeadMetadata(effectiveRow.id);
       if (targeted) {
-        await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true, true, true);
+        await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true, true, false);
       } else {
-        await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true, false, true);
+        await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true, false, false);
       }
       // A targeted replay can discover that a synthetic local conversation
       // maps to an already-canonical GHL conversation. Reconcile the local
@@ -475,7 +499,7 @@ export class GhlGuardService {
            WHERE synthetic.id = $1 AND canonical.id = $2`,
           [syntheticConversationId, effectiveRow.id],
         );
-        await this.reconciliation.reconcileConversation(syntheticConversationId, new Date(), true, true, true, true);
+        await this.reconciliation.reconcileConversation(syntheticConversationId, new Date(), true, true, true, false);
       }
       const leadMetadataAfter = await this.persistence.readLeadMetadata(effectiveRow.id);
       const completedFields = completedFieldsBetween(leadMetadataBefore, leadMetadataAfter);

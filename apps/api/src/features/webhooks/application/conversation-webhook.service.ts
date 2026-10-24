@@ -198,7 +198,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     return this.dueFunctions.processDueConversations(now, options);
   }
 
-  async runGhlGuard(now = currentLocalNow(), options: { contactIds?: string[]; force?: boolean } = {}) {
+  async runGhlGuard(now = currentLocalNow(), options: { contactIds?: string[]; force?: boolean; queuedOnly?: boolean } = {}) {
     return this.guard.run(now, options);
   }
 
