@@ -1190,6 +1190,7 @@ describe('ConversationWebhookService', () => {
       release: vi.fn(),
       isTransactionActive: true,
       query: vi.fn(async (sql: string) => {
+        if (sql.includes('SET LOCAL lock_timeout')) return [];
         if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [{ event_id: 'evt-retry-failed' }];
         throw new Error('simulated downstream latency');
       }),
@@ -1206,7 +1207,7 @@ describe('ConversationWebhookService', () => {
       { contactId: 'ghl-retry-contact', conversationId: 'ghl-retry-conversation' },
     )).rejects.toThrow('simulated downstream latency');
 
-    const eventInsert = queryRunner.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO webhook_events')) as [string, unknown[]] | undefined;
+    const eventInsert = queryRunner.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO webhook_events')) as [string, unknown[]] | undefined;
     expect(eventInsert?.[0]).toContain("WHERE webhook_events.status = 'failed'");
     expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
     expect(dataSource.query).toHaveBeenCalled();
