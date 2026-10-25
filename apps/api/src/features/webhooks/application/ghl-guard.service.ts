@@ -193,9 +193,9 @@ export class GhlGuardService {
          -- Freshly queued contacts must not wait behind the historical backlog.
          -- A failed contact is temporarily skipped by the retry backoff above,
          -- allowing the same backup cycle to make progress on the next row.
-         ORDER BY CASE WHEN due_retry.next_retry_at IS NOT NULL THEN 0 ELSE 1 END,
+         ORDER BY updated_at DESC NULLS LAST,
+                  CASE WHEN due_retry.next_retry_at IS NOT NULL THEN 0 ELSE 1 END,
                   due_retry.next_retry_at ASC NULLS LAST,
-                  updated_at DESC NULLS LAST,
                   last_guard.created_at ASC NULLS LAST
          LIMIT $1`
           : `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status

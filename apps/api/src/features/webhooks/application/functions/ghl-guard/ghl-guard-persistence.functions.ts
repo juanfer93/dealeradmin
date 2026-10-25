@@ -100,8 +100,7 @@ export class GhlGuardPersistenceFunctions {
     if (!this.dataSource) return;
     await this.dataSource.query(
       `UPDATE conversations
-       SET queued_guard_replay_claimed_at = NULL,
-           updated_at = CURRENT_TIMESTAMP
+       SET queued_guard_replay_claimed_at = NULL
        WHERE id = $1 AND status = 'queued'
          AND queued_guard_replay_count = 0`,
       [conversationId],
