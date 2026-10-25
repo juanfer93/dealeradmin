@@ -269,6 +269,8 @@ describe('ConversationReconciliationFunctions', () => {
           ready_at: null,
           next_attempt_at: null,
           last_message_at: '2026-10-18T18:00:00.000Z',
+          waiting_window_attempts: 5,
+          waiting_window_started_at: '2026-10-18T17:35:00.000Z',
           lead_id: 'lead-manuel',
           canonical_phone: '+14103016969',
           first_name: 'Me Puede Mandar',
@@ -320,6 +322,8 @@ describe('ConversationReconciliationFunctions', () => {
     expect(JSON.parse(String(conversationUpdate?.[1]?.[2])).documents).toMatch(/proof of income: yes/);
     expect(JSON.parse(String(conversationUpdate?.[1]?.[2])).qualification_memory).not.toContain('down payment: 15');
     expect(conversationUpdate?.[1]?.[1]).toBe('queued');
+    expect(String(conversationUpdate?.[0])).toContain("WHEN $2::varchar = 'queued' THEN waiting_window_attempts");
+    expect(String(conversationUpdate?.[0])).toContain("WHEN $2::varchar = 'queued' THEN waiting_window_started_at");
   });
 
   it('clears a Stafford WhatsApp vehicle label from the lead name when no buyer name was declared', async () => {

@@ -58,7 +58,8 @@ export class ConversationReconciliationFunctions {
       await configureWebhookTransactionSafety(runner);
       const rows = await runner.query(
         `SELECT c.id, c.channel, c.ghl_location_id, c.ghl_contact_id, c.ghl_conversation_id, c.status,
-        c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at, c.last_message_at, c.waiting_window_attempts,
+        c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at, c.last_message_at,
+        c.waiting_window_attempts, c.waiting_window_started_at,
                 l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name
          FROM conversations c
          JOIN leads l ON l.id = c.lead_id
@@ -81,6 +82,7 @@ export class ConversationReconciliationFunctions {
         next_attempt_at: string | null;
         last_message_at: string | null;
         waiting_window_attempts: number | string | null;
+        waiting_window_started_at: string | null;
         lead_id: string;
         canonical_phone: string | null;
         first_name: string | null;
@@ -297,8 +299,16 @@ export class ConversationReconciliationFunctions {
          SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
              next_attempt_at = $5,
              ready_at = CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued') THEN COALESCE(ready_at, $6::timestamptz) ELSE ready_at END,
-             waiting_window_attempts = CASE WHEN $2::varchar = 'waiting_window' THEN $7 ELSE 0 END,
-             waiting_window_started_at = CASE WHEN $2::varchar = 'waiting_window' THEN COALESCE(waiting_window_started_at, $6::timestamptz) ELSE NULL END,
+             waiting_window_attempts = CASE
+               WHEN $2::varchar = 'waiting_window' THEN $7
+               WHEN $2::varchar = 'queued' THEN waiting_window_attempts
+               ELSE 0
+             END,
+             waiting_window_started_at = CASE
+               WHEN $2::varchar = 'waiting_window' THEN COALESCE(waiting_window_started_at, $6::timestamptz)
+               WHEN $2::varchar = 'queued' THEN waiting_window_started_at
+               ELSE NULL
+             END,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $1`,
         [id, status.status, JSON.stringify(snapshot), JSON.stringify(location), nextAttemptAt, now.toISOString(), nextWaitingWindowAttempts],
