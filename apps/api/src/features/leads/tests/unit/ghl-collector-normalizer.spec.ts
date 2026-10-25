@@ -732,7 +732,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       ].join('\n'),
     });
     expect(result).toMatchObject({
-      vehicle_type: 'Suv',
+      vehicle_type: 'SUV',
       down_payment: '2000',
       down_payment_amount: 2000,
       required_down_payment: 2000,

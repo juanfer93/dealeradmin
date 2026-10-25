@@ -96,6 +96,7 @@ export function canonicalVehicleLabel(value: string): string {
 
 export function canonicalVehicleCategory(value: string): string {
   return clean(value)
+    .replace(/\bsuv\b/gi, 'SUV')
     .replace(/\bsedans\b/gi, 'Sedan')
     .replace(/\bturismos?\b/gi, 'Sedan')
     .replace(/\b(?:mid[- ]?size|medium[- ]?size|mediano|mediana)\b/gi, 'midsize')

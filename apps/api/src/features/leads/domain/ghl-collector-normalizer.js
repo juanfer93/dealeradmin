@@ -158,6 +158,7 @@ const canonicalVehicleLabel = (value) => normalizeWhisperVehicleAliases(value)
     return `${lower[0].toLocaleUpperCase()}${lower.slice(1)}`;
   }).join(' '));
 const canonicalVehicleCategory = (value) => clean(value)
+  .replace(/\bsuv\b/gi, 'SUV')
   .replace(/\bsedans\b/gi, 'Sedan')
   .replace(/\bturismos?\b/gi, 'Sedan')
   .replace(/\b(?:mid[- ]?size|medium[- ]?size|mediano|mediana)\b/gi, 'midsize')

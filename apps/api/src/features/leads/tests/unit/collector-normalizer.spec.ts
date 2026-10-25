@@ -1425,7 +1425,7 @@ describe('normalizeCollectorInput', () => {
       ].join('\n'),
     });
     expect(result).toMatchObject({
-      vehicle_type: 'Suv',
+      vehicle_type: 'SUV',
       down_payment: '2000',
       down_payment_amount: 2000,
       required_down_payment: 2000,
@@ -1682,7 +1682,7 @@ describe('normalizeCollectorInput', () => {
       qualification_memory: 'vehicle: Suv',
     });
     expect(result.down_payment).toBe('2000');
-    expect(result.vehicle_type).toBe('Suv');
+    expect(result.vehicle_type).toBe('SUV');
 
     expect(normalizeCollectorInput({ message: 'Para ya' }).purchase_timeline).toBe('hoy');
   });
