@@ -173,8 +173,7 @@ jobs:
       group: process-due-guard
       cancel-in-progress: false
     steps:
-      - name: Run GHL guard (best effort)
-        continue-on-error: true
+      - name: Run GHL guard (required for targeted repair)
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           CONTACT_IDS: ${{ inputs.contact_ids }}
@@ -185,7 +184,10 @@ jobs:
           if [ -n "$CONTACT_IDS" ]; then
             guard_url="$guard_url?contact_ids=$CONTACT_IDS"
           fi
-          max_attempts=6
+          # The production lease is three minutes. Keep retrying beyond that
+          # lease lifetime so an invocation that is still draining GHL cannot
+          # make this targeted repair look successful without doing any work.
+          max_attempts=10
           retry_delay_seconds=30
 
           for attempt in $(seq 1 "$max_attempts"); do
