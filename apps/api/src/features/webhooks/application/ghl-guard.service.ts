@@ -173,7 +173,7 @@ export class GhlGuardService {
                AND active_guard.status IN ('pending', 'running')
                AND COALESCE(active_guard.lease_expires_at, active_guard.started_at, active_guard.scheduled_at) > CURRENT_TIMESTAMP
            )
-         ORDER BY last_guard.created_at NULLS FIRST, updated_at DESC
+         ORDER BY last_guard.created_at NULLS FIRST, updated_at ASC NULLS FIRST
          LIMIT $1`
           : `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status
          FROM conversations
@@ -214,8 +214,8 @@ export class GhlGuardService {
          ORDER BY CASE WHEN due_retry.next_retry_at IS NOT NULL THEN 0 ELSE 1 END,
                   due_retry.next_retry_at ASC NULLS LAST,
                   last_guard.created_at NULLS FIRST,
-                  last_message_at DESC NULLS LAST,
-                  updated_at DESC
+                  last_message_at ASC NULLS FIRST,
+                  updated_at ASC NULLS FIRST
          LIMIT $1`,
         targeted
           ? [Math.max(ghlGuardBatchSize(), Math.min(contactIds.length * 3, 10)), RECONCILIATION_LOCATION_IDS, contactIds]

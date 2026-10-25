@@ -525,6 +525,15 @@ describe('normalizeCollectorInput', () => {
     expect(result.documents).toContain('proof of income: yes');
   });
 
+  it('removes image punctuation from a vehicle label', () => {
+    const result = normalizeCollectorInput({
+      channel: 'messenger',
+      message: '[image interpretation]\nimage description: "bmw"',
+    });
+
+    expect(result.vehicle_type).toBe('BMW');
+  });
+
   it('marks a phone-only inbound handoff as advisor contact without qualifying it as a vehicle', () => {
     const result = normalizeCollectorInput({
       channel: 'messenger',

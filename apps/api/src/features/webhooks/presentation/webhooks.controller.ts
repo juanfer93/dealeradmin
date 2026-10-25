@@ -124,11 +124,17 @@ export class WebhooksController {
       // and avoid unnecessary lease contention.
       force: contactIds.length > 0 || queuedOnly,
     });
+    const queuedReplaySelected = guard.queuedReplaySelected ?? 0;
+    const queuedReplayCompleted = guard.queuedReplayCompleted ?? 0;
     const accepted = queuedOnly
       ? !guard.skipped
         && guard.failed === 0
-        && (guard.queuedReplaySelected ?? 0) === (guard.queuedReplayCompleted ?? 0)
-        && guard.pendingQueuedReplayCount === 0
+        && queuedReplaySelected === queuedReplayCompleted
+        // A scheduled backup owns one bounded batch. A successful batch must
+        // be acknowledged even when older queued rows remain for later
+        // cycles; requiring the global backlog to be zero made every cycle
+        // fail forever once historical queued rows existed.
+        && (queuedReplaySelected > 0 || (guard.pendingQueuedReplayCount ?? 0) === 0)
       : !guard.skipped || guard.skipReason === 'in_memory_interval';
     return { accepted, guard };
   }

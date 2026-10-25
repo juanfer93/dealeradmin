@@ -104,6 +104,9 @@ export function canonicalVehicleCategory(value: string): string {
 
 export function extractVehicleLabel(value: string | null | undefined): string {
   const source = normalizeWhisperVehicleAliases(String(value ?? ''))
+    // Structured image evidence can wrap a model in quotes. Those quotes are
+    // transcript punctuation, not part of the vehicle label (BMW " -> BMW).
+    .replace(/["“”]/g, ' ')
     .replace(/\b(?:19|20)\d{2}\b/g, ' ')
     .replace(/\b(?:tengo|tiene|tienen|have|has|need|needs|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|love|like|prefer|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/gi, ' ')
     .replace(/\b(?:a|an|un|una|my|mi|the|carro|auto|car|vehicle|veh[ií]culo)\b/gi, ' ')
