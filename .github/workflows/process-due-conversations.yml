@@ -126,7 +126,7 @@ jobs:
       group: process-due-queued-backup
       cancel-in-progress: false
     steps:
-      - name: Run one queued backup replay (required)
+      - name: Drain queued backup replays (required)
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
@@ -134,14 +134,14 @@ jobs:
           test -n "$CRON_SECRET"
           backup_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/run-guard?queued_backup=true"
           # A webhook-triggered Guard may legitimately hold the global lease
-          # while it finishes a slow GHL read. Keep retrying the same backup
-          # cycle long enough for that lease to clear; advisory-lock skips are
-          # not a completed replay and must never end the cycle early.
-          max_attempts=9
+          # while it finishes a slow GHL read. Drain several bounded batches
+          # per workflow run, while leaving the remainder for the next cron.
+          max_batches=5
           retry_delay_seconds=20
+          progress=0
 
-          for attempt in $(seq 1 "$max_attempts"); do
-            echo "queued-backup attempt ${attempt}/${max_attempts}"
+          for batch in $(seq 1 "$max_batches"); do
+            echo "queued-backup batch ${batch}/${max_batches}"
             if response="$(curl --fail-with-body --silent --show-error --request GET \
               --connect-timeout 10 --max-time 180 \
               --header "Authorization: Bearer $CRON_SECRET" \
@@ -151,14 +151,49 @@ jobs:
               curl_status=$?
             fi
             printf '%s\n' "$response"
-            if [ "$curl_status" -eq 0 ] && node -e 'process.exit(JSON.parse(process.argv[1]).accepted ? 0 : 1)' "$response"; then
-              exit 0
+            if [ "$curl_status" -eq 0 ]; then
+              summary="$(node - "$response" <<'NODE'
+          const result = JSON.parse(process.argv[2] ?? '{}');
+          process.stdout.write(JSON.stringify({
+            accepted: result.accepted === true,
+            selected: result.guard?.queuedReplaySelected ?? 0,
+            completed: result.guard?.queuedReplayCompleted ?? 0,
+            failed: result.guard?.queuedReplayFailed ?? 0,
+            pending: result.guard?.pendingQueuedReplayCount ?? 0,
+          }));
+          NODE
+              )"
+              printf '%s\n' "$summary"
+              selected="$(node -p 'JSON.parse(process.argv[1]).selected ?? 0' "$summary")"
+              completed="$(node -p 'JSON.parse(process.argv[1]).completed ?? 0' "$summary")"
+              pending="$(node -p 'JSON.parse(process.argv[1]).pending ?? 0' "$summary")"
+              if [ "$completed" -gt 0 ]; then
+                progress=1
+              fi
+              if [ "$pending" -eq 0 ]; then
+                exit 0
+              fi
+              # A failed row is released with retry backoff, so the next
+              # request can select another row instead of retrying the same
+              # blocker. A busy lease gets the normal short retry delay.
+              if [ "$batch" -lt "$max_batches" ]; then
+                if [ "$selected" -gt 0 ] || [ "$completed" -gt 0 ]; then
+                  sleep 2
+                else
+                  sleep "$retry_delay_seconds"
+                fi
+                continue
+              fi
             fi
-            if [ "$attempt" -lt "$max_attempts" ]; then
+            if [ "$batch" -lt "$max_batches" ]; then
               sleep "$retry_delay_seconds"
               continue
             fi
-            echo "::error::Queued backup replay did not complete after ${max_attempts} attempts"
+            if [ "$progress" -eq 1 ]; then
+              echo "::warning::Queued backup drained bounded progress; remaining rows continue on the next schedule"
+              exit 0
+            fi
+            echo "::error::Queued backup made no progress after ${max_batches} batches"
             exit 1
           done
 

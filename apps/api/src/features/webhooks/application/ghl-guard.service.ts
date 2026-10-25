@@ -164,6 +164,16 @@ export class GhlGuardService {
            ORDER BY latest_guard.created_at DESC
            LIMIT 1
          ) last_guard ON TRUE
+         LEFT JOIN LATERAL (
+           SELECT retry_guard.next_retry_at
+           FROM ghl_guard_logs retry_guard
+           WHERE retry_guard.conversation_id = conversations.id
+             AND retry_guard.status = 'failed'
+             AND retry_guard.next_retry_at IS NOT NULL
+             AND retry_guard.next_retry_at <= CURRENT_TIMESTAMP
+           ORDER BY retry_guard.next_retry_at ASC, retry_guard.created_at ASC
+           LIMIT 1
+         ) due_retry ON TRUE
          WHERE status = 'queued' AND queued_guard_replay_count = 0
            AND (queued_guard_replay_claimed_at IS NULL
              OR queued_guard_replay_claimed_at <= CURRENT_TIMESTAMP - ($3::integer * INTERVAL '1 millisecond'))
@@ -174,7 +184,19 @@ export class GhlGuardService {
                AND active_guard.status IN ('pending', 'running')
                AND COALESCE(active_guard.lease_expires_at, active_guard.started_at, active_guard.scheduled_at) > CURRENT_TIMESTAMP
            )
-         ORDER BY last_guard.created_at NULLS FIRST, updated_at ASC NULLS FIRST
+           AND NOT EXISTS (
+             SELECT 1 FROM ghl_guard_logs retry_guard
+             WHERE retry_guard.conversation_id = conversations.id
+               AND retry_guard.status = 'failed'
+               AND retry_guard.next_retry_at > CURRENT_TIMESTAMP
+           )
+         -- Freshly queued contacts must not wait behind the historical backlog.
+         -- A failed contact is temporarily skipped by the retry backoff above,
+         -- allowing the same backup cycle to make progress on the next row.
+         ORDER BY CASE WHEN due_retry.next_retry_at IS NOT NULL THEN 0 ELSE 1 END,
+                  due_retry.next_retry_at ASC NULLS LAST,
+                  updated_at DESC NULLS LAST,
+                  last_guard.created_at ASC NULLS LAST
          LIMIT $1`
           : `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status
          FROM conversations

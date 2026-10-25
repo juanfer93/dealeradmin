@@ -358,12 +358,14 @@ describe('GhlGuardService', () => {
     const reconciliation = { reconcileConversation: vi.fn().mockResolvedValue(undefined) };
     const service = new GhlGuardService(dataSource as never, reconciliation as never, GHL_SOURCE_CONFIG, client);
 
-    const result = await service.run(new Date('2026-10-16T12:00:00.000Z'));
+    const result = await service.run(new Date('2026-10-16T12:00:00.000Z'), { queuedOnly: true, force: true });
 
     expect(result).toMatchObject({ skipped: false, selected: 1, fetched: 1, inserted: 1, failed: 0 });
     expect(replayClaimRunner.commitTransaction).toHaveBeenCalledOnce();
     const selectionCall = lockRunner.query.mock.calls.find(([sql]) => String(sql).includes('FROM conversations')) as [string, unknown[]] | undefined;
     expect(selectionCall?.[0]).toContain("status = 'queued' AND queued_guard_replay_count = 0");
+    expect(selectionCall?.[0]).toContain("retry_guard.next_retry_at > CURRENT_TIMESTAMP");
+    expect(selectionCall?.[0]).toContain('updated_at DESC NULLS LAST');
     expect(replayClaimRunner.query).toHaveBeenCalledWith(expect.stringContaining('queued_guard_replay_claimed_at = CURRENT_TIMESTAMP'), [row.id, expect.any(Number)]);
   });
 
