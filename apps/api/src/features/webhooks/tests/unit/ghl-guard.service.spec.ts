@@ -509,6 +509,61 @@ describe('GhlGuardService', () => {
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('WITH moved AS'), [row.id, canonical.id]);
   });
 
+  it('consumes queued replay on both synthetic and canonical sibling rows', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.GHL_GUARD_ENABLED = 'true';
+    process.env.GHL_PRIVATE_TOKEN_STAFFORD = 'pit-test-token';
+
+    const row = {
+      id: 'conversation-synthetic-queued', ghl_location_id: GHL_SOURCE_CONFIG.stafford.locationId,
+      ghl_contact_id: 'contact-queued-local', ghl_conversation_id: 'contact:contact-queued-local:messenger', status: 'queued',
+    };
+    const canonical = {
+      id: 'conversation-canonical-queued', ghl_conversation_id: 'ghl-queued-conversation', status: 'queued',
+    };
+    const lockRunner = {
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [{ owner_id: 'lease-owner' }] : sql.includes('FROM conversations') ? [row] : []),
+      release: vi.fn(),
+    };
+    const dataSource = {
+      createQueryRunner: vi.fn().mockReturnValue(lockRunner),
+      query: vi.fn(async (sql: string) => sql.includes('SELECT canonical.id') ? [canonical] : []),
+    };
+    const completedReplayIds: string[] = [];
+    const persistence = {
+      recoverStaleLogs: vi.fn().mockResolvedValue(undefined),
+      createLog: vi.fn().mockResolvedValue('guard-log-queued-local'),
+      updateLog: vi.fn().mockResolvedValue(undefined),
+      claimQueuedReplay: vi.fn().mockResolvedValue({ allowed: true, claimed: true }),
+      persistMessages: vi.fn().mockResolvedValue({ skipped: false, inserted: 1, repaired: 0 }),
+      mergeSyntheticConversationMessages: vi.fn().mockResolvedValue(0),
+      readLeadMetadata: vi.fn().mockResolvedValue({}),
+      completeQueuedReplay: vi.fn(async (conversationId: string) => {
+        completedReplayIds.push(conversationId);
+        return true;
+      }),
+      releaseQueuedReplay: vi.fn().mockResolvedValue(undefined),
+    };
+    const client = {
+      listMessages: vi.fn().mockResolvedValue({
+        ok: true, status: 200, requestPath: '/conversations/ghl-queued-conversation/messages',
+        data: { messages: [{ id: 'message-queued', body: 'Busco una troca', direction: 'inbound', dateAdded: '2026-10-22T12:00:00.000Z' }], pages: 1, truncated: false, responsePayload: [] },
+      }),
+    };
+    const reconciliation = { reconcileConversation: vi.fn().mockResolvedValue(undefined) };
+    const service = new GhlGuardService(dataSource as never, reconciliation as never, GHL_SOURCE_CONFIG, client);
+    (service as any).persistence = persistence;
+
+    const result = await service.run(new Date('2026-10-22T12:00:00.000Z'), { contactIds: [row.ghl_contact_id], force: true, queuedOnly: true });
+
+    expect(result).toMatchObject({ selected: 1, fetched: 1, inserted: 1, failed: 0, queuedReplaySelected: 1, queuedReplayCompleted: 1 });
+    expect(persistence.claimQueuedReplay).toHaveBeenCalledWith(row.id, true);
+    expect(persistence.claimQueuedReplay).toHaveBeenCalledWith(canonical.id, true);
+    expect(completedReplayIds).toEqual(expect.arrayContaining([row.id, canonical.id]));
+    expect(persistence.releaseQueuedReplay).not.toHaveBeenCalled();
+  });
+
   it('retries a transient synthetic-conversation lookup failure by contact', async () => {
     process.env.NODE_ENV = 'production';
     process.env.GHL_GUARD_ENABLED = 'true';

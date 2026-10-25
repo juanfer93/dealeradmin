@@ -332,6 +332,8 @@ export class GhlGuardService {
     let source: SourceKey | undefined;
     let queuedReplayClaimed = false;
     let queuedReplayCompleted = false;
+    const claimedQueuedReplayIds = new Set<string>();
+    const completedQueuedReplayIds = new Set<string>();
     const startedAt = new Date();
     try {
       logId = await this.persistence.createLog(runId, row, 'pending', now);
@@ -367,8 +369,8 @@ export class GhlGuardService {
         });
         return;
       }
+      const allowQueuedReplay = targeted || queuedOnly;
       if (row.status === 'queued') {
-        const allowQueuedReplay = targeted || queuedOnly;
         const queuedReplay = await this.persistence.claimQueuedReplay(row.id, allowQueuedReplay);
         if (!queuedReplay.allowed) {
           if (queuedOnly) {
@@ -385,6 +387,7 @@ export class GhlGuardService {
           return;
         }
         queuedReplayClaimed = queuedReplay.claimed;
+        if (queuedReplayClaimed) claimedQueuedReplayIds.add(row.id);
         if (queuedReplayClaimed) await this.persistence.updateLog(logId, 'running', { queuedReplay: true });
       }
       let effectiveRow = row;
@@ -470,6 +473,14 @@ export class GhlGuardService {
         }
         if (effectiveRow.id === row.id) effectiveRow = { ...row, ghl_conversation_id: conversationId };
       }
+      // A synthetic contact snapshot can share the same contact with a real
+      // canonical conversation. If the synthetic row was selected for the
+      // queued replay, claim the canonical sibling as well so the successful
+      // GHL read cannot leave that sibling permanently eligible at count=0.
+      if (queuedReplayClaimed && effectiveRow.id !== row.id) {
+        const canonicalReplay = await this.persistence.claimQueuedReplay(effectiveRow.id, allowQueuedReplay);
+        if (canonicalReplay.claimed) claimedQueuedReplayIds.add(effectiveRow.id);
+      }
       const fetched = await this.client.listMessages(token, conversationId, { deadlineAt });
       if (!fetched.ok || !fetched.data) {
         const errorCode = fetched.errorCode || 'GHL_MESSAGES_READ_FAILED';
@@ -492,7 +503,6 @@ export class GhlGuardService {
         return;
       }
       result.fetched += fetched.data.messages.length;
-      const allowQueuedReplay = targeted || queuedOnly;
       const persisted = await this.persistence.persistMessages(effectiveRow, fetched.data.messages, allowQueuedReplay);
       if (persisted.skipped) {
         // The queued row can be a synthetic local snapshot whose canonical
@@ -500,8 +510,11 @@ export class GhlGuardService {
         // executed the GHL read successfully, so consume the one queued replay
         // instead of leaving the row permanently eligible at count=0.
         if (queuedReplayClaimed) {
-          const completed = await this.persistence.completeQueuedReplay(row.id);
-          if (!completed) throw new Error('GHL_GUARD_QUEUED_REPLAY_COMPLETION_NOT_PERSISTED');
+          for (const replayId of claimedQueuedReplayIds) {
+            const completed = await this.persistence.completeQueuedReplay(replayId);
+            if (!completed) throw new Error('GHL_GUARD_QUEUED_REPLAY_COMPLETION_NOT_PERSISTED');
+            completedQueuedReplayIds.add(replayId);
+          }
           queuedReplayCompleted = true;
           if (queuedOnly) result.queuedReplayCompleted = (result.queuedReplayCompleted ?? 0) + 1;
           await this.persistence.updateLog(logId, 'succeeded', {
@@ -574,9 +587,12 @@ export class GhlGuardService {
       }
       this.retryFunctions.resetSourceCircuit(source);
       if (queuedReplayClaimed) {
-        const completed = await this.persistence.completeQueuedReplay(row.id);
-        if (!completed) {
-          throw new Error('GHL_GUARD_QUEUED_REPLAY_COMPLETION_NOT_PERSISTED');
+        for (const replayId of claimedQueuedReplayIds) {
+          const completed = await this.persistence.completeQueuedReplay(replayId);
+          if (!completed) {
+            throw new Error('GHL_GUARD_QUEUED_REPLAY_COMPLETION_NOT_PERSISTED');
+          }
+          completedQueuedReplayIds.add(replayId);
         }
         queuedReplayCompleted = true;
         if (queuedOnly) result.queuedReplayCompleted = (result.queuedReplayCompleted ?? 0) + 1;
@@ -621,10 +637,13 @@ export class GhlGuardService {
       });
     } finally {
       if (queuedReplayClaimed && !queuedReplayCompleted) {
-        try {
-          await this.persistence.releaseQueuedReplay(row.id);
-        } catch (error) {
-          this.logger.error(`GHL queued replay release failed conversation=${row.id}: ${error instanceof Error ? error.message : String(error)}`);
+        for (const replayId of claimedQueuedReplayIds) {
+          if (completedQueuedReplayIds.has(replayId)) continue;
+          try {
+            await this.persistence.releaseQueuedReplay(replayId);
+          } catch (error) {
+            this.logger.error(`GHL queued replay release failed conversation=${replayId}: ${error instanceof Error ? error.message : String(error)}`);
+          }
         }
       }
     }
