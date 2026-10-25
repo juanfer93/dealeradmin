@@ -146,7 +146,8 @@ export class GhlGuardService {
                AND active_guard.status IN ('pending', 'running')
                AND COALESCE(active_guard.lease_expires_at, active_guard.started_at, active_guard.scheduled_at) > CURRENT_TIMESTAMP
            )
-         ORDER BY CASE WHEN due_retry.next_retry_at IS NOT NULL THEN 0 ELSE 1 END,
+         ORDER BY CASE WHEN status = 'queued' AND queued_guard_replay_count = 0 THEN 0 ELSE 1 END,
+                  CASE WHEN due_retry.next_retry_at IS NOT NULL THEN 0 ELSE 1 END,
                   due_retry.next_retry_at ASC NULLS LAST,
                   CASE status WHEN 'duplicate_ignored' THEN 0 WHEN 'partial' THEN 1 WHEN 'waiting_window' THEN 2 WHEN 'stale_phone_ignored' THEN 3 WHEN 'queued' THEN 4 ELSE 5 END,
                   last_guard.created_at NULLS FIRST,
