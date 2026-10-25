@@ -1904,6 +1904,7 @@ describe('normalizeCollectorInput', () => {
     ['economical car', 'Sedan'],
     ['affordable car', 'Sedan'],
     ['Camaros', 'Camaro'],
+    ['nisan', 'Nissan'],
   ])('normalizes vehicle wording %s to %s', (message, expected) => {
     const result = normalizeCollectorInput({
       channel: 'messenger',

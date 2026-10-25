@@ -33,6 +33,10 @@ export function normalizeWhisperVehicleAliases(value: string): string {
     // "Toyota Tundra" as "toyata tandra". Keep these bounded to vehicle
     // tokens so a misspelling cannot alter names or free-form notes.
     .replace(/\btoyata\b/gi, 'Toyota')
+    // GHL/Messenger can drop one of the repeated consonants in Nissan.
+    // Keep this scoped to the vehicle token so a transcript typo does not
+    // contaminate names or other free-form qualification fields.
+    .replace(/\bnisan\b/gi, 'Nissan')
     .replace(/\btandra\b/gi, 'Tundra')
     // GHL can omit the leading "4" when a buyer asks for a Toyota 4Runner.
     // Keep this scoped to Toyota so a generic "runner" is never promoted.
