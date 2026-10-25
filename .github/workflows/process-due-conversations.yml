@@ -114,10 +114,14 @@ jobs:
   queued-backup:
     runs-on: ubuntu-latest
     timeout-minutes: 6
-    needs: release-due
+    # Targeted repairs run the contact-scoped Guard below. Wait for that job
+    # before starting the global queued replay so both requests cannot race
+    # for the same advisory lock. For scheduled runs, run-guard is skipped
+    # and this job still proceeds because the condition below uses always().
+    needs: [release-due, run-guard]
     # The backup replay is independent of due-release success. If the release
     # job fails, already-queued contacts must still get their one Guard replay.
-    if: ${{ always() && needs.release-due.result != 'cancelled' }}
+    if: ${{ always() && needs.release-due.result != 'cancelled' && needs.run-guard.result != 'cancelled' }}
     concurrency:
       group: process-due-queued-backup
       cancel-in-progress: false
