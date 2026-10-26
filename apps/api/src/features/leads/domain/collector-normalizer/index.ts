@@ -129,10 +129,33 @@ function stripCampaignButtonPhrases(value: string): string {
     .replace(/\b(?:quiero )?financiar con easterns?\b/gi, ' ');
 }
 
+const AMOUNT_RANGE_TOKEN = '(?:\\d{1,3}(?:[,.]\\d{3})+|\\d+(?:[,.]\\d+)?\\s*(?:k|mil|thousand)?|(?:un|one|a|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+(?:mil|thousand)(?:\\s+(?:quinientos|five hundred))?)';
+
+function normalizeAmountRangeParts(start: string, end: string, assumeThousands = false): string {
+  const unit = `${start} ${end}`.match(/\b(?:mil|thousand|k)\b/i)?.[0] ?? '';
+  const applyContext = (value: string): string => {
+    const trimmed = value.trim();
+    if (unit && /^\d+(?:[.,]\d+)?$/.test(trimmed)) return `${trimmed} ${unit}`;
+    if (assumeThousands && /^\d{1,2}(?:[.,]\d+)?$/.test(trimmed)) return `${trimmed} mil`;
+    return trimmed;
+  };
+  const normalizedStart = normalizeAmount(applyContext(start));
+  const normalizedEnd = normalizeAmount(applyContext(end));
+  if (!/^\d+(?:\.\d+)?$/.test(normalizedStart) || !/^\d+(?:\.\d+)?$/.test(normalizedEnd)) return EMPTY;
+  const values = [Number(normalizedStart), Number(normalizedEnd)].sort((left, right) => left - right);
+  return `${values[0]} - ${values[1]}`;
+}
+
 function normalizeAmount(value: string): string {
   const source = clean(value).toLowerCase();
   if (!source || isEmptyMarker(source)) return EMPTY;
   if (NO_DOWN_PAYMENT_RESPONSE.test(source)) return 'No down payment';
+  const rangeMatch = source.match(new RegExp(`^\\$?(${AMOUNT_RANGE_TOKEN})(?:\\s*(mil|thousand|k))?\\s*(?:a|to|[-–—/])\\s*\\$?(${AMOUNT_RANGE_TOKEN})(?:\\s*(mil|thousand|k))?(?:\\s*(?:down|payment|enganche|inicial|d[oó]lares?|dollars?))?$`, 'i'));
+  if (rangeMatch) {
+    const start = `${rangeMatch[1]} ${rangeMatch[2] ?? EMPTY}`.trim();
+    const end = `${rangeMatch[3]} ${rangeMatch[4] ?? EMPTY}`.trim();
+    return normalizeAmountRangeParts(start, end);
+  }
   if (TRADE_IN_INTENT.test(source)) {
     const withoutTradeIn = source
       .replace(TRADE_IN_INTENT, '')
@@ -328,6 +351,17 @@ function extractDownPayment(message: string): string {
   if (NO_DOWN_PAYMENT_RESPONSE.test(source)) return 'No down payment';
   if (/\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b/i.test(source)) return CASH_DOWN_PAYMENT;
   const amountToken = '(?:\\d{1,3}(?:,\\d{3})+|\\d{1,2}\\s*(?:mil|thousand)|mil(?:\\s+quinientos)?|(?:un|one|a|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+(?:mil|thousand)(?:\\s+(?:quinientos|five hundred))?|\\d+(?:[,.]\\d+)?\\s*k?)(?:\\s*d[oó]lar(?:es|e)?)?';
+  const safeSource = source.split('\n').filter((line) => !isPhoneOnlyLine(line)).join('\n');
+  const rangeMatch = safeSource.match(new RegExp(`\\$?(${amountToken})(?:\\s*(mil|thousand|k))?\\s*(?:a|to|[-–—/])\\s*\\$?(${amountToken})(?:\\s*(mil|thousand|k))?`, 'i'));
+  if (rangeMatch) {
+    const start = `${rangeMatch[1]} ${rangeMatch[2] ?? EMPTY}`.trim();
+    const end = `${rangeMatch[3]} ${rangeMatch[4] ?? EMPTY}`.trim();
+    if (isVehicleYearValue(start) || isVehicleYearValue(end)) return EMPTY;
+    const assumeThousands = /\b(?:down|payment|enganche|inicial|deposit|dep[oó]sito)\b/i.test(source)
+      && [start, end].every((value) => /^\d{1,2}$/.test(value.trim()));
+    const normalizedRange = normalizeAmountRangeParts(start, end, assumeThousands);
+    if (normalizedRange) return normalizedRange;
+  }
   const amount = source.match(new RegExp(`(?:down|enganche|inicial|deposit|dep[oó]sito)[ \\t]*(?:payment|pago)?[ \\t]*(?:is|es|de|:)?[ \\t]*\\$?[ \\t]*(${amountToken})`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\$?[ \\t]*(${amountToken})[ \\t]*(?:(?:for|para|as|on|de|del)[ \\t]*(?:el|la|the)?[ \\t]*)?(?:down|enganche|inicial)`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\b(?:tengo|have|i have|i can put|puedo poner)[ \\t]+(?:down[ \\t]+)?(?:a[ \\t]+)?\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
@@ -493,8 +527,8 @@ function extractLatestDownPayment(message: string): string {
     // is the buyer's maximum ("1500 a 2000").
     const amountToken = '(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?)';
     const range = [...line.matchAll(new RegExp(`\\$?(${amountToken})\\s*(?:a|to|[-–/])\\s*\\$?(${amountToken})`, 'gi'))]
-      .map((match) => normalizeAmount(match[2]))
-      .find((amount) => amount && !isVehicleYearValue(amount));
+      .map((match) => normalizeAmountRangeParts(match[1], match[2], /\b(?:down|payment|enganche|inicial|deposit|dep[oó]sito)\b/i.test(line)))
+      .find((amount) => amount && !isVehicleYearRange(amount));
     if (range) return range;
 
     // Keep this deliberately line-scoped and answer-shaped. Requiring a

@@ -700,6 +700,16 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message: '500$' }).down_payment).toBe('');
   });
 
+  it.each([
+    ['2 a 3 mil', '2000 - 3000'],
+    ['2000 - 3000', '2000 - 3000'],
+    ['2 mil a 3 mil', '2000 - 3000'],
+    ['2k to 3k', '2000 - 3000'],
+    ['Yo puedo dar un enganche de 2 a 3 de enganche', '2000 - 3000'],
+  ])('normalizes down-payment range %s as %s', (message, expected) => {
+    expect(normalizeCollectorInput({ message, chat_history_log: message }).down_payment).toBe(expected);
+  });
+
   it('keeps a vehicle year out of down payment when GHL supplies it in the vehicle field', () => {
     const result = normalizeCollectorInput({
       source: 'fredericksburg',
@@ -2488,7 +2498,7 @@ describe('normalizeCollectorInput', () => {
     expect(result).toMatchObject({
       real_name: 'Leandro Bolzan',
       vehicle_type: 'SUV',
-      down_payment: '2000',
+      down_payment: '1000 - 2000',
       previous_financing: '',
       down_payment_sufficient: true,
       required_down_payment: 2000,

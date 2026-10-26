@@ -1,8 +1,29 @@
 const historyForExtraction = stripCampaignButtonPhrases(rawHistory);
+const amountRangeToken = '(?:\\d{1,3}(?:[,.]\\d{3})+|\\d+(?:[,.]\\d+)?\\s*(?:k|mil|thousand)?|(?:un|one|a|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+(?:mil|thousand)(?:\\s+(?:quinientos|five hundred))?)';
+const amountRangeParts = (start, end, assumeThousands = false) => {
+  const unit = `${start} ${end}`.match(/\b(?:mil|thousand|k)\b/i)?.[0] || '';
+  const applyContext = (value) => {
+    const trimmed = String(value).trim();
+    if (unit && /^\\d+(?:[.,]\\d+)?$/.test(trimmed)) return `${trimmed} ${unit}`;
+    if (assumeThousands && /^\d{1,2}(?:[.,]\d+)?$/.test(trimmed)) return `${trimmed} mil`;
+    return trimmed;
+  };
+  const normalized = [amount(applyContext(start)), amount(applyContext(end))]
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value))
+    .sort((left, right) => left - right);
+  return normalized.length === 2 ? `${normalized[0]} - ${normalized[1]}` : '';
+};
 const amount = (value) => {
   const source = clean(value).toLowerCase();
   if (!source || emptyMarker(source)) return '';
   if (noDownPaymentResponse.test(source)) return 'No down payment';
+  const rangeMatch = source.match(new RegExp(`^\\$?(${amountRangeToken})(?:\\s*(mil|thousand|k))?\\s*(?:a|to|[-–—])\\s*\\$?(${amountRangeToken})(?:\\s*(mil|thousand|k))?(?:\\s*(?:down|payment|enganche|inicial|d[oó]lares?|dollars?))?$`, 'i'));
+  if (rangeMatch) {
+    const start = `${rangeMatch[1]} ${rangeMatch[2] || ''}`.trim();
+    const end = `${rangeMatch[3]} ${rangeMatch[4] || ''}`.trim();
+    return amountRangeParts(start, end);
+  }
   const tradeMarker = tradeInLanguage;
   if (tradeMarker.test(source)) {
     const cash = source.match(/\$?\s*(\d[\d,.]*\s*k?)\b/i)?.[1];
@@ -48,7 +69,8 @@ const isOffleaseDealer = (value) => {
 const visibleDownPayment = (value, dealerOrSource) => {
   const normalized = validAmount(value);
   if (!normalized || /^no down payment$/i.test(normalized) || normalized === cashDownPayment) return normalized;
-  const match = normalized.match(/\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)/);
+  const range = normalized.match(/^\s*\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?)\s*-\s*\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?)\s*$/i);
+  const match = range ? [range[0], range[2]] : normalized.match(/\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)/);
   if (!match) return normalized;
   const compact = match[1].replace(/,/g, '');
   const amountValue = /^\d{1,3}(?:\.\d{3})+$/.test(compact) ? Number(compact.replace(/\./g, '')) : Number.parseFloat(compact);
@@ -88,13 +110,28 @@ const downFrom = (text) => {
   if (noDownPaymentResponse.test(source)) return 'No down payment';
   if (/\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b/i.test(source)) return cashDownPayment;
   const token = `(${amountToken})`;
+  const safeSource = source.split('\n').filter((line) => !isPhoneOnlyLine(line)).join('\n');
+  const rangeMatch = safeSource.match(new RegExp(`\\$?(${amountToken})(?:\\s*(mil|thousand|k))?\\s*(?:a|to|[-–—])\\s*\\$?(${amountToken})(?:\\s*(mil|thousand|k))?`, 'i'));
+  const shortUnitRange = safeSource.match(/\$?(\d{1,2})\s*(?:a|to|[-–—/])\s*(\d{1,2})\s*(mil|thousand|k)\b/i);
+  if (shortUnitRange) {
+    const normalizedRange = amountRangeParts(`${shortUnitRange[1]} ${shortUnitRange[3]}`, `${shortUnitRange[2]} ${shortUnitRange[3]}`);
+    if (normalizedRange) return normalizedRange;
+  }
+  if (rangeMatch) {
+    const start = `${rangeMatch[1]} ${rangeMatch[2] || ''}`.trim();
+    const end = `${rangeMatch[3]} ${rangeMatch[4] || ''}`.trim();
+    if (isVehicleYear(start) || isVehicleYear(end)) return '';
+    const assumeThousands = /\b(?:down|payment|enganche|inicial|deposit|dep[oó]sito)\b/i.test(source)
+      && [start, end].every((value) => /^\d{1,2}$/.test(value.trim()));
+    const normalizedRange = amountRangeParts(start, end, assumeThousands);
+    if (normalizedRange) return normalizedRange;
+  }
   const explicit = source.match(new RegExp(`(?:down|enganche|inicial|deposit|dep[oó]sito)[ \\t]*(?:payment|pago)?[ \\t]*(?:is|es|de|:)?[ \\t]*\\$?[ \\t]*${token}`, 'i'));
   const withAmount = source.match(new RegExp(`\\b(?:puedo|puede|can|could|i can|i could)[ \\t]+(?:con|with)[ \\t]*\\$?[ \\t]*${token}\\b`, 'i'));
   const directCon = source.match(new RegExp(`(?:^|\\n)\\s*con[ \\t]+\\$?[ \\t]*${token}\\b`, 'i'));
   const declared = source.match(new RegExp(`\\b(?:i have|tengo|i can put|puedo poner)[ \\t]+\\$?[ \\t]*${token}[ \\t]*(?:down|payment|enganche|inicial)?\\b`, 'i'));
   const spanishDeclared = source.match(new RegExp(`\\b(?:doy|dar[eé]?|pongo|poner|i(?:'|’)ll put|i put)[ \\t]+(?:down[ \\t]+)?(?:at least[ \\t]+|de[ \\t]+|para[ \\t]+)?\\$?[ \\t]*${token}\\b`, 'i'));
   const noisyDeclared = source.match(new RegExp(`\\b(?:cuento|cuenta)\\b[^\\n]{0,80}?(?:y|and|plus)[ \\t.,;:]*\\$?[ \\t]*${token}\\b`, 'i'));
-  const safeSource = source.split('\\n').filter((line) => !isPhoneOnlyLine(line)).join('\\n');
   const standalone = safeSource.match(new RegExp(`(?:^|\\n)\\$?[ \\t]*${token}[ \\t]*\\$?[ \\t]*(?:(?:tengo|have|available|disponible|i have|i can put|m[aá]ximo|maximum)[ \\t]*\\d{0,2})?[ \\t]*\\.?[ \\t]*(?=\\n|$)`, 'im'));
   const candidate = standalone?.[1]?.replace(/[$,\s]/g, '') || '';
   const value = explicit?.[1] || withAmount?.[1] || directCon?.[1] || declared?.[1] || spanishDeclared?.[1] || noisyDeclared?.[1] || standalone?.[1];
@@ -423,7 +460,10 @@ const vehicleCategory = /\b(?:truck|troka|troca|trokita|troquita|troque|trokas|p
         : '';
 const requiredDownPayment = ({ sedan: 1500, luxury_sedan: 2000, suv_or_van: 2000, truck: 3000 }[vehicleCategory] || null);
 const tradeInDownPayment = tradeInLanguage.test(down);
-const downPaymentAmount = /^\d+(?:\.\d+)?$/.test(String(down).replace(/[$,\s]/g, '')) ? Number(String(down).replace(/[$,\s]/g, '')) : null;
+const downPaymentRange = String(down).match(/^\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*$/);
+const downPaymentAmount = downPaymentRange
+  ? Number(downPaymentRange[2])
+  : /^\d+(?:\.\d+)?$/.test(String(down).replace(/[$,\s]/g, '')) ? Number(String(down).replace(/[$,\s]/g, '')) : null;
 const downPaymentSufficient = requiredDownPayment !== null && (tradeInDownPayment || down === cashDownPayment || down.toLocaleLowerCase().includes(cashDownPayment.toLocaleLowerCase()) || (downPaymentAmount !== null && downPaymentAmount >= requiredDownPayment));
 const rawTimeline = first(timelineFrom(message), timelineFrom(history), memoryValue(['timeline', 'purchase timeline', 'purchase_timeline']), inputData.purchase_timeline);
 const identification = documentStatus('id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b', ['identification', 'id', 'itin', 'passport', 'pasaporte'], inputData.identification || inputData.documents);

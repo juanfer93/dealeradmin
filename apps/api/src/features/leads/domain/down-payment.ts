@@ -49,7 +49,8 @@ function canonicalDownPayment(value: string | null | undefined): string {
 function numericDownPayment(value: string | null | undefined): number | null {
   const normalized = canonicalDownPayment(value);
   if (!normalized || isCashDownPayment(normalized)) return isCashDownPayment(normalized) ? Number.POSITIVE_INFINITY : null;
-  const amount = normalized.match(/\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?)\b/i)?.[1];
+  const range = normalized.match(/^\s*\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?)\s*-\s*\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?)\s*$/i);
+  const amount = range?.[2] ?? normalized.match(/\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?)\b/i)?.[1];
   if (!amount) return null;
   const compact = amount.replace(/[$,\s]/g, '').toLowerCase();
   const parsed = /^\d{1,3}(?:\.\d{3})+$/.test(compact)

@@ -1574,6 +1574,16 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(execute({ message }).down_payment).toBe(expected);
   });
 
+  it.each([
+    ['2 a 3 mil', '2000 - 3000'],
+    ['2000 - 3000', '2000 - 3000'],
+    ['2 mil a 3 mil', '2000 - 3000'],
+    ['2k to 3k', '2000 - 3000'],
+    ['Yo puedo dar un enganche de 2 a 3 de enganche', '2000 - 3000'],
+  ])('normalizes down-payment range %s as %s in Custom Code', (message, expected) => {
+    expect(execute({ message }).down_payment).toBe(expected);
+  });
+
   it.each(['2018', '2019', '2025'])('does not classify a standalone vehicle year as down payment in Custom Code: %s', (message) => {
     expect(execute({ message }).down_payment).toBe('');
   });
