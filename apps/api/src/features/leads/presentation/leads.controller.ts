@@ -98,7 +98,7 @@ export class LeadsController {
            LIMIT 1
          )) AS phone,
          ld.vehicle_type AS "vehicleType",
-         ld.down_payment AS "downPayment",
+         COALESCE(NULLIF(ld.down_payment, ''), latest_conversation.qualification_snapshot->>'down_payment') AS "downPayment",
          ld.identification,
          ld.bank_account AS "bankAccount",
          ld.documents,

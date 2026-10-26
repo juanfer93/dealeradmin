@@ -53,6 +53,15 @@ describe('operator qualification message normalization', () => {
     expect(formatLeadCopy({ ...base, dealerName: 'Offlease Fredericksburg', downPayment: '1200', messageText: 'Lead +15550001111 SUV, 1200 de down.' })).not.toContain('1200');
   });
 
+  it('adds the normalized down-payment range when the stored message does not include it', () => {
+    expect(formatLeadCopy({
+      id: '1', dealerId: 'd', dealerName: 'Offlease Fredericksburg', name: 'Gustavo Pineda', phone: '+15716359646',
+      vehicleType: 'Tacoma', downPayment: '2000 - 3000', identification: null, bankAccount: null, documents: null,
+      purchaseTimeline: 'explorando opciones', status: 'pending', messageText: 'Gustavo Pineda +15716359646 Tacoma, Quiere ver opciones.',
+      createdAt: '2026-10-26T16:22:00.000Z',
+    })).toContain('2000 - 3000 de down');
+  });
+
   it.each([
     'Dependiendo de los Precios',
     'Me Puede Enviar Fotos',

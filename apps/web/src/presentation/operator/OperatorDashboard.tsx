@@ -189,7 +189,9 @@ export function formatLeadMessage(lead: Lead, language?: 'es' | 'en') {
 
 export function formatLeadCopy(lead: Lead): string {
   const visibleDown = visibleDownPayment(lead.downPayment, lead.dealerName);
-  const source = visibleDown === clean(lead.downPayment)
+  const storedMessageIncludesVisibleDown = Boolean(visibleDown)
+    && (lead.messageText ?? '').toLocaleLowerCase().includes(visibleDown.toLocaleLowerCase());
+  const source = visibleDown === clean(lead.downPayment) && (!visibleDown || storedMessageIncludesVisibleDown)
     ? lead.messageText || formatLeadMessage(lead)
     : formatLeadMessage(lead);
   const name = clean(lead.name);
