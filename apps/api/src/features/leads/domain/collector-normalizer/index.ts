@@ -271,6 +271,7 @@ function extractVehicle(message: string): string {
     // clause contains the answer intent (for example: "tres filas..., odisea").
     // Keep the boundary protection above for payment/location facts, but use
     // the complete candidate when it contains a known model.
+    const imageEvidence = /\b(?:image\s+(?:interpretation|description|decription)|\[image\s+interpretation\])\b/i.test(candidate);
     const label = extractVehicleLabel(transcriptionModelAlias ? candidate : withoutOtherFacts);
     const followsVehicleQuestion = lineIndex > 0 && /\b(?:what|which)\s+(?:vehicles?|cars?|trucks?)|\b(?:qu[eé]|cu[aá]l)\s+(?:veh[ií]culos?|carros?|autos?)\b/i.test(lines[lineIndex - 1]);
     if (label && (category || VEHICLE_CONTEXT.test(candidate) || followsVehicleQuestion || VEHICLE_BRANDS.test(candidate) || hasModel || VEHICLE_CATEGORIES.test(candidate))) {
@@ -287,13 +288,15 @@ function extractVehicle(message: string): string {
         hasModel,
         brand,
         isColloquialTruck: /\b(?:troka|trocas?|trokitas?|troquitas?|troques?|camionetq)\b/i.test(candidate),
+        isSyntheticEvidence: imageEvidence,
       });
     }
   }
   // A buyer can change the vehicle during the same conversation. The last
   // explicit vehicle answer is the active choice, so the down payment must be
   // evaluated against that answer rather than an earlier, more specific model.
-  const latest = resolveVehicleCandidate(candidates);
+  const textualCandidates = candidates.filter((candidate) => !candidate.isSyntheticEvidence);
+  const latest = resolveVehicleCandidate(textualCandidates.length > 0 ? textualCandidates : candidates);
   // Whisper often produces a standalone colloquial truck token after the
   // requested model. Preserve that more specific model when it is clearly
   // the same answer sequence; an explicit later Sedan/SUV/etc. still wins.
@@ -588,10 +591,11 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const memoryDown = normalizeMemoryDownPayment(memoryValue(memory, ['down payment', 'down_payment', 'downpayment']), normalizeAmount, TRADE_IN_INTENT);
   const inputDown = clean(input.down_payment ?? EMPTY);
   const vehicleSource = [historyForExtraction, messageForExtraction].filter(Boolean).join('\n');
+  const transcriptVehicle = extractVehicle(vehicleSource);
   // Buyers on WhatsApp and Messenger use "carro económico" as a category
   // request. Keep this deterministic so it cannot be mistaken for a make/model.
   const explicitVehicle = normalizeVehicle(firstNonEmpty(
-    extractVehicle(vehicleSource),
+    transcriptVehicle,
     [
       memoryValue(memory, ['vehicle_type', 'vehicle', 'type']),
       [
@@ -615,10 +619,17 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     memoryValue(memory, ['vehicle_type', 'vehicle', 'type']),
     input.vehicle_type,
   ].some((value) => isAdvisorHandoffVehicle(value));
+  // Once the current transcript contains a real vehicle answer, do not carry
+  // a stale year from a previous custom field or memory snapshot. This was
+  // producing values such as "truck 2008" after a buyer later asked for a
+  // Tundra without naming 2008.
+  const transcriptVehicleYear = extractVehicleYear(vehicleSource);
   const vehicleYear = [
-    extractVehicleYear(vehicleSource),
-    extractVehicleYear(input.vehicle_type),
-    extractVehicleYear(memoryValue(memory, ['vehicle_type', 'vehicle', 'type'])),
+    transcriptVehicleYear,
+    ...(transcriptVehicle ? [] : [
+      extractVehicleYear(input.vehicle_type),
+      extractVehicleYear(memoryValue(memory, ['vehicle_type', 'vehicle', 'type'])),
+    ]),
   ].find((value): value is number => value !== null) ?? null;
   const vehicleBase = extractedVehicle || (hasExistingAdvisorMarker || phoneFromConversation || (isWhatsAppChannel(input.channel) && chatPhone)
     ? ADVISOR_HANDOFF_VEHICLE

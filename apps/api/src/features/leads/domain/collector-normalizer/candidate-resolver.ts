@@ -5,6 +5,8 @@ export type VehicleCandidate = {
   hasModel: boolean;
   brand: string;
   isColloquialTruck: boolean;
+  /** Image/OCR evidence may describe a trade-in and must not override text. */
+  isSyntheticEvidence?: boolean;
 };
 
 /**

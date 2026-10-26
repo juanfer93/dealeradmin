@@ -167,6 +167,7 @@ const vehicleFrom = (text) => {
     const hasModel = vehicleModels.test(cleaned);
     const brand = cleaned.match(vehicleBrands)?.[0] || '';
     const label = vehicleLabel(cleaned);
+    const imageEvidence = /\b(?:image\s+(?:interpretation|description|decription)|\[image\s+interpretation\])\b/i.test(candidate);
     const followsVehicleQuestion = lineIndex > 0 && /\b(?:what|which)\s+(?:vehicles?|cars?|trucks?)|\b(?:qu[eé]|cu[aá]l)\s+(?:veh[ií]culos?|carros?|autos?)\b/i.test(lines[lineIndex - 1]);
     if (label && (category || vehicleContext.test(candidate) || followsVehicleQuestion || vehicleBrands.test(candidate) || hasModel || vehicleCategories.test(candidate))) {
       const lowQualityNarrative = /\b(?:seg[uú]n|anuncio|anuncios|variedad|maneja|manejan|opciones|informaci[oó]n)\b/i.test(candidate);
@@ -175,24 +176,26 @@ const vehicleFrom = (text) => {
         + (followsVehicleQuestion ? 10 : 0)
         - (lowQualityNarrative && !hasModel ? 30 : 0)
         + lineIndex / 1000;
-      candidates.push({ label, score, lineIndex, hasModel, brand, isColloquialTruck: /\b(?:troka|troca|trokita|troquita|troque|trokas)\b/i.test(candidate) });
+      candidates.push({ label, score, lineIndex, hasModel, brand, isColloquialTruck: /\b(?:troka|troca|trokita|troquita|troque|trokas)\b/i.test(candidate), isSyntheticEvidence: imageEvidence });
     }
   }
   // A buyer can change the vehicle during the same conversation. The last
   // explicit vehicle answer is the active choice, so the down payment must be
   // evaluated against that answer rather than an earlier, more specific model.
-  candidates.sort((left, right) => right.lineIndex - left.lineIndex || right.score - left.score);
-  const latest = candidates[0];
+  const textualCandidates = candidates.filter((candidate) => !candidate.isSyntheticEvidence);
+  const activeCandidates = textualCandidates.length > 0 ? textualCandidates : candidates;
+  activeCandidates.sort((left, right) => right.lineIndex - left.lineIndex || right.score - left.score);
+  const latest = activeCandidates[0];
   // Whisper can leave a standalone colloquial truck token after the requested
   // model. Preserve that specific model, while an explicit later category
   // such as Sedan/SUV remains the active buyer choice.
   const best = latest?.isColloquialTruck && !latest.hasModel
-    ? candidates.find((candidate) => candidate.hasModel && candidate.lineIndex < latest.lineIndex) || latest
+    ? activeCandidates.find((candidate) => candidate.hasModel && candidate.lineIndex < latest.lineIndex) || latest
     : latest;
   if (!best) return '';
-  const brands = [...new Set(candidates.map((candidate) => candidate.brand).filter(Boolean).map((brand) => brand.toLocaleLowerCase()))];
+  const brands = [...new Set(activeCandidates.map((candidate) => candidate.brand).filter(Boolean).map((brand) => brand.toLocaleLowerCase()))];
   if (!vehicleBrands.test(best.label) && brands.length === 1 && (best.hasModel || latest?.isColloquialTruck)) {
-    const brand = candidates.find((candidate) => candidate.brand && candidate.brand.toLocaleLowerCase() === brands[0])?.brand || brands[0];
+    const brand = activeCandidates.find((candidate) => candidate.brand && candidate.brand.toLocaleLowerCase() === brands[0])?.brand || brands[0];
     return clean(`${brand} ${best.label}`).replace(/\b([a-z]+)\b/gi, (token) => token[0].toLocaleUpperCase() + token.slice(1).toLocaleLowerCase()).replace(/\b(\d)\s*lt\b/gi, '$1LT');
   }
   return canonicalVehicleLabel(clean(best.label).replace(/\b(\d)\s*lt\b/gi, '$1LT'));
@@ -297,11 +300,12 @@ const documentStatus = (pattern, memoryAliases, custom) => {
   return '';
 };
 const vehicleSource = [historyForExtraction, rawMessage].filter(Boolean).join('\n');
+const transcriptVehicle = vehicleFrom(vehicleSource);
 const phoneFromConversation = phoneFrom(message, history);
 // Keep the WhatsApp/Messenger shorthand "carro económico" as the stable
 // Sedan category.
 const explicitVehicle = first(
-  campaign ? '' : cleanVehicleValue(vehicleFrom(vehicleSource)),
+  campaign ? '' : cleanVehicleValue(transcriptVehicle),
   cleanVehicleValue(memoryValue(['vehicle', 'vehicle_type'])),
   cleanVehicleValue(inputData.vehicle_type),
 );
@@ -316,11 +320,14 @@ const extractedVehicle = familyPassengerVanIntent.test(vehicleSource)
         : explicitVehicle || (indecisiveVehicleIntent.test(vehicleSource) ? 'Sedan' : '');
 const existingAdvisorMarker = [memoryValue(['vehicle', 'vehicle_type']), inputData.vehicle_type].some(isAdvisorHandoffVehicle);
 const phone = phoneFrom(message, history, inputData.phone);
-const vehicleYear = [
-  vehicleYearFrom(vehicleSource),
-  vehicleYearFrom(inputData.vehicle_type),
-  vehicleYearFrom(memoryValue(['vehicle', 'vehicle_type'])),
-].find((value) => value !== null) ?? null;
+  const transcriptVehicleYear = vehicleYearFrom(vehicleSource);
+  const vehicleYear = [
+    transcriptVehicleYear,
+    ...(transcriptVehicle ? [] : [
+      vehicleYearFrom(inputData.vehicle_type),
+      vehicleYearFrom(memoryValue(['vehicle', 'vehicle_type'])),
+    ]),
+  ].find((value) => value !== null) ?? null;
 const vehicleBase = extractedVehicle || (existingAdvisorMarker || phoneFromConversation || (isWhatsAppChannel(inputData.channel) && phone)
   ? advisorHandoffVehicle
   : '');

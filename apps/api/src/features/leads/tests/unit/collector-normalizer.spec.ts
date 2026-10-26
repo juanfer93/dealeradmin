@@ -544,6 +544,43 @@ describe('normalizeCollectorInput', () => {
     expect(result.vehicle_type).toBe('BMW');
   });
 
+  it('does not let a later image interpretation overwrite the requested vehicle', () => {
+    const result = normalizeCollectorInput({
+      channel: 'messenger',
+      message: '[image interpretation]\nimage description: "bmw"',
+      chat_history_log: 'Dodge Durango\n[image interpretation]\nimage description: "bmw"',
+    });
+
+    expect(result.vehicle_type).toBe('Dodge Durango');
+  });
+
+  it.each([
+    ['Cadillac if you have one in stock', 'Cadillac'],
+    ['Raw four', 'RAV4'],
+    ['Ttoca', 'truck'],
+    ['unatroca', 'truck'],
+    ['dumtruck', 'truck'],
+    ['Dodge darango', 'Dodge Durango'],
+  ])('normalizes production vehicle wording %s as %s', (message, expected) => {
+    expect(normalizeCollectorInput({
+      channel: 'messenger',
+      message,
+      chat_history_log: message,
+    }).vehicle_type).toBe(expected);
+  });
+
+  it('does not carry a stale custom-field year after a new vehicle answer', () => {
+    const result = normalizeCollectorInput({
+      channel: 'messenger',
+      message: 'Tundra',
+      chat_history_log: 'Tundra',
+      vehicle_type: 'truck 2008',
+    });
+
+    expect(result.vehicle_type).toBe('Tundra');
+    expect(result.vehicle_year).toBeNull();
+  });
+
   it('marks a phone-only inbound handoff as advisor contact without qualifying it as a vehicle', () => {
     const result = normalizeCollectorInput({
       channel: 'messenger',

@@ -70,6 +70,11 @@ describe('HighLevel collector custom-code normalizer', () => {
     ['carros económicos', 'Sedan'],
     ['economical car', 'Sedan'],
     ['Camaros', 'Camaro'],
+    ['Cadillac if you have one in stock', 'Cadillac'],
+    ['Raw four', 'RAV4'],
+    ['Ttoca', 'truck'],
+    ['unatroca', 'truck'],
+    ['dumtruck', 'truck'],
   ])('canonicalizes %s as %s in the deployed Custom Code body', (vehicle, expected) => {
     const result = execute({
       channel: 'messenger',
@@ -79,6 +84,28 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
 
     expect(result.vehicle_type).toBe(expected);
+  });
+
+  it('does not let a later image interpretation overwrite the requested vehicle', () => {
+    const result = execute({
+      channel: 'messenger',
+      message: '[image interpretation]\nimage description: "bmw"',
+      chat_history_log: 'Dodge Durango\n[image interpretation]\nimage description: "bmw"',
+    });
+
+    expect(result.vehicle_type).toBe('Dodge Durango');
+  });
+
+  it('does not carry a stale custom-field year after a new vehicle answer', () => {
+    const result = execute({
+      channel: 'messenger',
+      message: 'Tundra',
+      chat_history_log: 'Tundra',
+      vehicle_type: 'truck 2008',
+    });
+
+    expect(result.vehicle_type).toBe('Tundra');
+    expect(result.vehicle_year).toBeNull();
   });
 
   it('defaults English and Spanish indecision to Sedan while preserving explicit vehicles', () => {
