@@ -19,6 +19,15 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(body).not.toMatch(/(^|\n)\s*import\s|\brequire\s*\(/);
   });
 
+  it('normalizes the phonetic Durango transcription in the standalone GHL entrypoint', () => {
+    expect(execute({
+      channel: 'messenger',
+      message: 'Dodge darango',
+      chat_history_log: 'Dodge darango',
+      phone: '+15405607865',
+    }).vehicle_type).toBe('Dodge Durango');
+  });
+
   it('promotes a complete qualification memory without custom fields', () => {
     const result = execute({
       real_name: 'QA Customer',

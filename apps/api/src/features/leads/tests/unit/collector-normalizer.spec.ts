@@ -12,6 +12,16 @@ describe('normalizeCollectorInput', () => {
     }).vehicle_type).toBe('Sedan');
   });
 
+  it('recovers the phonetic Durango transcription used by GHL', () => {
+    expect(normalizeCollectorInput({
+      source: 'action-cars',
+      channel: 'messenger',
+      message: 'Dodge darango',
+      chat_history_log: 'Dodge darango',
+      phone: '+15405607865',
+    }).vehicle_type).toBe('Dodge Durango');
+  });
+
   it.each([
     ['What vehicles are eligible?\nAnything you got\n814 603 0494', 'en'],
     ['No sé qué carro quiero\n814 603 0494', 'es'],

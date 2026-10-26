@@ -53,6 +53,9 @@ export function normalizeWhisperVehicleAliases(value: string): string {
     // that explicit request as the canonical Dodge model, while keeping a
     // plain plural Durango request model-specific without inventing a make.
     .replace(/\bhemi\s+durangos?\b/gi, 'Dodge Durango')
+    // GHL can transcribe Durango as the phonetic "darango". Keep the alias
+    // scoped to vehicle extraction so it cannot alter names or notes.
+    .replace(/\bdarangos?\b/gi, 'Durango')
     .replace(/\bdurangos?\b/gi, 'Durango')
     .replace(/\bcamaros?\b/gi, 'Camaro')
     // GHL transcribed the Ford model answer as "For 250". This alias is

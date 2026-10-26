@@ -48,6 +48,9 @@ const normalizeWhisperVehicleAliases = (value) => clean(value)
   // GHL/Messenger can also transcribe the spoken model as "rava".
   // Keep this alias scoped to vehicle extraction.
   .replace(/\brava\b/gi, 'RAV4')
+  // GHL can transcribe Durango as the phonetic "darango". Keep the alias
+  // scoped to vehicle extraction so it cannot alter names or notes.
+  .replace(/\bdarangos?\b/gi, 'Durango')
   .replace(/\bcamaros?\b/gi, 'Camaro')
   // GHL transcribed the Ford model answer as "For 250". This alias is
   // applied only to vehicle extraction; payment extraction still sees the

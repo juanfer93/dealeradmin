@@ -1,11 +1,16 @@
 name: Process due conversations watchdog
 
 on:
-  # GitHub scheduled events are best-effort. This offset poll is a safety
-  # net for a missed primary tick; the database due-row lock keeps it
-  # idempotent when both schedules arrive close together.
+  # Keep a standard five-minute expression. The previous offset range
+  # expression stopped producing scheduled runs in production. The database
+  # due-row lock keeps this idempotent when it overlaps the primary schedule.
   schedule:
-    - cron: '2-57/5 * * * *'
+    - cron: '*/5 * * * *'
+  # A completed primary run is a second trigger when GitHub drops a schedule
+  # event. Both paths share the same database lock and are therefore safe.
+  workflow_run:
+    workflows: ["Process due conversations"]
+    types: [completed]
   workflow_dispatch:
 
 permissions: {}
