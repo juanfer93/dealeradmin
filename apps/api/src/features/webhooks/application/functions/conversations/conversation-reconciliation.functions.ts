@@ -282,14 +282,11 @@ export class ConversationReconciliationFunctions {
       if (snapshot.real_name) {
         const { firstName, lastName } = splitName(snapshot.real_name);
         await runner.query(`UPDATE leads SET first_name = $2, last_name = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [row.lead_id, firstName, lastName]);
-      } else if (row.channel !== 'instagram' && (isStaffordWhatsAppVehicleLabel(contactName, source, row.channel) || (contactName !== 'Lead' && !normalizeRealName(contactName)))) {
+      } else if (isStaffordWhatsAppVehicleLabel(contactName, source, row.channel)) {
         // A Stafford WhatsApp vehicle/offer label can be stored in the lead
-        // name before the transcript replay. More generally, clear only a
-        // stored name that the same normalizer now identifies as a
-        // qualification label or conversational reply; preserve valid names
-        // when the transcript simply contains no name answer. Instagram's
-        // contact label is a display name and must remain visible even when
-        // it is not a name declared in the qualification transcript.
+        // name before the transcript replay. Clear that operational label,
+        // while preserving Messenger/Instagram profile labels for display;
+        // those labels are never copied into qualification real_name.
         await runner.query(`UPDATE leads SET first_name = '', last_name = '', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [row.lead_id]);
       }
       if (effectivePhone && effectivePhone !== row.canonical_phone) {
