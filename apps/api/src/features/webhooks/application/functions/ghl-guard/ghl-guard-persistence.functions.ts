@@ -307,6 +307,30 @@ export class GhlGuardPersistenceFunctions {
     }
   }
 
+  async recoverStaleQueuedReplayClaims(now: Date): Promise<void> {
+    try {
+      await this.dataSource?.query(
+        `UPDATE conversations
+         SET queued_guard_replay_claimed_at = NULL,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE status = 'queued'
+           AND queued_guard_replay_count = 0
+           AND queued_guard_replay_claimed_at IS NOT NULL
+           AND queued_guard_replay_claimed_at < $1::timestamptz - ($2::integer * INTERVAL '1 millisecond')
+           AND NOT EXISTS (
+             SELECT 1
+             FROM ghl_guard_logs active_guard
+             WHERE active_guard.conversation_id = conversations.id
+               AND active_guard.status IN ('pending', 'running')
+           )`,
+        [now.toISOString(), ghlGuardStaleLogMs()],
+      );
+    } catch (error) {
+      this.logAuditError('GHL_GUARD_QUEUED_REPLAY_CLAIM_RECOVERY_FAILED', error);
+      // A stale replay claim must never prevent the normal guard from running.
+    }
+  }
+
   async logSkip(runId: string, reason: GhlGuardSkipReason, contactIds: string[], enabled: boolean): Promise<void> {
     if (!enabled || !this.dataSource) return;
     try {

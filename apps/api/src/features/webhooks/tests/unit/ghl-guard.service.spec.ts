@@ -533,6 +533,7 @@ describe('GhlGuardService', () => {
     const completedReplayIds: string[] = [];
     const persistence = {
       recoverStaleLogs: vi.fn().mockResolvedValue(undefined),
+      recoverStaleQueuedReplayClaims: vi.fn().mockResolvedValue(undefined),
       createLog: vi.fn().mockResolvedValue('guard-log-queued-local'),
       updateLog: vi.fn().mockResolvedValue(undefined),
       claimQueuedReplay: vi.fn().mockResolvedValue({ allowed: true, claimed: true }),

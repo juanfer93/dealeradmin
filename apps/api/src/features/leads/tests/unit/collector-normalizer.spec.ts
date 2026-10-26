@@ -1033,6 +1033,33 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message }).bank_account).toBe('yes');
   });
 
+  it('replays Hector Castillo history so a reconciler can recover delayed qualification answers', () => {
+    const transcript = [
+      'Tengo una nisan centra, nisan pronta, perdon, y quiero una troca para uso personal.',
+      'Yo estoy aqui en Virginia, Alexandria.',
+      'Yo le daria los 2000.',
+      'A fines del otro mes ya tengo el dinero.',
+      'Cuenta de banco si tengo cheques, pero no deposito mis cheques al banco porque los cambio cash.',
+      '5715818502',
+    ].join('\n');
+
+    expect(normalizeCollectorInput({
+      source: 'arlington',
+      channel: 'messenger',
+      real_name: 'Hector Castillo',
+      phone: '+15715818502',
+      message: transcript,
+      chat_history_log: transcript,
+    })).toMatchObject({
+      vehicle_type: 'truck',
+      customer_location: 'Alexandria',
+      down_payment: '2000',
+      purchase_timeline: 'próximo mes',
+      bank_account: 'yes',
+      qualification_complete: true,
+    });
+  });
+
   it.each(['I have my passport', 'Tengo mi pasaporte'])('treats passport as valid identification: %s', (message) => {
     expect(normalizeCollectorInput({ message }).identification).toBe('yes');
   });
@@ -1542,6 +1569,22 @@ describe('normalizeCollectorInput', () => {
     ['in a month', 'in a month'],
     ['next month', 'next month'],
   ])('preserves purchase timeline variant %s', (answer, expected) => {
+    expect(normalizeCollectorInput({ message: answer }).purchase_timeline).toBe(expected);
+  });
+
+  it.each(['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'])('preserves a Spanish calendar month as purchase timing: %s', (month) => {
+    expect(normalizeCollectorInput({ message: `para ${month}` }).purchase_timeline).toBe(month);
+  });
+
+  it.each(['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'])('preserves an English calendar month as purchase timing: %s', (month) => {
+    expect(normalizeCollectorInput({ message: `in ${month}` }).purchase_timeline).toBe(month.toLowerCase());
+  });
+
+  it.each([
+    ['26 de octubre', '26 de octubre'],
+    ['October 26', 'october 26'],
+    ['26th of October', 'october 26'],
+  ])('preserves a specific calendar date as purchase timing: %s', (answer, expected) => {
     expect(normalizeCollectorInput({ message: answer }).purchase_timeline).toBe(expected);
   });
 

@@ -9,6 +9,7 @@ import { ACTIVE_RECONCILIATION_BATCH_SIZE, GHL_SOURCE_CONFIG, RECONCILIATION_LOC
 import { addProcessedImageEvidence, clean, extractNativeWhatsappPhone, inputIndicatesWhatsApp, isAttachmentEvidenceMessage, safePhone, splitName } from './conversation-webhook.helpers';
 import type { ConversationMessageRow, ConversationSnapshot, LocationSnapshot, MediaReconciliationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
 import { configureWebhookTransactionSafety } from '../../transaction-safety';
+import { isEmptyMarker } from '../../../../leads/domain/collector-normalizer/text-cleaner';
 
 export class ConversationReconciliationFunctions {
   constructor(
@@ -168,7 +169,9 @@ export class ConversationReconciliationFunctions {
       const preserveOrNormalize = (existing: unknown, incoming: unknown): string => {
         const existingValue = clean(existing);
         const incomingValue = clean(incoming);
-        return additiveOnly ? existingValue || incomingValue : incomingValue || existingValue;
+        const meaningfulExisting = isEmptyMarker(existingValue) ? '' : existingValue;
+        const meaningfulIncoming = isEmptyMarker(incomingValue) ? '' : incomingValue;
+        return additiveOnly ? meaningfulExisting || meaningfulIncoming : meaningfulIncoming || meaningfulExisting;
       };
       const realName = targeted ? clean(normalized.real_name) : preserveOrNormalize(current.real_name, normalized.real_name);
       const vehicle = targeted ? clean(normalized.vehicle_type) : preserveOrNormalize(current.vehicle_type, normalized.vehicle_type);

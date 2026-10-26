@@ -507,9 +507,11 @@ const downFrom = (text) => {
     .trim();
   if (!source || campaign) return '';
   if (noDownPaymentResponse.test(source)) return 'No down payment';
-  if (/\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b/i.test(source)) return cashDownPayment;
+  const cashEvidenceSource = source.replace(/(?:bank account|cuenta bancaria|cuenta de banco|cheque|check)[^.!?\n]*(?:[.!?]|$)/gi, '');
+  if (/\b(?:pay|pagar|pago|pagar[eé]|voy\s+a\s+pagar|purchase|buy|comprar|compra|hacer\s+la\s+compra|put|poner|down|enganche|inicial)[^.!?\n]{0,80}\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b/i.test(cashEvidenceSource)) return cashDownPayment;
   const token = `(${amountToken})`;
   const safeSource = source.split('\n').filter((line) => !isPhoneOnlyLine(line)).join('\n');
+  const informalAmount = safeSource.match(new RegExp(`(?:tanda|cantidad|lo m[aá]ximo|lo m[aá]s que tengo|maximum|maximo|m[aá]ximo)[^\\n]{0,60}?\\$?(${amountToken})`, 'i'))?.[1];
   const rangeMatch = safeSource.match(new RegExp(`\\$?(${amountToken})(?:\\s*(mil|thousand|k))?\\s*(?:a|to|[-–—])\\s*\\$?(${amountToken})(?:\\s*(mil|thousand|k))?`, 'i'));
   const shortUnitRange = safeSource.match(/\$?(\d{1,2})\s*(?:a|to|[-–—/])\s*(\d{1,2})\s*(mil|thousand|k)\b/i);
   if (shortUnitRange) {
@@ -529,11 +531,11 @@ const downFrom = (text) => {
   const withAmount = source.match(new RegExp(`\\b(?:puedo|puede|can|could|i can|i could)[ \\t]+(?:con|with)[ \\t]*\\$?[ \\t]*${token}\\b`, 'i'));
   const directCon = source.match(new RegExp(`(?:^|\\n)\\s*con[ \\t]+\\$?[ \\t]*${token}\\b`, 'i'));
   const declared = source.match(new RegExp(`\\b(?:i have|tengo|i can put|puedo poner)[ \\t]+\\$?[ \\t]*${token}[ \\t]*(?:down|payment|enganche|inicial)?\\b`, 'i'));
-  const spanishDeclared = source.match(new RegExp(`\\b(?:doy|dar[eé]?|pongo|poner|i(?:'|’)ll put|i put)[ \\t]+(?:down[ \\t]+)?(?:at least[ \\t]+|de[ \\t]+|para[ \\t]+)?\\$?[ \\t]*${token}\\b`, 'i'));
+  const spanishDeclared = source.match(new RegExp(`\\b(?:doy|dar(?:e|é|ia|ía)?|pongo|poner|i(?:'|’)ll put|i put)[ \\t]+(?:down[ \\t]+)?(?:los|las|el|la|unos|unas|un|una)?[ \\t]*(?:at least[ \\t]+|de[ \\t]+|para[ \\t]+)?\\$?[ \\t]*${token}\\b`, 'i'));
   const noisyDeclared = source.match(new RegExp(`\\b(?:cuento|cuenta)\\b[^\\n]{0,80}?(?:y|and|plus)[ \\t.,;:]*\\$?[ \\t]*${token}\\b`, 'i'));
   const standalone = safeSource.match(new RegExp(`(?:^|\\n)\\$?[ \\t]*${token}[ \\t]*\\$?[ \\t]*(?:(?:tengo|have|available|disponible|i have|i can put|m[aá]ximo|maximum)[ \\t]*\\d{0,2})?[ \\t]*\\.?[ \\t]*(?=\\n|$)`, 'im'));
   const candidate = standalone?.[1]?.replace(/[$,\s]/g, '') || '';
-  const value = explicit?.[1] || withAmount?.[1] || directCon?.[1] || declared?.[1] || spanishDeclared?.[1] || noisyDeclared?.[1] || standalone?.[1];
+  const value = explicit?.[1] || withAmount?.[1] || directCon?.[1] || declared?.[1] || spanishDeclared?.[1] || noisyDeclared?.[1] || informalAmount || standalone?.[1];
   if (value && isShortVehicleYear(value) && (vehicleBrands.test(source) || vehicleModels.test(source) || vehicleCategories.test(source))) return '';
   if (!explicit && !spanishDeclared && isVehicleYear(candidate)
     && (vehicleYearFrom(source) !== null || /^20(?:1\d|2[0-6])$/.test(candidate))) return '';
@@ -685,13 +687,37 @@ const vehicleYearFrom = (value) => {
   }
   return null;
 };
+const timelineMonths = {
+  january: ['january', 'enero', 'jan(?:uary)?'], february: ['february', 'febrero', 'feb(?:ruary)?'],
+  march: ['march', 'marzo', 'mar(?:ch)?'], april: ['april', 'abril', 'apr(?:il)?'],
+  may: ['may', 'mayo', 'may'], june: ['june', 'junio', 'jun(?:e)?'],
+  july: ['july', 'julio', 'jul(?:y)?'], august: ['august', 'agosto', 'aug(?:ust)?'],
+  september: ['september', 'septiembre', 'sep(?:t(?:ember|iembre)?|tiembre)|setiembre'],
+  october: ['october', 'octubre', 'oct(?:ober)?'], november: ['november', 'noviembre', 'nov(?:ember)?'],
+  december: ['december', 'diciembre', 'dec(?:ember)?'],
+};
+const timelineMonthKey = (value) => Object.entries(timelineMonths).find(([, [, spanish, pattern]]) => new RegExp(`\\b(?:${pattern}|${spanish})\\b`, 'i').test(value))?.[0] || '';
+const timelineDate = (value) => {
+  const spanish = String(value).match(/\b(0?[1-9]|[12]\d|3[01])\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/i);
+  if (spanish) return `${Number(spanish[1])} de ${spanish[2].replace(/^setiembre$/i, 'septiembre')}`;
+  const english = String(value).match(/\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+(0?[1-9]|[12]\d|3[01])(?:st|nd|rd|th)?\b/i);
+  if (english) return `${english[1].toLowerCase()} ${Number(english[2])}`;
+  const englishDayFirst = String(value).match(/\b(0?[1-9]|[12]\d|3[01])(?:st|nd|rd|th)?\s+(?:of\s+)?(january|february|march|april|may|june|july|august|september|october|november|december)\b/i);
+  return englishDayFirst ? `${englishDayFirst[2].toLowerCase()} ${Number(englishDayFirst[1])}` : '';
+};
 const timelineFrom = (text) => {
-  const hit = clean(text).match(/\b(?:today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes posible|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|within \d+ days?|en \d+ d[ií]as?)\b/i)?.[0] || '';
+  const dateText = clean(text).match(/\b(?:\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december))\b/i)?.[0] || '';
+  if (dateText) return timelineDate(dateText);
+  const hit = clean(text).match(/\b(?:today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes posible|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|end of next month|a (?:fines?|finales?) del otro mes|a (?:fines?|finales?) del pr[oó]ximo mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|within \d+ days?|en \d+ d[ií]as?|jan(?:uary)?|enero|feb(?:ruary)?|febrero|mar(?:ch)?|marzo|apr(?:il)?|abril|may|mayo|jun(?:e)?|junio|jul(?:y)?|julio|aug(?:ust)?|agosto|sep(?:t(?:ember|iembre)?|tiembre)|setiembre|septiembre|oct(?:ober)?|octubre|nov(?:ember)?|noviembre|dec(?:ember)?|diciembre)\b/i)?.[0] || '';
+  const date = timelineDate(hit);
+  if (date) return date;
   if (/today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes/i.test(hit)) return 'today';
   if (/this week|esta semana/i.test(hit)) return 'this week';
   if (/this month|este mes/i.test(hit)) return 'this month';
   if (/next week|pr[oó]xima? semana/i.test(hit)) return 'next week';
-  if (/next month|pr[oó]ximo mes/i.test(hit)) return 'next month';
+  if (/next month|pr[oó]ximo mes|end of next month|a (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes/i.test(hit)) return 'next month';
+  const month = timelineMonthKey(hit);
+  if (month) return month;
   return hit;
 };
 const yesNo = (value) => {
@@ -866,9 +892,12 @@ const downPaymentAmount = downPaymentRange
 const downPaymentSufficient = requiredDownPayment !== null && (tradeInDownPayment || down === cashDownPayment || down.toLocaleLowerCase().includes(cashDownPayment.toLocaleLowerCase()) || (downPaymentAmount !== null && downPaymentAmount >= requiredDownPayment));
 const rawTimeline = first(timelineFrom(message), timelineFrom(history), memoryValue(['timeline', 'purchase timeline', 'purchase_timeline']), inputData.purchase_timeline);
 const identification = documentStatus('id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b', ['identification', 'id', 'itin', 'passport', 'pasaporte'], inputData.identification || inputData.documents);
-const income = documentStatus('proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina|bank account|cuenta bancaria|cuenta de banco', ['income', 'proof of income', 'estados de cuenta', 'account statements', 'bank statements', 'check stubs', 'bank account', 'cuenta bancaria'], inputData.documents);
-const bankContext = conversationalEvidence(rawMessage, rawHistory).match(/(?:bank account|cuenta bancaria)[^;]*(?:yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available|no|not|sin|dont|don't|no tengo|i do not|do not have|not available)/i)?.[0] || '';
-const bankAccount = first(yesNo(inputData.bank_account), yesNo(bankContext), yesNo(memoryValue(['bank account', 'bank_account', 'cuenta bancaria'])));
+const income = documentStatus('proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina|bank account|cuenta bancaria|cuenta de banco', ['income', 'proof of income', 'estados de cuenta', 'account statements', 'bank statements', 'check stubs', 'bank account', 'cuenta bancaria', 'cuenta de banco'], inputData.documents);
+const bankEvidenceSource = conversationalEvidence(rawMessage, rawHistory);
+const bankAccountNegative = /\b(?:no|sin)\s+(?:tengo|have)\s+(?:una?\s+)?(?:bank account|cuenta bancaria|cuenta de banco)\b/i.test(bankEvidenceSource);
+const bankAccountPositive = /\b(?:yes|sí|si|yeah|yep|correct|tengo|i\s+(?:have|do(?:\s+have)?))\b[^;!?]{0,50}\b(?:a\s+|an\s+|una?\s+)?(?:bank account|cuenta bancaria|cuenta de banco)\b/i.test(bankEvidenceSource);
+const bankContext = bankAccountPositive ? 'yes' : bankEvidenceSource.match(/(?:bank account|cuenta bancaria|cuenta de banco)\s*(?:is|are|:|=)?\s*(yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available|no|not|sin|dont|don't|no tengo|i do not|do not have|not available)\b/i)?.[1] || (bankAccountNegative ? 'no' : '');
+const bankAccount = first(yesNo(inputData.bank_account), yesNo(bankContext), yesNo(memoryValue(['bank account', 'bank_account', 'cuenta bancaria', 'cuenta de banco'])));
 const documents = first(memoryValue(['documents', 'docs', 'documentos']), inputData.documents, [identification === 'yes' ? 'identification: yes' : '', income === 'yes' ? 'proof of income: yes' : ''].filter(Boolean).join(', '));
 const customPresent = [inputData.vehicle_type, inputData.down_payment, inputData.purchase_timeline, inputData.documents, inputData.identification, inputData.bank_account].some((value) => clean(value) && !emptyMarker(value));
 const qualificationSource = rawMemory && customPresent ? 'both' : rawMemory ? 'qualification_memory' : customPresent ? 'custom_fields' : 'none';
@@ -880,8 +909,9 @@ const languageText = `${message}; ${history}`;
 const englishSignals = (languageText.match(/\b(?:i|i'm|im|my|want|wants|need|looking|have|yes|yeah|yep|what|when|where|how|this|next|today|week|month|do|does)\b/gi) || []).length;
 const spanishSignals = (languageText.match(/\b(?:yo|mi|quiero|necesito|busco|tengo|sí|si|qué|cuando|donde|este|esta|hoy|semana|mes|tienes)\b/gi) || []).length;
 const language = message || history ? (englishSignals > spanishSignals ? 'en' : 'es') : 'en';
-const timeline = language === 'es'
-  ? ({ today: 'hoy', 'this week': 'esta semana', 'this month': 'este mes', 'next week': 'próxima semana', 'next month': 'próximo mes', 'within 30 days': 'en 30 días', 'exploring options': 'explorando opciones' }[rawTimeline] || rawTimeline)
+const englishCalendarMonth = Object.entries(timelineMonths).some(([key, [english]]) => rawTimeline === key && new RegExp(`\\b${english}\\b`, 'i').test(`${message}; ${history}`));
+const timeline = englishCalendarMonth ? rawTimeline : language === 'es'
+  ? ({ today: 'hoy', 'this week': 'esta semana', 'this month': 'este mes', 'next week': 'próxima semana', 'next month': 'próximo mes', 'within 30 days': 'en 30 días', 'exploring options': 'explorando opciones', january: 'enero', february: 'febrero', march: 'marzo', april: 'abril', may: 'mayo', june: 'junio', july: 'julio', august: 'agosto', september: 'septiembre', october: 'octubre', november: 'noviembre', december: 'diciembre' }[rawTimeline] || rawTimeline)
   : rawTimeline;
 const hasRealVehicle = Boolean(vehicle) && !isAdvisorHandoffVehicle(vehicle);
 const coreMissing = (sourceAware

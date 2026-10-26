@@ -349,9 +349,11 @@ function extractDownPayment(message: string): string {
     .trim();
   if (!source || isCampaignButton(source)) return EMPTY;
   if (NO_DOWN_PAYMENT_RESPONSE.test(source)) return 'No down payment';
-  if (/\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b/i.test(source)) return CASH_DOWN_PAYMENT;
+  const cashEvidenceSource = source.replace(/(?:bank account|cuenta bancaria|cuenta de banco|cheque|check)[^.!?\n]*(?:[.!?]|$)/gi, '');
+  if (/\b(?:pay|pagar|pago|pagar[eé]|voy\s+a\s+pagar|purchase|buy|comprar|compra|hacer\s+la\s+compra|put|poner|down|enganche|inicial)[^.!?\n]{0,80}\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b/i.test(cashEvidenceSource)) return CASH_DOWN_PAYMENT;
   const amountToken = '(?:\\d{1,3}(?:,\\d{3})+|\\d{1,2}\\s*(?:mil|thousand)|mil(?:\\s+quinientos)?|(?:un|one|a|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+(?:mil|thousand)(?:\\s+(?:quinientos|five hundred))?|\\d+(?:[,.]\\d+)?\\s*k?)(?:\\s*d[oó]lar(?:es|e)?)?';
   const safeSource = source.split('\n').filter((line) => !isPhoneOnlyLine(line)).join('\n');
+  const informalAmount = safeSource.match(new RegExp(`(?:tanda|cantidad|lo m[aá]ximo|lo m[aá]s que tengo|maximum|maximo|m[aá]ximo)[^\\n]{0,60}?\\$?(${amountToken})`, 'i'))?.[1];
   const rangeMatch = safeSource.match(new RegExp(`\\$?(${amountToken})(?:\\s*(mil|thousand|k))?\\s*(?:a|to|[-–—/])\\s*\\$?(${amountToken})(?:\\s*(mil|thousand|k))?`, 'i'));
   if (rangeMatch) {
     const start = `${rangeMatch[1]} ${rangeMatch[2] ?? EMPTY}`.trim();
@@ -365,11 +367,12 @@ function extractDownPayment(message: string): string {
   const amount = source.match(new RegExp(`(?:down|enganche|inicial|deposit|dep[oó]sito)[ \\t]*(?:payment|pago)?[ \\t]*(?:is|es|de|:)?[ \\t]*\\$?[ \\t]*(${amountToken})`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\$?[ \\t]*(${amountToken})[ \\t]*(?:(?:for|para|as|on|de|del)[ \\t]*(?:el|la|the)?[ \\t]*)?(?:down|enganche|inicial)`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\b(?:tengo|have|i have|i can put|puedo poner)[ \\t]+(?:down[ \\t]+)?(?:a[ \\t]+)?\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
-    ?? source.match(new RegExp(`\\b(?:doy|dar[eé]?|pongo|poner|i(?:'|’)ll put|i put)[ \\t]+(?:down[ \\t]+)?(?:at least[ \\t]+|de[ \\t]+|para[ \\t]+)?\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
+    ?? source.match(new RegExp(`\\b(?:doy|dar(?:e|é|ia|ía)?|pongo|poner|i(?:'|’)ll put|i put)[ \\t]+(?:down[ \\t]+)?(?:los|las|el|la|unos|unas|un|una)?[ \\t]*(?:at least[ \\t]+|de[ \\t]+|para[ \\t]+)?\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\b(?:cuento|cuenta)[ \\t.,;:]+con[ \\t.,;:]*\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\b(?:cuento|cuenta)\\b[^\\n]{0,80}?(?:y|and|plus)[ \\t.,;:]*\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\b(?:puedo|puede|can|could|i can|i could)[ \\t]+(?:con|with)[ \\t]+\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
     ?? source.match(new RegExp(`(?:^|\\n)\\s*con[ \\t]+\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
+    ?? informalAmount
     // A buyer may answer the minimum prompt with a short amount confirmation
     // such as "1.500 está perfecto". Require a line-leading amount and a
     // confirmation phrase so prices, years, and unrelated numbers do not leak
@@ -735,13 +738,16 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   ].filter(Boolean).join('; ');
   const docs = mergeDocuments(firstNonEmpty(memoryDocumentFacts, input.documents), [rawHistory, rawMessage].filter(Boolean).join('\n'));
   const identification = firstNonEmpty(docs.id, memoryValue(memory, ['identification', 'id']), input.identification);
-  const bankAccountEvidence = conversationalEvidence(rawHistory, rawMessage).match(
-    /(?:yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available)[^;!?]{0,160}(?:bank account|cuenta bancaria|cuenta de banco)|(?:bank account|cuenta bancaria|cuenta de banco)[^;!?]{0,160}(?:yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available|no|not|sin|dont|don't|no tengo|i do not|do not have|not available)/i,
-  )?.[0] ?? '';
+  const bankEvidenceSource = conversationalEvidence(rawHistory, rawMessage);
+  const bankAccountNegative = /\b(?:no|sin)\s+(?:tengo|have)\s+(?:una?\s+)?(?:bank account|cuenta bancaria|cuenta de banco)\b/i.test(bankEvidenceSource);
+  const bankAccountPositive = /\b(?:yes|sí|si|yeah|yep|correct|tengo|i\s+(?:have|do(?:\s+have)?))\b[^;!?]{0,50}\b(?:a\s+|an\s+|una?\s+)?(?:bank account|cuenta bancaria|cuenta de banco)\b/i.test(bankEvidenceSource);
+  const bankAccountEvidence = bankAccountPositive ? 'yes' : bankEvidenceSource.match(
+    /(?:bank account|cuenta bancaria|cuenta de banco)\s*(?:is|are|:|=)?\s*(yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available|no|not|sin|dont|don't|no tengo|i do not|do not have|not available)\b/i,
+  )?.[1] ?? (bankAccountNegative ? 'no' : '');
   const bankAccountRaw = firstNonEmpty(
     input.bank_account,
     bankAccountEvidence,
-    memoryValue(memory, ['bank account', 'bank_account']),
+    memoryValue(memory, ['bank account', 'bank_account', 'cuenta bancaria', 'cuenta de banco']),
   );
   const bankAccount = yesNo(bankAccountRaw);
   const mergedMemory = mergeMemory(memory, {

@@ -85,6 +85,7 @@ export class GhlGuardService {
       // stale before attempting the global lease, so a scheduler cycle that
       // observes a busy global lease still cleans up abandoned work.
       await this.persistence.recoverStaleLogs(now);
+      await this.persistence.recoverStaleQueuedReplayClaims(now);
       lockRunner = this.dataSource.createQueryRunner();
       await lockRunner.connect();
       const leaseRows = await lockRunner.query(
@@ -115,6 +116,7 @@ export class GhlGuardService {
       // same warm instance.
       this.lastRunAt = now.getTime();
       await this.persistence.recoverStaleLogs(now);
+      await this.persistence.recoverStaleQueuedReplayClaims(now);
       const rows = await lockRunner.query(
         targeted
           ? `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status
