@@ -68,6 +68,7 @@ describe('ConversationReconciliationFunctions', () => {
       expect.any(Date),
       'capture',
       expect.anything(),
+      0,
     );
     expect(conversationUpdate?.[1]?.[1]).toBe('waiting_window');
     expect(conversationUpdate?.[1]?.[4]).toBe('2026-10-24T14:34:35.000Z');

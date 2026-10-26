@@ -236,8 +236,17 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
 
   // Compatibility facades keep focused unit tests and diagnostic callers stable
   // while the implementations live in dedicated modules.
-  statusForConversation(...args: [ConversationSnapshot, LocationSnapshot, DealerRow, SourceKey, Date, 'capture' | 'due', string?]) {
-    return this.qualification.statusForConversation(...args);
+  statusForConversation(
+    snapshot: ConversationSnapshot,
+    location: LocationSnapshot,
+    dealer: DealerRow,
+    source: SourceKey,
+    now: Date,
+    phase: 'capture' | 'due',
+    readyAt?: string | null,
+    waitingWindowAttempts?: number | string | null,
+  ) {
+    return this.qualification.statusForConversation(snapshot, location, dealer, source, now, phase, readyAt, waitingWindowAttempts);
   }
 
   async findSourceDealer(runner: QueryRunner, locationId: string, source?: SourceKey, language?: CollectorLanguage, assignedDealerId?: string) {

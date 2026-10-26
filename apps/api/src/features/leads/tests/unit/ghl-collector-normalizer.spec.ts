@@ -1066,6 +1066,19 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.down_payment).toBe('');
   });
 
+  it('extracts an amount-leading voice transcription as the down payment in Custom Code', () => {
+    const result = execute({
+      source: 'easterns',
+      channel: 'messenger',
+      phone: '+14435317327',
+      vehicle_type: 'truck',
+      message: '5,000 x ahora podemos ablar de mas si me ayudan con un buen pago de mes',
+      chat_history_log: '5,000 x ahora podemos ablar de mas si me ayudan con un buen pago de mes',
+    });
+
+    expect(result.down_payment).toBe('5000');
+  });
+
   it('ignores a stale area-code-only down field but keeps an explicit down amount in Custom Code', () => {
     expect(execute({ phone: '+14438626592', vehicle_type: 'SUV', message: 'A small SUV', down_payment: '443' }).down_payment).toBe('');
     expect(execute({ phone: '+14438626592', message: 'I have 443 down' }).down_payment).toBe('');

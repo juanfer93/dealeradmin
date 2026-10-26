@@ -12,6 +12,8 @@ import {
   OUT_OF_WINDOW_QUALIFICATION_WINDOW_HOURS,
   QUALIFICATION_RULE_TIMEZONE,
   STALE_PHONE_REENTRY_DAYS,
+  WAITING_WINDOW_MAX_ATTEMPTS,
+  WAITING_WINDOW_RETRY_INTERVAL_MS,
 } from './conversation-webhook.config';
 import { plusHours, safePhone, withinDispatchWindow } from './conversation-webhook.helpers';
 import { UnresolvedLocationException } from './conversation-webhook.errors';
@@ -325,6 +327,7 @@ export class ConversationQualificationFunctions {
     now: Date,
     phase: 'capture' | 'due',
     readyAt?: string | null,
+    waitingWindowAttempts?: number | string | null,
   ): { status: 'partial' | 'ready' | 'waiting_window'; nextAttemptAt: string | null } {
     const isEasterns = source === 'easterns' && dealer.routing_config?.group === 'Easterns';
     const hasLocation = Boolean(location.city || location.state || location.easterns_zone || location.zip_code);
@@ -334,6 +337,26 @@ export class ConversationQualificationFunctions {
     if (!routingReady) return { status: 'partial', nextAttemptAt: null };
     if (phase === 'capture') {
       return { status: 'waiting_window', nextAttemptAt: new Date(now.getTime() + CONVERSATION_STABILIZATION_MS).toISOString() };
+    }
+    // A routing-ready lead must still receive every reconciliation cycle. The
+    // snapshot's qualification_complete flag means the lead can be routed;
+    // it must not bypass the five-cycle recovery window. The due workflow
+    // passes the current cycle count here so recovered/old conversations also
+    // re-enter waiting_window instead of jumping straight to queued.
+    if (waitingWindowAttempts !== undefined
+      && waitingWindowAttempts !== null
+      && Number(waitingWindowAttempts) < WAITING_WINDOW_MAX_ATTEMPTS) {
+      const retryDelayHours = withinDispatchWindow(QUALIFICATION_RULE_TIMEZONE, now)
+        ? INCOMPLETE_QUALIFICATION_WINDOW_HOURS
+        : OUT_OF_WINDOW_QUALIFICATION_WINDOW_HOURS;
+      const windowStart = readyAt ? new Date(readyAt) : now;
+      const windowDueAt = Number.isNaN(windowStart.getTime()) ? plusHours(now, retryDelayHours) : plusHours(windowStart, retryDelayHours);
+      return {
+        status: 'waiting_window',
+        nextAttemptAt: windowDueAt > now
+          ? windowDueAt.toISOString()
+          : new Date(now.getTime() + WAITING_WINDOW_RETRY_INTERVAL_MS).toISOString(),
+      };
     }
     if (isEasterns && !hasLocation) return { status: 'partial', nextAttemptAt: null };
     if (snapshot.qualification_complete) return { status: 'ready', nextAttemptAt: null };

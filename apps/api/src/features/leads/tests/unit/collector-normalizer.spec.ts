@@ -1804,6 +1804,19 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message: 'Para ya' }).purchase_timeline).toBe('hoy');
   });
 
+  it('extracts an amount-leading voice transcription as the down payment', () => {
+    const result = normalizeCollectorInput({
+      source: 'easterns',
+      channel: 'messenger',
+      phone: '+14435317327',
+      vehicle_type: 'truck',
+      message: '5,000 x ahora podemos ablar de mas si me ayudan con un buen pago de mes',
+      chat_history_log: '5,000 x ahora podemos ablar de mas si me ayudan con un buen pago de mes',
+    });
+
+    expect(result.down_payment).toBe('5000');
+  });
+
   it('keeps a standalone amount when a later inbound reply also contains its timeline', () => {
     const result = normalizeCollectorInput({
       message: '2000\nesta semana',

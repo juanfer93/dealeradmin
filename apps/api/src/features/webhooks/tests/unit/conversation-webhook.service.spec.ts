@@ -30,12 +30,13 @@ describe('ConversationWebhookService', () => {
     now: Date,
     phase: 'capture' | 'due',
     readyAt?: string,
+    waitingWindowAttempts?: number,
   ) {
     const service = new ConversationWebhookService();
     const testSnapshot = { real_name: 'QA Customer', ...snapshot };
     return (service as unknown as {
       statusForConversation: (...args: unknown[]) => { status: string; nextAttemptAt: string | null };
-    }).statusForConversation(testSnapshot, location, dealer, source, now, phase, readyAt);
+    }).statusForConversation(testSnapshot, location, dealer, source, now, phase, readyAt, waitingWindowAttempts);
   }
 
   const completeSnapshot = { phone: '+13015550123', vehicle_type: 'SUV', qualification_complete: true };
@@ -1069,6 +1070,13 @@ describe('ConversationWebhookService', () => {
     const result = evaluateStatus(completeSnapshot, easternsLocation, easternsDealer, 'easterns', now, 'due', '2026-09-11T14:00:00.000Z');
 
     expect(result).toEqual({ status: 'ready', nextAttemptAt: null });
+  });
+
+  it('keeps a routing-ready lead in waiting_window while recovery cycles remain', () => {
+    const now = new Date('2026-09-11T14:00:00.000Z');
+    const result = evaluateStatus(completeSnapshot, easternsLocation, easternsDealer, 'easterns', now, 'due', '2026-09-11T14:00:00.000Z', 0);
+
+    expect(result).toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:30:00.000Z' });
   });
 
   it('keeps incomplete conversations until the dealer-local qualification window expires', () => {

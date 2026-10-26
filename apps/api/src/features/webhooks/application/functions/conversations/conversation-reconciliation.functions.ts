@@ -279,7 +279,7 @@ export class ConversationReconciliationFunctions {
         ? { status: row.status as 'queued' | 'duplicate_ignored', nextAttemptAt: null }
         : waitingWindowGrace
         ? { status: 'waiting_window' as const, nextAttemptAt: row.next_attempt_at || new Date(now.getTime() + WAITING_WINDOW_RETRY_INTERVAL_MS).toISOString() }
-        : this.qualification.statusForConversation(snapshot, location, dealer, source, now, phase, row.ready_at || row.last_message_at);
+        : this.qualification.statusForConversation(snapshot, location, dealer, source, now, phase, row.ready_at || row.last_message_at, row.waiting_window_attempts);
       const currentWaitingWindowAttempts = Number(row.waiting_window_attempts ?? 0);
       const shouldCountWaitingWindowAttempt = countWaitingWindowAttempt
         && row.status === 'waiting_window'

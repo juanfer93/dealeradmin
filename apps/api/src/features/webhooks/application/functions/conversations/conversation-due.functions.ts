@@ -270,7 +270,7 @@ export class ConversationDueFunctions {
       // is the durable handoff that lets the downstream workflow continue.
       const terminalWaitingWindowCycle = nextWaitingWindowAttempts >= WAITING_WINDOW_MAX_ATTEMPTS;
       const dealer = await this.qualification.findSourceDealer(runner, row.ghl_location_id, source, row.qualification_snapshot.language, clean(row.qualification_snapshot.assigned_dealer_id) || undefined);
-      const status = this.qualification.statusForConversation(row.qualification_snapshot, row.location_snapshot, dealer, source, now, 'due', row.ready_at);
+      const status = this.qualification.statusForConversation(row.qualification_snapshot, row.location_snapshot, dealer, source, now, 'due', row.ready_at, nextWaitingWindowAttempts);
       if (status.status !== 'ready' && !terminalWaitingWindowCycle) {
         await runner.query(
           `UPDATE conversations SET status = $2, next_attempt_at = $3,
