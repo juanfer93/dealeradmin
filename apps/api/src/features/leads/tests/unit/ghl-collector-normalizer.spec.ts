@@ -1627,6 +1627,19 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(execute({ message }).down_payment).toBe(expected);
   });
 
+  it('does not turn a grouped phone line into a down-payment range in Custom Code', () => {
+    const result = execute({
+      source: 'action-cars',
+      channel: 'messenger',
+      vehicle_type: 'Mercedes S550',
+      message: 'At least 2,000',
+      chat_history_log: ['Mercedes S550', '301 455 455-4350', 'At least 2,000'].join('\n'),
+    });
+
+    expect(result.down_payment).toBe('2000');
+    expect(result.down_payment).not.toBe('455 - 4350');
+  });
+
   it.each(['2018', '2019', '2025'])('does not classify a standalone vehicle year as down payment in Custom Code: %s', (message) => {
     expect(execute({ message }).down_payment).toBe('');
   });
@@ -1699,6 +1712,10 @@ describe('HighLevel collector custom-code normalizer', () => {
     ['1 (704) 699-0761', '+17046990761'],
   ])('normalizes phone formatting %s from the conversation', (phone, expected) => {
     expect(execute({ message: `Es ${phone}` }).phone).toBe(expected);
+  });
+
+  it('repairs a duplicated exchange in a grouped phone transcription in Custom Code', () => {
+    expect(execute({ message: '301 455 455-4350' }).phone).toBe('+13014554350');
   });
 
   it('captures a standalone full-name answer without treating a vehicle request as a name', () => {

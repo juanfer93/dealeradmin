@@ -13,6 +13,8 @@ const EXPLICIT_PHONE_LABEL_PATTERN = /(?:phone(?:\s*(?:number|#))?|mobile(?:\s*(
 
 export function extractPhone(value: string | null | undefined): string {
   const source = clean(value);
+  const repeatedExchange = source.match(/(?<!\d)([2-9]\d{2})[\s.-]+(\d{3})[\s.-]+\2[\s.-]+(\d{4})(?!\d)/);
+  if (repeatedExchange) return `+1${repeatedExchange[1]}${repeatedExchange[2]}${repeatedExchange[3]}`;
   const direct = /^\+?[\d\s().,-]+$/.test(source)
     && (source.replace(/\D/g, '').length === 10 || (source.replace(/\D/g, '').length === 11 && source.replace(/\D/g, '').startsWith('1')))
     ? source
@@ -58,7 +60,17 @@ export function extractRecentMessagePhone(
 export function isPhoneOnlyLine(value: string): boolean {
   const source = clean(value);
   const digits = source.replace(/\D/g, '');
-  return (digits.length === 10 || (digits.length === 11 && digits.startsWith('1')))
+  const numericGroups = source.match(/\d+/g)?.length ?? 0;
+  const isCanonicalPhoneLength = digits.length === 10 || (digits.length === 11 && digits.startsWith('1'));
+  // GHL can prepend or duplicate a spoken area-code fragment, producing a
+  // grouped phone line longer than 10/11 digits (for example
+  // `301 455 455-4350`). Do not let the hyphen in that phone be interpreted
+  // as a down-payment range. Comma-separated values remain eligible for
+  // monetary ranges such as `10,000 - 12,000`.
+  const isGroupedPhone = digits.length >= 10 && digits.length <= 15
+    && numericGroups >= 3
+    && !/,/.test(source);
+  return (isCanonicalPhoneLength || isGroupedPhone)
     && !/[a-záéíóúüñ]/i.test(source);
 }
 

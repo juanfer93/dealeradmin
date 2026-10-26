@@ -24,6 +24,8 @@ const normalizeMatch = (value) => clean(value).normalize('NFD').replace(/[\u0300
 const nonVehicleIntentValues = /^(?:(?:(?:quiero|necesito|me gustar[ií]a|me interesa)\s+)?(?:m[aá]s\s+)?(?:informaci[oó]n|info|detalles?|details?|information)|more\s+(?:information|info|details?)|learn\s+more)$/i;
 const normalizePhone = (value) => {
   const source = String(value ?? '').trim();
+  const repeatedExchange = source.match(/(?<!\d)([2-9]\d{2})[\s.-]+(\d{3})[\s.-]+\2[\s.-]+(\d{4})(?!\d)/);
+  if (repeatedExchange) return `+1${repeatedExchange[1]}${repeatedExchange[2]}${repeatedExchange[3]}`;
   // A phone field may contain formatting, but a free-form message must not
   // be treated as a phone just because its prices/mileage add up to 10 digits.
   if (!/^\+?[\d\s().,-]+$/.test(source)) return '';
@@ -50,7 +52,17 @@ const phoneFrom = (...values) => {
 const isPhoneOnlyLine = (value) => {
   const source = clean(value);
   const digits = source.replace(/\D/g, '');
-  return (digits.length === 10 || (digits.length === 11 && digits.startsWith('1')))
+  const numericGroups = source.match(/\d+/g)?.length ?? 0;
+  const isCanonicalPhoneLength = digits.length === 10 || (digits.length === 11 && digits.startsWith('1'));
+  // GHL can prepend or duplicate a spoken area-code fragment, producing a
+  // grouped phone line longer than 10/11 digits (for example
+  // `301 455 455-4350`). Do not let the hyphen in that phone be interpreted
+  // as a down-payment range. Comma-separated values remain eligible for
+  // monetary ranges such as `10,000 - 12,000`.
+  const isGroupedPhone = digits.length >= 10 && digits.length <= 15
+    && numericGroups >= 3
+    && !/,/.test(source);
+  return (isCanonicalPhoneLength || isGroupedPhone)
     && !/[a-záéíóúüñ]/i.test(source);
 };
 const isPhoneAreaCodeAmount = (value, phone) => {
@@ -528,6 +540,7 @@ const downFrom = (text) => {
     if (normalizedRange) return normalizedRange;
   }
   const explicit = source.match(new RegExp(`(?:down|enganche|inicial|deposit|dep[oó]sito)[ \\t]*(?:payment|pago)?[ \\t]*(?:is|es|de|:)?[ \\t]*\\$?[ \\t]*${token}`, 'i'));
+  const atLeast = source.match(new RegExp(`\\b(?:at least|minimum of)\\s+\\$?[ \\t]*${token}\\b`, 'i'))?.[1];
   const withAmount = source.match(new RegExp(`\\b(?:puedo|puede|can|could|i can|i could)[ \\t]+(?:con|with)[ \\t]*\\$?[ \\t]*${token}\\b`, 'i'));
   const directCon = source.match(new RegExp(`(?:^|\\n)\\s*con[ \\t]+\\$?[ \\t]*${token}\\b`, 'i'));
   const declared = source.match(new RegExp(`\\b(?:i have|tengo|i can put|puedo poner)[ \\t]+\\$?[ \\t]*${token}[ \\t]*(?:down|payment|enganche|inicial)?\\b`, 'i'));
@@ -535,7 +548,7 @@ const downFrom = (text) => {
   const noisyDeclared = source.match(new RegExp(`\\b(?:cuento|cuenta)\\b[^\\n]{0,80}?(?:y|and|plus)[ \\t.,;:]*\\$?[ \\t]*${token}\\b`, 'i'));
   const standalone = safeSource.match(new RegExp(`(?:^|\\n)\\$?[ \\t]*${token}[ \\t]*\\$?[ \\t]*(?:(?:tengo|have|available|disponible|i have|i can put|m[aá]ximo|maximum)[ \\t]*\\d{0,2})?[ \\t]*\\.?[ \\t]*(?=\\n|$)`, 'im'));
   const candidate = standalone?.[1]?.replace(/[$,\s]/g, '') || '';
-  const value = explicit?.[1] || withAmount?.[1] || directCon?.[1] || declared?.[1] || spanishDeclared?.[1] || noisyDeclared?.[1] || informalAmount || standalone?.[1];
+  const value = explicit?.[1] || atLeast || withAmount?.[1] || directCon?.[1] || declared?.[1] || spanishDeclared?.[1] || noisyDeclared?.[1] || informalAmount || standalone?.[1];
   if (value && isShortVehicleYear(value) && (vehicleBrands.test(source) || vehicleModels.test(source) || vehicleCategories.test(source))) return '';
   if (!explicit && !spanishDeclared && isVehicleYear(candidate)
     && (vehicleYearFrom(source) !== null || /^20(?:1\d|2[0-6])$/.test(candidate))) return '';

@@ -693,6 +693,10 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message: 'Ok', phone }).phone).toBe(expected);
   });
 
+  it('repairs a duplicated exchange in a grouped phone transcription', () => {
+    expect(normalizeCollectorInput({ message: '301 455 455-4350' }).phone).toBe('+13014554350');
+  });
+
   it('normalizes dollar, plain-number, and k down-payment formats', () => {
     expect(normalizeCollectorInput({ message: 'I can put 1K down' }).down_payment).toBe('1000');
     expect(normalizeCollectorInput({ message: 'down payment is $1,000' }).down_payment).toBe('1000');
@@ -708,6 +712,19 @@ describe('normalizeCollectorInput', () => {
     ['Yo puedo dar un enganche de 2 a 3 de enganche', '2000 - 3000'],
   ])('normalizes down-payment range %s as %s', (message, expected) => {
     expect(normalizeCollectorInput({ message, chat_history_log: message }).down_payment).toBe(expected);
+  });
+
+  it('does not turn a grouped phone line into a down-payment range', () => {
+    const result = normalizeCollectorInput({
+      source: 'action-cars',
+      channel: 'messenger',
+      vehicle_type: 'Mercedes S550',
+      message: 'At least 2,000',
+      chat_history_log: ['Mercedes S550', '301 455 455-4350', 'At least 2,000'].join('\n'),
+    });
+
+    expect(result.down_payment).toBe('2000');
+    expect(result.down_payment).not.toBe('455 - 4350');
   });
 
   it('keeps a vehicle year out of down payment when GHL supplies it in the vehicle field', () => {
