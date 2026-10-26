@@ -10,6 +10,9 @@ export const DUE_CONVERSATION_POLL_MS = 30_000;
 export const DUE_CONVERSATION_BATCH_SIZE = 5;
 export const ACTIVE_RECONCILIATION_BATCH_SIZE = 25;
 export const STALE_PHONE_REENTRY_DAYS = 3;
+// Historical rows remain queryable and can be repaired explicitly, but
+// unattended automation must only advance recent conversations.
+export const RECENT_AUTOMATION_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export const GHL_SOURCE_CONFIG: SourceConfigMap = {
   stafford: { locationId: 'LiaoSID3nvAhad49ZpNJ', defaultChannel: 'whatsapp', supportedChannels: ['whatsapp', 'messenger'] },

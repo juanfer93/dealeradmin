@@ -4,7 +4,7 @@ import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-d
 import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
 import { ConversationQualificationFunctions } from './conversation-qualification.functions';
 import { ConversationReconciliationFunctions } from './conversation-reconciliation.functions';
-import { DUE_CONVERSATION_BATCH_SIZE, GHL_SOURCE_CONFIG, WAITING_WINDOW_MAX_ATTEMPTS, WAITING_WINDOW_RETRY_INTERVAL_MS } from './conversation-webhook.config';
+import { DUE_CONVERSATION_BATCH_SIZE, GHL_SOURCE_CONFIG, RECENT_AUTOMATION_WINDOW_MS, WAITING_WINDOW_MAX_ATTEMPTS, WAITING_WINDOW_RETRY_INTERVAL_MS } from './conversation-webhook.config';
 import { clean } from './conversation-webhook.helpers';
 import type { ConversationSnapshot, LocationSnapshot, DueConversationHealth, DueConversationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
 import type { GhlGuardRunResult, GhlGuardService } from '../../ghl-guard.service';
@@ -23,7 +23,7 @@ export class ConversationDueFunctions {
     private readonly guard?: GhlGuardService,
   ) {}
 
-  async getDueConversationHealth(): Promise<DueConversationHealth> {
+  async getDueConversationHealth(options: { recentOnly?: boolean; now?: Date } = {}): Promise<DueConversationHealth> {
     if (!this.dataSource) {
       if (process.env.NODE_ENV === 'test') {
         return {
@@ -39,23 +39,33 @@ export class ConversationDueFunctions {
       throw new ServiceUnavailableException('Database connection is not available');
     }
 
+    const recentOnly = options.recentOnly === true;
+    const recentCutoff = new Date((options.now ?? new Date()).getTime() - RECENT_AUTOMATION_WINDOW_MS).toISOString();
+    const recentPredicate = recentOnly
+      ? ` AND COALESCE(last_message_at, ready_at, waiting_window_started_at, created_at) >= $1::timestamptz`
+      : '';
+    const recentParams = recentOnly ? [recentCutoff] : [];
     const summary = await this.dataSource.query(
       `SELECT CURRENT_TIMESTAMP AS checked_at,
-              COUNT(*) FILTER (WHERE status = 'waiting_window')::int AS waiting_window_count,
+              COUNT(*) FILTER (WHERE status = 'waiting_window'${recentPredicate})::int AS waiting_window_count,
               COUNT(*) FILTER (
                 WHERE status = 'waiting_window'
                   AND next_attempt_at IS NOT NULL
                   AND next_attempt_at <= CURRENT_TIMESTAMP
+                  ${recentOnly ? 'AND COALESCE(last_message_at, ready_at, waiting_window_started_at, created_at) >= $1::timestamptz' : ''}
               )::int AS overdue_count,
               COUNT(*) FILTER (
                 WHERE status = 'waiting_window' AND next_attempt_at IS NULL
+                  ${recentOnly ? 'AND COALESCE(last_message_at, ready_at, waiting_window_started_at, created_at) >= $1::timestamptz' : ''}
               )::int AS missing_next_attempt_count,
               MIN(next_attempt_at) FILTER (
                 WHERE status = 'waiting_window'
                   AND next_attempt_at IS NOT NULL
                   AND next_attempt_at <= CURRENT_TIMESTAMP
+                  ${recentOnly ? 'AND COALESCE(last_message_at, ready_at, waiting_window_started_at, created_at) >= $1::timestamptz' : ''}
               ) AS oldest_due_at
        FROM conversations`,
+      recentParams,
     ) as Array<{
       checked_at: string | Date;
       waiting_window_count: number | string;
@@ -69,9 +79,10 @@ export class ConversationDueFunctions {
        WHERE status = 'waiting_window'
          AND next_attempt_at IS NOT NULL
          AND next_attempt_at <= CURRENT_TIMESTAMP
+         ${recentOnly ? 'AND COALESCE(last_message_at, ready_at, waiting_window_started_at, created_at) >= $1::timestamptz' : ''}
        ORDER BY next_attempt_at ASC
-       LIMIT $1`,
-      [DUE_CONVERSATION_BATCH_SIZE],
+       LIMIT ${recentOnly ? '$2' : '$1'}`,
+      recentOnly ? [recentCutoff, DUE_CONVERSATION_BATCH_SIZE] : [DUE_CONVERSATION_BATCH_SIZE],
     ) as Array<{
       id: string;
       ghl_contact_id: string;
@@ -96,12 +107,16 @@ export class ConversationDueFunctions {
     };
   }
 
-  async processDueConversations(now: Date, options: { reconcileActive?: boolean; runGuard?: boolean; guardContactIds?: string[]; forceGuard?: boolean; dueContactIds?: string[] } = {}): Promise<DueConversationResponse> {
+  async processDueConversations(now: Date, options: { reconcileActive?: boolean; runGuard?: boolean; guardContactIds?: string[]; forceGuard?: boolean; dueContactIds?: string[]; recentOnly?: boolean } = {}): Promise<DueConversationResponse> {
     if (!this.dataSource) {
       if (process.env.NODE_ENV === 'test') return { accepted: true, processed: 0, advanced: 0, skipped: 0, remainingDue: 0 };
       throw new ServiceUnavailableException('Database connection is not available');
     }
     const dueContactIds = [...new Set((options.dueContactIds ?? []).map((value) => value.trim()).filter(Boolean))];
+    // Explicit contact repairs may handle historical incidents. Unattended
+    // watchdog batches are limited to conversations with recent activity.
+    const recentOnly = options.recentOnly === true && dueContactIds.length === 0;
+    const recentCutoff = new Date(now.getTime() - RECENT_AUTOMATION_WINDOW_MS).toISOString();
     if (dueContactIds.length > 0) {
       await this.dataSource.query(
         `UPDATE conversations SET next_attempt_at = $1::timestamptz, updated_at = CURRENT_TIMESTAMP,
@@ -115,8 +130,9 @@ export class ConversationDueFunctions {
         `UPDATE conversations SET next_attempt_at = $1::timestamptz, updated_at = CURRENT_TIMESTAMP,
              waiting_window_attempts = GREATEST(waiting_window_attempts, 0),
              waiting_window_started_at = COALESCE(waiting_window_started_at, $1::timestamptz)
-         WHERE status = 'waiting_window' AND next_attempt_at IS NULL`,
-        [now.toISOString()],
+         WHERE status = 'waiting_window' AND next_attempt_at IS NULL
+           ${recentOnly ? 'AND COALESCE(last_message_at, ready_at, waiting_window_started_at, created_at) >= $2::timestamptz' : ''}`,
+        recentOnly ? [now.toISOString(), recentCutoff] : [now.toISOString()],
       );
     }
     const due = dueContactIds.length > 0
@@ -130,8 +146,9 @@ export class ConversationDueFunctions {
       : await this.dataSource.query(
         `SELECT c.id FROM conversations c
          WHERE c.status = 'waiting_window' AND c.next_attempt_at IS NOT NULL AND c.next_attempt_at <= $1
+           ${recentOnly ? 'AND COALESCE(c.last_message_at, c.ready_at, c.waiting_window_started_at, c.created_at) >= $3::timestamptz' : ''}
          ORDER BY c.next_attempt_at ASC LIMIT $2`,
-        [now.toISOString(), DUE_CONVERSATION_BATCH_SIZE],
+        recentOnly ? [now.toISOString(), DUE_CONVERSATION_BATCH_SIZE, recentCutoff] : [now.toISOString(), DUE_CONVERSATION_BATCH_SIZE],
       ) as Array<{ id: string }>;
     let processed = 0;
     let advanced = 0;
@@ -159,8 +176,9 @@ export class ConversationDueFunctions {
         ) as Array<{ count: number | string }>
         : await this.dataSource.query(
           `SELECT COUNT(*)::int AS count FROM conversations
-           WHERE status = 'waiting_window' AND next_attempt_at IS NOT NULL AND next_attempt_at <= $1`,
-          [now.toISOString()],
+           WHERE status = 'waiting_window' AND next_attempt_at IS NOT NULL AND next_attempt_at <= $1
+             ${recentOnly ? 'AND COALESCE(last_message_at, ready_at, waiting_window_started_at, created_at) >= $2::timestamptz' : ''}`,
+          recentOnly ? [now.toISOString(), recentCutoff] : [now.toISOString()],
         ) as Array<{ count: number | string }>;
       remainingDue = Number(remainingRows?.[0]?.count ?? 0);
     }
@@ -171,7 +189,11 @@ export class ConversationDueFunctions {
       try {
         // Reconciliation can take longer than the caller's initial timestamp.
         // The guard must lease from the real execution time, not that stale timestamp.
-        guardResult = await this.guard?.run(new Date(), { contactIds: options.guardContactIds, force: options.forceGuard === true });
+        guardResult = await this.guard?.run(new Date(), {
+          contactIds: options.guardContactIds,
+          force: options.forceGuard === true,
+          ...(recentOnly ? { recentOnly: true } : {}),
+        });
       } catch (error) {
         // The GHL guard is a repair/audit layer; it must never block due releases.
         guardError = error instanceof Error ? error.name : 'GHL_GUARD_RUN_FAILED';

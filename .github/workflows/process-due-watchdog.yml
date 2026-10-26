@@ -38,7 +38,7 @@ jobs:
           fi
 
           test -n "$CRON_SECRET"
-          health_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/due-health"
+          health_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/due-health?recent_only=true"
           if ! health_response="$(curl --fail-with-body --silent --show-error \
             --connect-timeout 10 --max-time 30 \
             --header "Authorization: Bearer $CRON_SECRET" \

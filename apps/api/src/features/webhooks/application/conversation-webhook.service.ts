@@ -195,15 +195,15 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     }
   }
 
-  async processDueConversations(now = currentLocalNow(), options: { reconcileActive?: boolean; runGuard?: boolean; guardContactIds?: string[]; forceGuard?: boolean; dueContactIds?: string[] } = {}): Promise<DueConversationResponse> {
+  async processDueConversations(now = currentLocalNow(), options: { reconcileActive?: boolean; runGuard?: boolean; guardContactIds?: string[]; forceGuard?: boolean; dueContactIds?: string[]; recentOnly?: boolean } = {}): Promise<DueConversationResponse> {
     return this.dueFunctions.processDueConversations(now, options);
   }
 
-  async getDueConversationHealth(): Promise<DueConversationHealth> {
-    return this.dueFunctions.getDueConversationHealth();
+  async getDueConversationHealth(options: { recentOnly?: boolean; now?: Date } = {}): Promise<DueConversationHealth> {
+    return this.dueFunctions.getDueConversationHealth(options);
   }
 
-  async runGhlGuard(now = currentLocalNow(), options: { contactIds?: string[]; force?: boolean; queuedOnly?: boolean } = {}) {
+  async runGhlGuard(now = currentLocalNow(), options: { contactIds?: string[]; force?: boolean; queuedOnly?: boolean; recentOnly?: boolean } = {}) {
     return this.guard.run(now, options);
   }
 
@@ -226,7 +226,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       // skip later due windows until that unrelated work finishes. The
       // scheduled workflow owns reconciliation and the separate queued backup
       // pass, so this poll only advances the durable waiting-window clock.
-      await this.processDueConversations(undefined, { reconcileActive: false, runGuard: false });
+      await this.processDueConversations(undefined, { reconcileActive: false, runGuard: false, recentOnly: true });
     } catch {
       // Polling is best effort; the next cycle retries the pending work.
     } finally {

@@ -99,6 +99,7 @@ export class WebhooksController {
       runGuard: true,
       forceGuard: guardContactIds.length > 0,
       guardContactIds,
+      recentOnly: true,
     });
   }
 
@@ -109,19 +110,20 @@ export class WebhooksController {
       reconcileActive: false,
       runGuard: false,
       dueContactIds: this.queryContactIds(request),
+      recentOnly: true,
     });
   }
 
   @Get('ghl/conversations/due-health')
   @UseGuards(HmacSignatureGuard)
-  async dueConversationHealth() {
-    return this.conversationWebhookService.getDueConversationHealth();
+  async dueConversationHealth(@Req() request: Request) {
+    return this.conversationWebhookService.getDueConversationHealth({ recentOnly: request.query.recent_only === 'true' });
   }
 
   @Get('ghl/conversations/watchdog')
   @UseGuards(HmacSignatureGuard)
   async dueConversationWatchdog() {
-    const healthBefore = await this.conversationWebhookService.getDueConversationHealth();
+    const healthBefore = await this.conversationWebhookService.getDueConversationHealth({ recentOnly: true });
     const needsRelease = healthBefore.overdueCount > 0 || healthBefore.missingNextAttemptCount > 0;
     if (!needsRelease) {
       return {
@@ -137,8 +139,9 @@ export class WebhooksController {
     const release = await this.conversationWebhookService.processDueConversations(undefined, {
       reconcileActive: false,
       runGuard: false,
+      recentOnly: true,
     });
-    const healthAfter = await this.conversationWebhookService.getDueConversationHealth();
+    const healthAfter = await this.conversationWebhookService.getDueConversationHealth({ recentOnly: true });
     return {
       accepted: release.skipped === 0
         && healthAfter.overdueCount === 0
@@ -163,6 +166,7 @@ export class WebhooksController {
       // Targeted repairs bypass the interval; scheduled global runs respect it
       // and avoid unnecessary lease contention.
       force: contactIds.length > 0 || queuedOnly,
+      recentOnly: queuedOnly,
     });
     const queuedReplaySelected = guard.queuedReplaySelected ?? 0;
     const queuedReplayCompleted = guard.queuedReplayCompleted ?? 0;

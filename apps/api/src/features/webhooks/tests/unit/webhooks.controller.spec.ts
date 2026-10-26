@@ -40,7 +40,7 @@ describe('WebhooksController queued Guard backup', () => {
 
     expect(result.accepted).toBe(true);
     expect(result.triggered).toBe(true);
-    expect(processDueConversations).toHaveBeenCalledWith(undefined, { reconcileActive: false, runGuard: false });
+    expect(processDueConversations).toHaveBeenCalledWith(undefined, { reconcileActive: false, runGuard: false, recentOnly: true });
     expect(getDueConversationHealth).toHaveBeenCalledTimes(2);
   });
 
@@ -95,6 +95,7 @@ describe('WebhooksController queued Guard backup', () => {
       contactIds: [],
       queuedOnly: true,
       force: true,
+      recentOnly: true,
     });
   });
 

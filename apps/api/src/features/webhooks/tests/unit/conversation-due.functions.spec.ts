@@ -2,6 +2,32 @@ import { describe, expect, it, vi } from 'vitest';
 import { ConversationDueFunctions } from '../../application/functions/conversations/conversation-due.functions';
 
 describe('ConversationDueFunctions', () => {
+  it('limits unattended due selection to conversations with activity in the recent window', async () => {
+    const now = new Date('2026-10-26T22:00:00.000Z');
+    const dataSource = {
+      query: vi.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]),
+    };
+    const service = new ConversationDueFunctions(
+      dataSource as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      undefined,
+      undefined,
+    );
+
+    await service.processDueConversations(now, { reconcileActive: false, runGuard: false, recentOnly: true });
+
+    expect(dataSource.query.mock.calls[0][0]).toContain('COALESCE(last_message_at, ready_at, waiting_window_started_at, created_at) >= $2::timestamptz');
+    expect(dataSource.query.mock.calls[0][1]).toEqual([
+      now.toISOString(),
+      '2026-10-25T22:00:00.000Z',
+    ]);
+    expect(dataSource.query.mock.calls[1][0]).toContain('COALESCE(c.last_message_at, c.ready_at, c.waiting_window_started_at, c.created_at) >= $3::timestamptz');
+  });
+
   it('consumes one bounded waiting_window attempt when the due workflow reschedules a recovery cycle', async () => {
     const now = new Date('2026-10-16T22:30:00.000Z');
     const runner = {

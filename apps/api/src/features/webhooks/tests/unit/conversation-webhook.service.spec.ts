@@ -1186,7 +1186,11 @@ describe('ConversationWebhookService', () => {
 
     await (service as unknown as { pollDueConversations: () => Promise<void> }).pollDueConversations();
 
-    expect(processDue).toHaveBeenCalledWith(undefined, { reconcileActive: false, runGuard: false });
+    expect(processDue).toHaveBeenCalledWith(undefined, {
+      reconcileActive: false,
+      runGuard: false,
+      recentOnly: true,
+    });
   });
 
   it('reabre un webhook marcado como failed para que un reintento no se pierda como duplicado', async () => {
