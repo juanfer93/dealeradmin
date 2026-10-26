@@ -69,3 +69,75 @@ jobs:
             echo "::error::Watchdog release did not clear due rows after ${max_attempts} attempts"
             exit 1
           done
+
+  queued-backup-watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    needs: release-due-watchdog
+    if: ${{ always() && needs.release-due-watchdog.result != 'cancelled' }}
+    concurrency:
+      # Keep the final queued replay serialized with the primary backup job.
+      group: process-due-queued-backup
+      cancel-in-progress: false
+    steps:
+      - name: Drain queued backup replays from watchdog
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$CRON_SECRET"
+          endpoint="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/run-guard?queued_backup=true"
+          max_batches=5
+          retry_delay_seconds=20
+          progress=0
+
+          for batch in $(seq 1 "$max_batches"); do
+            echo "watchdog queued-backup batch ${batch}/${max_batches}"
+            if response="$(curl --fail-with-body --silent --show-error --request GET \
+              --connect-timeout 10 --max-time 180 \
+              --header "Authorization: Bearer $CRON_SECRET" \
+              "$endpoint")"; then
+              curl_status=0
+            else
+              curl_status=$?
+            fi
+
+            if [ "$curl_status" -eq 0 ]; then
+              printf '%s\n' "$response"
+              summary="$(node - "$response" <<'NODE'
+          const result = JSON.parse(process.argv[2] ?? '{}');
+          const guard = result.guard ?? {};
+          process.stdout.write(JSON.stringify({
+            selected: guard.queuedReplaySelected ?? 0,
+            completed: guard.queuedReplayCompleted ?? 0,
+            failed: guard.queuedReplayFailed ?? 0,
+            pending: guard.pendingQueuedReplayCount ?? 0,
+          }));
+          NODE
+              )"
+              printf '%s\n' "$summary"
+              selected="$(node -p 'JSON.parse(process.argv[1]).selected ?? 0' "$summary")"
+              completed="$(node -p 'JSON.parse(process.argv[1]).completed ?? 0' "$summary")"
+              pending="$(node -p 'JSON.parse(process.argv[1]).pending ?? 0' "$summary")"
+              if [ "$completed" -gt 0 ]; then progress=1; fi
+              if [ "$pending" -eq 0 ]; then exit 0; fi
+              if [ "$batch" -lt "$max_batches" ]; then
+                if [ "$selected" -gt 0 ] || [ "$completed" -gt 0 ]; then
+                  sleep 2
+                else
+                  sleep "$retry_delay_seconds"
+                fi
+                continue
+              fi
+            fi
+            if [ "$batch" -lt "$max_batches" ]; then
+              sleep "$retry_delay_seconds"
+              continue
+            fi
+            if [ "$progress" -eq 1 ]; then
+              echo "::warning::Watchdog backup made bounded progress; remaining rows continue on the next tick"
+              exit 0
+            fi
+            echo "::error::Watchdog backup made no progress after ${max_batches} batches"
+            exit 1
+          done
