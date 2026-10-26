@@ -243,7 +243,7 @@ describe('ConversationReconciliationFunctions', () => {
     expect(conversationUpdate?.[1]?.[6]).toBe(1);
   });
 
-  it('clears a conversational reply stored as a name while preserving the lead facts', async () => {
+  it('keeps an Instagram display name while excluding it from qualification', async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('SELECT c.id, c.channel')) return [{
         id: 'conversation-como-asi',
@@ -285,8 +285,10 @@ describe('ConversationReconciliationFunctions', () => {
 
     await reconciliation.reconcileConversation('conversation-como-asi', new Date('2026-10-26T19:45:00.000Z'), true, false, true);
 
+    const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ real_name: '', phone: '+12405215639', vehicle_type: 'Infiniti q50' });
     const leadUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE leads SET first_name')) as [string, unknown[]] | undefined;
-    expect(leadUpdate?.[1]).toEqual(['lead-como-asi']);
+    expect(leadUpdate).toBeUndefined();
   });
 
   it('clears a conversational reply during the ordinary watchdog cycle', async () => {
@@ -334,7 +336,7 @@ describe('ConversationReconciliationFunctions', () => {
     const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
     expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ real_name: '', phone: '+12405215639', vehicle_type: 'Infiniti q50' });
     const leadUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE leads SET first_name')) as [string, unknown[]] | undefined;
-    expect(leadUpdate?.[1]).toEqual(['lead-como-asi-cycle']);
+    expect(leadUpdate).toBeUndefined();
   });
 
   it('repairs a bad profile label from the name explicitly declared in the transcript', async () => {
