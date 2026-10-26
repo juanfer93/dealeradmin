@@ -289,6 +289,54 @@ describe('ConversationReconciliationFunctions', () => {
     expect(leadUpdate?.[1]).toEqual(['lead-como-asi']);
   });
 
+  it('clears a conversational reply during the ordinary watchdog cycle', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('SELECT c.id, c.channel')) return [{
+        id: 'conversation-como-asi-cycle',
+        channel: 'instagram',
+        ghl_location_id: GHL_SOURCE_CONFIG.arlington.locationId,
+        ghl_contact_id: 'como-asi-cycle-contact',
+        ghl_conversation_id: 'ghl-como-asi-cycle',
+        status: 'waiting_window',
+        qualification_snapshot: { real_name: 'Como Así', phone: '+12405215639', vehicle_type: 'Infiniti q50', qualification_complete: true },
+        location_snapshot: { city: null, state: null, zip_code: null, easterns_zone: null },
+        ready_at: '2026-10-26T19:40:00.000Z',
+        next_attempt_at: '2026-10-26T19:50:00.000Z',
+        last_message_at: '2026-10-26T19:42:23.354Z',
+        waiting_window_attempts: 4,
+        lead_id: 'lead-como-asi-cycle',
+        canonical_phone: '+12405215639',
+        first_name: 'Como',
+        last_name: 'Así',
+      }];
+      if (sql.includes('SELECT cm.body')) return [
+        { body: 'Tienen Infiniti q50', direction: 'inbound', occurred_at: '2026-10-26T19:40:00.000Z' },
+        { body: '2405215639', direction: 'inbound', occurred_at: '2026-10-26T19:41:00.000Z' },
+        { body: 'Como así ?', direction: 'inbound', occurred_at: '2026-10-26T19:42:23.354Z' },
+      ];
+      return [];
+    });
+    const runner = { connect: vi.fn(), startTransaction: vi.fn(), commitTransaction: vi.fn(), rollbackTransaction: vi.fn(), release: vi.fn(), isTransactionActive: true, query };
+    const qualification = {
+      resolveLocation: vi.fn().mockResolvedValue({ city: null, state: null, zip_code: null, easterns_zone: null }),
+      findSourceDealer: vi.fn().mockResolvedValue({ id: 'dealer-arlington', timezone: 'America/New_York', routing_config: {} }),
+      statusForConversation: vi.fn().mockReturnValue({ status: 'waiting_window', nextAttemptAt: '2026-10-26T20:00:00.000Z' }),
+      syncLeadDealer: vi.fn(),
+    };
+    const reconciliation = new ConversationReconciliationFunctions(
+      { createQueryRunner: () => runner } as never,
+      qualification as never,
+      { createQueuedPauseEvent: vi.fn(), dispatchQueuedPauseEvent: vi.fn() } as never,
+    );
+
+    await reconciliation.reconcileConversation('conversation-como-asi-cycle', new Date('2026-10-26T19:55:00.000Z'), true);
+
+    const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ real_name: '', phone: '+12405215639', vehicle_type: 'Infiniti q50' });
+    const leadUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE leads SET first_name')) as [string, unknown[]] | undefined;
+    expect(leadUpdate?.[1]).toEqual(['lead-como-asi-cycle']);
+  });
+
   it('repairs a bad profile label from the name explicitly declared in the transcript', async () => {
     const query = vi.fn(async (sql: string, _params?: unknown[]) => {
       if (sql.includes('SELECT c.id, c.channel')) {

@@ -196,7 +196,11 @@ export class ConversationReconciliationFunctions {
         const meaningfulIncoming = isEmptyMarker(incomingValue) ? '' : incomingValue;
         return additiveOnly ? meaningfulExisting || meaningfulIncoming : meaningfulIncoming || meaningfulExisting;
       };
-      const realName = targeted ? clean(normalized.real_name) : preserveOrNormalize(current.real_name, normalized.real_name);
+      // Never preserve a stale conversational reply as a real name. The
+      // periodic watchdog uses a non-targeted reconciliation, so sanitize the
+      // existing snapshot before applying the additive merge as well.
+      const currentRealName = normalizeRealName(clean(current.real_name));
+      const realName = targeted ? clean(normalized.real_name) : preserveOrNormalize(currentRealName, normalized.real_name);
       const vehicle = targeted ? clean(normalized.vehicle_type) : preserveOrNormalize(current.vehicle_type, normalized.vehicle_type);
       const vehicleYear = targeted
         ? normalized.vehicle_year
@@ -278,7 +282,7 @@ export class ConversationReconciliationFunctions {
       if (snapshot.real_name) {
         const { firstName, lastName } = splitName(snapshot.real_name);
         await runner.query(`UPDATE leads SET first_name = $2, last_name = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [row.lead_id, firstName, lastName]);
-      } else if (targeted && (isStaffordWhatsAppVehicleLabel(contactName, source, row.channel) || (contactName !== 'Lead' && !normalizeRealName(contactName)))) {
+      } else if (isStaffordWhatsAppVehicleLabel(contactName, source, row.channel) || (contactName !== 'Lead' && !normalizeRealName(contactName))) {
         // A Stafford WhatsApp vehicle/offer label can be stored in the lead
         // name before the transcript replay. More generally, clear only a
         // stored name that the same normalizer now identifies as a
