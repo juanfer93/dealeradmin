@@ -11,6 +11,14 @@ import type { ConversationMessageRow, ConversationSnapshot, LocationSnapshot, Me
 import { configureWebhookTransactionSafety } from '../../transaction-safety';
 import { isEmptyMarker } from '../../../../leads/domain/collector-normalizer/text-cleaner';
 
+const DOWN_PAYMENT_PROMPT = /\b(?:down|payment|enganche|pago\s+inicial|pago\s+de\s+entrada|inicial)\b/i;
+const DOWN_PAYMENT_QUESTION = /\b(?:cu[aá]nto|con\s+cu[aá]nto|how\s+much|approximately|aproximadamente|disponible|available|contar[ií]as|tendr[ií]as)\b/i;
+
+function isDownPaymentPrompt(value: unknown): boolean {
+  const prompt = clean(value);
+  return Boolean(prompt && DOWN_PAYMENT_PROMPT.test(prompt) && DOWN_PAYMENT_QUESTION.test(prompt));
+}
+
 export class ConversationReconciliationFunctions {
   constructor(
     private readonly dataSource: DataSource | undefined,
@@ -119,7 +127,6 @@ export class ConversationReconciliationFunctions {
          WHERE sibling.ghl_location_id = $1
            AND sibling.ghl_contact_id = $2
            AND sibling.channel = $3
-           AND cm.direction = 'inbound'
          ORDER BY cm.occurred_at ASC, cm.created_at ASC`,
         [row.ghl_location_id, row.ghl_contact_id, row.channel],
       ) as ConversationMessageRow[];
@@ -129,7 +136,23 @@ export class ConversationReconciliationFunctions {
         return;
       }
       const evidenceMessages = addProcessedImageEvidence(messages);
-      const transcript = evidenceMessages.map((item) => clean(item.body)).filter(Boolean).join('\n');
+      let previousOutbound = '';
+      const transcriptLines: string[] = [];
+      for (const item of evidenceMessages) {
+        if (item.direction === 'outbound') {
+          previousOutbound = clean(item.body);
+          continue;
+        }
+        const body = clean(item.body);
+        if (!body) continue;
+        // Keep only a typed context marker instead of the outbound text. This
+        // lets an answer such as "Quizás 1500" be understood as down payment
+        // without allowing the dealer's suggested $2000-$2500 range to become
+        // the customer's amount.
+        if (isDownPaymentPrompt(previousOutbound)) transcriptLines.push('__DOWN_PROMPT__');
+        transcriptLines.push(body);
+      }
+      const transcript = transcriptLines.join('\n');
       if (!transcript) {
         await runner.rollbackTransaction();
         return;
@@ -245,7 +268,7 @@ export class ConversationReconciliationFunctions {
         qualification_memory: qualificationMemory,
         qualification_complete: qualificationComplete,
         missing_qualification: missingQualification,
-        message_count: additiveOnly ? Math.max(Number(current.message_count || 0), messages.length) : messages.length,
+        message_count: additiveOnly ? Math.max(Number(current.message_count || 0), messages.filter((message) => message.direction === 'inbound').length) : messages.filter((message) => message.direction === 'inbound').length,
         language,
         qualification_progress: qualificationProgress,
         assigned_dealer_id: clean(current.assigned_dealer_id) || undefined,

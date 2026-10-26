@@ -130,14 +130,24 @@ export function extractVehicleLabel(value: string | null | undefined): string {
   const brandMatch = source.match(VEHICLE_BRANDS);
   const modelMatch = source.match(VEHICLE_MODELS);
   const categoryMatch = source.match(VEHICLE_CATEGORIES);
+  // Spanish answers often put the category before the model ("camioneta
+  // Tacoma"). The model is the useful qualification value; do not let the
+  // generic category hide it just because it appears first in the line.
+  const categoryBeforeModel = categoryMatch && modelMatch
+    && /\b(?:camioneta|camionetq|camion|camión|troca|troquita|troka|trokita|troque|pickup|pick-up)\b/i.test(categoryMatch[0])
+    && (categoryMatch.index ?? 0) < (modelMatch.index ?? 0)
+    && (modelMatch.index ?? 0) - (categoryMatch.index ?? 0) <= 40;
   const firstMatch = [
     brandMatch ? { kind: 'brand', match: brandMatch } : null,
     modelMatch ? { kind: 'model', match: modelMatch } : null,
     categoryMatch ? { kind: 'category', match: categoryMatch } : null,
   ].filter(Boolean).sort((left, right) => (left?.match.index ?? 0) - (right?.match.index ?? 0))[0];
-  if (!firstMatch) return EMPTY;
-  if (firstMatch.kind === 'brand') {
-    const brand = firstMatch.match[0];
+  const preferredMatch = categoryBeforeModel && modelMatch
+    ? { kind: 'model', match: modelMatch }
+    : firstMatch;
+  if (!preferredMatch) return EMPTY;
+  if (preferredMatch.kind === 'brand') {
+    const brand = preferredMatch.match[0];
     const afterBrand = source.slice(source.toLocaleLowerCase().indexOf(brand.toLocaleLowerCase()) + brand.length).trim();
     const modelAfterBrand = afterBrand.match(VEHICLE_MODELS);
     if (modelAfterBrand?.index !== undefined) {
@@ -152,13 +162,13 @@ export function extractVehicleLabel(value: string | null | undefined): string {
     const suffix = suffixTokens.slice(0, 2).filter((token) => !stopWords.has(token.toLocaleLowerCase())).join(' ');
     return canonicalVehicleLabel(`${brand} ${suffix}`);
   }
-  if (firstMatch.kind === 'model') {
-    const model = firstMatch.match[0];
-    const afterModel = source.slice((firstMatch.match.index ?? 0) + model.length);
+  if (preferredMatch.kind === 'model') {
+    const model = preferredMatch.match[0];
+    const afterModel = source.slice((preferredMatch.match.index ?? 0) + model.length);
     const trim = afterModel.match(/^\s+(?:(?:con|with)\s+(?:(?:el|la|the)\s+)?(?:(?:paquete|package)\s+)?)?(\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i)?.[1];
     return canonicalVehicleLabel(`${model}${trim ? ` ${trim}` : EMPTY}`);
   }
-  return canonicalVehicleCategory(firstMatch.match[0]);
+  return canonicalVehicleCategory(preferredMatch.match[0]);
 }
 
 export function extractExplicitVehicleTrim(value: string, label: string): string {

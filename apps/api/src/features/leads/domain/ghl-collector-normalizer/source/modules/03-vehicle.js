@@ -112,14 +112,19 @@ const vehicleLabel = (value) => {
   const brandMatch = source.match(vehicleBrands);
   const modelMatch = source.match(vehicleModels);
   const categoryMatch = source.match(vehicleCategories);
+  const categoryBeforeModel = categoryMatch && modelMatch
+    && /\b(?:camioneta|camionetq|camion|camión|troca|troquita|troka|trokita|troque|pickup|pick-up)\b/i.test(categoryMatch[0])
+    && (categoryMatch.index || 0) < (modelMatch.index || 0)
+    && (modelMatch.index || 0) - (categoryMatch.index || 0) <= 40;
   const firstMatch = [
     brandMatch ? { kind: 'brand', match: brandMatch } : null,
     modelMatch ? { kind: 'model', match: modelMatch } : null,
     categoryMatch ? { kind: 'category', match: categoryMatch } : null,
   ].filter(Boolean).sort((left, right) => left.match.index - right.match.index)[0];
-  if (!firstMatch) return '';
-  if (firstMatch.kind === 'brand') {
-    const brand = firstMatch.match[0];
+  const preferredMatch = categoryBeforeModel && modelMatch ? { kind: 'model', match: modelMatch } : firstMatch;
+  if (!preferredMatch) return '';
+  if (preferredMatch.kind === 'brand') {
+    const brand = preferredMatch.match[0];
     const afterBrand = source.slice(source.toLocaleLowerCase().indexOf(brand.toLocaleLowerCase()) + brand.length).trim();
     const modelAfterBrand = afterBrand.match(vehicleModels);
     if (modelAfterBrand?.index !== undefined) {
@@ -129,13 +134,13 @@ const vehicleLabel = (value) => {
       const category = afterModel.match(vehicleCategories)?.[0];
       return canonicalVehicleLabel(`${brand} ${model}${trim ? ` ${trim}` : ''}${category ? ` ${category}` : ''}`);
     }
-    const stopWords = new Set(['this', 'next', 'today', 'hoy', 'week', 'month', 'for', 'and', 'y', 'that', 'que', 'if', 'you', 'have', 'has', 'one', 'in', 'stock', 'available', 'at', 'me', 'do', 'offer']);
+    const stopWords = new Set(['this', 'next', 'today', 'hoy', 'week', 'month', 'for', 'and', 'y', 'that', 'que', 'if', 'you', 'have', 'has', 'one', 'in', 'stock', 'available', 'at', 'me', 'do', 'offer', 'por', 'favor', 'modelos', 'modelo', 'disponibles', 'disponible', 'tengas', 'tienen', 'mostrar', 'muestra', 'mandar', 'fotos', 'puras', 'algunos', 'algunas']);
     const suffix = afterBrand.split(/\s+/).filter(Boolean).slice(0, 2).filter((token) => !stopWords.has(token.toLocaleLowerCase())).join(' ');
     return canonicalVehicleLabel(`${brand} ${suffix}`);
   }
-  if (firstMatch.kind === 'model') {
-    const model = firstMatch.match[0];
-    const afterModel = source.slice((firstMatch.match.index || 0) + model.length);
+  if (preferredMatch.kind === 'model') {
+    const model = preferredMatch.match[0];
+    const afterModel = source.slice((preferredMatch.match.index || 0) + model.length);
     const trim = afterModel.match(/^\s+(?:(?:con|with)\s+(?:(?:el|la|the)\s+)?(?:(?:paquete|package)\s+)?)?(\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i)?.[1];
     return canonicalVehicleLabel(`${model}${trim ? ` ${trim}` : ''}`);
   }

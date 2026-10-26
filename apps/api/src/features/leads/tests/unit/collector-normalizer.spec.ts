@@ -58,6 +58,49 @@ describe('normalizeCollectorInput', () => {
     expect(result.vehicle_type).toBe('Toyota Tacoma');
   });
 
+  it('keeps the requested Tacoma when the transcript says category first and brand later', () => {
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      phone: '+13366570896',
+      message: 'Quizás 1500',
+      chat_history_log: [
+        'Camioneta Tacoma, 4 x 4',
+        'No me puedes mostrar algunos modelos de Toyota por favor',
+        'No tengo prueba de ingresos, pero tengo el pasaporte nada más',
+        '__DOWN_PROMPT__',
+        'Quizás 1500',
+      ].join('\n'),
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'Toyota Tacoma',
+      phone: '+13366570896',
+      identification: 'no',
+      documents: expect.stringContaining('proof of income: no'),
+      down_payment: '1500',
+    });
+  });
+
+  it('keeps Tacoma instead of reducing "troquita Tacoma" to truck', () => {
+    expect(normalizeCollectorInput({
+      source: 'arlington',
+      channel: 'messenger',
+      phone: '+19319223125',
+      message: 'Necesito una troquita tacoma tendrán de esas',
+      chat_history_log: 'Necesito una troquita tacoma tendrán de esas',
+    }).vehicle_type).toBe('Tacoma');
+  });
+
+  it('uses the workflow down-payment prompt context for an uncertain amount answer', () => {
+    expect(normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      message: 'Quizás 1500',
+      chat_history_log: '__DOWN_PROMPT__\nQuizás 1500',
+    }).down_payment).toBe('1500');
+  });
+
   it('normalizes Katherine Amaya\'s Spanish truck and down-payment answer', () => {
     const result = normalizeCollectorInput({
       source: 'koons-fredericksburg',

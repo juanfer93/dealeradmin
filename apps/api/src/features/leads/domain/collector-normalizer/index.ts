@@ -354,6 +354,11 @@ function extractDownPayment(message: string): string {
   const amountToken = '(?:\\d{1,3}(?:,\\d{3})+|\\d{1,2}\\s*(?:mil|thousand)|mil(?:\\s+quinientos)?|(?:un|one|a|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+(?:mil|thousand)(?:\\s+(?:quinientos|five hundred))?|\\d+(?:[,.]\\d+)?\\s*k?)(?:\\s*d[oó]lar(?:es|e)?)?';
   const safeSource = source.split('\n').filter((line) => !isPhoneOnlyLine(line)).join('\n');
   const informalAmount = safeSource.match(new RegExp(`(?:tanda|cantidad|lo m[aá]ximo|lo m[aá]s que tengo|maximum|maximo|m[aá]ximo)[^\\n]{0,60}?\\$?(${amountToken})`, 'i'))?.[1];
+  const contextualPromptLine = safeSource
+    .split('\n')
+    .map((line, index, lines) => line.trim() === '__DOWN_PROMPT__' ? lines[index + 1]?.trim() ?? EMPTY : EMPTY)
+    .find(Boolean) ?? EMPTY;
+  const contextualPromptAmount = contextualPromptLine.match(new RegExp(`^(?:(?:quiz[aá]s|maybe|perhaps|aprox(?:imadamente)?|approximately|around|unos?)\\s+)?\\$?(${amountToken})\\b`, 'i'))?.[1];
   const rangeMatch = safeSource.match(new RegExp(`\\$?(${amountToken})(?:\\s*(mil|thousand|k))?\\s*(?:a|to|[-–—/])\\s*\\$?(${amountToken})(?:\\s*(mil|thousand|k))?`, 'i'));
   if (rangeMatch) {
     const start = `${rangeMatch[1]} ${rangeMatch[2] ?? EMPTY}`.trim();
@@ -372,6 +377,7 @@ function extractDownPayment(message: string): string {
     // this line-scoped so unrelated numbers elsewhere in the transcript do
     // not become a down payment.
     ?? source.match(new RegExp(`(?:^|\\n)\\s*\\$?(${amountToken})\\b[^\\n]{0,100}\\b(?:down|payment|pago(?:\\s+inicial)?|enganche|inicial)\\b`, 'i'))?.[1]
+    ?? contextualPromptAmount
     ?? source.match(new RegExp(`\\b(?:tengo|have|i have|i can put|puedo poner)[ \\t]+(?:down[ \\t]+)?(?:a[ \\t]+)?\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\b(?:doy|dar(?:e|é|ia|ía)?|pongo|poner|i(?:'|’)ll put|i put)[ \\t]+(?:down[ \\t]+)?(?:los|las|el|la|unos|unas|un|una)?[ \\t]*(?:at least[ \\t]+|de[ \\t]+|para[ \\t]+)?\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
     ?? source.match(new RegExp(`\\b(?:cuento|cuenta)[ \\t.,;:]+con[ \\t.,;:]*\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
@@ -684,6 +690,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const explicitCashDown = firstValidAmount(
     extractLatestDownPayment(rawMessage),
     extractDownPayment(messageForExtraction),
+    rawHistory.includes('__DOWN_PROMPT__') ? extractDownPayment(historyForExtraction) : EMPTY,
     extractLatestDownPayment(rawHistory),
   );
   // Some bot prompts ask for confirmation of a concrete minimum (for example

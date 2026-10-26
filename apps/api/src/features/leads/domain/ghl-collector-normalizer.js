@@ -198,14 +198,19 @@ const vehicleLabel = (value) => {
   const brandMatch = source.match(vehicleBrands);
   const modelMatch = source.match(vehicleModels);
   const categoryMatch = source.match(vehicleCategories);
+  const categoryBeforeModel = categoryMatch && modelMatch
+    && /\b(?:camioneta|camionetq|camion|camión|troca|troquita|troka|trokita|troque|pickup|pick-up)\b/i.test(categoryMatch[0])
+    && (categoryMatch.index || 0) < (modelMatch.index || 0)
+    && (modelMatch.index || 0) - (categoryMatch.index || 0) <= 40;
   const firstMatch = [
     brandMatch ? { kind: 'brand', match: brandMatch } : null,
     modelMatch ? { kind: 'model', match: modelMatch } : null,
     categoryMatch ? { kind: 'category', match: categoryMatch } : null,
   ].filter(Boolean).sort((left, right) => left.match.index - right.match.index)[0];
-  if (!firstMatch) return '';
-  if (firstMatch.kind === 'brand') {
-    const brand = firstMatch.match[0];
+  const preferredMatch = categoryBeforeModel && modelMatch ? { kind: 'model', match: modelMatch } : firstMatch;
+  if (!preferredMatch) return '';
+  if (preferredMatch.kind === 'brand') {
+    const brand = preferredMatch.match[0];
     const afterBrand = source.slice(source.toLocaleLowerCase().indexOf(brand.toLocaleLowerCase()) + brand.length).trim();
     const modelAfterBrand = afterBrand.match(vehicleModels);
     if (modelAfterBrand?.index !== undefined) {
@@ -215,13 +220,13 @@ const vehicleLabel = (value) => {
       const category = afterModel.match(vehicleCategories)?.[0];
       return canonicalVehicleLabel(`${brand} ${model}${trim ? ` ${trim}` : ''}${category ? ` ${category}` : ''}`);
     }
-    const stopWords = new Set(['this', 'next', 'today', 'hoy', 'week', 'month', 'for', 'and', 'y', 'that', 'que', 'if', 'you', 'have', 'has', 'one', 'in', 'stock', 'available', 'at', 'me', 'do', 'offer']);
+    const stopWords = new Set(['this', 'next', 'today', 'hoy', 'week', 'month', 'for', 'and', 'y', 'that', 'que', 'if', 'you', 'have', 'has', 'one', 'in', 'stock', 'available', 'at', 'me', 'do', 'offer', 'por', 'favor', 'modelos', 'modelo', 'disponibles', 'disponible', 'tengas', 'tienen', 'mostrar', 'muestra', 'mandar', 'fotos', 'puras', 'algunos', 'algunas']);
     const suffix = afterBrand.split(/\s+/).filter(Boolean).slice(0, 2).filter((token) => !stopWords.has(token.toLocaleLowerCase())).join(' ');
     return canonicalVehicleLabel(`${brand} ${suffix}`);
   }
-  if (firstMatch.kind === 'model') {
-    const model = firstMatch.match[0];
-    const afterModel = source.slice((firstMatch.match.index || 0) + model.length);
+  if (preferredMatch.kind === 'model') {
+    const model = preferredMatch.match[0];
+    const afterModel = source.slice((preferredMatch.match.index || 0) + model.length);
     const trim = afterModel.match(/^\s+(?:(?:con|with)\s+(?:(?:el|la|the)\s+)?(?:(?:paquete|package)\s+)?)?(\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i)?.[1];
     return canonicalVehicleLabel(`${model}${trim ? ` ${trim}` : ''}`);
   }
@@ -542,6 +547,11 @@ const downFrom = (text) => {
   const explicit = source.match(new RegExp(`(?:down|enganche|inicial|deposit|dep[oó]sito)[ \\t]*(?:payment|pago)?[ \\t]*(?:is|es|de|:)?[ \\t]*\\$?[ \\t]*${token}`, 'i'));
   const atLeast = source.match(new RegExp(`\\b(?:at least|minimum of)\\s+\\$?[ \\t]*${token}\\b`, 'i'))?.[1];
   const amountLeading = source.match(new RegExp(`(?:^|\\n)\\s*\\$?${token}\\b[^\\n]{0,100}\\b(?:down|payment|pago(?:\\s+inicial)?|enganche|inicial)\\b`, 'i'))?.[1];
+  const contextualPromptLine = source
+    .split('\n')
+    .map((line, index, lines) => line.trim() === '__DOWN_PROMPT__' ? (lines[index + 1] || '').trim() : '')
+    .find(Boolean) || '';
+  const contextualPromptAmount = contextualPromptLine.match(new RegExp(`^(?:(?:quiz[aá]s|maybe|perhaps|aprox(?:imadamente)?|approximately|around|unos?)\\s+)?\\$?${token}\\b`, 'i'))?.[1];
   const withAmount = source.match(new RegExp(`\\b(?:puedo|puede|can|could|i can|i could)[ \\t]+(?:con|with)[ \\t]*\\$?[ \\t]*${token}\\b`, 'i'));
   const directCon = source.match(new RegExp(`(?:^|\\n)\\s*con[ \\t]+\\$?[ \\t]*${token}\\b`, 'i'));
   const declared = source.match(new RegExp(`\\b(?:i have|tengo|i can put|puedo poner)[ \\t]+\\$?[ \\t]*${token}[ \\t]*(?:down|payment|enganche|inicial)?\\b`, 'i'));
@@ -549,7 +559,7 @@ const downFrom = (text) => {
   const noisyDeclared = source.match(new RegExp(`\\b(?:cuento|cuenta)\\b[^\\n]{0,80}?(?:y|and|plus)[ \\t.,;:]*\\$?[ \\t]*${token}\\b`, 'i'));
   const standalone = safeSource.match(new RegExp(`(?:^|\\n)\\$?[ \\t]*${token}[ \\t]*\\$?[ \\t]*(?:(?:tengo|have|available|disponible|i have|i can put|m[aá]ximo|maximum)[ \\t]*\\d{0,2})?[ \\t]*\\.?[ \\t]*(?=\\n|$)`, 'im'));
   const candidate = standalone?.[1]?.replace(/[$,\s]/g, '') || '';
-  const value = explicit?.[1] || atLeast || amountLeading || withAmount?.[1] || directCon?.[1] || declared?.[1] || spanishDeclared?.[1] || noisyDeclared?.[1] || informalAmount || standalone?.[1];
+  const value = explicit?.[1] || atLeast || amountLeading || contextualPromptAmount || withAmount?.[1] || directCon?.[1] || declared?.[1] || spanishDeclared?.[1] || noisyDeclared?.[1] || informalAmount || standalone?.[1];
   if (value && isShortVehicleYear(value) && (vehicleBrands.test(source) || vehicleModels.test(source) || vehicleCategories.test(source))) return '';
   if (!explicit && !spanishDeclared && isVehicleYear(candidate)
     && (vehicleYearFrom(source) !== null || /^20(?:1\d|2[0-6])$/.test(candidate))) return '';
@@ -641,9 +651,13 @@ const vehicleFrom = (text) => {
   // Whisper can leave a standalone colloquial truck token after the requested
   // model. Preserve that specific model, while an explicit later category
   // such as Sedan/SUV remains the active buyer choice.
-  const best = latest?.isColloquialTruck && !latest.hasModel
-    ? activeCandidates.find((candidate) => candidate.hasModel && candidate.lineIndex < latest.lineIndex) || latest
-    : latest;
+  const earlierModel = latest?.brand && !latest.hasModel
+    ? activeCandidates.find((candidate) => candidate.hasModel && candidate.lineIndex < latest.lineIndex)
+    : undefined;
+  const best = earlierModel
+    || (latest?.isColloquialTruck && !latest.hasModel
+      ? activeCandidates.find((candidate) => candidate.hasModel && candidate.lineIndex < latest.lineIndex) || latest
+      : latest);
   if (!best) return '';
   const brands = [...new Set(activeCandidates.map((candidate) => candidate.brand).filter(Boolean).map((brand) => brand.toLocaleLowerCase()))];
   if (!vehicleBrands.test(best.label) && brands.length === 1 && (best.hasModel || latest?.isColloquialTruck)) {

@@ -28,6 +28,47 @@ describe('HighLevel collector custom-code normalizer', () => {
     }).vehicle_type).toBe('Dodge Durango');
   });
 
+  it('reconstructs Juan Arias Tacoma evidence from the complete transcript', () => {
+    const result = execute({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      phone: '+13366570896',
+      message: 'Quizás 1500',
+      chat_history_log: [
+        'Camioneta Tacoma, 4 x 4',
+        'No me puedes mostrar algunos modelos de Toyota por favor',
+        'No tengo prueba de ingresos, pero tengo el pasaporte nada más',
+        '__DOWN_PROMPT__',
+        'Quizás 1500',
+      ].join('\n'),
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'Toyota Tacoma',
+      phone: '+13366570896',
+      down_payment: '1500',
+    });
+  });
+
+  it('keeps a Tacoma model after a Spanish truck category', () => {
+    expect(execute({
+      source: 'arlington',
+      channel: 'messenger',
+      phone: '+19319223125',
+      message: 'Necesito una troquita tacoma tendrán de esas',
+      chat_history_log: 'Necesito una troquita tacoma tendrán de esas',
+    }).vehicle_type).toBe('Tacoma');
+  });
+
+  it('uses the workflow prompt marker to normalize an uncertain down-payment answer', () => {
+    expect(execute({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      message: 'Quizás 1500',
+      chat_history_log: '__DOWN_PROMPT__\nQuizás 1500',
+    }).down_payment).toBe('1500');
+  });
+
   it('promotes a complete qualification memory without custom fields', () => {
     const result = execute({
       real_name: 'QA Customer',

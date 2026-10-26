@@ -131,6 +131,11 @@ const downFrom = (text) => {
   const explicit = source.match(new RegExp(`(?:down|enganche|inicial|deposit|dep[oó]sito)[ \\t]*(?:payment|pago)?[ \\t]*(?:is|es|de|:)?[ \\t]*\\$?[ \\t]*${token}`, 'i'));
   const atLeast = source.match(new RegExp(`\\b(?:at least|minimum of)\\s+\\$?[ \\t]*${token}\\b`, 'i'))?.[1];
   const amountLeading = source.match(new RegExp(`(?:^|\\n)\\s*\\$?${token}\\b[^\\n]{0,100}\\b(?:down|payment|pago(?:\\s+inicial)?|enganche|inicial)\\b`, 'i'))?.[1];
+  const contextualPromptLine = source
+    .split('\n')
+    .map((line, index, lines) => line.trim() === '__DOWN_PROMPT__' ? (lines[index + 1] || '').trim() : '')
+    .find(Boolean) || '';
+  const contextualPromptAmount = contextualPromptLine.match(new RegExp(`^(?:(?:quiz[aá]s|maybe|perhaps|aprox(?:imadamente)?|approximately|around|unos?)\\s+)?\\$?${token}\\b`, 'i'))?.[1];
   const withAmount = source.match(new RegExp(`\\b(?:puedo|puede|can|could|i can|i could)[ \\t]+(?:con|with)[ \\t]*\\$?[ \\t]*${token}\\b`, 'i'));
   const directCon = source.match(new RegExp(`(?:^|\\n)\\s*con[ \\t]+\\$?[ \\t]*${token}\\b`, 'i'));
   const declared = source.match(new RegExp(`\\b(?:i have|tengo|i can put|puedo poner)[ \\t]+\\$?[ \\t]*${token}[ \\t]*(?:down|payment|enganche|inicial)?\\b`, 'i'));
@@ -138,7 +143,7 @@ const downFrom = (text) => {
   const noisyDeclared = source.match(new RegExp(`\\b(?:cuento|cuenta)\\b[^\\n]{0,80}?(?:y|and|plus)[ \\t.,;:]*\\$?[ \\t]*${token}\\b`, 'i'));
   const standalone = safeSource.match(new RegExp(`(?:^|\\n)\\$?[ \\t]*${token}[ \\t]*\\$?[ \\t]*(?:(?:tengo|have|available|disponible|i have|i can put|m[aá]ximo|maximum)[ \\t]*\\d{0,2})?[ \\t]*\\.?[ \\t]*(?=\\n|$)`, 'im'));
   const candidate = standalone?.[1]?.replace(/[$,\s]/g, '') || '';
-  const value = explicit?.[1] || atLeast || amountLeading || withAmount?.[1] || directCon?.[1] || declared?.[1] || spanishDeclared?.[1] || noisyDeclared?.[1] || informalAmount || standalone?.[1];
+  const value = explicit?.[1] || atLeast || amountLeading || contextualPromptAmount || withAmount?.[1] || directCon?.[1] || declared?.[1] || spanishDeclared?.[1] || noisyDeclared?.[1] || informalAmount || standalone?.[1];
   if (value && isShortVehicleYear(value) && (vehicleBrands.test(source) || vehicleModels.test(source) || vehicleCategories.test(source))) return '';
   if (!explicit && !spanishDeclared && isVehicleYear(candidate)
     && (vehicleYearFrom(source) !== null || /^20(?:1\d|2[0-6])$/.test(candidate))) return '';
@@ -230,9 +235,13 @@ const vehicleFrom = (text) => {
   // Whisper can leave a standalone colloquial truck token after the requested
   // model. Preserve that specific model, while an explicit later category
   // such as Sedan/SUV remains the active buyer choice.
-  const best = latest?.isColloquialTruck && !latest.hasModel
-    ? activeCandidates.find((candidate) => candidate.hasModel && candidate.lineIndex < latest.lineIndex) || latest
-    : latest;
+  const earlierModel = latest?.brand && !latest.hasModel
+    ? activeCandidates.find((candidate) => candidate.hasModel && candidate.lineIndex < latest.lineIndex)
+    : undefined;
+  const best = earlierModel
+    || (latest?.isColloquialTruck && !latest.hasModel
+      ? activeCandidates.find((candidate) => candidate.hasModel && candidate.lineIndex < latest.lineIndex) || latest
+      : latest);
   if (!best) return '';
   const brands = [...new Set(activeCandidates.map((candidate) => candidate.brand).filter(Boolean).map((brand) => brand.toLocaleLowerCase()))];
   if (!vehicleBrands.test(best.label) && brands.length === 1 && (best.hasModel || latest?.isColloquialTruck)) {
