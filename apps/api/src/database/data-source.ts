@@ -42,6 +42,7 @@ import { QueuedGuardReplay1710000041000 } from './migrations/1710000041000-Queue
 import { GhlGuardGlobalLease1710000042000 } from './migrations/1710000042000-GhlGuardGlobalLease';
 import { QueuedGuardReplayRetry1710000043000 } from './migrations/1710000043000-QueuedGuardReplayRetry';
 import { QualificationWaitingWindowAttempts1710000044000 } from './migrations/1710000044000-QualificationWaitingWindowAttempts';
+import { RequeueMp4VoiceAttachments1710000045000 } from './migrations/1710000045000-RequeueMp4VoiceAttachments';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -97,6 +98,7 @@ export const AppDataSource = new DataSource({
     GhlGuardGlobalLease1710000042000,
     QueuedGuardReplayRetry1710000043000,
     QualificationWaitingWindowAttempts1710000044000,
+    RequeueMp4VoiceAttachments1710000045000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,

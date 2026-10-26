@@ -50,6 +50,7 @@ import { GhlGuardRequestMetrics1710000040000 } from './database/migrations/17100
 import { QueuedGuardReplay1710000041000 } from './database/migrations/1710000041000-QueuedGuardReplay';
 import { GhlGuardGlobalLease1710000042000 } from './database/migrations/1710000042000-GhlGuardGlobalLease';
 import { QueuedGuardReplayRetry1710000043000 } from './database/migrations/1710000043000-QueuedGuardReplayRetry';
+import { RequeueMp4VoiceAttachments1710000045000 } from './database/migrations/1710000045000-RequeueMp4VoiceAttachments';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -101,6 +102,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             QueuedGuardReplay1710000041000,
             GhlGuardGlobalLease1710000042000,
             QueuedGuardReplayRetry1710000043000,
+            RequeueMp4VoiceAttachments1710000045000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,
