@@ -22,6 +22,40 @@ describe('normalizeCollectorInput', () => {
     }).vehicle_type).toBe('Dodge Durango');
   });
 
+  it('does not promote a conversational reply into the lead name', () => {
+    expect(normalizeRealName('Como así')).toBe('');
+    const result = normalizeCollectorInput({
+      source: 'arlington',
+      channel: 'messenger',
+      message: 'Como así ?',
+      chat_history_log: [
+        'QUIERO FINANCIAR UN VEHICULO!',
+        'Tienen Infiniti q60',
+        'Un Infiniti q50',
+        '2405215639',
+        'Para los sedanes requerimos entre $1000 y $1500 de enganche.',
+        'Como así ?',
+      ].join('\n'),
+      phone: '+12405215639',
+    });
+
+    expect(result.real_name).toBe('');
+    expect(result.vehicle_type).toMatch(/^Infiniti q50$/i);
+    expect(result.phone).toBe('+12405215639');
+  });
+
+  it('uses a name answered after the Instagram name prompt, not the profile label', () => {
+    const result = normalizeCollectorInput({
+      source: 'arlington',
+      channel: 'instagram',
+      contact_name: 'Como Así',
+      message: 'Como así ?',
+      chat_history_log: '¿Cuál es tu nombre completo?\nDaniel Reyes\nTienen Infiniti Q50\nComo así ?',
+    });
+
+    expect(result.real_name).toBe('Daniel Reyes');
+  });
+
   it.each([
     ['What vehicles are eligible?\nAnything you got\n814 603 0494', 'en'],
     ['No sé qué carro quiero\n814 603 0494', 'es'],
