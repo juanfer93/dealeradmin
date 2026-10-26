@@ -6,7 +6,7 @@ import { ConversationQualificationFunctions } from './conversation-qualification
 import { ConversationReconciliationFunctions } from './conversation-reconciliation.functions';
 import { DUE_CONVERSATION_BATCH_SIZE, GHL_SOURCE_CONFIG, WAITING_WINDOW_MAX_ATTEMPTS, WAITING_WINDOW_RETRY_INTERVAL_MS } from './conversation-webhook.config';
 import { clean } from './conversation-webhook.helpers';
-import type { ConversationSnapshot, LocationSnapshot, DueConversationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
+import type { ConversationSnapshot, LocationSnapshot, DueConversationHealth, DueConversationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
 import type { GhlGuardRunResult, GhlGuardService } from '../../ghl-guard.service';
 import { configureWebhookTransactionSafety } from '../../transaction-safety';
 
@@ -22,6 +22,79 @@ export class ConversationDueFunctions {
     private readonly sourceConfig: SourceConfigMap = GHL_SOURCE_CONFIG,
     private readonly guard?: GhlGuardService,
   ) {}
+
+  async getDueConversationHealth(): Promise<DueConversationHealth> {
+    if (!this.dataSource) {
+      if (process.env.NODE_ENV === 'test') {
+        return {
+          accepted: true,
+          checkedAt: new Date().toISOString(),
+          waitingWindowCount: 0,
+          overdueCount: 0,
+          missingNextAttemptCount: 0,
+          oldestDueAt: null,
+          overdueConversations: [],
+        };
+      }
+      throw new ServiceUnavailableException('Database connection is not available');
+    }
+
+    const summary = await this.dataSource.query(
+      `SELECT CURRENT_TIMESTAMP AS checked_at,
+              COUNT(*) FILTER (WHERE status = 'waiting_window')::int AS waiting_window_count,
+              COUNT(*) FILTER (
+                WHERE status = 'waiting_window'
+                  AND next_attempt_at IS NOT NULL
+                  AND next_attempt_at <= CURRENT_TIMESTAMP
+              )::int AS overdue_count,
+              COUNT(*) FILTER (
+                WHERE status = 'waiting_window' AND next_attempt_at IS NULL
+              )::int AS missing_next_attempt_count,
+              MIN(next_attempt_at) FILTER (
+                WHERE status = 'waiting_window'
+                  AND next_attempt_at IS NOT NULL
+                  AND next_attempt_at <= CURRENT_TIMESTAMP
+              ) AS oldest_due_at
+       FROM conversations`,
+    ) as Array<{
+      checked_at: string | Date;
+      waiting_window_count: number | string;
+      overdue_count: number | string;
+      missing_next_attempt_count: number | string;
+      oldest_due_at: string | Date | null;
+    }>;
+    const overdueConversations = await this.dataSource.query(
+      `SELECT id, ghl_contact_id, next_attempt_at, waiting_window_attempts
+       FROM conversations
+       WHERE status = 'waiting_window'
+         AND next_attempt_at IS NOT NULL
+         AND next_attempt_at <= CURRENT_TIMESTAMP
+       ORDER BY next_attempt_at ASC
+       LIMIT $1`,
+      [DUE_CONVERSATION_BATCH_SIZE],
+    ) as Array<{
+      id: string;
+      ghl_contact_id: string;
+      next_attempt_at: string | Date;
+      waiting_window_attempts: number | string | null;
+    }>;
+    const row = summary[0];
+    const toIso = (value: string | Date | null): string | null => value === null ? null : new Date(value).toISOString();
+    return {
+      accepted: true,
+      checkedAt: toIso(row?.checked_at ?? new Date())!,
+      waitingWindowCount: Number(row?.waiting_window_count ?? 0),
+      overdueCount: Number(row?.overdue_count ?? 0),
+      missingNextAttemptCount: Number(row?.missing_next_attempt_count ?? 0),
+      oldestDueAt: toIso(row?.oldest_due_at ?? null),
+      overdueConversations: overdueConversations.map((conversation) => ({
+        id: conversation.id,
+        ghlContactId: conversation.ghl_contact_id,
+        nextAttemptAt: toIso(conversation.next_attempt_at)!,
+        waitingWindowAttempts: Number(conversation.waiting_window_attempts ?? 0),
+      })),
+    };
+  }
 
   async processDueConversations(now: Date, options: { reconcileActive?: boolean; runGuard?: boolean; guardContactIds?: string[]; forceGuard?: boolean; dueContactIds?: string[] } = {}): Promise<DueConversationResponse> {
     if (!this.dataSource) {

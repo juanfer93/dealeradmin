@@ -1,9 +1,9 @@
 name: Process due conversations watchdog
 
 on:
-  # Keep a second scheduler as a health-gated safety net. It only releases
-  # rows when the primary workflow has not completed recently or has failed,
-  # so it does not count the same waiting cycle twice.
+  # Keep a second scheduler as a database-aware safety net. The endpoint owns
+  # the row health check and the database lock, so duplicate invocations are
+  # safe and a missed primary tick cannot strand a due cycle.
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
@@ -16,73 +16,63 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     outputs:
-      fallback_needed: ${{ steps.primary-health.outputs.fallback_needed }}
+      fallback_needed: ${{ steps.due-health.outputs.fallback_needed }}
     concurrency:
       # Share the primary release lock so the watchdog cannot overlap a
       # normal release and count the same waiting cycle twice.
       group: process-due-release
       cancel-in-progress: false
     steps:
-      - name: Check primary scheduler health
-        id: primary-health
+      - name: Check database due-cycle health
+        id: due-health
         env:
           EVENT_NAME: ${{ github.event_name }}
-          GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           set -euo pipefail
 
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             echo "fallback_needed=true" >> "$GITHUB_OUTPUT"
-            echo "Manual watchdog dispatch requested; running the fallback."
+            echo "Manual watchdog dispatch requested; checking and releasing due rows."
             exit 0
           fi
 
-          api_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/process-due-conversations.yml/runs?event=schedule&branch=main&per_page=1"
-          if ! primary_response="$(curl --fail-with-body --silent --show-error \
-            --connect-timeout 10 --max-time 20 \
-            --header "Accept: application/vnd.github+json" \
-            --header "Authorization: Bearer $GITHUB_TOKEN" \
-            --header "X-GitHub-Api-Version: 2022-11-28" \
-            "$api_url")"; then
-            echo "::warning::Could not read the primary workflow history; running the safety fallback"
+          test -n "$CRON_SECRET"
+          health_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/due-health"
+          if ! health_response="$(curl --fail-with-body --silent --show-error \
+            --connect-timeout 10 --max-time 30 \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            "$health_url")"; then
+            echo "::warning::Could not read database due-cycle health; running the safety fallback"
             echo "fallback_needed=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          decision="$(node - "$primary_response" <<'NODE'
+          printf '%s\n' "$health_response"
+          decision="$(node - "$health_response" <<'NODE'
           const payload = JSON.parse(process.argv[2] ?? '{}');
-          const latest = payload.workflow_runs?.[0];
-          if (!latest) {
-            process.stdout.write('fallback');
-            process.exit(0);
-          }
-
-          const timestamp = Date.parse(latest.updated_at ?? latest.created_at ?? '');
-          const ageMs = Date.now() - timestamp;
-          const recent = Number.isFinite(timestamp) && ageMs <= 7 * 60 * 1000;
-          const active = latest.status === 'queued' || latest.status === 'in_progress';
-          const healthy = latest.conclusion === 'success';
-          process.stdout.write(recent && (active || healthy) ? 'primary_ok' : 'fallback');
+          const needsRelease = Number(payload.overdueCount ?? 0) > 0
+            || Number(payload.missingNextAttemptCount ?? 0) > 0;
+          process.stdout.write(needsRelease ? 'fallback' : 'healthy');
           NODE
           )"
 
-          if [ "$decision" = "primary_ok" ]; then
-            echo "Primary due workflow is recent and healthy; watchdog will not duplicate it."
+          if [ "$decision" = "healthy" ]; then
+            echo "Database has no overdue or unscheduled waiting-window rows."
             echo "fallback_needed=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Primary due workflow is missing, stale, or failed; running the safety fallback."
+            echo "Database reports a due or unscheduled waiting-window row; running the safety fallback."
             echo "fallback_needed=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Release due conversations from watchdog
-        if: steps.primary-health.outputs.fallback_needed == 'true'
+        if: steps.due-health.outputs.fallback_needed == 'true'
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           set -euo pipefail
           test -n "$CRON_SECRET"
-          endpoint="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/process-due-only"
+          endpoint="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/watchdog"
           max_attempts=4
           retry_delay_seconds=10
 

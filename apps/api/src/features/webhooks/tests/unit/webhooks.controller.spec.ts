@@ -2,6 +2,72 @@ import { describe, expect, it, vi } from 'vitest';
 import { WebhooksController } from '../../presentation/webhooks.controller';
 
 describe('WebhooksController queued Guard backup', () => {
+  it('uses database due health and clears overdue rows through the watchdog', async () => {
+    const getDueConversationHealth = vi.fn()
+      .mockResolvedValueOnce({
+        accepted: true,
+        checkedAt: '2026-10-26T14:41:43.000Z',
+        waitingWindowCount: 1,
+        overdueCount: 1,
+        missingNextAttemptCount: 0,
+        oldestDueAt: '2026-10-26T14:41:30.000Z',
+        overdueConversations: [{ id: 'conversation-rodney', ghlContactId: 'rodney', nextAttemptAt: '2026-10-26T14:41:30.000Z', waitingWindowAttempts: 4 }],
+      })
+      .mockResolvedValueOnce({
+        accepted: true,
+        checkedAt: '2026-10-26T14:42:24.000Z',
+        waitingWindowCount: 0,
+        overdueCount: 0,
+        missingNextAttemptCount: 0,
+        oldestDueAt: null,
+        overdueConversations: [],
+      });
+    const processDueConversations = vi.fn().mockResolvedValue({
+      accepted: true,
+      processed: 1,
+      advanced: 1,
+      skipped: 0,
+      remainingDue: 0,
+    });
+    const controller = new WebhooksController(
+      {} as never,
+      { getDueConversationHealth, processDueConversations } as never,
+      {} as never,
+      {} as never,
+    );
+
+    const result = await controller.dueConversationWatchdog();
+
+    expect(result.accepted).toBe(true);
+    expect(result.triggered).toBe(true);
+    expect(processDueConversations).toHaveBeenCalledWith(undefined, { reconcileActive: false, runGuard: false });
+    expect(getDueConversationHealth).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not release a cycle when database health is clear', async () => {
+    const getDueConversationHealth = vi.fn().mockResolvedValue({
+      accepted: true,
+      checkedAt: '2026-10-26T14:45:00.000Z',
+      waitingWindowCount: 1,
+      overdueCount: 0,
+      missingNextAttemptCount: 0,
+      oldestDueAt: null,
+      overdueConversations: [],
+    });
+    const processDueConversations = vi.fn();
+    const controller = new WebhooksController(
+      {} as never,
+      { getDueConversationHealth, processDueConversations } as never,
+      {} as never,
+      {} as never,
+    );
+
+    const result = await controller.dueConversationWatchdog();
+
+    expect(result).toMatchObject({ accepted: true, triggered: false, remainingDue: 0 });
+    expect(processDueConversations).not.toHaveBeenCalled();
+  });
+
   it('does not acknowledge the backup while queued replays remain pending', async () => {
     const runGhlGuard = vi.fn().mockResolvedValue({
       enabled: true,

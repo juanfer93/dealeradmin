@@ -21,6 +21,7 @@ import type {
   ConversationWebhookResponse,
   DealerRow,
   DueConversationResponse,
+  DueConversationHealth,
   LocationSnapshot,
   MediaReconciliationResponse,
   SourceKey,
@@ -196,6 +197,10 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
 
   async processDueConversations(now = currentLocalNow(), options: { reconcileActive?: boolean; runGuard?: boolean; guardContactIds?: string[]; forceGuard?: boolean; dueContactIds?: string[] } = {}): Promise<DueConversationResponse> {
     return this.dueFunctions.processDueConversations(now, options);
+  }
+
+  async getDueConversationHealth(): Promise<DueConversationHealth> {
+    return this.dueFunctions.getDueConversationHealth();
   }
 
   async runGhlGuard(now = currentLocalNow(), options: { contactIds?: string[]; force?: boolean; queuedOnly?: boolean } = {}) {

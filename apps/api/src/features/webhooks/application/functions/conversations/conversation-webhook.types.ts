@@ -108,6 +108,20 @@ export type DueConversationResponse = {
   };
   guardError?: string;
 };
+export type DueConversationHealth = {
+  accepted: true;
+  checkedAt: string;
+  waitingWindowCount: number;
+  overdueCount: number;
+  missingNextAttemptCount: number;
+  oldestDueAt: string | null;
+  overdueConversations: Array<{
+    id: string;
+    ghlContactId: string;
+    nextAttemptAt: string;
+    waitingWindowAttempts: number;
+  }>;
+};
 export type MediaReconciliationResponse = {
   accepted: true;
   conversationId: string;

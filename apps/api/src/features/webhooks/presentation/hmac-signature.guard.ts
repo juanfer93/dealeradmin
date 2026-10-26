@@ -58,6 +58,8 @@ export class HmacSignatureGuard implements CanActivate {
       && (
         request.path.endsWith('/webhooks/ghl/conversations/process-due')
         || request.path.endsWith('/webhooks/ghl/conversations/process-due-only')
+        || request.path.endsWith('/webhooks/ghl/conversations/due-health')
+        || request.path.endsWith('/webhooks/ghl/conversations/watchdog')
         || request.path.endsWith('/webhooks/ghl/conversations/run-guard')
       )
       && verifySharedSecret(bearerSecret, cronSecret ?? '')

@@ -112,6 +112,46 @@ export class WebhooksController {
     });
   }
 
+  @Get('ghl/conversations/due-health')
+  @UseGuards(HmacSignatureGuard)
+  async dueConversationHealth() {
+    return this.conversationWebhookService.getDueConversationHealth();
+  }
+
+  @Get('ghl/conversations/watchdog')
+  @UseGuards(HmacSignatureGuard)
+  async dueConversationWatchdog() {
+    const healthBefore = await this.conversationWebhookService.getDueConversationHealth();
+    const needsRelease = healthBefore.overdueCount > 0 || healthBefore.missingNextAttemptCount > 0;
+    if (!needsRelease) {
+      return {
+        accepted: true,
+        triggered: false,
+        skipped: 0,
+        remainingDue: 0,
+        healthBefore,
+        healthAfter: healthBefore,
+      };
+    }
+
+    const release = await this.conversationWebhookService.processDueConversations(undefined, {
+      reconcileActive: false,
+      runGuard: false,
+    });
+    const healthAfter = await this.conversationWebhookService.getDueConversationHealth();
+    return {
+      accepted: release.skipped === 0
+        && healthAfter.overdueCount === 0
+        && healthAfter.missingNextAttemptCount === 0,
+      triggered: true,
+      skipped: release.skipped,
+      remainingDue: healthAfter.overdueCount,
+      healthBefore,
+      release,
+      healthAfter,
+    };
+  }
+
   @Get('ghl/conversations/run-guard')
   @UseGuards(HmacSignatureGuard)
   async runGuardCron(@Req() request: Request) {
