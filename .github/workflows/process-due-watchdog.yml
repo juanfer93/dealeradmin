@@ -120,7 +120,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     needs: release-due-watchdog
-    if: ${{ always() && needs.release-due-watchdog.result != 'cancelled' && needs.release-due-watchdog.outputs.fallback_needed == 'true' }}
+    # Queued replays are independent from waiting-window health. A contact
+    # can already be queued with an unconsumed Guard replay even when there is
+    # no overdue waiting_window row, so the backup must run on every watchdog
+    # tick and not only when the due-row fallback is needed.
+    if: ${{ always() && needs.release-due-watchdog.result != 'cancelled' }}
     concurrency:
       # Keep the final queued replay serialized with the primary backup job.
       group: process-due-queued-backup
