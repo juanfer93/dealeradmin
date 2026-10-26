@@ -316,7 +316,13 @@ export class ConversationReconciliationFunctions {
          WHERE id = $1`,
         [id, status.status, JSON.stringify(snapshot), JSON.stringify(location), nextAttemptAt, now.toISOString(), nextWaitingWindowAttempts],
       );
-      if (!preserveTargetedStatus && status.status === 'ready') {
+      // A targeted Guard replay can keep a queued row queued while it repairs
+      // the qualification snapshot from the complete GHL history. Persist
+      // the same repaired fields to lead_dealers too; otherwise the UI and
+      // copy flow continue reading the stale pre-Guard values.
+      if (preserveTargetedStatus) {
+        await this.qualification.syncLeadDealer(runner, dealer, row.lead_id, snapshot, location, source);
+      } else if (status.status === 'ready') {
         const duplicate = await findQueuedConversationDuplicate(runner, dealer.id, snapshot.real_name || contactName, snapshot.phone, id);
         if (!duplicate) {
           await this.qualification.syncLeadDealer(runner, dealer, row.lead_id, snapshot, location, source);

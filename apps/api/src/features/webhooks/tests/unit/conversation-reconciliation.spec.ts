@@ -324,6 +324,14 @@ describe('ConversationReconciliationFunctions', () => {
     expect(conversationUpdate?.[1]?.[1]).toBe('queued');
     expect(String(conversationUpdate?.[0])).toContain("WHEN $2::varchar = 'queued' THEN waiting_window_attempts");
     expect(String(conversationUpdate?.[0])).toContain("WHEN $2::varchar = 'queued' THEN waiting_window_started_at");
+    expect(qualification.syncLeadDealer).toHaveBeenCalledWith(
+      runner,
+      expect.objectContaining({ id: 'dealer-stafford' }),
+      'lead-manuel',
+      expect.objectContaining({ purchase_timeline: 'this week', bank_account: 'yes' }),
+      expect.any(Object),
+      'stafford',
+    );
   });
 
   it('clears a Stafford WhatsApp vehicle label from the lead name when no buyer name was declared', async () => {
