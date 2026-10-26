@@ -2182,15 +2182,15 @@ describe('normalizeCollectorInput', () => {
     expect(result.vehicle_type).toBe('Sedan');
   });
 
-  it('uses the Messenger contact name as real_name', () => {
+  it('keeps Messenger contact labels out of real_name when supplied separately', () => {
     expect(normalizeCollectorInput({
       channel: 'messenger',
-      real_name: 'Hay Les Aviso',
+      contact_name: 'Hay Les Aviso',
       message: 'Que requisitos necesito',
-    }).real_name).toBe('Hay Les Aviso');
+    }).real_name).toBe('');
   });
 
-  it('keeps the decorated Messenger profile name ahead of a contaminated payment answer', () => {
+  it('does not replace a Messenger label with a conversational reply', () => {
     const transcript = [
       'Quiero financiar un auto',
       'Ando en busca de honda oh un Toyota',
@@ -2209,7 +2209,22 @@ describe('normalizeCollectorInput', () => {
       contact_name: 'Andrea⚘️',
       message: 'Licencia y pasaporte',
       chat_history_log: transcript,
-    }).real_name).toBe('Andrea');
+    }).real_name).toBe('');
+  });
+
+  it('accepts a Messenger name only when the transcript explicitly answers the name prompt', () => {
+    expect(normalizeCollectorInput({
+      channel: 'messenger',
+      contact_name: 'Como Así',
+      chat_history_log: '¿Cuál es tu nombre completo?\nJuan Pérez',
+      message: 'Juan Pérez',
+    }).real_name).toBe('Juan Pérez');
+    expect(normalizeCollectorInput({
+      channel: 'messenger',
+      contact_name: 'Como Así',
+      chat_history_log: 'Infiniti Q50\nMe lo puede explicar',
+      message: 'Me lo puede explicar',
+    }).real_name).toBe('');
   });
 
   it('uses only a declared chat name for WhatsApp', () => {
@@ -2728,7 +2743,7 @@ describe('normalizeCollectorInput', () => {
       chat_history_log: 'Can I See Inventory',
     });
 
-    expect(result.real_name).toBe('Juan Perez');
+    expect(result.real_name).toBe('');
     expect(result.real_name).not.toContain('Inventory');
   });
 

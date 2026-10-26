@@ -84,7 +84,7 @@ const memoryValue = (aliases) => {
   const match = normalizedMemory.match(new RegExp(`(?:^|[^a-z])(?:${pattern})\\s*(?::|=|-|\\bis\\b|\\bare\\b)\\s*([^;]+)`, 'i'));
   return clean(match?.[1]).replace(/(trade[- ]?in)\d+$/i, '$1');
 };
-const invalidRealNames = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'saludos', 'hello', 'hi', 'hey', 'hola', 'greetings', 'buenos dias', 'buenas tardes', 'buenas noches', 'bendiciones', 'buenos dias bendiciones', 'buenas tardes bendiciones', 'buenas noches bendiciones', 'thu chikitha linda', 'como asi', 'como así', 'cómo asi', 'cómo así', 'how so', 'what do you mean']);
+const invalidRealNames = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'saludos', 'hello', 'hi', 'hey', 'hola', 'greetings', 'buenos dias', 'buenas tardes', 'buenas noches', 'bendiciones', 'buenos dias bendiciones', 'buenas tardes bendiciones', 'buenas noches bendiciones', 'thu chikitha linda', 'como asi', 'como así', 'cómo asi', 'cómo así', 'how so', 'what do you mean', 'me lo puede explicar', 'me puede explicar', 'me lo puedes explicar', 'me puedes explicar']);
 const qualificationResponseMarkers = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|baltimore|maryland|where are you located|where are you|what|which|how|como\s+as[ií]|how\s+so|what\s+do\s+you\s+mean|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|ubicaci[oó]n|ubicados?|vehicle|car|auto|carro|coche|veh[ií]culo|suv|sedan|midsize|mid[- ]?size|medium[- ]?size|mediano|mediana|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|cheques?|checks?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
 const genericVehicleIntent = /\b(?:need|needs|looking\s+for|want|wants|seeking|shopping\s+for|trying\s+to\s+find|necesito|busco|buscando|quiero|me\s+interesa)\b[\s\S]*\b(?:vehicle|car|auto|carro|coche|veh[ií]culo|truck|suv|sedan|van|camioneta|pickup|pick-up)\b/i;
 const inventoryIntent = /\b(?:inventory|inventario|see\s+(?:the\s+)?inventory|can\s+i\s+see|show\s+me|mu[eé]strame|ver\s+(?:el\s+)?inventario)\b/i;
@@ -370,9 +370,10 @@ const staffordWhatsApp = isStaffordWhatsApp(inputData.source, channel);
 const contactName = isMessengerChannel(channel)
   ? normalizeProfileDisplayName(rawContactName)
   : (isProfileDisplayName(rawContactName) ? '' : normalizeRealName(rawContactName));
-// A fresh Messenger profile name must be allowed to repair a contaminated
-// snapshot (for example "Me Pagan Cheque" from a prior answer).
-const messengerProfileName = contactName || suppliedName;
+// Messenger/Instagram contact labels are display metadata, not proof of a
+// buyer's real name. Only an explicit name answer may populate qualification;
+// an already persisted explicit name can be retained during replay.
+const messengerProfileName = suppliedName;
 const extractedNames = [
   memoryValue(['real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name', 'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre']),
   nameFromText(rawMessage),
@@ -400,7 +401,7 @@ const normalizeWhatsAppCandidate = (value) => {
 const realName = isMessengerChannel(channel)
   ? (messengerProfileName && !isBusinessName(messengerProfileName)
     ? messengerProfileName
-    : declaredNameFromText(rawMessage) || declaredNameFromText(rawHistory) || extractedNames.map(normalizeRealName).find(Boolean) || messengerProfileName || '')
+    : declaredNameFromText(rawMessage) || declaredNameFromText(rawHistory) || messengerProfileName || '')
   : isWhatsAppChannel(channel)
     ? whatsappNames.map(normalizeWhatsAppCandidate).find(Boolean) || ''
     : ((isBusinessName(suppliedName) || isProfileDisplayName(suppliedName)) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) || '';

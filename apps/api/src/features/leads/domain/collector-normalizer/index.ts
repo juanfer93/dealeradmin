@@ -614,11 +614,17 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const messengerTextName = [
     extractDeclaredRealNameFromText(rawMessage),
     extractDeclaredRealNameFromText(rawHistory),
-    ...extractedNames,
+    // Legacy callers that do not provide a separate profile label may still
+    // pass a transcript-only name. Once GHL supplies contact_name/profile.name,
+    // however, only an explicit answer to the name prompt is authoritative.
+    ...(firstNonEmpty(input.contact_name, input.contactName, input.profile?.name, input.name) ? [] : extractedNames),
   ].map(normalizeRealName).find(Boolean) ?? EMPTY;
-  // A fresh Messenger profile name must be allowed to repair a contaminated
-  // snapshot (for example "Me Pagan Cheque" from a prior answer).
-  const messengerProfileName = profileName || suppliedName;
+  // Messenger/Instagram contact labels are display metadata, not proof of a
+  // buyer's real name. Only an explicit name answer may populate the
+  // qualification field; an already persisted explicit name can be retained.
+  // This prevents replies such as "Me lo puede explicar" from becoming a
+  // real_name during a transcript replay.
+  const messengerProfileName = suppliedName;
   const realName = isMessengerChannel(channel)
     // A valid contact/profile name is authoritative. Message text may replace
     // only a business/technical label, or answer an explicit name prompt.

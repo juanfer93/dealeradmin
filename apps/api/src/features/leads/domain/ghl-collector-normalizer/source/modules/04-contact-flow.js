@@ -123,9 +123,10 @@ const staffordWhatsApp = isStaffordWhatsApp(inputData.source, channel);
 const contactName = isMessengerChannel(channel)
   ? normalizeProfileDisplayName(rawContactName)
   : (isProfileDisplayName(rawContactName) ? '' : normalizeRealName(rawContactName));
-// A fresh Messenger profile name must be allowed to repair a contaminated
-// snapshot (for example "Me Pagan Cheque" from a prior answer).
-const messengerProfileName = contactName || suppliedName;
+// Messenger/Instagram contact labels are display metadata, not proof of a
+// buyer's real name. Only an explicit name answer may populate qualification;
+// an already persisted explicit name can be retained during replay.
+const messengerProfileName = suppliedName;
 const extractedNames = [
   memoryValue(['real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name', 'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre']),
   nameFromText(rawMessage),
@@ -153,7 +154,7 @@ const normalizeWhatsAppCandidate = (value) => {
 const realName = isMessengerChannel(channel)
   ? (messengerProfileName && !isBusinessName(messengerProfileName)
     ? messengerProfileName
-    : declaredNameFromText(rawMessage) || declaredNameFromText(rawHistory) || extractedNames.map(normalizeRealName).find(Boolean) || messengerProfileName || '')
+    : declaredNameFromText(rawMessage) || declaredNameFromText(rawHistory) || messengerProfileName || '')
   : isWhatsAppChannel(channel)
     ? whatsappNames.map(normalizeWhatsAppCandidate).find(Boolean) || ''
     : ((isBusinessName(suppliedName) || isProfileDisplayName(suppliedName)) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) || '';
