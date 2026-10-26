@@ -40,7 +40,11 @@ const asSize = (value: unknown): number | null => {
 
 function inferKind(contentType: string | null, filename: string | null, declaredKind: string | null): MediaKind {
   const source = [contentType, filename, declaredKind].filter(Boolean).join(' ').toLowerCase();
-  if (/\baudio\b|\.(?:ogg|oga|opus|aac|m4a|mp3|wav|webm)(?:$|\?)/i.test(source)) return 'audio';
+  const explicitlyVideo = /\bvideo\b/i.test([contentType, declaredKind].filter(Boolean).join(' '));
+  // GHL has delivered voice notes as bare .mp4 URLs without MIME metadata.
+  // Treat that ambiguous extension as audio, but do not override an explicit
+  // video declaration.
+  if (!explicitlyVideo && /\baudio\b|\.(?:mp4|ogg|oga|opus|aac|m4a|mp3|wav|webm)(?:$|\?)/i.test(source)) return 'audio';
   if (/\bimage\b|\.(?:jpg|jpeg|png|gif|webp|heic|bmp|tiff?)(?:$|\?)/i.test(source)) return 'image';
   return 'unknown';
 }

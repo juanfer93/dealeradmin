@@ -85,7 +85,8 @@ def safe_content_type(value: Any) -> str | None:
 
 def media_kind(content_type: str | None, filename: str | None) -> str:
     source = " ".join(item for item in (content_type or "", filename or "") if item).lower()
-    if re.search(r"audio|\.(ogg|oga|opus|aac|m4a|mp3|wav|webm)(\?|$)", source):
+    explicitly_video = bool(re.search(r"\bvideo\b", (content_type or "")))
+    if not explicitly_video and re.search(r"audio|\.(mp4|ogg|oga|opus|aac|m4a|mp3|wav|webm)(\?|$)", source):
         return "audio"
     if re.search(r"image|\.(jpg|jpeg|png|gif|webp|heic|bmp|tif|tiff)(\?|$)", source):
         return "image"

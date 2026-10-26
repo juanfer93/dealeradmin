@@ -5,6 +5,12 @@ import worker
 
 
 class LocalVisionContractTests(unittest.TestCase):
+    def test_bare_mp4_voice_note_is_audio(self):
+        self.assertEqual(worker.media_kind(None, "voice.mp4"), "audio")
+
+    def test_explicit_video_mp4_is_not_audio(self):
+        self.assertNotEqual(worker.media_kind("video/mp4", "video.mp4"), "audio")
+
     def test_local_model_json_is_parsed_from_markdown_wrapper(self):
         parsed = worker._parse_vision_json(
             '```json\n{"object_type":"vehicle","vehicle":{"make":"Chevrolet","model":"Equinox","type":"SUV"}}\n```'

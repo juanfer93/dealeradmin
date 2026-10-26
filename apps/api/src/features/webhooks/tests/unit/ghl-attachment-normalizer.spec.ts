@@ -12,6 +12,24 @@ describe('normalizeGhlAttachments', () => {
     ]);
   });
 
+  it('infers audio from a bare mp4 voice-note URL without MIME metadata', () => {
+    expect(normalizeGhlAttachments('https://cdn.example.test/voice.mp4', 'message-mp4')).toEqual([
+      expect.objectContaining({
+        sourceUrl: 'https://cdn.example.test/voice.mp4',
+        kind: 'audio',
+        sourceMessageId: 'message-mp4',
+      }),
+    ]);
+  });
+
+  it('does not classify an explicitly declared video mp4 as audio', () => {
+    expect(normalizeGhlAttachments({
+      url: 'https://cdn.example.test/video.mp4',
+      content_type: 'video/mp4',
+      type: 'video',
+    }, 'message-video-mp4')[0]?.kind).toBe('unknown');
+  });
+
   it('accepts native object metadata and preserves the raw attachment', () => {
     const result = normalizeGhlAttachments({
       url: 'https://cdn.example.test/id.png',
