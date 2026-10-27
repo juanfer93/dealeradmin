@@ -2523,7 +2523,7 @@ describe('normalizeCollectorInput', () => {
     expect(result.qualification_source).toBe('both');
   });
 
-  it('requires every qualification fact before the downstream trigger can treat a lead as ready', () => {
+  it('treats phone and vehicle as routing-complete while later cycles collect additive facts', () => {
     expect(isQualificationComplete({
       real_name: 'QA Customer',
       phone: '+13015550123',

@@ -656,6 +656,23 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
   });
 
+  it('classifies Culpeper Chevrolet 250 evidence as a truck', () => {
+    const result = execute({
+      source: 'koons-culpeper',
+      channel: 'messenger',
+      real_name: 'Jose Argueta',
+      phone: '+12408259829',
+      message: 'Mi número 2408259829',
+      chat_history_log: 'Habla español\nCamioneta 250 tiene\nBusco una Chevrolet 250\nMi número 2408259829',
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'Chevrolet 250',
+      vehicle_category: 'truck',
+      required_down_payment: 3000,
+    });
+  });
+
   it('normalizes Stafford "For 250" as a Ford F-250 instead of a down payment', () => {
     const result = execute({
       source: 'stafford',

@@ -3,6 +3,12 @@ import { isAdvisorHandoffVehicle } from './flow-policy';
 import type { CollectorInput, QualificationStep } from './types';
 import { clean, firstNonEmpty } from './text-cleaner';
 
+/**
+ * Marks the minimum routing qualification, not the end of information
+ * collection. A phone and a real vehicle are enough to enter the durable
+ * waiting_window recovery contract; down payment, timeline, documents and
+ * banking evidence are additive fields collected during its cycles.
+ */
 export function isQualificationComplete(input: {
   real_name?: string | null;
   phone?: string | null;
