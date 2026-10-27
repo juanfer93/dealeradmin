@@ -167,13 +167,14 @@ jobs:
   queued-backup:
     runs-on: ubuntu-latest
     timeout-minutes: 6
-    # Wait for the contact-scoped due Guard before starting the global queued
-    # replay so both requests cannot race for the same advisory lock. For
-    # scheduled runs, run-guard is skipped and due-guard owns that pass.
-    needs: [release-due, due-guard, run-guard]
+    # Do not wait for the contact-scoped due Guard: a slow GHL read there must
+    # never block the independent queued replay. The endpoint already handles
+    # the shared lease with a bounded retry, so a race is recoverable while a
+    # dependency wait is not.
+    needs: [release-due, run-guard]
     # The backup replay is independent of due-release success. If the release
     # job fails, already-queued contacts must still get their one Guard replay.
-    if: ${{ always() && needs.release-due.result != 'cancelled' && needs.due-guard.result != 'cancelled' && needs.run-guard.result != 'cancelled' }}
+    if: ${{ always() && needs.release-due.result != 'cancelled' && needs.run-guard.result != 'cancelled' }}
     concurrency:
       group: process-due-queued-backup
       cancel-in-progress: false
