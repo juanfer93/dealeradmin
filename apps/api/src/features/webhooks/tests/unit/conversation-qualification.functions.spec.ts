@@ -89,6 +89,79 @@ describe('ConversationQualificationFunctions', () => {
     expect(runner.query.mock.calls[1]?.[0]).toContain('ON CONFLICT (ghl_location_id, ghl_contact_id, ghl_conversation_id) DO NOTHING');
   });
 
+  it('writes a new native conversation into the canonical row for the same dealer', async () => {
+    const canonicalRow = {
+      id: 'conversation-canonical',
+      status: 'waiting_window',
+      ghl_conversation_id: 'ghl-native-original',
+      qualification_snapshot: { assigned_dealer_id: 'dealer-koons' },
+      location_snapshot: {},
+      ready_at: null,
+      created_at: '2026-10-27T12:00:00.000Z',
+      first_message_at: '2026-10-27T12:00:00.000Z',
+      last_message_at: '2026-10-27T12:05:00.000Z',
+    };
+    const runner = { query: vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([canonicalRow]) };
+
+    const result = await new ConversationQualificationFunctions().upsertConversation(runner as never, {
+      leadId: 'lead-1',
+      locationId: 'location-1',
+      contactId: 'contact-1',
+      conversationId: 'ghl-native-rotated',
+      channel: 'messenger',
+      occurredAt: '2026-10-27T12:06:00.000Z',
+      dealerId: 'dealer-koons',
+    });
+
+    expect(result).toMatchObject({ ...canonicalRow, isExisting: true });
+    expect(runner.query).toHaveBeenCalledTimes(2);
+    expect(runner.query.mock.calls[1]?.[0]).toContain("assigned_dealer_id");
+    expect(runner.query.mock.calls[1]?.[1]).toEqual(['location-1', 'contact-1', 'messenger', 'dealer-koons', null]);
+  });
+
+  it('moves an already-created synthetic duplicate into the native canonical row', async () => {
+    const duplicateRow = {
+      id: 'conversation-synthetic',
+      status: 'partial',
+      ghl_conversation_id: 'contact:contact-1:messenger',
+      qualification_snapshot: { assigned_dealer_id: 'dealer-koons' },
+      location_snapshot: {},
+      ready_at: null,
+      created_at: '2026-10-27T12:01:00.000Z',
+      first_message_at: '2026-10-27T12:01:00.000Z',
+      last_message_at: '2026-10-27T12:02:00.000Z',
+    };
+    const canonicalRow = {
+      id: 'conversation-native',
+      status: 'waiting_window',
+      ghl_conversation_id: 'ghl-native-original',
+      qualification_snapshot: { assigned_dealer_id: 'dealer-koons' },
+      location_snapshot: {},
+      ready_at: null,
+      created_at: '2026-10-27T12:00:00.000Z',
+      first_message_at: '2026-10-27T12:00:00.000Z',
+      last_message_at: '2026-10-27T12:05:00.000Z',
+    };
+    const runner = { query: vi.fn()
+      .mockResolvedValueOnce([duplicateRow])
+      .mockResolvedValueOnce([canonicalRow])
+      .mockResolvedValue([]) };
+
+    const result = await new ConversationQualificationFunctions().upsertConversation(runner as never, {
+      leadId: 'lead-1',
+      locationId: 'location-1',
+      contactId: 'contact-1',
+      conversationId: 'contact:contact-1:messenger',
+      channel: 'messenger',
+      occurredAt: '2026-10-27T12:06:00.000Z',
+      dealerId: 'dealer-koons',
+    });
+
+    expect(result).toMatchObject({ ...canonicalRow, isExisting: true });
+    expect(runner.query.mock.calls.some(([sql]) => String(sql).includes('UPDATE conversation_messages'))).toBe(true);
+    expect(runner.query.mock.calls.some(([sql]) => String(sql).includes("status = 'duplicate_ignored'"))).toBe(true);
+  });
+
   it('puts Stafford WhatsApp into the waiting window with its native phone and vehicle', () => {
     const result = new ConversationQualificationFunctions().statusForConversation(
       {

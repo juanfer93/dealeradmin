@@ -124,7 +124,8 @@ export class GhlGuardService {
       await this.persistence.recoverStaleQueuedReplayClaims(now);
       const rows = await lockRunner.query(
         targeted
-          ? `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status
+          ? `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status,
+                    qualification_snapshot->>'assigned_dealer_id' AS assigned_dealer_id
          FROM conversations
          LEFT JOIN LATERAL (
            SELECT latest_guard.created_at
@@ -163,7 +164,8 @@ export class GhlGuardService {
                   updated_at DESC
          LIMIT $1`
           : queuedOnly
-          ? `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status
+          ? `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status,
+                    qualification_snapshot->>'assigned_dealer_id' AS assigned_dealer_id
          FROM conversations
          LEFT JOIN LATERAL (
            SELECT latest_guard.created_at
@@ -207,7 +209,8 @@ export class GhlGuardService {
                   due_retry.next_retry_at ASC NULLS LAST,
                   last_guard.created_at ASC NULLS LAST
          LIMIT $1`
-          : `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status
+          : `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status,
+                    qualification_snapshot->>'assigned_dealer_id' AS assigned_dealer_id
          FROM conversations
          LEFT JOIN LATERAL (
            SELECT latest_guard.created_at
@@ -333,9 +336,12 @@ export class GhlGuardService {
          AND canonical.id <> $3
          AND canonical.ghl_conversation_id IS NOT NULL
          AND canonical.ghl_conversation_id NOT LIKE 'contact:%'
+         AND ($4::text IS NULL
+           OR canonical.qualification_snapshot->>'assigned_dealer_id' IS NULL
+           OR canonical.qualification_snapshot->>'assigned_dealer_id' = $4::text)
        ORDER BY canonical.last_message_at DESC NULLS LAST, canonical.updated_at DESC
        LIMIT 1`,
-      [row.ghl_location_id, row.ghl_contact_id, row.id],
+      [row.ghl_location_id, row.ghl_contact_id, row.id, row.assigned_dealer_id ?? null],
     ) as Array<{ id: string; ghl_conversation_id: string; status: string }>;
     const canonical = rows[0];
     return canonical?.ghl_conversation_id ? canonical : null;

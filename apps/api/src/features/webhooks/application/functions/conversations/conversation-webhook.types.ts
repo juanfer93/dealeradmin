@@ -16,10 +16,12 @@ export type DealerRow = { id: string; code: string; name: string; timezone: stri
 export type ConversationRow = {
   id: string;
   status: string;
+  ghl_conversation_id?: string;
   qualification_snapshot: Record<string, unknown>;
   location_snapshot: Record<string, unknown>;
   created_at?: string | Date;
   first_message_at?: string | Date;
+  last_message_at?: string | Date | null;
   ready_at?: string | null;
   next_attempt_at?: string | null;
   waiting_window_attempts?: number;

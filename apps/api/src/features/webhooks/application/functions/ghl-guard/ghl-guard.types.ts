@@ -6,6 +6,7 @@ export type GuardConversationRow = {
   ghl_contact_id: string;
   ghl_conversation_id: string | null;
   status: string;
+  assigned_dealer_id?: string | null;
 };
 
 export type PersistResult = {

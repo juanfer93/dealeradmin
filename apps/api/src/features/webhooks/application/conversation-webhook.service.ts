@@ -175,6 +175,14 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
          WHERE ghl_location_id = $1
            AND ghl_contact_id = $2
            AND channel = $3
+           AND EXISTS (
+             SELECT 1
+             FROM conversations current_conversation
+             WHERE current_conversation.ghl_location_id = $1
+               AND current_conversation.ghl_contact_id = $2
+               AND current_conversation.channel = $3
+               AND current_conversation.ghl_conversation_id = $4
+           )
            AND ghl_conversation_id IS NOT NULL
            AND ghl_conversation_id NOT LIKE 'contact:%'
            AND ghl_conversation_id <> $4

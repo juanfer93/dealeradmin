@@ -56,6 +56,7 @@ const CONVERSATION_SEARCH_LIMIT = 1;
 
 export type GhlGuardRequestOptions = {
   deadlineAt?: number;
+  maxAttempts?: number;
 };
 
 function positiveInteger(value: string | undefined, fallback: number): number {
@@ -106,7 +107,11 @@ export class GhlGuardClient {
 
   async searchLatestConversation(token: string, locationId: string, options?: GhlGuardRequestOptions): Promise<GhlGuardFetchResult<{ conversations: GhlGuardConversation[]; total: number }>> {
     const path = `/conversations/search?locationId=${encodeURIComponent(locationId)}&limit=1&sort=desc`;
-    const response = await this.get<GhlSearchResponse>(path, token, options);
+    // Contact lookup is only a discovery step. Retrying it inside the same
+    // conversation budget can consume the time needed to fetch messages and
+    // leave the Guard as GHL_TIMEOUT. The next scheduled cycle is the durable
+    // retry for this lookup.
+    const response = await this.get<GhlSearchResponse>(path, token, { ...options, maxAttempts: 1 });
     if (!response.ok) return { ok: false, status: response.status, errorCode: response.errorCode, requestPath: path, responsePayload: response.responsePayload, attemptCount: response.attemptCount, elapsedMs: response.elapsedMs };
     const conversations = (response.data?.conversations ?? [])
       .filter((conversation): conversation is GhlGuardConversation => typeof conversation.id === 'string')
@@ -175,7 +180,7 @@ export class GhlGuardClient {
   }
 
   private async get<T>(path: string, token: string, options: GhlGuardRequestOptions = {}): Promise<GhlGuardFetchResult<T>> {
-    const attempts = 3;
+    const attempts = Math.max(1, Math.min(3, options.maxAttempts ?? 3));
     const startedAt = Date.now();
     const telemetry = (attemptCount: number) => ({ attemptCount, elapsedMs: Date.now() - startedAt });
     for (let attempt = 0; attempt < attempts; attempt += 1) {

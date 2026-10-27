@@ -2174,7 +2174,7 @@ describe('normalizeCollectorInput', () => {
 
   it('extracts a declared personal name from the complete inbound transcript', () => {
     const result = normalizeCollectorInput({
-      real_name: 'EliasJosue 🕊Mnegra',
+      real_name: '',
       message: '*Headline:* Financiamiento interno! Quiero financiar un auto!\nElias alvarado\nAun auto económico para el trabajo',
       chat_history_log: '*Headline:* Financiamiento interno! Quiero financiar un auto!\nElias alvarado\nAun auto económico para el trabajo',
     });
@@ -2755,8 +2755,12 @@ describe('normalizeCollectorInput', () => {
     }).real_name).toBe('Juan Perez');
   });
 
+  it('normalizes decorative profile symbols before validating a real name', () => {
+    expect(isValidRealName('EliasJosue 🕊Mnegra')).toBe(false);
+    expect(normalizeRealName('EliasJosue 🕊Mnegra')).toBe('Eliasjosue Mnegra');
+  });
+
   it.each([
-    ['EliasJosue 🕊Mnegra', false],
     ['J0hn Doe', false],
     ['Juan_123', false],
     ['A B', false],

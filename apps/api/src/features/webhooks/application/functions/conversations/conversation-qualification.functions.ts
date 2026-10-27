@@ -278,10 +278,11 @@ export class ConversationQualificationFunctions {
     return inserted[0];
   }
 
-  async upsertConversation(runner: QueryRunner, input: { leadId: string; locationId: string; contactId: string; conversationId: string; channel: string; occurredAt: string }): Promise<ConversationRow> {
+  async upsertConversation(runner: QueryRunner, input: { leadId: string; locationId: string; contactId: string; conversationId: string; channel: string; occurredAt: string; dealerId?: string }): Promise<ConversationRow> {
     const existing = await runner.query(
-      `SELECT id, status, qualification_snapshot, location_snapshot, ready_at,
+      `SELECT id, status, ghl_conversation_id, qualification_snapshot, location_snapshot, ready_at,
               created_at, first_message_at,
+              last_message_at,
               EXISTS (
                 SELECT 1
                 FROM conversation_messages cm
@@ -291,12 +292,54 @@ export class ConversationQualificationFunctions {
        WHERE ghl_location_id = $1 AND ghl_contact_id = $2 AND ghl_conversation_id = $3 FOR UPDATE`,
       [input.locationId, input.contactId, input.conversationId],
     ) as ConversationRow[];
+
+    // GHL can rotate the native conversation id while the contact stays in
+    // the same dealer/channel. Consolidate only when the dealer is known;
+    // alternating/split dealer locations remain protected by Guard rules.
+    if (input.dealerId) {
+      const siblingRows = await runner.query(
+        `SELECT id, status, ghl_conversation_id, qualification_snapshot, location_snapshot, ready_at,
+                created_at, first_message_at, last_message_at
+         FROM conversations
+         WHERE ghl_location_id = $1
+           AND ghl_contact_id = $2
+           AND channel = $3
+           AND status NOT IN ('sent', 'ignored_channel', 'stale_phone_ignored')
+           AND COALESCE(NULLIF(qualification_snapshot->>'assigned_dealer_id', ''), $4::text) = $4::text
+           AND ($5::uuid IS NULL OR id <> $5::uuid)
+         ORDER BY
+           CASE WHEN ghl_conversation_id LIKE 'contact:%' THEN 1 ELSE 0 END,
+           CASE status WHEN 'waiting_window' THEN 0 WHEN 'partial' THEN 1 WHEN 'duplicate_ignored' THEN 2 ELSE 3 END,
+           last_message_at DESC NULLS LAST,
+           created_at ASC
+         LIMIT 1
+         FOR UPDATE`,
+        [input.locationId, input.contactId, input.channel, input.dealerId, existing[0]?.id ?? null],
+      ) as ConversationRow[];
+
+      const sibling = siblingRows[0];
+      if (sibling) {
+        if (existing[0]) {
+          const current = existing[0];
+          const currentIsNative = Boolean(current.ghl_conversation_id && !current.ghl_conversation_id.startsWith('contact:'));
+          const siblingIsNative = Boolean(sibling.ghl_conversation_id && !sibling.ghl_conversation_id.startsWith('contact:'));
+          const canonical = currentIsNative && !siblingIsNative ? current : sibling;
+          const duplicate = canonical.id === current.id ? sibling : current;
+          await this.mergeConversationIntoCanonical(runner, duplicate.id, canonical.id);
+          return { ...canonical, isExisting: true };
+        }
+        // The new native id has not been inserted yet. The next message is
+        // written directly into the already canonical conversation.
+        return { ...sibling, isExisting: true };
+      }
+    }
+
     if (existing[0]) return { ...existing[0], isExisting: true };
     const inserted = await runner.query(
       `INSERT INTO conversations (lead_id, ghl_location_id, ghl_contact_id, ghl_conversation_id, channel, first_message_at, last_message_at)
        VALUES ($1, $2, $3, $4, $5, $6, $6)
        ON CONFLICT (ghl_location_id, ghl_contact_id, ghl_conversation_id) DO NOTHING
-       RETURNING id, status, qualification_snapshot, location_snapshot, ready_at, created_at, first_message_at`,
+       RETURNING id, status, ghl_conversation_id, qualification_snapshot, location_snapshot, ready_at, created_at, first_message_at, last_message_at`,
       [input.leadId, input.locationId, input.contactId, input.conversationId, input.channel, input.occurredAt],
     ) as ConversationRow[];
     if (inserted[0]) return { ...inserted[0], isExisting: false };
@@ -304,8 +347,9 @@ export class ConversationQualificationFunctions {
     // Another webhook won the same identity race. Read its committed row and
     // continue through the existing-conversation path without duplicating it.
     const concurrent = await runner.query(
-      `SELECT id, status, qualification_snapshot, location_snapshot, ready_at,
+      `SELECT id, status, ghl_conversation_id, qualification_snapshot, location_snapshot, ready_at,
               created_at, first_message_at,
+              last_message_at,
               EXISTS (
                 SELECT 1
                 FROM conversation_messages cm
@@ -317,6 +361,47 @@ export class ConversationQualificationFunctions {
     ) as ConversationRow[];
     if (concurrent[0]) return { ...concurrent[0], isExisting: true };
     throw new Error('Conversation insert conflict did not resolve to an existing row');
+  }
+
+  private async mergeConversationIntoCanonical(runner: QueryRunner, duplicateId: string, canonicalId: string): Promise<void> {
+    if (duplicateId === canonicalId) return;
+    await runner.query(
+      `DELETE FROM conversation_messages duplicate_message
+       WHERE duplicate_message.conversation_id = $1
+         AND EXISTS (
+           SELECT 1
+           FROM conversation_messages canonical_message
+           WHERE canonical_message.conversation_id = $2
+             AND canonical_message.dedupe_key = duplicate_message.dedupe_key
+         )`,
+      [duplicateId, canonicalId],
+    );
+    await runner.query(
+      `UPDATE conversation_messages
+       SET conversation_id = $2
+       WHERE conversation_id = $1`,
+      [duplicateId, canonicalId],
+    );
+    await runner.query(
+      `UPDATE conversations canonical
+       SET last_message_at = GREATEST(
+             COALESCE(canonical.last_message_at, duplicate.last_message_at),
+             COALESCE(duplicate.last_message_at, canonical.last_message_at)
+           ),
+           updated_at = CURRENT_TIMESTAMP
+       FROM conversations duplicate
+       WHERE canonical.id = $2 AND duplicate.id = $1`,
+      [duplicateId, canonicalId],
+    );
+    await runner.query(
+      `UPDATE conversations
+       SET status = 'duplicate_ignored', next_attempt_at = NULL,
+           waiting_window_attempts = 0, waiting_window_started_at = NULL,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+         AND status NOT IN ('sent', 'queued', 'duplicate_ignored', 'ignored_channel', 'stale_phone_ignored')`,
+      [duplicateId],
+    );
   }
 
   statusForConversation(

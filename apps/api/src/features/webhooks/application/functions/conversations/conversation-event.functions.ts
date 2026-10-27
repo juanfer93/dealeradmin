@@ -84,6 +84,7 @@ export class ConversationEventFunctions {
         conversationId: event.ghl_conversation_id,
         channel: event.channel,
         occurredAt,
+        dealerId: sourceDealer?.id,
       });
       const messageId = event.ghl_message_id || event.event_id;
       const dedupeKey = event.ghl_message_id || event.event_id;
