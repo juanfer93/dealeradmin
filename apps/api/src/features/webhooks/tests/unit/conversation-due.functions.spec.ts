@@ -81,7 +81,7 @@ describe('ConversationDueFunctions', () => {
       ['conversation-waiting', '2026-10-16T22:35:00.000Z', '2026-10-16T22:30:00.000Z', 1],
     );
     expect(runner.query.mock.calls[0][0]).toContain("idle_in_transaction_session_timeout = '15s'");
-    expect(runner.query.mock.calls[2][0]).toContain('waiting_window_attempts = $4');
+    expect(runner.query.mock.calls.find(([sql]) => String(sql).includes("SET status = 'waiting_window'"))?.[0]).toContain('waiting_window_attempts = $4');
     expect(runner.commitTransaction).toHaveBeenCalledOnce();
   });
 

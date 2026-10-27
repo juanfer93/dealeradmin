@@ -15,7 +15,7 @@ import { normalizePhone } from '../domain/phone-normalizer';
 import { normalizeDownPayment } from '../domain/down-payment';
 import { addTestManualLead, getTestDealer } from './test-lead-store';
 import { hasTestDealerLeadDuplicate } from './test-lead-store';
-import { findDealerLeadDuplicate } from '../domain/lead-duplicate';
+import { findDealerLeadDuplicate, findQueuedConversationDuplicate } from '../domain/lead-duplicate';
 
 type DealerRow = { id: string; name: string; ghl_location_id: string };
 type LeadRow = { id: string };
@@ -25,6 +25,7 @@ type ManualLeadResult = {
   leadId: string;
   message: string;
   alreadySent?: boolean;
+  alreadyQueued?: boolean;
   leadName?: string;
   leadPhone?: string;
 };
@@ -78,6 +79,18 @@ export class ManualLeadService {
 
       const dealer = dealers[0];
       const dealerMessageText = buildManualLeadMessage(name, canonicalPhone, { ...dto, dealer_name: dealer.name });
+      const queuedDuplicate = await findQueuedConversationDuplicate(queryRunner, dealer.id, name, canonicalPhone);
+      if (queuedDuplicate) {
+        await queryRunner.rollbackTransaction();
+        return {
+          success: true,
+          leadId: queuedDuplicate.id,
+          message: 'El lead ya está en queued para este dealer.',
+          alreadyQueued: true,
+          leadName: [queuedDuplicate.first_name, queuedDuplicate.last_name].filter(Boolean).join(' ').trim() || name,
+          leadPhone: queuedDuplicate.canonical_phone || canonicalPhone,
+        };
+      }
       const duplicate = await findDealerLeadDuplicate(queryRunner, dealer.id, name, canonicalPhone);
       if (duplicate) {
         if (duplicate.status === 'sent') {

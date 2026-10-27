@@ -13,6 +13,13 @@ export type QueuedConversationDuplicate = DealerLeadDuplicate & {
   conversation_status: 'queued';
 };
 
+type QueuedConversationIdentity = {
+  dealerId: string;
+  contactId?: string | null;
+  phone?: string | null;
+  excludeConversationId?: string;
+};
+
 export function normalizeLeadName(name: string): string {
   return name.trim().replace(/\s+/g, ' ').toLowerCase();
 }
@@ -50,32 +57,30 @@ export async function findDealerLeadDuplicate(
 }
 
 /**
- * Finds an already queued conversation for the same source dealer, normalized
- * name, and canonical phone. This is separate from the generic lead duplicate
- * lookup because manual leads do not necessarily have a conversation row.
+ * Finds an already queued conversation for the same dealer and phone/contact.
+ * This is separate from the generic lead duplicate lookup because manual leads
+ * do not necessarily have a conversation row.
  */
-export async function findQueuedConversationDuplicate(
+export async function findQueuedConversationIdentityDuplicate(
   queryable: Queryable,
-  dealerId: string,
-  name: string,
-  phone: string,
-  excludeConversationId?: string,
+  identity: QueuedConversationIdentity,
 ): Promise<QueuedConversationDuplicate | undefined> {
-  const normalizedName = normalizeLeadName(name);
-  if (!normalizedName || normalizedName === 'lead' || !phone) return undefined;
-
-  const parameters: unknown[] = [dealerId, phone, normalizedName];
-  const exclusion = excludeConversationId ? 'AND c.id <> $4' : '';
-  if (excludeConversationId) parameters.push(excludeConversationId);
+  const contactId = identity.contactId?.trim() || null;
+  const phone = identity.phone?.trim() || null;
+  if (!contactId && !phone) return undefined;
+  const parameters: unknown[] = [identity.dealerId, contactId, phone];
+  const exclusion = identity.excludeConversationId ? 'AND c.id <> $4' : '';
+  if (identity.excludeConversationId) parameters.push(identity.excludeConversationId);
   const rows = await queryable.query(
     `SELECT l.id, l.first_name, l.last_name, l.canonical_phone,
             c.id AS conversation_id, c.status AS conversation_status, ld.status
      FROM conversations c
      INNER JOIN leads l ON l.id = c.lead_id
-     INNER JOIN lead_dealers ld ON ld.lead_id = l.id
-     WHERE (ld.dealer_id = $1 OR COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $1)
-       AND l.canonical_phone = $2
-       AND LOWER(REGEXP_REPLACE(TRIM(CONCAT_WS(' ', l.first_name, l.last_name)), '\\s+', ' ', 'g')) = $3
+     LEFT JOIN lead_dealers ld ON ld.lead_id = l.id
+     WHERE (c.qualification_snapshot->>'assigned_dealer_id' = $1
+            OR COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $1)
+       AND (($2::text IS NOT NULL AND c.ghl_contact_id = $2::text)
+            OR ($3::text IS NOT NULL AND (l.canonical_phone = $3::text OR c.qualification_snapshot->>'phone' = $3::text)))
        AND c.status = 'queued'
        ${exclusion}
      ORDER BY c.updated_at DESC
@@ -84,4 +89,19 @@ export async function findQueuedConversationDuplicate(
     parameters,
   ) as QueuedConversationDuplicate[];
   return rows[0];
+}
+
+/** Finds a queued conversation for the same dealer and canonical phone. */
+export async function findQueuedConversationDuplicate(
+  queryable: Queryable,
+  dealerId: string,
+  _name: string,
+  phone: string,
+  excludeConversationId?: string,
+): Promise<QueuedConversationDuplicate | undefined> {
+  return findQueuedConversationIdentityDuplicate(queryable, {
+    dealerId,
+    phone,
+    excludeConversationId,
+  });
 }

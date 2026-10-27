@@ -29,6 +29,7 @@ import {
 } from './ghl-guard.config';
 import { GhlGuardClient } from './ghl-guard.client';
 import { completedFieldsBetween } from './ghl-guard-audit';
+import { queuedSiblingExclusionSql } from './functions/conversations/queued-sibling.sql';
 export type { GhlGuardFailure, GhlGuardRunResult, GhlGuardSkipReason } from './functions/ghl-guard/ghl-guard.types';
 
 @Injectable()
@@ -149,6 +150,7 @@ export class GhlGuardService {
            AND ghl_contact_id = ANY($3::text[])
            ${recentPredicate}
            ${queuedOnly ? "AND status = 'queued' AND queued_guard_replay_count = 0" : ''}
+           ${queuedSiblingExclusionSql()}
            AND NOT EXISTS (
              SELECT 1 FROM ghl_guard_logs active_guard
              WHERE active_guard.conversation_id = conversations.id
@@ -189,6 +191,7 @@ export class GhlGuardService {
              OR queued_guard_replay_claimed_at <= CURRENT_TIMESTAMP - ($3::integer * INTERVAL '1 millisecond'))
            AND ghl_location_id = ANY($2::text[])
            ${recentPredicate}
+           ${queuedSiblingExclusionSql()}
            AND NOT EXISTS (
              SELECT 1 FROM ghl_guard_logs active_guard
              WHERE active_guard.conversation_id = conversations.id
@@ -241,6 +244,7 @@ export class GhlGuardService {
                 OR queued_guard_replay_claimed_at <= CURRENT_TIMESTAMP - ($3::integer * INTERVAL '1 millisecond'))))
            AND ghl_location_id = ANY($2::text[])
            ${recentPredicate}
+           ${queuedSiblingExclusionSql()}
            AND NOT EXISTS (
              SELECT 1 FROM ghl_guard_logs active_guard
              WHERE active_guard.conversation_id = conversations.id

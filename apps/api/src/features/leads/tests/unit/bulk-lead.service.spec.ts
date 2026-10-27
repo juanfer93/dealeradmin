@@ -20,8 +20,9 @@ describe('BulkLeadService', () => {
     const runner = createRunner([
       [{ id: 'dealer-1', ghl_location_id: 'loc-1' }],
       [],
+      [],
       [], [], [{ id: 'lead-new-1' }], [], [],
-      [], [], [{ id: 'lead-new-2' }], [], [],
+      [], [], [], [{ id: 'lead-new-2' }], [], [],
       [],
     ]);
     const service = new BulkLeadService({ createQueryRunner: vi.fn(() => runner) } as never);
@@ -35,6 +36,7 @@ describe('BulkLeadService', () => {
   it('returns the existing lead name and phone when the number is already used in the target dealer', async () => {
     const runner = createRunner([
       [{ id: 'dealer-1', ghl_location_id: 'loc-1' }],
+      [],
       [],
       [],
       [{ id: 'lead-existing', first_name: 'Ana', last_name: 'Torres', canonical_phone: '+13019876543' }],
@@ -55,6 +57,7 @@ describe('BulkLeadService', () => {
   it('does not treat a phone used by another dealer as a duplicate', async () => {
     const runner = createRunner([
       [{ id: 'dealer-fredericksburg', ghl_location_id: 'loc-fred' }],
+      [],
       [],
       [],
       [],

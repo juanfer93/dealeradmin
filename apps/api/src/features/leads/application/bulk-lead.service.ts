@@ -5,7 +5,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { buildManualLeadMessage } from '../domain/manual-message-builder';
 import { normalizeDownPayment } from '../domain/down-payment';
 import { parseBulkLeads, ParsedBulkLead } from '../domain/bulk-lead-parser';
-import { findDealerLeadDuplicate } from '../domain/lead-duplicate';
+import { findDealerLeadDuplicate, findQueuedConversationDuplicate } from '../domain/lead-duplicate';
 import { normalizePhone } from '../domain/phone-normalizer';
 import { addTestManualLead, getTestDealer, hasTestDealerLeadDuplicate } from './test-lead-store';
 
@@ -127,6 +127,12 @@ export class BulkLeadService {
       return { rowNumber: item.rowNumber, name: item.dto.name, phone: item.phone, status: 'invalid', reason };
     }
     const dto = { ...item.dto, phone: canonicalPhone };
+    const queuedDuplicate = await findQueuedConversationDuplicate(queryRunner, dealer.id, dto.name, canonicalPhone);
+    if (queuedDuplicate) {
+      const reason = `No se puede subir ${dto.name} con ${canonicalPhone} porque ya tiene una conversación queued en este dealer.`;
+      await this.recordRow(queryRunner, _batchId, item, 'duplicate', reason, queuedDuplicate.id);
+      return { rowNumber: item.rowNumber, name: dto.name, phone: canonicalPhone, status: 'duplicate', reason, leadId: queuedDuplicate.id };
+    }
     const duplicate = await findDealerLeadDuplicate(queryRunner, dealer.id, dto.name, canonicalPhone);
     if (duplicate) {
       const reason = duplicateReason(dto.name, canonicalPhone, duplicate);

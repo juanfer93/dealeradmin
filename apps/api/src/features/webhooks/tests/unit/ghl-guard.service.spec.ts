@@ -87,6 +87,9 @@ describe('GhlGuardService', () => {
     expect(selection).toContain('due_retry.next_retry_at ASC NULLS LAST');
     expect(selection).toContain("retry_guard.error_code IS DISTINCT FROM 'GHL_GUARD_STALE_RUN'");
     expect(selection).toContain("retry_guard.metadata->>'recoveryReason'");
+    expect(selection).toContain("queued_sibling.status = 'queued'");
+    expect(selection).toContain('queued_sibling.ghl_contact_id = conversations.ghl_contact_id');
+    expect(selection).toContain('queued_lead.canonical_phone');
   });
 
   it('reports when the advisory lock prevents a guard cycle', async () => {

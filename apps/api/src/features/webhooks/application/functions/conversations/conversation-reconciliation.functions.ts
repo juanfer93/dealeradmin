@@ -10,6 +10,7 @@ import { addProcessedImageEvidence, clean, extractNativeWhatsappPhone, inputIndi
 import type { ConversationMessageRow, ConversationSnapshot, LocationSnapshot, MediaReconciliationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
 import { configureWebhookTransactionSafety } from '../../transaction-safety';
 import { isEmptyMarker } from '../../../../leads/domain/collector-normalizer/text-cleaner';
+import { queuedSiblingExclusionSql } from './queued-sibling.sql';
 
 const DOWN_PAYMENT_PROMPT = /\b(?:down|payment|enganche|pago\s+inicial|pago\s+de\s+entrada|inicial)\b/i;
 const DOWN_PAYMENT_QUESTION = /\b(?:cu[aá]nto|con\s+cu[aá]nto|how\s+much|approximately|aproximadamente|disponible|available|contar[ií]as|tendr[ií]as)\b/i;
@@ -51,6 +52,7 @@ export class ConversationReconciliationFunctions {
               AND NOT EXISTS (SELECT 1 FROM lead_dealers orphan_ld WHERE orphan_ld.lead_id = conversations.lead_id)
             )
           )
+       ${queuedSiblingExclusionSql()}
        ORDER BY updated_at DESC
        LIMIT $1`,
       [ACTIVE_RECONCILIATION_BATCH_SIZE, RECONCILIATION_LOCATION_IDS],
@@ -76,6 +78,7 @@ export class ConversationReconciliationFunctions {
            OR ($3::boolean AND c.status IN ('queued', 'duplicate_ignored'))
            OR (c.status <> 'queued' AND c.ghl_location_id = ANY($2::text[])
                AND NOT EXISTS (SELECT 1 FROM lead_dealers orphan_ld WHERE orphan_ld.lead_id = c.lead_id)))
+           ${queuedSiblingExclusionSql('c')}
          FOR UPDATE`,
         [id, RECONCILIATION_LOCATION_IDS, targeted],
       ) as Array<{

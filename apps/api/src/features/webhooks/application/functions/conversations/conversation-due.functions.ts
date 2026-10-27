@@ -1,6 +1,6 @@
 import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import type { DataSource } from 'typeorm';
-import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-duplicate';
+import { findQueuedConversationDuplicate, findQueuedConversationIdentityDuplicate } from '../../../../leads/domain/lead-duplicate';
 import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
 import { ConversationQualificationFunctions } from './conversation-qualification.functions';
 import { ConversationReconciliationFunctions } from './conversation-reconciliation.functions';
@@ -320,6 +320,17 @@ export class ConversationDueFunctions {
         return false;
       }
       const row = rows[0];
+      const queuedIdentityDuplicate = await findQueuedConversationIdentityDuplicate(runner, {
+        dealerId: clean(row.qualification_snapshot.assigned_dealer_id),
+        contactId: row.ghl_contact_id,
+        phone: row.qualification_snapshot.phone,
+        excludeConversationId: id,
+      });
+      if (queuedIdentityDuplicate) {
+        await runner.query(`UPDATE conversations SET status = 'duplicate_ignored', next_attempt_at = NULL, waiting_window_attempts = 0, waiting_window_started_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
+        await runner.commitTransaction();
+        return false;
+      }
       const configuredSource = Object.entries(this.sourceConfig).find(([, config]) => config.locationId === row.ghl_location_id)?.[0];
       if (!configuredSource) throw new BadRequestException(`Fuente GHL no configurada para la Location ID ${row.ghl_location_id}`);
       const source = configuredSource as SourceKey;
