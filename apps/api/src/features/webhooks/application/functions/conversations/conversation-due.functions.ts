@@ -155,6 +155,7 @@ export class ConversationDueFunctions {
     let skipped = 0;
     let guardResult: GhlGuardRunResult | undefined;
     let guardError: string | undefined;
+    const queuedContactIds: string[] = [];
     if (options.runGuard !== false) {
       try {
         // Read GHL before advancing the due row. On the fifth cycle the row
@@ -177,10 +178,45 @@ export class ConversationDueFunctions {
         if (release.terminal) processed += 1;
         if (release.advanced) advanced += 1;
         else skipped += 1;
+        if (release.terminal && row.ghl_contact_id) queuedContactIds.push(row.ghl_contact_id);
       } catch {
         // One malformed conversation must not stop the remaining five-minute
         // cycles. Keep it visible as deferred so the caller can retry it.
         skipped += 1;
+      }
+    }
+    if (options.runGuard !== false && this.guard && queuedContactIds.length > 0) {
+      try {
+        // The fifth waiting-window cycle changes the durable state to queued.
+        // Run the one additional Guard cycle immediately after that transition
+        // so the handoff does not depend on a later scheduler tick. The
+        // queued replay claim/count makes this idempotent with the scheduled
+        // queued-backup workflow and prevents a second replay.
+        const queuedGuardResult = await this.guard.run(new Date(), {
+          contactIds: [...new Set(queuedContactIds)],
+          force: true,
+          queuedOnly: true,
+          ...(recentOnly ? { recentOnly: true } : {}),
+        });
+        guardResult = guardResult
+          ? {
+              ...guardResult,
+              enabled: guardResult.enabled && queuedGuardResult.enabled,
+              skipped: guardResult.skipped && queuedGuardResult.skipped,
+              selected: guardResult.selected + queuedGuardResult.selected,
+              fetched: guardResult.fetched + queuedGuardResult.fetched,
+              inserted: guardResult.inserted + queuedGuardResult.inserted,
+              repaired: guardResult.repaired + queuedGuardResult.repaired,
+              failed: guardResult.failed + queuedGuardResult.failed,
+              errors: [...(guardResult.errors ?? []), ...(queuedGuardResult.errors ?? [])],
+              queuedReplaySelected: queuedGuardResult.queuedReplaySelected,
+              queuedReplayCompleted: queuedGuardResult.queuedReplayCompleted,
+              queuedReplayFailed: queuedGuardResult.queuedReplayFailed,
+              pendingQueuedReplayCount: queuedGuardResult.pendingQueuedReplayCount,
+            }
+          : queuedGuardResult;
+      } catch (error) {
+        guardError = error instanceof Error ? error.name : 'GHL_GUARD_QUEUED_REPLAY_FAILED';
       }
     }
     let remainingDue = 0;

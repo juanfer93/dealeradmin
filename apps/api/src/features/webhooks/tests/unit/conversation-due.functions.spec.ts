@@ -289,6 +289,78 @@ describe('ConversationDueFunctions', () => {
     expect(guard.run.mock.invocationCallOrder[0]).toBeLessThan(release.mock.invocationCallOrder[0]);
   });
 
+  it('runs one idempotent queued replay immediately after the fifth waiting-window cycle', async () => {
+    const dataSource = {
+      query: vi.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: 'conversation-terminal', ghl_contact_id: 'contact-terminal' }]),
+    };
+    const guard = {
+      run: vi.fn()
+        .mockResolvedValueOnce({
+          enabled: true,
+          skipped: false,
+          selected: 1,
+          fetched: 1,
+          inserted: 1,
+          repaired: 0,
+          failed: 0,
+        })
+        .mockResolvedValueOnce({
+          enabled: true,
+          skipped: false,
+          selected: 1,
+          fetched: 1,
+          inserted: 0,
+          repaired: 1,
+          failed: 0,
+          queuedReplaySelected: 1,
+          queuedReplayCompleted: 1,
+          queuedReplayFailed: 0,
+          pendingQueuedReplayCount: 0,
+        }),
+    };
+    const service = new ConversationDueFunctions(
+      dataSource as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      guard as never,
+    );
+    const release = vi
+      .spyOn(service as unknown as { releaseDueConversationWithRetry: (id: string, now: Date) => Promise<{ advanced: boolean; terminal: boolean }> }, 'releaseDueConversationWithRetry')
+      .mockResolvedValue({ advanced: true, terminal: true });
+
+    const result = await service.processDueConversations(new Date('2026-10-16T22:55:00.000Z'), {
+      reconcileActive: false,
+      runGuard: true,
+      forceGuard: true,
+      recentOnly: true,
+    });
+
+    expect(release).toHaveBeenCalledWith('conversation-terminal', expect.any(Date));
+    expect(guard.run).toHaveBeenNthCalledWith(1, expect.any(Date), {
+      contactIds: ['contact-terminal'],
+      force: true,
+      recentOnly: true,
+    });
+    expect(guard.run).toHaveBeenNthCalledWith(2, expect.any(Date), {
+      contactIds: ['contact-terminal'],
+      force: true,
+      queuedOnly: true,
+      recentOnly: true,
+    });
+    expect(result.guard).toEqual(expect.objectContaining({
+      selected: 2,
+      fetched: 2,
+      inserted: 1,
+      repaired: 1,
+      queuedReplaySelected: 1,
+      queuedReplayCompleted: 1,
+    }));
+  });
+
   it('can disable the guard independently from due release processing', async () => {
     const dataSource = {
       query: vi.fn()
