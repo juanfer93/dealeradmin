@@ -157,22 +157,7 @@ export class ConversationDueFunctions {
     let guardResult: GhlGuardRunResult | undefined;
     let guardError: string | undefined;
     const queuedContactIds: string[] = [];
-    if (options.runGuard !== false) {
-      try {
-        // Read GHL before advancing the due row. On the fifth cycle the row
-        // becomes queued only after this pass, leaving the queued backup as
-        // the separate additional replay cycle.
-        const cycleContactIds = [...new Set(due.map((row) => row.ghl_contact_id).filter(Boolean))];
-        guardResult = await this.guard?.run(new Date(), {
-          contactIds: cycleContactIds.length > 0 ? cycleContactIds : options.guardContactIds,
-          force: options.forceGuard === true,
-          ...(recentOnly ? { recentOnly: true } : {}),
-        });
-      } catch (error) {
-        // The GHL guard is a repair/audit layer; it must never block due releases.
-        guardError = error instanceof Error ? error.name : 'GHL_GUARD_RUN_FAILED';
-      }
-    }
+    const waitingContactIds: string[] = [];
     for (const row of due) {
       try {
         const release = await this.releaseDueConversationWithRetry(row.id, now);
@@ -180,44 +165,72 @@ export class ConversationDueFunctions {
         if (release.advanced) advanced += 1;
         else skipped += 1;
         if (release.terminal && row.ghl_contact_id) queuedContactIds.push(row.ghl_contact_id);
+        else if (row.ghl_contact_id) waitingContactIds.push(row.ghl_contact_id);
       } catch {
         // One malformed conversation must not stop the remaining five-minute
         // cycles. Keep it visible as deferred so the caller can retry it.
         skipped += 1;
       }
     }
-    if (options.runGuard !== false && this.guard && queuedContactIds.length > 0) {
+
+    // Release the durable five-minute cycle before calling GHL. A slow or
+    // stale external request must never leave next_attempt_at overdue and
+    // prevent the next cycle from advancing. Waiting rows get their normal
+    // targeted repair after release; terminal rows get the fifth read as a
+    // queued replay followed by the additional queued-cycle read.
+    const mergeGuardResult = (next: GhlGuardRunResult | undefined): void => {
+      if (!next) return;
+      guardResult = guardResult
+        ? {
+            ...guardResult,
+            enabled: guardResult.enabled && next.enabled,
+            skipped: guardResult.skipped && next.skipped,
+            selected: guardResult.selected + next.selected,
+            fetched: guardResult.fetched + next.fetched,
+            inserted: guardResult.inserted + next.inserted,
+            repaired: guardResult.repaired + next.repaired,
+            failed: guardResult.failed + next.failed,
+            errors: [...(guardResult.errors ?? []), ...(next.errors ?? [])],
+            queuedReplaySelected: next.queuedReplaySelected ?? guardResult.queuedReplaySelected,
+            queuedReplayCompleted: next.queuedReplayCompleted ?? guardResult.queuedReplayCompleted,
+            queuedReplayFailed: next.queuedReplayFailed ?? guardResult.queuedReplayFailed,
+            pendingQueuedReplayCount: next.pendingQueuedReplayCount ?? guardResult.pendingQueuedReplayCount,
+          }
+        : next;
+    };
+    const runTargetedGuard = async (contactIds: string[], guardOptions: { force?: boolean; queuedOnly?: boolean }): Promise<void> => {
+      if (options.runGuard === false || !this.guard || contactIds.length === 0) return;
       try {
-        // The fifth waiting-window cycle changes the durable state to queued.
-        // Run the one additional Guard cycle immediately after that transition
-        // so the handoff does not depend on a later scheduler tick. The
-        // queued replay claim/count makes this idempotent with the scheduled
-        // queued-backup workflow and prevents a second replay.
-        const queuedGuardResult = await this.guard.run(new Date(), {
-          contactIds: [...new Set(queuedContactIds)],
-          force: true,
-          queuedOnly: true,
+        const result = await this.guard.run(new Date(), {
+          contactIds: [...new Set(contactIds)],
+          ...guardOptions,
           ...(recentOnly ? { recentOnly: true } : {}),
         });
-        guardResult = guardResult
-          ? {
-              ...guardResult,
-              enabled: guardResult.enabled && queuedGuardResult.enabled,
-              skipped: guardResult.skipped && queuedGuardResult.skipped,
-              selected: guardResult.selected + queuedGuardResult.selected,
-              fetched: guardResult.fetched + queuedGuardResult.fetched,
-              inserted: guardResult.inserted + queuedGuardResult.inserted,
-              repaired: guardResult.repaired + queuedGuardResult.repaired,
-              failed: guardResult.failed + queuedGuardResult.failed,
-              errors: [...(guardResult.errors ?? []), ...(queuedGuardResult.errors ?? [])],
-              queuedReplaySelected: queuedGuardResult.queuedReplaySelected,
-              queuedReplayCompleted: queuedGuardResult.queuedReplayCompleted,
-              queuedReplayFailed: queuedGuardResult.queuedReplayFailed,
-              pendingQueuedReplayCount: queuedGuardResult.pendingQueuedReplayCount,
-            }
-          : queuedGuardResult;
+        mergeGuardResult(result);
       } catch (error) {
-        guardError = error instanceof Error ? error.name : 'GHL_GUARD_QUEUED_REPLAY_FAILED';
+        // The GHL guard is a repair/audit layer; it must never block due
+        // release. The next scheduled cycle can retry the targeted contact.
+        guardError = error instanceof Error ? error.name : 'GHL_GUARD_RUN_FAILED';
+      }
+    };
+
+    await runTargetedGuard(waitingContactIds, { force: options.forceGuard === true });
+    if (queuedContactIds.length > 0) {
+      // The fifth waiting-window read is performed after the durable
+      // transition, then one more targeted read is performed for the queued
+      // handoff. The second read is allowed after queued replay count=1.
+      await runTargetedGuard(queuedContactIds, { force: true, queuedOnly: true });
+      await runTargetedGuard(queuedContactIds, { force: true });
+    } else if (waitingContactIds.length === 0 && options.runGuard !== false && this.guard) {
+      try {
+        const result = await this.guard.run(new Date(), {
+          contactIds: options.guardContactIds,
+          force: options.forceGuard === true,
+          ...(recentOnly ? { recentOnly: true } : {}),
+        });
+        mergeGuardResult(result);
+      } catch (error) {
+        guardError = error instanceof Error ? error.name : 'GHL_GUARD_RUN_FAILED';
       }
     }
     let remainingDue = 0;

@@ -245,7 +245,7 @@ describe('ConversationDueFunctions', () => {
     expect(reconciliation.reconcileActiveConversations).not.toHaveBeenCalled();
   });
 
-  it('runs Guard against each due contact before advancing its waiting-window cycle', async () => {
+  it('advances each due contact before running its targeted Guard repair', async () => {
     const dataSource = {
       query: vi.fn()
         .mockResolvedValueOnce([])
@@ -287,7 +287,7 @@ describe('ConversationDueFunctions', () => {
       recentOnly: true,
     });
     expect(release).toHaveBeenCalledWith('conversation-cycle', expect.any(Date));
-    expect(guard.run.mock.invocationCallOrder[0]).toBeLessThan(release.mock.invocationCallOrder[0]);
+    expect(release.mock.invocationCallOrder[0]).toBeLessThan(guard.run.mock.invocationCallOrder[0]);
   });
 
   it('runs one idempotent queued replay immediately after the fifth waiting-window cycle', async () => {
@@ -344,12 +344,12 @@ describe('ConversationDueFunctions', () => {
     expect(guard.run).toHaveBeenNthCalledWith(1, expect.any(Date), {
       contactIds: ['contact-terminal'],
       force: true,
+      queuedOnly: true,
       recentOnly: true,
     });
     expect(guard.run).toHaveBeenNthCalledWith(2, expect.any(Date), {
       contactIds: ['contact-terminal'],
       force: true,
-      queuedOnly: true,
       recentOnly: true,
     });
     expect(result.guard).toEqual(expect.objectContaining({
@@ -425,6 +425,37 @@ describe('ConversationDueFunctions', () => {
 
     expect(result).toMatchObject({ accepted: true, processed: 1, advanced: 1, skipped: 0, guard: { skipped: true, skipReason: 'advisory_lock' } });
     expect(releaseDueConversation).toHaveBeenCalledWith('conversation-ready', expect.any(Date));
+  });
+
+  it('keeps the due release successful when a targeted Guard run fails', async () => {
+    const dataSource = {
+      query: vi.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: 'conversation-guard-failure', ghl_contact_id: 'contact-guard-failure' }]),
+    };
+    const guardError = new Error('GHL request timed out');
+    guardError.name = 'GHL_GUARD_TIMEOUT';
+    const guard = { run: vi.fn().mockRejectedValue(guardError) };
+    const service = new ConversationDueFunctions(
+      dataSource as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      undefined,
+      guard as never,
+    );
+    const releaseDueConversation = vi
+      .spyOn(service as unknown as { releaseDueConversationWithRetry: (id: string, now: Date) => Promise<{ advanced: boolean; terminal: boolean }> }, 'releaseDueConversationWithRetry')
+      .mockResolvedValue({ advanced: true, terminal: false });
+
+    const result = await service.processDueConversations(new Date('2026-10-16T22:30:00.000Z'), {
+      reconcileActive: false,
+      runGuard: true,
+      forceGuard: true,
+    });
+
+    expect(releaseDueConversation).toHaveBeenCalledWith('conversation-guard-failure', expect.any(Date));
+    expect(result).toMatchObject({ accepted: true, advanced: 1, skipped: 0, guardError: 'GHL_GUARD_TIMEOUT' });
   });
 
   it('retries a due row skipped by SKIP LOCKED until its cycle advances', async () => {
