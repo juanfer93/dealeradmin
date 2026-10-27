@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     outputs:
+      guard_contact_ids: ${{ steps.release_watchdog.outputs.guard_contact_ids }}
       fallback_needed: ${{ steps.due-health.outputs.fallback_needed }}
     concurrency:
       # Share the primary release lock so the watchdog cannot overlap a
@@ -66,6 +67,7 @@ jobs:
           fi
 
       - name: Release due conversations from watchdog
+        id: release_watchdog
         if: steps.due-health.outputs.fallback_needed == 'true'
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
@@ -95,10 +97,13 @@ jobs:
             accepted: result.accepted === true,
             skipped: result.skipped ?? 0,
             remainingDue: result.remainingDue ?? 0,
+            guardContactIds: Array.isArray(result.release?.guardContactIds) ? result.release.guardContactIds : [],
           }));
           NODE
               )"
               printf '%s\n' "$summary"
+              guard_contact_ids="$(node -p 'JSON.parse(process.argv[1]).guardContactIds.join(",")' "$summary")"
+              echo "guard_contact_ids=$guard_contact_ids" >> "$GITHUB_OUTPUT"
               accepted="$(node -p 'JSON.parse(process.argv[1]).accepted ? "true" : "false"' "$summary")"
               skipped="$(node -p 'JSON.parse(process.argv[1]).skipped ?? 0' "$summary")"
               remaining_due="$(node -p 'JSON.parse(process.argv[1]).remainingDue ?? 0' "$summary")"
@@ -116,15 +121,62 @@ jobs:
             exit 1
           done
 
-  queued-backup-watchdog:
+  due-guard-watchdog:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     needs: release-due-watchdog
+    # The watchdog release is authoritative for the state transition; this
+    # Guard pass is best effort and cannot hold an overdue waiting row.
+    if: ${{ always() && needs.release-due-watchdog.result != 'cancelled' && needs.release-due-watchdog.outputs.guard_contact_ids != '' }}
+    concurrency:
+      group: process-due-guard
+      cancel-in-progress: false
+    steps:
+      - name: Run Guard for watchdog-released contacts
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          CONTACT_IDS: ${{ needs.release-due-watchdog.outputs.guard_contact_ids }}
+        run: |
+          set -euo pipefail
+          test -n "$CRON_SECRET"
+          guard_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/run-guard?contact_ids=$CONTACT_IDS"
+          max_attempts=4
+          retry_delay_seconds=30
+
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "watchdog Guard attempt ${attempt}/${max_attempts}"
+            if response="$(curl --fail-with-body --silent --show-error --request GET \
+              --connect-timeout 10 --max-time 180 \
+              --header "Authorization: Bearer $CRON_SECRET" \
+              "$guard_url")"; then
+              curl_status=0
+            else
+              curl_status=$?
+            fi
+            printf '%s\n' "$response"
+            if [ "$curl_status" -eq 0 ]; then
+              retryable="$(node -p '(() => { const r = JSON.parse(process.argv[1]); const g = r.guard ?? {}; return g.skipped && ["already_running", "advisory_lock"].includes(g.skipReason) ? "true" : "false"; })()' "$response")"
+              if [ "$retryable" != "true" ]; then
+                exit 0
+              fi
+            fi
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              sleep "$retry_delay_seconds"
+              continue
+            fi
+            echo "::warning::Watchdog Guard did not complete; the persisted contact retry remains available for the next cycle"
+            exit 0
+          done
+
+  queued-backup-watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    needs: [release-due-watchdog, due-guard-watchdog]
     # Queued replays are independent from waiting-window health. A contact
     # can already be queued with an unconsumed Guard replay even when there is
     # no overdue waiting_window row, so the backup must run on every watchdog
     # tick and not only when the due-row fallback is needed.
-    if: ${{ always() && needs.release-due-watchdog.result != 'cancelled' }}
+    if: ${{ always() && needs.release-due-watchdog.result != 'cancelled' && needs.due-guard-watchdog.result != 'cancelled' }}
     concurrency:
       # Keep the final queued replay serialized with the primary backup job.
       group: process-due-queued-backup

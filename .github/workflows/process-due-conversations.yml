@@ -18,6 +18,8 @@ permissions: {}
 jobs:
   release-due:
     runs-on: ubuntu-latest
+    outputs:
+      guard_contact_ids: ${{ steps.release_due.outputs.guard_contact_ids }}
     # Four 60-second HTTP attempts plus three 10-second backoffs need more
     # than two minutes. Keep the timeout above the retry budget so a slow
     # Vercel invocation is retried instead of leaving due rows stranded.
@@ -27,6 +29,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Release due conversations
+        id: release_due
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           CONTACT_IDS: ${{ inputs.contact_ids }}
@@ -73,6 +76,7 @@ jobs:
               advanced: result.advanced ?? 0,
               skipped: result.skipped ?? 0,
               remainingDue: result.remainingDue ?? 0,
+              guardContactIds: Array.isArray(result.guardContactIds) ? result.guardContactIds : [],
             }, null, 2));
           } catch (error) {
             process.stdout.write(JSON.stringify({
@@ -89,6 +93,8 @@ jobs:
             printf '%s\n' "$summary"
 
             if node -e 'process.exit(JSON.parse(process.argv[1]).ok ? 0 : 1)' "$summary"; then
+              guard_contact_ids="$(node -p 'JSON.parse(process.argv[1]).guardContactIds.join(",")' "$summary")"
+              echo "guard_contact_ids=$guard_contact_ids" >> "$GITHUB_OUTPUT"
               skipped="$(node -p 'JSON.parse(process.argv[1]).skipped ?? 0' "$summary")"
               remaining_due="$(node -p 'JSON.parse(process.argv[1]).remainingDue ?? 0' "$summary")"
               if [ "$skipped" -gt 0 ] || [ "$remaining_due" -gt 0 ]; then
@@ -111,17 +117,63 @@ jobs:
             exit 1
           done
 
+  due-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    needs: release-due
+    # Due release and Guard are deliberately separate. A slow GHL request may
+    # fail this job, but it must never hold the five-minute state transition.
+    if: ${{ always() && needs.release-due.result != 'cancelled' && needs.release-due.outputs.guard_contact_ids != '' && (github.event_name == 'schedule' || inputs.contact_ids == '') }}
+    concurrency:
+      group: process-due-guard
+      cancel-in-progress: false
+    steps:
+      - name: Run Guard for released due contacts
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          CONTACT_IDS: ${{ needs.release-due.outputs.guard_contact_ids }}
+        run: |
+          set -euo pipefail
+          test -n "$CRON_SECRET"
+          guard_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/run-guard?contact_ids=$CONTACT_IDS"
+          max_attempts=4
+          retry_delay_seconds=30
+
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "due Guard attempt ${attempt}/${max_attempts}"
+            if response="$(curl --fail-with-body --silent --show-error --request GET \
+              --connect-timeout 10 --max-time 180 \
+              --header "Authorization: Bearer $CRON_SECRET" \
+              "$guard_url")"; then
+              curl_status=0
+            else
+              curl_status=$?
+            fi
+            printf '%s\n' "$response"
+            if [ "$curl_status" -eq 0 ]; then
+              retryable="$(node -p '(() => { const r = JSON.parse(process.argv[1]); const g = r.guard ?? {}; return g.skipped && ["already_running", "advisory_lock"].includes(g.skipReason) ? "true" : "false"; })()' "$response")"
+              if [ "$retryable" != "true" ]; then
+                exit 0
+              fi
+            fi
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              sleep "$retry_delay_seconds"
+              continue
+            fi
+            echo "::warning::Due Guard did not complete; the persisted contact retry remains available for the next cycle"
+            exit 0
+          done
+
   queued-backup:
     runs-on: ubuntu-latest
     timeout-minutes: 6
-    # Targeted repairs run the contact-scoped Guard below. Wait for that job
-    # before starting the global queued replay so both requests cannot race
-    # for the same advisory lock. For scheduled runs, run-guard is skipped
-    # and this job still proceeds because the condition below uses always().
-    needs: [release-due, run-guard]
+    # Wait for the contact-scoped due Guard before starting the global queued
+    # replay so both requests cannot race for the same advisory lock. For
+    # scheduled runs, run-guard is skipped and due-guard owns that pass.
+    needs: [release-due, due-guard, run-guard]
     # The backup replay is independent of due-release success. If the release
     # job fails, already-queued contacts must still get their one Guard replay.
-    if: ${{ always() && needs.release-due.result != 'cancelled' && needs.run-guard.result != 'cancelled' }}
+    if: ${{ always() && needs.release-due.result != 'cancelled' && needs.due-guard.result != 'cancelled' && needs.run-guard.result != 'cancelled' }}
     concurrency:
       group: process-due-queued-backup
       cancel-in-progress: false

@@ -57,7 +57,7 @@ describe('ConversationDueFunctions', () => {
     const dataSource = {
       query: vi.fn()
         .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([{ id: 'conversation-waiting' }])
+        .mockResolvedValueOnce([{ id: 'conversation-waiting', ghl_contact_id: 'contact-waiting' }])
         .mockResolvedValueOnce([{ status: 'waiting_window', next_attempt_at: '2026-10-16T22:35:00.000Z' }]),
       createQueryRunner: vi.fn().mockReturnValue(runner),
     };
@@ -75,6 +75,7 @@ describe('ConversationDueFunctions', () => {
     expect(result.processed).toBe(0);
     expect(result.advanced).toBe(1);
     expect(result.skipped).toBe(0);
+    expect(result.guardContactIds).toEqual(['contact-waiting']);
     expect(runner.query).toHaveBeenCalledWith(
       expect.stringContaining("SET status = 'waiting_window', next_attempt_at = $2::timestamptz"),
       ['conversation-waiting', '2026-10-16T22:35:00.000Z', '2026-10-16T22:30:00.000Z', 1],
@@ -382,7 +383,7 @@ describe('ConversationDueFunctions', () => {
       runGuard: false,
     });
 
-    expect(result).toEqual({ accepted: true, processed: 0, advanced: 0, skipped: 0, remainingDue: 0 });
+    expect(result).toEqual({ accepted: true, processed: 0, advanced: 0, skipped: 0, remainingDue: 0, guardContactIds: [] });
     expect(guard.run).not.toHaveBeenCalled();
   });
 

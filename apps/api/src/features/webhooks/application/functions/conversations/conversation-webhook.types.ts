@@ -99,6 +99,9 @@ export type DueConversationResponse = {
   advanced: number;
   skipped: number;
   remainingDue: number;
+  // The release endpoint returns the contacts it advanced so the scheduler
+  // can run Guard in a separate job without holding the due-release lease.
+  guardContactIds: string[];
   guard?: {
     enabled: boolean;
     skipped: boolean;

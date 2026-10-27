@@ -109,7 +109,7 @@ export class ConversationDueFunctions {
 
   async processDueConversations(now: Date, options: { reconcileActive?: boolean; runGuard?: boolean; guardContactIds?: string[]; forceGuard?: boolean; dueContactIds?: string[]; recentOnly?: boolean } = {}): Promise<DueConversationResponse> {
     if (!this.dataSource) {
-      if (process.env.NODE_ENV === 'test') return { accepted: true, processed: 0, advanced: 0, skipped: 0, remainingDue: 0 };
+      if (process.env.NODE_ENV === 'test') return { accepted: true, processed: 0, advanced: 0, skipped: 0, remainingDue: 0, guardContactIds: [] };
       throw new ServiceUnavailableException('Database connection is not available');
     }
     const dueContactIds = [...new Set((options.dueContactIds ?? []).map((value) => value.trim()).filter(Boolean))];
@@ -150,6 +150,7 @@ export class ConversationDueFunctions {
          ORDER BY c.next_attempt_at ASC LIMIT $2`,
         recentOnly ? [now.toISOString(), DUE_CONVERSATION_BATCH_SIZE, recentCutoff] : [now.toISOString(), DUE_CONVERSATION_BATCH_SIZE],
       ) as Array<{ id: string; ghl_contact_id: string }>;
+    const guardContactIds = [...new Set(due.map((row) => row.ghl_contact_id).filter(Boolean))];
     let processed = 0;
     let advanced = 0;
     let skipped = 0;
@@ -243,6 +244,7 @@ export class ConversationDueFunctions {
       advanced,
       skipped,
       remainingDue,
+      guardContactIds,
       ...(guardResult ? { guard: guardResult } : {}),
       ...(guardError ? { guardError } : {}),
     };

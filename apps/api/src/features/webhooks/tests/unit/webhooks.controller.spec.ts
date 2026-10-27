@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WebhooksController } from '../../presentation/webhooks.controller';
 
 describe('WebhooksController queued Guard backup', () => {
-  it('runs the recent Guard for the same contacts during a due cycle', async () => {
+  it('releases due contacts without waiting for Guard', async () => {
     const processDueConversations = vi.fn().mockResolvedValue({
       accepted: true,
       processed: 1,
@@ -21,9 +21,7 @@ describe('WebhooksController queued Guard backup', () => {
 
     expect(processDueConversations).toHaveBeenCalledWith(undefined, {
       reconcileActive: false,
-      runGuard: true,
-      forceGuard: true,
-      guardContactIds: ['contact-cycle-a', 'contact-cycle-b'],
+      runGuard: false,
       dueContactIds: ['contact-cycle-a', 'contact-cycle-b'],
       recentOnly: true,
     });
@@ -67,7 +65,7 @@ describe('WebhooksController queued Guard backup', () => {
 
     expect(result.accepted).toBe(true);
     expect(result.triggered).toBe(true);
-    expect(processDueConversations).toHaveBeenCalledWith(undefined, { reconcileActive: false, runGuard: true, forceGuard: true, recentOnly: true });
+    expect(processDueConversations).toHaveBeenCalledWith(undefined, { reconcileActive: false, runGuard: false, recentOnly: true });
     expect(getDueConversationHealth).toHaveBeenCalledTimes(2);
   });
 

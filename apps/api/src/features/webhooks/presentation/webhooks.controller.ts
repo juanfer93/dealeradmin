@@ -83,6 +83,7 @@ export class WebhooksController {
       // by the service integration tests and would make this endpoint race the
       // test fixture's own webhook sequence.
       reconcileActive: process.env.NODE_ENV !== 'test',
+      runGuard: false,
     });
   }
 
@@ -90,15 +91,13 @@ export class WebhooksController {
   @UseGuards(HmacSignatureGuard)
   async processDueConversationsCron(@Req() request: Request) {
     await this.ingressAudit.recoverStale();
-    // This combined endpoint remains available for manual/legacy callers.
-    // The scheduled workflow uses process-due-only and run-guard separately
-    // so a slow or leased Guard cannot delay due-window release.
+    // This legacy endpoint now releases due rows independently. Guard runs
+    // through /run-guard so a slow or leased GHL read cannot delay a cycle.
     const guardContactIds = this.queryContactIds(request);
     return this.conversationWebhookService.processDueConversations(undefined, {
       reconcileActive: false,
-      runGuard: true,
-      forceGuard: guardContactIds.length > 0,
-      guardContactIds,
+      runGuard: false,
+      dueContactIds: guardContactIds,
       recentOnly: true,
     });
   }
@@ -109,13 +108,9 @@ export class WebhooksController {
     const dueContactIds = this.queryContactIds(request);
     return this.conversationWebhookService.processDueConversations(undefined, {
       reconcileActive: false,
-      // Every waiting-window cycle must re-read the recent conversation from
-      // GHL so newly supplied qualification fields are persisted before the
-      // next cycle. Due release remains independent from reconciliation
-      // failures inside the service, but the cycle still owns its Guard pass.
-      runGuard: true,
-      forceGuard: true,
-      guardContactIds: dueContactIds,
+      // Every waiting-window cycle returns the due contacts for the separate
+      // Guard job. The due release itself must never wait on GHL.
+      runGuard: false,
       dueContactIds,
       recentOnly: true,
     });
@@ -145,8 +140,7 @@ export class WebhooksController {
 
     const release = await this.conversationWebhookService.processDueConversations(undefined, {
       reconcileActive: false,
-      runGuard: true,
-      forceGuard: true,
+      runGuard: false,
       recentOnly: true,
     });
     const healthAfter = await this.conversationWebhookService.getDueConversationHealth({ recentOnly: true });

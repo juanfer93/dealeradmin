@@ -1182,6 +1182,7 @@ describe('ConversationWebhookService', () => {
       advanced: 0,
       skipped: 0,
       remainingDue: 0,
+      guardContactIds: [],
     });
 
     await (service as unknown as { pollDueConversations: () => Promise<void> }).pollDueConversations();
