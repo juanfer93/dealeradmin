@@ -1011,13 +1011,13 @@ describe('ConversationWebhookService', () => {
   it('keeps Stafford in the common incomplete window after stabilization when down is missing', () => {
     const now = new Date('2026-09-11T14:00:15.000Z');
     expect(evaluateStatus(staffordVehicleOnlySnapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'due', '2026-09-11T14:00:00.000Z'))
-      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:30:00.000Z' });
+      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:05:15.000Z' });
   });
 
   it('keeps Stafford in the common overnight window when down is missing', () => {
     const now = new Date('2026-09-11T20:00:15.000Z');
     expect(evaluateStatus(staffordVehicleOnlySnapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'due', '2026-09-11T20:00:00.000Z'))
-      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T23:00:00.000Z' });
+      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T20:05:15.000Z' });
   });
 
   it('keeps Stafford WhatsApp partial when the vehicle is missing', () => {
@@ -1065,11 +1065,11 @@ describe('ConversationWebhookService', () => {
       .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:00:15.000Z' });
   });
 
-  it('queues a complete conversation after the stabilization window', () => {
+  it('starts the five-cycle recovery window after the stabilization window', () => {
     const now = new Date('2026-09-11T14:00:15.000Z');
     const result = evaluateStatus(completeSnapshot, easternsLocation, easternsDealer, 'easterns', now, 'due', '2026-09-11T14:00:00.000Z');
 
-    expect(result).toEqual({ status: 'ready', nextAttemptAt: null });
+    expect(result).toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:05:15.000Z' });
   });
 
   it('keeps a routing-ready lead in waiting_window while recovery cycles remain', () => {
@@ -1084,7 +1084,7 @@ describe('ConversationWebhookService', () => {
     const result = evaluateStatus(incompleteSnapshot, easternsLocation, easternsDealer, 'easterns', now, 'due', '2026-09-11T14:00:00.000Z');
 
     expect(result.status).toBe('waiting_window');
-    expect(result.nextAttemptAt).toBe('2026-09-11T14:30:00.000Z');
+    expect(result.nextAttemptAt).toBe('2026-09-11T14:34:59.000Z');
     expect(INCOMPLETE_QUALIFICATION_WINDOW_HOURS).toBe(0.5);
   });
 
@@ -1093,7 +1093,7 @@ describe('ConversationWebhookService', () => {
     const result = evaluateStatus(incompleteSnapshot, easternsLocation, easternsDealer, 'easterns', now, 'due', '2026-09-11T20:00:00.000Z');
 
     expect(result.status).toBe('waiting_window');
-    expect(result.nextAttemptAt).toBe('2026-09-11T23:00:00.000Z');
+    expect(result.nextAttemptAt).toBe('2026-09-11T20:05:00.000Z');
     expect(OUT_OF_WINDOW_QUALIFICATION_WINDOW_HOURS).toBe(3);
   });
 
@@ -1102,7 +1102,7 @@ describe('ConversationWebhookService', () => {
     const result = evaluateStatus(incompleteSnapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'easterns', now, 'due', now.toISOString());
 
     expect(QUALIFICATION_RULE_TIMEZONE).toBe('America/Bogota');
-    expect(result.nextAttemptAt).toBe('2026-09-11T20:00:00.000Z');
+    expect(result.nextAttemptAt).toBe('2026-09-11T19:35:00.000Z');
   });
 
   it('promotes a corrected phone from the conversation to the existing lead', async () => {
@@ -1225,7 +1225,7 @@ describe('ConversationWebhookService', () => {
     expect(dataSource.query).toHaveBeenCalled();
   });
 
-  it('reconciles active conversations every due poll and queues one once the five core facts are present', async () => {
+  it('reconciles active conversations every due poll and starts the five-cycle window', async () => {
     const transcript = [
       'What vehicle are you looking for?',
       'Honda Civic',
@@ -1284,7 +1284,7 @@ describe('ConversationWebhookService', () => {
       purchase_timeline: 'this month',
       qualification_complete: true,
     });
-    expect(runner.query.mock.calls.some(([sql]) => sql.includes("SET status = 'queued'"))).toBe(true);
+    expect((runner.query.mock.calls as unknown as Array<[string, unknown[]]>).some(([sql, params]) => sql.includes('qualification_snapshot = $3::jsonb') && params?.[1] === 'waiting_window')).toBe(true);
     expect(dataSource.query.mock.calls.some(([sql]) => String(sql).includes("status IN ('partial', 'waiting_window', 'stale_phone_ignored')"))).toBe(true);
     const reconciliationQuery = dataSource.query.mock.calls.find(([sql]) => String(sql).includes("status IN ('partial', 'waiting_window', 'stale_phone_ignored')"));
     expect(String(reconciliationQuery?.[0])).toContain('ORDER BY updated_at DESC');
@@ -1292,7 +1292,7 @@ describe('ConversationWebhookService', () => {
     expect(String(reconciliationQuery?.[0])).not.toContain("status = 'queued'");
   });
 
-  it('queues Danilo\'s historical Fredericksburg-2 row after repairing Ford F--150', async () => {
+  it('puts Danilo\'s historical Fredericksburg-2 row into the five-cycle window after repairing Ford F--150', async () => {
     const now = new Date('2026-09-24T01:12:32.000Z');
     const transcript = [
       'informacion',
@@ -1366,8 +1366,8 @@ describe('ConversationWebhookService', () => {
       qualification_complete: true,
       missing_qualification: [],
     });
-    expect(runner.query.mock.calls.some(([sql]) => sql.includes("SET status = 'queued'"))).toBe(true);
-    expect(runner.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO lead_dealers'))).toBe(true);
+    expect((runner.query.mock.calls as unknown as Array<[string, unknown[]]>).some(([sql, params]) => sql.includes('qualification_snapshot = $3::jsonb') && params?.[1] === 'waiting_window')).toBe(true);
+    expect(runner.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO lead_dealers'))).toBe(false);
   });
 
   it('records an InvalidPhoneNumber processing attempt before propagating the failure', async () => {

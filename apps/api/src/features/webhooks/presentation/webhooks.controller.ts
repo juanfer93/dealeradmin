@@ -106,10 +106,17 @@ export class WebhooksController {
   @Get('ghl/conversations/process-due-only')
   @UseGuards(HmacSignatureGuard)
   async processDueConversationsOnlyCron(@Req() request: Request) {
+    const dueContactIds = this.queryContactIds(request);
     return this.conversationWebhookService.processDueConversations(undefined, {
       reconcileActive: false,
-      runGuard: false,
-      dueContactIds: this.queryContactIds(request),
+      // Every waiting-window cycle must re-read the recent conversation from
+      // GHL so newly supplied qualification fields are persisted before the
+      // next cycle. Due release remains independent from reconciliation
+      // failures inside the service, but the cycle still owns its Guard pass.
+      runGuard: true,
+      forceGuard: true,
+      guardContactIds: dueContactIds,
+      dueContactIds,
       recentOnly: true,
     });
   }
@@ -138,7 +145,8 @@ export class WebhooksController {
 
     const release = await this.conversationWebhookService.processDueConversations(undefined, {
       reconcileActive: false,
-      runGuard: false,
+      runGuard: true,
+      forceGuard: true,
       recentOnly: true,
     });
     const healthAfter = await this.conversationWebhookService.getDueConversationHealth({ recentOnly: true });

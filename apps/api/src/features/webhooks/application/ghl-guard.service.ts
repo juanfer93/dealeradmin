@@ -63,7 +63,7 @@ export class GhlGuardService {
     const recentOnly = options.recentOnly === true;
     const recentCutoff = new Date(now.getTime() - RECENT_AUTOMATION_WINDOW_MS).toISOString();
     const recentPredicate = recentOnly
-      ? 'AND COALESCE(last_message_at, ready_at, created_at) >= $4::timestamptz'
+      ? 'AND COALESCE(conversations.last_message_at, conversations.ready_at, conversations.created_at) >= $4::timestamptz'
       : '';
     const skip = async (reason: GhlGuardSkipReason): Promise<GhlGuardRunResult> => {
       const target = contactIds.length > 0 ? ` contacts=${contactIds.join(',')}` : '';

@@ -138,9 +138,9 @@ describeDatabase('GHL Guard retry and split recovery against local PostgreSQL', 
         { listMessages, searchConversationByContact },
       );
 
-      const result = await service.run(new Date(), { force: true });
+      const result = await service.run(new Date(), { force: true, recentOnly: true });
 
-      expect(result).toMatchObject({ selected: 1, fetched: 1, failed: 0 });
+      expect(result, JSON.stringify(result)).toMatchObject({ selected: 1, fetched: 1, failed: 0 });
       expect(searchConversationByContact).not.toHaveBeenCalled();
       expect(listMessages).toHaveBeenCalledOnce();
 

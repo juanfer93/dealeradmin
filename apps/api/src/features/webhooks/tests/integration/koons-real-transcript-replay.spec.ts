@@ -111,7 +111,11 @@ describeDatabase('Koons real GHL transcript replay', () => {
     const releaseDueConversation = (service as unknown as {
       releaseDueConversation: (id: string, now: Date) => Promise<boolean>;
     }).releaseDueConversation.bind(service);
-    expect(await releaseDueConversation(conversationRows[0].id, new Date(replayNow.getTime() + 60_000))).toBe(true);
+    let released = false;
+    for (let cycle = 0; cycle < 5; cycle += 1) {
+      released = await releaseDueConversation(conversationRows[0].id, new Date(replayNow.getTime() + 60 * 60_000 + cycle * 5 * 60_000));
+    }
+    expect(released).toBe(true);
 
     const rows = await dataSource.query(
       `SELECT c.status, c.qualification_snapshot, l.canonical_phone,

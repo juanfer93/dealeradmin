@@ -2,6 +2,33 @@ import { describe, expect, it, vi } from 'vitest';
 import { WebhooksController } from '../../presentation/webhooks.controller';
 
 describe('WebhooksController queued Guard backup', () => {
+  it('runs the recent Guard for the same contacts during a due cycle', async () => {
+    const processDueConversations = vi.fn().mockResolvedValue({
+      accepted: true,
+      processed: 1,
+      advanced: 1,
+      skipped: 0,
+      remainingDue: 0,
+    });
+    const controller = new WebhooksController(
+      {} as never,
+      { processDueConversations } as never,
+      {} as never,
+      {} as never,
+    );
+
+    await controller.processDueConversationsOnlyCron({ query: { contact_ids: 'contact-cycle-a,contact-cycle-b' } } as never);
+
+    expect(processDueConversations).toHaveBeenCalledWith(undefined, {
+      reconcileActive: false,
+      runGuard: true,
+      forceGuard: true,
+      guardContactIds: ['contact-cycle-a', 'contact-cycle-b'],
+      dueContactIds: ['contact-cycle-a', 'contact-cycle-b'],
+      recentOnly: true,
+    });
+  });
+
   it('uses database due health and clears overdue rows through the watchdog', async () => {
     const getDueConversationHealth = vi.fn()
       .mockResolvedValueOnce({
@@ -40,7 +67,7 @@ describe('WebhooksController queued Guard backup', () => {
 
     expect(result.accepted).toBe(true);
     expect(result.triggered).toBe(true);
-    expect(processDueConversations).toHaveBeenCalledWith(undefined, { reconcileActive: false, runGuard: false, recentOnly: true });
+    expect(processDueConversations).toHaveBeenCalledWith(undefined, { reconcileActive: false, runGuard: true, forceGuard: true, recentOnly: true });
     expect(getDueConversationHealth).toHaveBeenCalledTimes(2);
   });
 

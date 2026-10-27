@@ -137,22 +137,40 @@ export class ConversationDueFunctions {
     }
     const due = dueContactIds.length > 0
       ? await this.dataSource.query(
-        `SELECT c.id FROM conversations c
+        `SELECT c.id, c.ghl_contact_id FROM conversations c
          WHERE c.status = 'waiting_window' AND c.next_attempt_at IS NOT NULL AND c.next_attempt_at <= $1
            AND c.ghl_contact_id = ANY($3::text[])
          ORDER BY c.next_attempt_at ASC LIMIT $2`,
         [now.toISOString(), DUE_CONVERSATION_BATCH_SIZE, dueContactIds],
-      ) as Array<{ id: string }>
+      ) as Array<{ id: string; ghl_contact_id: string }>
       : await this.dataSource.query(
-        `SELECT c.id FROM conversations c
+        `SELECT c.id, c.ghl_contact_id FROM conversations c
          WHERE c.status = 'waiting_window' AND c.next_attempt_at IS NOT NULL AND c.next_attempt_at <= $1
            ${recentOnly ? 'AND COALESCE(c.last_message_at, c.ready_at, c.waiting_window_started_at, c.created_at) >= $3::timestamptz' : ''}
          ORDER BY c.next_attempt_at ASC LIMIT $2`,
         recentOnly ? [now.toISOString(), DUE_CONVERSATION_BATCH_SIZE, recentCutoff] : [now.toISOString(), DUE_CONVERSATION_BATCH_SIZE],
-      ) as Array<{ id: string }>;
+      ) as Array<{ id: string; ghl_contact_id: string }>;
     let processed = 0;
     let advanced = 0;
     let skipped = 0;
+    let guardResult: GhlGuardRunResult | undefined;
+    let guardError: string | undefined;
+    if (options.runGuard !== false) {
+      try {
+        // Read GHL before advancing the due row. On the fifth cycle the row
+        // becomes queued only after this pass, leaving the queued backup as
+        // the separate additional replay cycle.
+        const cycleContactIds = [...new Set(due.map((row) => row.ghl_contact_id).filter(Boolean))];
+        guardResult = await this.guard?.run(new Date(), {
+          contactIds: cycleContactIds.length > 0 ? cycleContactIds : options.guardContactIds,
+          force: options.forceGuard === true,
+          ...(recentOnly ? { recentOnly: true } : {}),
+        });
+      } catch (error) {
+        // The GHL guard is a repair/audit layer; it must never block due releases.
+        guardError = error instanceof Error ? error.name : 'GHL_GUARD_RUN_FAILED';
+      }
+    }
     for (const row of due) {
       try {
         const release = await this.releaseDueConversationWithRetry(row.id, now);
@@ -183,22 +201,6 @@ export class ConversationDueFunctions {
       remainingDue = Number(remainingRows?.[0]?.count ?? 0);
     }
     if (options.reconcileActive !== false) await this.reconciliation.reconcileActiveConversations(now);
-    let guardResult: GhlGuardRunResult | undefined;
-    let guardError: string | undefined;
-    if (options.runGuard !== false) {
-      try {
-        // Reconciliation can take longer than the caller's initial timestamp.
-        // The guard must lease from the real execution time, not that stale timestamp.
-        guardResult = await this.guard?.run(new Date(), {
-          contactIds: options.guardContactIds,
-          force: options.forceGuard === true,
-          ...(recentOnly ? { recentOnly: true } : {}),
-        });
-      } catch (error) {
-        // The GHL guard is a repair/audit layer; it must never block due releases.
-        guardError = error instanceof Error ? error.name : 'GHL_GUARD_RUN_FAILED';
-      }
-    }
     return {
       accepted: true,
       processed,

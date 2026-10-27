@@ -244,6 +244,51 @@ describe('ConversationDueFunctions', () => {
     expect(reconciliation.reconcileActiveConversations).not.toHaveBeenCalled();
   });
 
+  it('runs Guard against each due contact before advancing its waiting-window cycle', async () => {
+    const dataSource = {
+      query: vi.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: 'conversation-cycle', ghl_contact_id: 'contact-cycle' }]),
+    };
+    const guard = {
+      run: vi.fn().mockResolvedValue({
+        enabled: true,
+        skipped: false,
+        selected: 1,
+        fetched: 1,
+        inserted: 1,
+        repaired: 1,
+        failed: 0,
+      }),
+    };
+    const service = new ConversationDueFunctions(
+      dataSource as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      undefined,
+      guard as never,
+    );
+    const release = vi
+      .spyOn(service as unknown as { releaseDueConversationWithRetry: (id: string, now: Date) => Promise<{ advanced: boolean; terminal: boolean }> }, 'releaseDueConversationWithRetry')
+      .mockResolvedValue({ advanced: true, terminal: false });
+
+    await service.processDueConversations(new Date('2026-10-16T22:30:00.000Z'), {
+      reconcileActive: false,
+      runGuard: true,
+      forceGuard: true,
+      recentOnly: true,
+    });
+
+    expect(guard.run).toHaveBeenCalledWith(expect.any(Date), {
+      contactIds: ['contact-cycle'],
+      force: true,
+      recentOnly: true,
+    });
+    expect(release).toHaveBeenCalledWith('conversation-cycle', expect.any(Date));
+    expect(guard.run.mock.invocationCallOrder[0]).toBeLessThan(release.mock.invocationCallOrder[0]);
+  });
+
   it('can disable the guard independently from due release processing', async () => {
     const dataSource = {
       query: vi.fn()

@@ -359,6 +359,17 @@ export class ConversationQualificationFunctions {
       };
     }
     if (isEasterns && !hasLocation) return { status: 'partial', nextAttemptAt: null };
+    // A routing-ready conversation must always enter the five-cycle recovery
+    // contract before it can be queued. This also covers old partial/stale
+    // rows whose first active reconciliation discovers the missing fields.
+    // The first due cycle starts the same five-minute cadence as a fresh
+    // capture; it must never jump directly from partial to queued.
+    if (waitingWindowAttempts === undefined || waitingWindowAttempts === null) {
+      return {
+        status: 'waiting_window',
+        nextAttemptAt: new Date(now.getTime() + WAITING_WINDOW_RETRY_INTERVAL_MS).toISOString(),
+      };
+    }
     if (snapshot.qualification_complete) return { status: 'ready', nextAttemptAt: null };
     const delayHours = withinDispatchWindow(QUALIFICATION_RULE_TIMEZONE, now)
       ? INCOMPLETE_QUALIFICATION_WINDOW_HOURS

@@ -88,4 +88,23 @@ describe('ConversationQualificationFunctions', () => {
     expect(result).toMatchObject({ ...concurrentRow, isExisting: true });
     expect(runner.query.mock.calls[1]?.[0]).toContain('ON CONFLICT (ghl_location_id, ghl_contact_id, ghl_conversation_id) DO NOTHING');
   });
+
+  it('puts Stafford WhatsApp into the waiting window with its native phone and vehicle', () => {
+    const result = new ConversationQualificationFunctions().statusForConversation(
+      {
+        real_name: '',
+        phone: '+12405550123',
+        vehicle_type: 'Honda Civic',
+        qualification_complete: true,
+      } as never,
+      { city: null, state: null, zip_code: null, easterns_zone: null },
+      { id: 'dealer-stafford', routing_config: {} } as never,
+      'stafford',
+      new Date('2026-10-27T14:00:00.000Z'),
+      'capture',
+    );
+
+    expect(result.status).toBe('waiting_window');
+    expect(result.nextAttemptAt).toBeTruthy();
+  });
 });

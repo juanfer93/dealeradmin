@@ -136,7 +136,12 @@ export function isLikelyProfileDisplayName(value: string | null | undefined): bo
 }
 
 export function normalizeRealName(value: string | null | undefined): string {
-  const candidate = normalizeNameSuffixPunctuation(clean(value));
+  // GHL Messenger profile labels can contain decorative emoji/symbols. Strip
+  // only those decorations before validation so a valid name such as
+  // `Andrea⚘️` is retained instead of being persisted as an empty value.
+  const decoratedCandidate = clean(value).normalize('NFC').replace(/[\p{So}\p{Sk}\p{Cf}\uFE0F]/gu, '').replace(/\s+/g, ' ').trim();
+  const declaredCandidate = decoratedCandidate.match(NAME_DECLARATION)?.[1] || decoratedCandidate;
+  const candidate = normalizeNameSuffixPunctuation(declaredCandidate);
   if (!candidate || INVALID_REAL_NAMES.has(candidate.toLowerCase())) return EMPTY;
   if (PHONE_LIKE_TEXT.test(candidate) || candidate.replace(/\D/g, '').length >= 7) return EMPTY;
   if (!isValidRealName(candidate)) return EMPTY;

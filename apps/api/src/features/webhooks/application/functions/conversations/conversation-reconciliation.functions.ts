@@ -200,7 +200,12 @@ export class ConversationReconciliationFunctions {
       // periodic watchdog uses a non-targeted reconciliation, so sanitize the
       // existing snapshot before applying the additive merge as well.
       const currentRealName = normalizeRealName(clean(current.real_name));
-      const realName = targeted ? clean(normalized.real_name) : preserveOrNormalize(currentRealName, normalized.real_name);
+      const contactRealName = isStaffordWhatsAppVehicleLabel(contactName, source, row.channel)
+        ? ''
+        : normalizeRealName(contactName);
+      const realName = targeted
+        ? clean(normalized.real_name) || contactRealName
+        : preserveOrNormalize(currentRealName, normalized.real_name) || contactRealName;
       const vehicle = targeted ? clean(normalized.vehicle_type) : preserveOrNormalize(current.vehicle_type, normalized.vehicle_type);
       const vehicleYear = targeted
         ? normalized.vehicle_year

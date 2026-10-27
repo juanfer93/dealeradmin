@@ -105,7 +105,7 @@ describeDatabase('historical Offlease transcript replay from production audit', 
         'Dise que solo este mes mes mire mejor boy aser una Sita con usted mejor para la otra semana esta no para la otra a tes de que pase el mes',
         'Si grasias aqui mismo',
       ],
-      expected: { vehicle: 'suv', down: '2000', amount: 2000, minimum: 2000, sufficient: true, nextStep: 'complete' },
+      expected: { vehicle: 'SUV', down: '2000', amount: 2000, minimum: 2000, sufficient: true, nextStep: 'complete' },
     },
     {
       label: 'Stafford / Eduardo / negative unrelated affirmation',
@@ -182,7 +182,16 @@ describeDatabase('historical Offlease transcript replay from production audit', 
         occurred_at: occurredAt,
       }, source, { contactId, conversationId, messageId: `${eventId}-message`, testNow: reconcileAt ? new Date(occurredAt) : replayNow });
     }
-    if (reconcileAt) await service.processDueConversations(new Date(reconcileAt));
+    if (reconcileAt) {
+      const cycleStart = new Date(new Date(reconcileAt).getTime() + 60 * 60_000);
+      for (let cycle = 0; cycle < 5; cycle += 1) {
+        await service.processDueConversations(new Date(cycleStart.getTime() + cycle * 5 * 60_000), {
+          reconcileActive: false,
+          runGuard: false,
+          dueContactIds: [contactId],
+        });
+      }
+    }
 
     const rows = await dataSource.query(
       'SELECT status, qualification_snapshot FROM conversations WHERE ghl_contact_id = $1 AND ghl_conversation_id = $2',

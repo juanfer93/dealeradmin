@@ -139,8 +139,8 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
     const firstNextAttempt = persisted[0].next_attempt_at;
     expect((persisted[0].qualification_snapshot as { phone: string }).phone).toBe(ocrPhone);
 
-    // A later reconciliation must reuse the original window instead of
-    // pushing another 30-minute window from the current time.
+    // A later reconciliation must reuse the original five-minute cycle
+    // instead of pushing a new window from the current time.
     await service.reconcileMediaConversation(conversation[0].id, new Date('2026-09-17T17:19:10.000Z'));
     const afterSecondReconcile = await dataSource.query(
       `SELECT ready_at, next_attempt_at FROM conversations WHERE ghl_contact_id = $1`,
@@ -225,7 +225,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       [afterHoursContactId],
     ) as Array<{ ready_at: string; next_attempt_at: string }>;
     expect(new Date(first[0].ready_at).toISOString()).toBe(afterHoursNow);
-    expect(new Date(first[0].next_attempt_at).toISOString()).toBe('2026-09-17T20:01:15.000Z');
+    expect(new Date(first[0].next_attempt_at).toISOString()).toBe('2026-09-17T20:06:00.000Z');
 
     await service.reconcileMediaConversation(conversation[0].id, new Date('2026-09-17T20:01:10.000Z'));
     const second = await dataSource.query(
@@ -233,7 +233,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       [afterHoursContactId],
     ) as Array<{ ready_at: string; next_attempt_at: string }>;
     expect(new Date(second[0].ready_at).toISOString()).toBe(afterHoursNow);
-    expect(new Date(second[0].next_attempt_at).toISOString()).toBe('2026-09-17T20:01:15.000Z');
+    expect(new Date(second[0].next_attempt_at).toISOString()).toBe('2026-09-17T20:06:00.000Z');
   });
 
   it('keeps persisted qualification facts when a GHL replay only contains the latest turn', async () => {
@@ -375,7 +375,9 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
     ) as Array<{ id: string; lead_id: string; status: string }>;
     expect(waiting[0].status).toBe('waiting_window');
 
-    await service.processDueConversations(new Date('2026-09-17T18:00:00.000Z'), { reconcileActive: false });
+    for (let cycle = 0; cycle < 5; cycle += 1) {
+      await service.processDueConversations(new Date(`2026-09-17T${String(18 + Math.floor((cycle * 5) / 60)).padStart(2, '0')}:${String((cycle * 5) % 60).padStart(2, '0')}:00.000Z`), { reconcileActive: false });
+    }
     const queued = await dataSource.query(
       `SELECT status FROM conversations WHERE id = $1`,
       [waiting[0].id],
@@ -391,7 +393,9 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
 
     // Both the periodic reconciler and a late media callback must leave a
     // queued lead under operator control once it has been edited manually.
-    await service.processDueConversations(new Date('2026-09-17T18:30:00.000Z'));
+    for (let cycle = 0; cycle < 5; cycle += 1) {
+      await service.processDueConversations(new Date(`2026-09-17T${String(18 + Math.floor((30 + cycle * 5) / 60)).padStart(2, '0')}:${String((30 + cycle * 5) % 60).padStart(2, '0')}:00.000Z`), { reconcileActive: false, runGuard: false, dueContactIds: [queuedEditContactId] });
+    }
     await service.reconcileMediaConversation(waiting[0].id, new Date('2026-09-17T18:30:00.000Z'));
 
     const afterEdit = await dataSource.query(
@@ -442,7 +446,11 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       `UPDATE conversations SET status = 'partial', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE ghl_contact_id = $1`,
       [julioContactId],
     );
-    await service.processDueConversations(new Date('2026-09-17T17:30:00.000Z'));
+    const julioConversation = await dataSource.query('SELECT id FROM conversations WHERE ghl_contact_id = $1', [julioContactId]) as Array<{ id: string }>;
+    await service.reconcileMediaConversation(julioConversation[0].id, new Date('2026-09-17T17:30:00.000Z'));
+    for (let cycle = 0; cycle < 5; cycle += 1) {
+      await service.processDueConversations(new Date(`2026-09-17T17:${String(35 + cycle * 5).padStart(2, '0')}:00.000Z`), { reconcileActive: false, runGuard: false, dueContactIds: [julioContactId] });
+    }
 
     const rows = await dataSource.query(
       `SELECT status, qualification_snapshot FROM conversations WHERE ghl_contact_id = $1`,
@@ -547,7 +555,11 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
       `UPDATE conversations SET status = 'partial', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE ghl_contact_id = $1`,
       [javierContactId],
     );
-    await service.processDueConversations(new Date('2026-09-17T17:30:00.000Z'));
+    const javierConversation = await dataSource.query('SELECT id FROM conversations WHERE ghl_contact_id = $1', [javierContactId]) as Array<{ id: string }>;
+    await service.reconcileMediaConversation(javierConversation[0].id, new Date('2026-09-17T17:30:00.000Z'));
+    for (let cycle = 0; cycle < 5; cycle += 1) {
+      await service.processDueConversations(new Date(`2026-09-17T17:${String(35 + cycle * 5).padStart(2, '0')}:00.000Z`), { reconcileActive: false, runGuard: false, dueContactIds: [javierContactId] });
+    }
 
     const rows = await dataSource.query(
       `SELECT status, qualification_snapshot FROM conversations WHERE ghl_contact_id = $1`,
@@ -693,7 +705,7 @@ describeDatabase('OCR phone evidence against local PostgreSQL', () => {
     expect(conversation[0].qualification_snapshot).toMatchObject({
       real_name: 'Leandro Bolzan',
       vehicle_type: 'SUV',
-      down_payment: '2000',
+      down_payment: '1000 - 2000',
       previous_financing: 'yes',
       down_payment_sufficient: true,
       qualification_complete: true,

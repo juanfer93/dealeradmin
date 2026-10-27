@@ -162,41 +162,69 @@ export class ConversationEventFunctions {
       }
       const location = await this.qualification.resolveLocation(runner, transcript);
       const language = this.sourceConfig[source].splitByLanguage ? detectLeadLanguage(transcript) : undefined;
-      const downPayment = normalizeDownPayment(normalized.down_payment);
+      const additiveField = (incoming: unknown, existing: unknown): string => clean(incoming) || clean(existing);
+      const contactRealName = normalizeRealName(displayName);
+      const transcriptRealName = event.channel.toLowerCase() === 'whatsapp'
+        ? transcript
+          .split(/\n+/)
+          .map((line) => normalizeRealName(line))
+          .find((candidate) => Boolean(candidate)
+            && candidate !== contactRealName
+            && candidate.split(/\s+/).length <= 3
+            && !/\b(?:para|hacer|uber|precio|hailander|civic|estoy|financiar|financiado|informaci[oó]n|gracias|semana|virginia|baltimore|ubicaci[oó]n)\b/i.test(candidate)) || ''
+        : '';
+      // A valid contact name is stronger evidence than a coincidental
+      // single-word extraction from a later message (for example "Sorry").
+      // Preserve the first meaningful name; later cycles may add fields but
+      // must not replace it with conversational text.
+      const realName = additiveField(transcriptRealName, previousSnapshot.real_name)
+        || contactRealName
+        || clean(normalized.real_name)
+        || '';
+      const vehicleType = additiveField(normalized.vehicle_type, previousSnapshot.vehicle_type);
+      const downPayment = normalizeDownPayment(additiveField(normalized.down_payment, previousSnapshot.down_payment));
+      const purchaseTimeline = additiveField(normalized.purchase_timeline, previousSnapshot.purchase_timeline);
+      const documents = additiveField(normalized.documents, previousSnapshot.documents);
+      const identification = additiveField(normalized.identification, previousSnapshot.identification);
+      const bankAccount = additiveField(normalized.bank_account, previousSnapshot.bank_account);
+      const qualificationMemory = additiveField(normalized.qualification_memory, previousSnapshot.qualification_memory);
+      const vehicleYear = typeof normalized.vehicle_year === 'number'
+        ? normalized.vehicle_year
+        : typeof previousSnapshot.vehicle_year === 'number' ? previousSnapshot.vehicle_year : null;
       const previousFinancing = normalized.previous_financing
         || (previousSnapshot.previous_financing === 'yes' || previousSnapshot.previous_financing === 'no' ? previousSnapshot.previous_financing : '');
-      const downPaymentRule = evaluateDownPayment(normalized.vehicle_type, downPayment);
+      const downPaymentRule = evaluateDownPayment(vehicleType, downPayment);
       const snapshot: ConversationSnapshot = {
-        real_name: normalized.real_name,
+        real_name: realName,
         phone: effectivePhone || '',
-        vehicle_type: normalized.vehicle_type,
-        vehicle_year: normalized.vehicle_year,
-        customer_location: normalized.customer_location,
+        vehicle_type: vehicleType,
+        vehicle_year: vehicleYear,
+        customer_location: additiveField(normalized.customer_location, previousSnapshot.customer_location),
         vehicle_category: downPaymentRule.category,
         required_down_payment: downPaymentRule.minimum,
         down_payment_amount: downPaymentRule.amount,
         down_payment_sufficient: downPaymentRule.meetsMinimum,
         down_payment: downPayment,
         previous_financing: previousFinancing,
-        purchase_timeline: normalized.purchase_timeline,
-        documents: normalized.documents,
-        identification: normalized.identification,
-        bank_account: normalized.bank_account,
-        qualification_memory: normalized.qualification_memory,
+        purchase_timeline: purchaseTimeline,
+        documents,
+        identification,
+        bank_account: bankAccount,
+        qualification_memory: qualificationMemory,
         qualification_complete: isQualificationComplete({
-          real_name: normalized.real_name,
+          real_name: realName,
           phone: effectivePhone,
-          vehicle_type: normalized.vehicle_type,
+          vehicle_type: vehicleType,
           down_payment: downPayment,
-          purchase_timeline: normalized.purchase_timeline,
-          has_identification: normalized.identification,
-          has_income_proof: normalized.documents,
-          bank_account: normalized.bank_account,
+          purchase_timeline: purchaseTimeline,
+          has_identification: identification,
+          has_income_proof: documents,
+          bank_account: bankAccount,
         }),
         missing_qualification: [
-          !normalized.real_name ? 'real_name' : '',
+          !realName ? 'real_name' : '',
           !effectivePhone ? 'phone' : '',
-          !normalized.vehicle_type || isAdvisorHandoffVehicle(normalized.vehicle_type) ? 'vehicle_type' : '',
+          !vehicleType || isAdvisorHandoffVehicle(vehicleType) ? 'vehicle_type' : '',
         ].filter(Boolean),
         message_count: messages.length,
         language,

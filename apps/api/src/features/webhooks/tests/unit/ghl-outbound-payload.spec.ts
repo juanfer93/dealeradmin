@@ -356,7 +356,7 @@ describe('normalizeGhlOutboundPayload', () => {
     expect(result.lead).toMatchObject({
       name: 'Jamie Rojas',
       down_payment: '2000',
-      vehicle_type: 'Suv',
+      vehicle_type: 'SUV',
       qualification_memory: expect.stringContaining('down payment: 2000'),
     });
   });

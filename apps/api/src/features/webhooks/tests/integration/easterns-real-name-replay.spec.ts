@@ -182,7 +182,9 @@ describeDatabase('Easterns real-name production replay', () => {
 
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ first_name: 'Lead', last_name: '' });
-    expect(rows[0].qualification_snapshot).toMatchObject({ real_name: 'Lead' });
+    // Lead is an operational placeholder, not buyer-provided qualification
+    // data; the snapshot must keep the field empty rather than persisting it.
+    expect(rows[0].qualification_snapshot).toMatchObject({ real_name: '' });
     expect(JSON.stringify(rows[0].qualification_snapshot)).not.toContain('Más Información');
   }, 20_000);
 

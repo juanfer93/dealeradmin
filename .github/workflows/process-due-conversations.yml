@@ -201,8 +201,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     needs: release-due
-    # Waiting-cycle release must not wait on the GHL Guard. Keep this long,
-    # advisory-lock-prone operation only for an explicitly targeted repair.
+    # Targeted repairs run the contact-scoped Guard below. The normal due
+    # endpoint performs the recent 24-hour Guard pass as part of each cycle.
+    # Keep this job for an explicitly targeted repair.
     if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.contact_ids != '' }}
     concurrency:
       group: process-due-guard
