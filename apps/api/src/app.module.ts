@@ -51,6 +51,7 @@ import { QueuedGuardReplay1710000041000 } from './database/migrations/1710000041
 import { GhlGuardGlobalLease1710000042000 } from './database/migrations/1710000042000-GhlGuardGlobalLease';
 import { QueuedGuardReplayRetry1710000043000 } from './database/migrations/1710000043000-QueuedGuardReplayRetry';
 import { RequeueMp4VoiceAttachments1710000045000 } from './database/migrations/1710000045000-RequeueMp4VoiceAttachments';
+import { POSTGRES_EXTRA } from './database/postgres-connection-options';
 
 const databaseModule = TypeOrmModule.forRootAsync({
       useFactory: () => {
@@ -58,6 +59,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
         return {
           type: 'postgres' as const,
           url: env.DATABASE_URL,
+          extra: POSTGRES_EXTRA,
           autoLoadEntities: true,
           synchronize: false,
           migrations: [

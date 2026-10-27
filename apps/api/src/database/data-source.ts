@@ -43,6 +43,7 @@ import { GhlGuardGlobalLease1710000042000 } from './migrations/1710000042000-Ghl
 import { QueuedGuardReplayRetry1710000043000 } from './migrations/1710000043000-QueuedGuardReplayRetry';
 import { QualificationWaitingWindowAttempts1710000044000 } from './migrations/1710000044000-QualificationWaitingWindowAttempts';
 import { RequeueMp4VoiceAttachments1710000045000 } from './migrations/1710000045000-RequeueMp4VoiceAttachments';
+import { POSTGRES_EXTRA } from './postgres-connection-options';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -53,6 +54,7 @@ if (!databaseUrl) {
 export const AppDataSource = new DataSource({
   type: 'postgres',
   url: databaseUrl,
+  extra: POSTGRES_EXTRA,
   entities: [],
   migrations: [
     InitialSchema1710000000000,
