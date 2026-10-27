@@ -345,7 +345,7 @@ export class ConversationReconciliationFunctions {
              ready_at = CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued') THEN COALESCE(ready_at, $6::timestamptz) ELSE ready_at END,
              waiting_window_attempts = CASE
                WHEN $2::varchar = 'waiting_window' THEN $7
-               WHEN $2::varchar = 'queued' THEN waiting_window_attempts
+               WHEN $2::varchar IN ('ready', 'queued') THEN waiting_window_attempts
                ELSE 0
              END,
              waiting_window_started_at = CASE

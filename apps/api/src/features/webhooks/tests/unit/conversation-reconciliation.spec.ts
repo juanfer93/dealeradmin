@@ -406,7 +406,7 @@ describe('ConversationReconciliationFunctions', () => {
 
     const leadUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE leads SET first_name'));
     expect(leadUpdate?.[1]).toEqual(['lead-manuel', 'Manuel', '']);
-    const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot'));
+    const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
     expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({
       real_name: 'Manuel',
       vehicle_type: 'Honda Civic 2015',
@@ -419,7 +419,7 @@ describe('ConversationReconciliationFunctions', () => {
     expect(JSON.parse(String(conversationUpdate?.[1]?.[2])).documents).toMatch(/proof of income: yes/);
     expect(JSON.parse(String(conversationUpdate?.[1]?.[2])).qualification_memory).not.toContain('down payment: 15');
     expect(conversationUpdate?.[1]?.[1]).toBe('queued');
-    expect(String(conversationUpdate?.[0])).toContain("WHEN $2::varchar = 'queued' THEN waiting_window_attempts");
+    expect(String(conversationUpdate?.[0])).toContain("WHEN $2::varchar IN ('ready', 'queued') THEN waiting_window_attempts");
     expect(String(conversationUpdate?.[0])).toContain("WHEN $2::varchar = 'queued' THEN waiting_window_started_at");
     expect(qualification.syncLeadDealer).toHaveBeenCalledWith(
       runner,
@@ -429,6 +429,71 @@ describe('ConversationReconciliationFunctions', () => {
       expect.any(Object),
       'stafford',
     );
+  });
+
+  it('keeps the terminal waiting-window cycle count when ready is promoted to queued', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('SELECT c.id, c.channel')) {
+        return [{
+          id: 'conversation-terminal-cycle',
+          channel: 'messenger',
+          ghl_location_id: GHL_SOURCE_CONFIG.arlington.locationId,
+          ghl_contact_id: 'terminal-cycle-contact',
+          ghl_conversation_id: 'terminal-cycle-ghl',
+          status: 'waiting_window',
+          qualification_snapshot: {
+            real_name: 'Terminal Cycle',
+            phone: '+15555550123',
+            vehicle_type: 'Honda Civic',
+            qualification_complete: true,
+            language: 'en',
+          },
+          location_snapshot: { city: null, state: null, zip_code: null, easterns_zone: null },
+          ready_at: '2026-10-27T19:00:00.000Z',
+          next_attempt_at: '2026-10-27T19:05:00.000Z',
+          last_message_at: '2026-10-27T19:04:00.000Z',
+          waiting_window_attempts: 5,
+          waiting_window_started_at: '2026-10-27T18:40:00.000Z',
+          lead_id: 'lead-terminal-cycle',
+          canonical_phone: '+15555550123',
+          first_name: 'Terminal',
+          last_name: 'Cycle',
+        }];
+      }
+      if (sql.includes('INNER JOIN conversations sibling')) {
+        return [{ body: 'Honda Civic', direction: 'inbound', occurred_at: '2026-10-27T19:04:00.000Z' }];
+      }
+      return [];
+    });
+    const runner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query,
+    };
+    const qualification = {
+      resolveLocation: vi.fn().mockResolvedValue({ city: null, state: null, zip_code: null, easterns_zone: null }),
+      findSourceDealer: vi.fn().mockResolvedValue({ id: 'dealer-arlington', timezone: 'America/New_York', routing_config: {} }),
+      statusForConversation: vi.fn().mockReturnValue({ status: 'ready', nextAttemptAt: null }),
+      syncLeadDealer: vi.fn(),
+    };
+    const queueService = { createQueuedPauseEvent: vi.fn(), dispatchQueuedPauseEvent: vi.fn() };
+    const reconciliation = new ConversationReconciliationFunctions(
+      { createQueryRunner: () => runner } as never,
+      qualification as never,
+      queueService as never,
+    );
+
+    await reconciliation.reconcileConversation('conversation-terminal-cycle', new Date('2026-10-27T19:06:00.000Z'), true);
+
+    const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(String(conversationUpdate?.[0])).toContain("WHEN $2::varchar IN ('ready', 'queued') THEN waiting_window_attempts");
+    expect(conversationUpdate?.[1]?.[1]).toBe('ready');
+    const queuedUpdate = query.mock.calls.find(([sql]) => sql.includes("UPDATE conversations SET status = 'queued'"));
+    expect(queuedUpdate).toBeDefined();
   });
 
   it('clears a Stafford WhatsApp vehicle label from the lead name when no buyer name was declared', async () => {
