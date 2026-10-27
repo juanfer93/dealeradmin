@@ -79,12 +79,14 @@ describe('GhlGuardService', () => {
     };
     const service = new GhlGuardService(dataSource as never, { reconcileConversation: vi.fn() } as never);
 
-    await service.run(new Date('2026-10-22T12:00:00.000Z'), { force: true });
+    await service.run(new Date('2026-10-22T12:00:00.000Z'), { force: true, queuedOnly: true });
 
     const selection = lockRunner.query.mock.calls.find(([sql]) => String(sql).includes('FROM conversations'))?.[0] as string;
     expect(selection).toContain('due_retry.next_retry_at IS NOT NULL');
     expect(selection).toContain('CASE WHEN due_retry.next_retry_at IS NOT NULL THEN 0 ELSE 1 END');
     expect(selection).toContain('due_retry.next_retry_at ASC NULLS LAST');
+    expect(selection).toContain("retry_guard.error_code IS DISTINCT FROM 'GHL_GUARD_STALE_RUN'");
+    expect(selection).toContain("retry_guard.metadata->>'recoveryReason'");
   });
 
   it('reports when the advisory lock prevents a guard cycle', async () => {

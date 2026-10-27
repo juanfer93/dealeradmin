@@ -200,6 +200,12 @@ export class GhlGuardService {
              WHERE retry_guard.conversation_id = conversations.id
                AND retry_guard.status = 'failed'
                AND retry_guard.next_retry_at > CURRENT_TIMESTAMP
+               -- Recovery of an abandoned Guard run must not defer the
+               -- one-time queued replay. The stale row is already terminal
+               -- and the queued backup must be able to claim the conversation
+               -- in this same scheduler pass.
+               AND retry_guard.error_code IS DISTINCT FROM 'GHL_GUARD_STALE_RUN'
+               AND COALESCE(retry_guard.metadata->>'recoveryReason', '') <> 'stale_guard_log'
            )
          -- Freshly queued contacts must not wait behind the historical backlog.
          -- A failed contact is temporarily skipped by the retry backoff above,
