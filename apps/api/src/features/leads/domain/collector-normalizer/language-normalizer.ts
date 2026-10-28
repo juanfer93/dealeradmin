@@ -2,7 +2,7 @@ import type { CollectorLanguage } from './types';
 import { clean } from './text-cleaner';
 
 const ENGLISH_LANGUAGE_SIGNALS = [
-  /\b(?:i|i'm|im|my|want|wants|need|looking|have|this|next|today|where|what|can|with|and|the|yes|yeah|yep|do|does|when|how)\b/gi,
+  /\b(?:i|i'm|im|my|want|wants|need|looking|have|this|next|today|where|what|can|with|and|the|yes|yeah|yep|do|does|when|how|english|please)\b/gi,
   /\b(?:proof of income|bank account|driver(?:'s)? license|this month|next month|more information|requirements?)\b/gi,
 ];
 

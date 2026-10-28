@@ -56,6 +56,17 @@ export class GhlGuardService {
     );
   }
 
+  /**
+   * Clean up abandoned Guard rows without making the due-cycle release depend
+   * on a successful external GHL read. This is intentionally best-effort at
+   * the caller boundary: a Neon connection failure must not stop a waiting
+   * conversation from advancing to its next durable cycle.
+   */
+  async recoverStaleState(now = new Date()): Promise<void> {
+    await this.persistence.recoverStaleLogs(now);
+    await this.persistence.recoverStaleQueuedReplayClaims(now);
+  }
+
   async run(now = new Date(), options: { contactIds?: string[]; force?: boolean; queuedOnly?: boolean; recentOnly?: boolean } = {}): Promise<GhlGuardRunResult> {
     const empty: GhlGuardRunResult = { enabled: ghlGuardEnabled(), skipped: true, selected: 0, fetched: 0, inserted: 0, repaired: 0, failed: 0 };
     const runId = randomUUID();
@@ -90,8 +101,7 @@ export class GhlGuardService {
       // releases the lease. Recover only rows whose own lease/age is already
       // stale before attempting the global lease, so a scheduler cycle that
       // observes a busy global lease still cleans up abandoned work.
-      await this.persistence.recoverStaleLogs(now);
-      await this.persistence.recoverStaleQueuedReplayClaims(now);
+      await this.recoverStaleState(now);
       lockRunner = this.dataSource.createQueryRunner();
       await lockRunner.connect();
       const leaseRows = await lockRunner.query(
@@ -121,8 +131,7 @@ export class GhlGuardService {
       // A contention skip must not suppress the next scheduler attempt in the
       // same warm instance.
       this.lastRunAt = now.getTime();
-      await this.persistence.recoverStaleLogs(now);
-      await this.persistence.recoverStaleQueuedReplayClaims(now);
+      await this.recoverStaleState(now);
       const rows = await lockRunner.query(
         targeted
           ? `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status,

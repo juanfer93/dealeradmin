@@ -112,6 +112,16 @@ export class ConversationDueFunctions {
       if (process.env.NODE_ENV === 'test') return { accepted: true, processed: 0, advanced: 0, skipped: 0, remainingDue: 0, guardContactIds: [] };
       throw new ServiceUnavailableException('Database connection is not available');
     }
+    // Release-only watchdog calls intentionally do not run the external GHL
+    // Guard. Recover abandoned Guard rows here as audit hygiene so a failed
+    // Neon/GHL close-out cannot leave a stale `running` lease blocking the
+    // next cycle. This must never make durable cycle release fail.
+    try {
+      await this.guard?.recoverStaleState?.(now);
+    } catch {
+      // The Guard is additive and best-effort; due-cycle release remains
+      // authoritative when its telemetry connection is unavailable.
+    }
     const dueContactIds = [...new Set((options.dueContactIds ?? []).map((value) => value.trim()).filter(Boolean))];
     // Explicit contact repairs may handle historical incidents. Unattended
     // watchdog batches are limited to conversations with recent activity.

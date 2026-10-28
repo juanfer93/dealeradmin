@@ -165,6 +165,10 @@ describe('normalizeCollectorInput', () => {
     expect(detectLeadLanguage('I need more information. What documents do you need? I have proof of income.')).toBe('en');
   });
 
+  it('routes an explicit English language request to the English dealer', () => {
+    expect(detectLeadLanguage('English please')).toBe('en');
+  });
+
   it('preserves a valid native GHL contact phone when the latest message is separate', () => {
     expect(normalizeCollectorInput({ phone: '(240) 681-5028', message: 'Ok' }).phone).toBe('+12406815028');
   });

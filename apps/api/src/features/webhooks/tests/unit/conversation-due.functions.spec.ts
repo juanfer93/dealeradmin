@@ -2,6 +2,31 @@ import { describe, expect, it, vi } from 'vitest';
 import { ConversationDueFunctions } from '../../application/functions/conversations/conversation-due.functions';
 
 describe('ConversationDueFunctions', () => {
+  it('does not let stale Guard recovery block the durable due-cycle release', async () => {
+    const now = new Date('2026-10-28T17:00:00.000Z');
+    const dataSource = {
+      query: vi.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]),
+    };
+    const guard = {
+      recoverStaleState: vi.fn().mockRejectedValue(new Error('server conn crashed?')),
+    };
+    const service = new ConversationDueFunctions(
+      dataSource as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      undefined,
+      guard as never,
+    );
+
+    const result = await service.processDueConversations(now, { reconcileActive: false, runGuard: false });
+
+    expect(result).toEqual({ accepted: true, processed: 0, advanced: 0, skipped: 0, remainingDue: 0, guardContactIds: [] });
+    expect(guard.recoverStaleState).toHaveBeenCalledWith(now);
+  });
+
   it('limits unattended due selection to conversations with activity in the recent window', async () => {
     const now = new Date('2026-10-26T22:00:00.000Z');
     const dataSource = {
