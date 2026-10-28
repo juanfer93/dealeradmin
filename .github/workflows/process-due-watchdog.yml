@@ -242,6 +242,10 @@ jobs:
               echo "::warning::Watchdog backup made bounded progress; remaining rows continue on the next tick"
               exit 0
             fi
-            echo "::error::Watchdog backup made no progress after ${max_batches} batches"
-            exit 1
+            # No row becoming claimable during this bounded window is
+            # recoverable: the next watchdog tick will retry the remaining
+            # queue. Keep the warning for observability without making the
+            # whole watchdog workflow red.
+            echo "::warning::Watchdog backup made no progress after ${max_batches} batches; remaining rows continue on the next tick"
+            exit 0
           done

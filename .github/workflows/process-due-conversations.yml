@@ -248,8 +248,12 @@ jobs:
               echo "::warning::Queued backup drained bounded progress; remaining rows continue on the next schedule"
               exit 0
             fi
-            echo "::error::Queued backup made no progress after ${max_batches} batches"
-            exit 1
+            # No row becoming claimable during this bounded window is
+            # recoverable: the next scheduled run will retry the remaining
+            # queue. Do not turn a transient/no-op backup pass into a red
+            # workflow, while preserving the warning for observability.
+            echo "::warning::Queued backup made no progress after ${max_batches} batches; remaining rows continue on the next schedule"
+            exit 0
           done
 
   run-guard:
