@@ -35,12 +35,17 @@ export function inputIndicatesWhatsApp(input: unknown, normalizedEventChannel: s
   const value = asRecord(input);
   const customData = asRecord(value.customData ?? value.custom_data);
   const nativeMessage = asRecord(value.message);
+  const explicitChannels = [value.channel, customData.channel, nativeMessage.channel]
+    .map(normalizedChannel)
+    .filter(Boolean);
+  // GHL contact attribution can retain an old WhatsApp medium after the
+  // contact replies through Messenger. An explicit channel carried by the
+  // current webhook is stronger evidence and must win over that stale field.
+  if (explicitChannels.includes('messenger')) return false;
+  if (explicitChannels.includes('whatsapp')) return true;
   return [
     normalizedEventChannel,
-    value.channel,
-    customData.channel,
     nativeAttributionChannel(input),
-    nativeMessage.channel,
     nativeMessage.type,
   ].some((candidate) => normalizedChannel(candidate) === 'whatsapp');
 }
@@ -189,7 +194,14 @@ export function normalizeWebhookInput(input: unknown, defaultChannel: string, he
       ?? nestedWhatsappProfile.name
       ?? value.name
       ?? value.full_name,
-    channel: nativeAttributionChannel(input) || value.channel || customData.channel || defaultChannel,
+    // Prefer the channel attached to this message. Attribution is contact
+    // metadata and may describe an older WhatsApp interaction even when the
+    // current message arrived through Messenger.
+    channel: normalizedChannel(value.channel)
+      || normalizedChannel(customData.channel)
+      || normalizedChannel(nativeMessage.channel)
+      || nativeAttributionChannel(input)
+      || defaultChannel,
     occurred_at: value.occurred_at ?? value.occurredAt ?? value.date_updated ?? value.dateUpdated,
     message_attachments: attachmentValue,
     raw_payload: value.raw_payload ?? value,

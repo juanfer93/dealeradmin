@@ -181,7 +181,7 @@ describe('ConversationWebhookService', () => {
     expect(guard.run).toHaveBeenCalledWith(expect.any(Date), { contactIds: ['latent-phone'] });
   });
 
-  it('ignores native WhatsApp attribution for Fredericksburg 2 even when customData says messenger', async () => {
+  it('uses the current Messenger channel over stale WhatsApp attribution for Fredericksburg 2', async () => {
     const service = new ConversationWebhookService();
     const result = await service.acceptCustomerReplied(
       {
@@ -207,9 +207,11 @@ describe('ConversationWebhookService', () => {
       accepted: true,
       source: 'fredericksburg-2',
       conversationId: 'contact:ypXWEQgzejm3mvz3WJtk:messenger',
-      status: 'ignored_channel',
+      status: 'processed',
     });
-    expect(getTestConversationEvents()).toEqual([]);
+    expect(getTestConversationEvents()).toEqual([
+      expect.objectContaining({ source: 'fredericksburg-2', channel: 'messenger' }),
+    ]);
   });
 
   it('uses Stafford WhatsApp contact.phone when the buyer does not type the number', async () => {
@@ -553,17 +555,46 @@ describe('ConversationWebhookService', () => {
     await expect(service.acceptCustomerReplied({ message_body: 'SUV' }, 'stafford', {})).rejects.toThrow('Contact ID');
   });
 
-  it('accepts Stafford Messenger conversations while retaining the source routing', async () => {
+  it('ignores Stafford Messenger conversations because Stafford is WhatsApp-only', async () => {
     const service = new ConversationWebhookService();
     const result = await service.acceptCustomerReplied(
       { message_body: 'Busco un SUV.', channel: 'messenger' },
       'stafford',
       { contactId: 'ghl-stafford-messenger-contact', conversationId: 'ghl-stafford-messenger-conversation' },
     );
-    expect(result).toMatchObject({ accepted: true, source: 'stafford', conversationId: 'ghl-stafford-messenger-conversation', status: 'processed' });
-    expect(getTestConversationEvents()).toEqual([
-      expect.objectContaining({ source: 'stafford', channel: 'messenger', conversationId: 'ghl-stafford-messenger-conversation' }),
-    ]);
+    expect(result).toMatchObject({ accepted: true, source: 'stafford', status: 'ignored_channel' });
+    expect(getTestConversationEvents()).toEqual([]);
+  });
+
+  it('replays accepted ingress rows that never received an event id', async () => {
+    const rows = [{
+      request_id: 'request-accepted-without-event',
+      source: 'fredericksburg-2',
+      ghl_contact_id: 'contact-replay',
+      ghl_conversation_id: null,
+      raw_body: JSON.stringify({ message: { body: 'Busco una Tacoma' } }),
+      payload: { message: { body: 'Busco una Tacoma' }, customData: { channel: 'messenger' } },
+    }];
+    const dataSource = { query: vi.fn().mockResolvedValueOnce(rows).mockResolvedValue([]) };
+    const service = new ConversationWebhookService(dataSource as never);
+    const acceptCustomerReplied = vi.fn().mockResolvedValue({
+      accepted: true,
+      eventId: 'ghl:fredericksburg-2:replayed',
+      conversationId: 'contact:contact-replay:messenger',
+      source: 'fredericksburg-2',
+      status: 'processed',
+    });
+    (service as unknown as { acceptCustomerReplied: typeof acceptCustomerReplied }).acceptCustomerReplied = acceptCustomerReplied;
+
+    await expect(service.replayFailedIngress({ since: new Date('2026-10-27T19:00:00.000Z') })).resolves.toMatchObject({
+      accepted: true,
+      selected: 1,
+      processed: 1,
+      failed: 0,
+    });
+    expect(dataSource.query.mock.calls[0]?.[0]).toContain("outcome = 'accepted'");
+    expect(dataSource.query.mock.calls[0]?.[0]).toContain('event_id IS NULL');
+    expect(dataSource.query.mock.calls.some(([sql, params]) => String(sql).includes('event_id = COALESCE') && Array.isArray(params) && params[0] === 'request-accepted-without-event')).toBe(true);
   });
 
   it('keeps the source mapping for Easterns independent of free-form dealer text', async () => {
@@ -578,38 +609,29 @@ describe('ConversationWebhookService', () => {
     expect(result.conversationId).toBe('ghl-easterns-conversation');
   });
 
-  it('configures Arlington Woodbridge as a Messenger/Instagram conversation source', async () => {
+  it('configures Arlington Woodbridge as a Messenger-only conversation source', async () => {
     expect(GHL_SOURCE_CONFIG.arlington).toEqual({
       locationId: '9v8zH9Y5eLiiJwZTZDci',
       defaultChannel: 'messenger',
+      supportedChannels: ['messenger'],
     });
-
-    const service = new ConversationWebhookService();
-    const result = await service.acceptCustomerReplied(
-      { message_body: 'I need an SUV.', channel: 'instagram' },
-      'arlington',
-      { contactId: 'ghl-arlington-contact', conversationId: 'ghl-arlington-conversation' },
-    );
-
-    expect(result).toMatchObject({ source: 'arlington', conversationId: 'ghl-arlington-conversation' });
-    expect(getTestConversationEvents()).toEqual([
-      expect.objectContaining({ source: 'arlington', channel: 'instagram' }),
-    ]);
   });
 
-  it('keeps the two Koons Fredericksburg dealers as separate Messenger/Instagram sources', async () => {
+  it('keeps the two Koons Fredericksburg dealers as separate Messenger sources', async () => {
     expect(GHL_SOURCE_CONFIG['koons-fred']).toEqual({
       locationId: 'xuHo0opTO2g5edIuPJRl',
       defaultChannel: 'messenger',
+      supportedChannels: ['messenger'],
     });
     expect(GHL_SOURCE_CONFIG['koons-fred-eng']).toEqual({
       locationId: 'ozAIEblxTjrh0PfoaHge',
       defaultChannel: 'messenger',
+      supportedChannels: ['messenger'],
     });
 
     const service = new ConversationWebhookService();
     const spanish = await service.acceptCustomerReplied(
-      { message_body: 'Busco un SUV.', channel: 'instagram' },
+      { message_body: 'Busco un SUV.', channel: 'messenger' },
       'koons-fred',
       { contactId: 'ghl-koons-es-contact', conversationId: 'ghl-koons-es-conversation' },
     );
@@ -622,7 +644,7 @@ describe('ConversationWebhookService', () => {
     expect(spanish).toMatchObject({ source: 'koons-fred', conversationId: 'ghl-koons-es-conversation' });
     expect(english).toMatchObject({ source: 'koons-fred-eng', conversationId: 'ghl-koons-en-conversation' });
     expect(getTestConversationEvents()).toEqual([
-      expect.objectContaining({ source: 'koons-fred', channel: 'instagram' }),
+      expect.objectContaining({ source: 'koons-fred', channel: 'messenger' }),
       expect.objectContaining({ source: 'koons-fred-eng', channel: 'messenger' }),
     ]);
   });
@@ -631,6 +653,7 @@ describe('ConversationWebhookService', () => {
     expect(GHL_SOURCE_CONFIG['koons-culpeper']).toEqual({
       locationId: 'bTNJHpNZ8FaS1PUHkuUq',
       defaultChannel: 'messenger',
+      supportedChannels: ['messenger'],
     });
 
     const service = new ConversationWebhookService();
@@ -650,6 +673,7 @@ describe('ConversationWebhookService', () => {
     expect(GHL_SOURCE_CONFIG['action-cars']).toEqual({
       locationId: 'ZxadcudjvBz7KFCB1od4',
       defaultChannel: 'messenger',
+      supportedChannels: ['messenger'],
       splitByLanguage: true,
     });
 
@@ -672,11 +696,13 @@ describe('ConversationWebhookService', () => {
     expect(GHL_SOURCE_CONFIG['easterns-millersville']).toEqual({
       locationId: '113zMWQlhKKBUu5wOYtR',
       defaultChannel: 'messenger',
+      supportedChannels: ['messenger'],
       alternatingGroup: 'easterns-millersville',
     });
     expect(GHL_SOURCE_CONFIG['easterns-frederick']).toEqual({
       locationId: 'MRHcOwdTqaN5cug3eSWW',
       defaultChannel: 'messenger',
+      supportedChannels: ['messenger'],
     });
 
     const queryRunner = {

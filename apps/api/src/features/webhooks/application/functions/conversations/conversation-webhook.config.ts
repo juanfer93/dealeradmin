@@ -17,17 +17,17 @@ export const STALE_PHONE_REENTRY_DAYS = 3;
 export const RECENT_AUTOMATION_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export const GHL_SOURCE_CONFIG: SourceConfigMap = {
-  stafford: { locationId: 'LiaoSID3nvAhad49ZpNJ', defaultChannel: 'whatsapp', supportedChannels: ['whatsapp', 'messenger'] },
-  fredericksburg: { locationId: 'MyxWNKacThim798E8KC6', defaultChannel: 'messenger' },
-  'fredericksburg-2': { locationId: 'bAuMEQeH48xAtu9tAMFf', defaultChannel: 'messenger' },
-  easterns: { locationId: 'xN2LSSl62okzv9GnOJPU', defaultChannel: 'messenger' },
-  arlington: { locationId: '9v8zH9Y5eLiiJwZTZDci', defaultChannel: 'messenger' },
-  'koons-fred': { locationId: 'xuHo0opTO2g5edIuPJRl', defaultChannel: 'messenger' },
-  'koons-fred-eng': { locationId: 'ozAIEblxTjrh0PfoaHge', defaultChannel: 'messenger' },
-  'koons-culpeper': { locationId: 'bTNJHpNZ8FaS1PUHkuUq', defaultChannel: 'messenger' },
-  'action-cars': { locationId: 'ZxadcudjvBz7KFCB1od4', defaultChannel: 'messenger', splitByLanguage: true },
-  'easterns-millersville': { locationId: '113zMWQlhKKBUu5wOYtR', defaultChannel: 'messenger', alternatingGroup: 'easterns-millersville' },
-  'easterns-frederick': { locationId: 'MRHcOwdTqaN5cug3eSWW', defaultChannel: 'messenger' },
+  stafford: { locationId: 'LiaoSID3nvAhad49ZpNJ', defaultChannel: 'whatsapp', supportedChannels: ['whatsapp'] },
+  fredericksburg: { locationId: 'MyxWNKacThim798E8KC6', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
+  'fredericksburg-2': { locationId: 'bAuMEQeH48xAtu9tAMFf', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
+  easterns: { locationId: 'xN2LSSl62okzv9GnOJPU', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
+  arlington: { locationId: '9v8zH9Y5eLiiJwZTZDci', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
+  'koons-fred': { locationId: 'xuHo0opTO2g5edIuPJRl', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
+  'koons-fred-eng': { locationId: 'ozAIEblxTjrh0PfoaHge', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
+  'koons-culpeper': { locationId: 'bTNJHpNZ8FaS1PUHkuUq', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
+  'action-cars': { locationId: 'ZxadcudjvBz7KFCB1od4', defaultChannel: 'messenger', supportedChannels: ['messenger'], splitByLanguage: true },
+  'easterns-millersville': { locationId: '113zMWQlhKKBUu5wOYtR', defaultChannel: 'messenger', supportedChannels: ['messenger'], alternatingGroup: 'easterns-millersville' },
+  'easterns-frederick': { locationId: 'MRHcOwdTqaN5cug3eSWW', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
 };
 
 export const RECONCILIATION_LOCATION_IDS = [...new Set(Object.values(GHL_SOURCE_CONFIG).map((config) => config.locationId))];

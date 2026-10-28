@@ -1,14 +1,14 @@
-name: Replay failed webhook ingress
+name: Replay failed or unprocessed webhook ingress
 
 on:
   workflow_dispatch:
     inputs:
       since:
-        description: 'Only replay failed customer-replied ingress received at or after this UTC timestamp'
+        description: 'Replay failed or accepted-but-unprocessed customer-replied ingress received at or after this UTC timestamp'
         required: true
         default: '2026-10-27T18:00:00.000Z'
       limit:
-        description: 'Maximum failed ingress rows to replay'
+        description: 'Maximum ingress rows to replay'
         required: true
         default: '250'
 
@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Replay failed customer-replied ingress
+      - name: Replay failed or unprocessed customer-replied ingress
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           SINCE: ${{ inputs.since }}

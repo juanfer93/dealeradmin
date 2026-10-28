@@ -120,19 +120,27 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
 
     const event = { ...parsed.data, channel: normalizedChannel(parsed.data.channel) || parsed.data.channel };
     if (event.contact_phone && !safePhone(event.contact_phone)) throw new InvalidPhoneNumber(event.contact_phone);
+    const contactId = event.ghl_contact_id;
+    const raw = rawBody || JSON.stringify(input);
+    const eventId = event.event_id || `ghl:${source}:${hash(raw)}`;
     if (source === 'fredericksburg-2' && inputIndicatesWhatsApp(input, event.channel)) {
       return {
         accepted: true,
-        eventId: event.event_id || `ghl:${source}:${hash(rawBody || JSON.stringify(input))}`,
-        conversationId: event.ghl_conversation_id || `contact:${event.ghl_contact_id}:whatsapp`,
+        eventId,
+        conversationId: event.ghl_conversation_id || `contact:${contactId}:whatsapp`,
         source,
         status: 'ignored_channel',
       };
     }
     if (sourceConfig.supportedChannels && !sourceConfig.supportedChannels.includes(event.channel as 'whatsapp' | 'messenger')) {
-      throw new UnprocessableEntityException(`El canal ${event.channel} no está habilitado para ${source}`);
+      return {
+        accepted: true,
+        eventId,
+        conversationId: event.ghl_conversation_id || `contact:${contactId}:${event.channel}`,
+        source,
+        status: 'ignored_channel',
+      };
     }
-    const contactId = event.ghl_contact_id;
     const message = String(event.message_body ?? '').trim();
     if (!contactId) throw new UnprocessableEntityException('El webhook requiere el Contact ID nativo de GHL');
     if (!message && (!event.message_attachments || event.message_attachments.length === 0)) {
@@ -142,8 +150,6 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     const nativeConversationId = event.ghl_conversation_id?.trim() || null;
     const conversationId = nativeConversationId || `contact:${contactId}:${event.channel}`;
     const locationId = event.ghl_location_id || sourceConfig.locationId;
-    const raw = rawBody || JSON.stringify(input);
-    const eventId = event.event_id || `ghl:${source}:${hash(raw)}`;
     if (!this.dataSource && process.env.NODE_ENV === 'test') {
       recordTestConversationEvent({ eventId, source, contactId, conversationId, message, channel: event.channel, attachments: event.message_attachments });
       return { accepted: true, eventId, conversationId, source, status: 'processed' };
@@ -223,10 +229,24 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     const rows = await this.dataSource.query(
       `SELECT request_id, source, ghl_contact_id, ghl_conversation_id, raw_body, payload
        FROM webhook_ingress_logs
-       WHERE outcome = 'failed'
-         AND path LIKE '%/ghl/customer-replied/%'
+       WHERE path LIKE '%/ghl/customer-replied/%'
          AND source = ANY($1::text[])
          AND payload IS NOT NULL
+         AND (
+           outcome = 'failed'
+           OR (
+             outcome = 'accepted'
+             AND event_id IS NULL
+             AND (
+               NULLIF(payload->>'message_body', '') IS NOT NULL
+               OR NULLIF(payload->>'messageBody', '') IS NOT NULL
+               OR NULLIF(payload->'customData'->>'message_body', '') IS NOT NULL
+               OR NULLIF(payload->'customData'->>'messageBody', '') IS NOT NULL
+               OR (jsonb_typeof(payload->'message') = 'object' AND NULLIF(payload->'message'->>'body', '') IS NOT NULL)
+               OR (jsonb_typeof(payload->'message') = 'object' AND NULLIF(payload->'message'->>'text', '') IS NOT NULL)
+             )
+           )
+         )
          AND ($2::timestamptz IS NULL OR received_at >= $2::timestamptz)
        ORDER BY received_at ASC
        LIMIT $3`,
@@ -282,11 +302,14 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
         });
         await this.dataSource.query(
           `UPDATE webhook_ingress_logs
-           SET status_code = 200, outcome = 'accepted', error_code = NULL,
+           SET status_code = 200,
+               outcome = 'accepted',
+               event_id = COALESCE(event_id, $2),
+               error_code = CASE WHEN $3 = 'ignored_channel' THEN 'ignored_channel' ELSE NULL END,
                completed_at = CURRENT_TIMESTAMP,
                duration_ms = FLOOR(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - received_at)) * 1000)::integer
-           WHERE request_id = $1 AND outcome = 'failed'`,
-          [row.request_id],
+           WHERE request_id = $1 AND (outcome = 'failed' OR (outcome = 'accepted' AND event_id IS NULL))`,
+          [row.request_id, response.eventId, response.status],
         );
         summary.processed += 1;
         if (response.status === 'duplicate_ignored') summary.duplicateIgnored += 1;
