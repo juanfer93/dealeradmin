@@ -2759,6 +2759,17 @@ describe('normalizeCollectorInput', () => {
     }).real_name).toBe('Juan Perez');
   });
 
+  it('does not promote a compound greeting to a WhatsApp name', () => {
+    expect(normalizeCollectorInput({
+      channel: 'whatsapp',
+      contact_name: 'Juan Pablo',
+      message: 'Hola buenas tardes',
+      chat_history_log: 'Hola buenas tardes\nBusco un SUV',
+      phone: '+16674169089',
+      vehicle_type: 'SUV',
+    }).real_name).toBe('Juan Pablo');
+  });
+
   it('normalizes decorative profile symbols before validating a real name', () => {
     expect(isValidRealName('EliasJosue 🕊Mnegra')).toBe(false);
     expect(normalizeRealName('EliasJosue 🕊Mnegra')).toBe('Eliasjosue Mnegra');

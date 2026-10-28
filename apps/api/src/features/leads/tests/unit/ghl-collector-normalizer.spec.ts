@@ -1925,6 +1925,17 @@ describe('HighLevel collector custom-code normalizer', () => {
     }).real_name).toBe('Juan Perez');
   });
 
+  it('does not promote a compound greeting to a WhatsApp name', () => {
+    expect(execute({
+      channel: 'whatsapp',
+      contact_name: 'Juan Pablo',
+      message: 'Hola buenas tardes',
+      chat_history_log: 'Hola buenas tardes\nBusco un SUV',
+      phone: '+16674169089',
+      vehicle_type: 'SUV',
+    }).real_name).toBe('Juan Pablo');
+  });
+
   it('maps the Stafford shorthand year pair to 2015 and does not extract $15', () => {
     expect(execute({
       source: 'stafford',
