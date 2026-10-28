@@ -23,6 +23,20 @@ import type {
 } from './ghl-guard.types';
 import { configureWebhookTransactionSafety } from '../../transaction-safety';
 
+const SAFE_LOG_UPDATE_ATTEMPTS = 3;
+const SAFE_LOG_UPDATE_DELAY_MS = 250;
+
+function isTransientLogPersistenceError(error: unknown): boolean {
+  if (!(error instanceof Error)) return true;
+  return /QueryFailedError|QueryRunnerAlreadyReleasedError|server conn crashed|connection terminated|connection reset|connection refused|econnreset|socket hang up|timeout|timed out/i.test(
+    `${error.name} ${error.message}`,
+  );
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
 export class GhlGuardPersistenceFunctions {
   private readonly logger = new Logger(GhlGuardPersistenceFunctions.name);
 
@@ -467,11 +481,18 @@ export class GhlGuardPersistenceFunctions {
   }
 
   async safeUpdateLog(logId: string | null, status: string, details: Record<string, unknown>): Promise<void> {
-    try {
-      await this.updateLog(logId, status, details);
-    } catch (error) {
-      this.logAuditError('GHL_GUARD_LOG_UPDATE_FAILED', error, { logId, status });
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= SAFE_LOG_UPDATE_ATTEMPTS; attempt += 1) {
+      try {
+        await this.updateLog(logId, status, details);
+        return;
+      } catch (error) {
+        lastError = error;
+        if (!isTransientLogPersistenceError(error) || attempt === SAFE_LOG_UPDATE_ATTEMPTS) break;
+        await delay(SAFE_LOG_UPDATE_DELAY_MS * attempt);
+      }
     }
+    this.logAuditError('GHL_GUARD_LOG_UPDATE_FAILED', lastError, { logId, status, attempts: SAFE_LOG_UPDATE_ATTEMPTS });
   }
 
   logAuditError(code: string, error: unknown, context: Record<string, unknown> = {}): void {

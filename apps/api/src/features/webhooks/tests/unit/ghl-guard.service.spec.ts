@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GHL_SOURCE_CONFIG } from '../../application/functions/conversations/conversation-webhook.config';
 import { ghlGuardBatchSize, ghlGuardConcurrency, ghlGuardConversationTimeoutMs, ghlGuardLeaseMs, ghlGuardStaleLogMs, ghlGuardTimeoutMs } from '../../application/ghl-guard.config';
 import { GhlGuardService } from '../../application/ghl-guard.service';
+import { GhlGuardPersistenceFunctions } from '../../application/functions/ghl-guard/ghl-guard-persistence.functions';
 
 describe('GhlGuardService', () => {
   const originalEnv = { ...process.env };
@@ -618,6 +619,21 @@ describe('GhlGuardService', () => {
 
     expect(dataSource.createQueryRunner).toHaveBeenCalledTimes(2);
     expect(secondLockRunner.release).toHaveBeenCalledOnce();
+  });
+
+  it('retries durable Guard failure close-out after a transient Neon read timeout', async () => {
+    const timeoutError = new Error('Query read timeout');
+    timeoutError.name = 'QueryFailedError';
+    const dataSource = {
+      query: vi.fn()
+        .mockRejectedValueOnce(timeoutError)
+        .mockResolvedValueOnce([{ id: 'guard-log-recovered', status: 'failed' }]),
+    };
+    const persistence = new GhlGuardPersistenceFunctions(dataSource as never);
+
+    await persistence.safeUpdateLog('guard-log-recovered', 'failed', { errorCode: 'QueryFailedError' });
+
+    expect(dataSource.query).toHaveBeenCalledTimes(2);
   });
 
   it('opens a source circuit after repeated transient failures without calling GHL again', async () => {
