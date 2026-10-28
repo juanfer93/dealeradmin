@@ -185,6 +185,18 @@ export class WebhooksController {
     return { accepted, guard };
   }
 
+  @Get('ghl/replay-failed')
+  @UseGuards(HmacSignatureGuard)
+  replayFailedWebhooks(@Req() request: Request) {
+    const sinceValue = String(request.query.since ?? '').trim();
+    const since = sinceValue ? new Date(sinceValue) : undefined;
+    const limitValue = Number(request.query.limit ?? 250);
+    return this.conversationWebhookService.replayFailedIngress({
+      since: since && !Number.isNaN(since.getTime()) ? since : undefined,
+      limit: Number.isFinite(limitValue) ? limitValue : 250,
+    });
+  }
+
   @Post('ghl/conversations/:conversationId/reconcile-media')
   @UseGuards(HmacSignatureGuard)
   reconcileMediaConversation(@Param('conversationId') conversationId: string, @Req() request: Request) {

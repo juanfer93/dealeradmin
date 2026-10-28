@@ -2,6 +2,20 @@ import { describe, expect, it, vi } from 'vitest';
 import { WebhooksController } from '../../presentation/webhooks.controller';
 
 describe('WebhooksController queued Guard backup', () => {
+  it('delegates failed webhook replay to the protected service flow', async () => {
+    const replayFailedIngress = vi.fn().mockResolvedValue({ accepted: true, selected: 1, processed: 1, failed: 0 });
+    const controller = new WebhooksController(
+      {} as never,
+      { replayFailedIngress } as never,
+      {} as never,
+      {} as never,
+    );
+
+    await controller.replayFailedWebhooks({ query: { since: '2026-10-27T18:00:00.000Z', limit: '250' } } as never);
+
+    expect(replayFailedIngress).toHaveBeenCalledWith({ since: new Date('2026-10-27T18:00:00.000Z'), limit: 250 });
+  });
+
   it('releases due contacts without waiting for Guard', async () => {
     const processDueConversations = vi.fn().mockResolvedValue({
       accepted: true,

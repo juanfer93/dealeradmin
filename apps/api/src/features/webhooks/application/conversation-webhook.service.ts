@@ -215,6 +215,96 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     return this.guard.run(now, options);
   }
 
+  async replayFailedIngress(options: { since?: Date; limit?: number } = {}) {
+    if (!this.dataSource) throw new ServiceUnavailableException('Database connection is not available');
+
+    const sources = Object.keys(GHL_SOURCE_CONFIG);
+    const limit = Math.min(Math.max(Math.floor(options.limit ?? 250), 1), 500);
+    const rows = await this.dataSource.query(
+      `SELECT request_id, source, ghl_contact_id, ghl_conversation_id, raw_body, payload
+       FROM webhook_ingress_logs
+       WHERE outcome = 'failed'
+         AND path LIKE '%/ghl/customer-replied/%'
+         AND source = ANY($1::text[])
+         AND payload IS NOT NULL
+         AND ($2::timestamptz IS NULL OR received_at >= $2::timestamptz)
+       ORDER BY received_at ASC
+       LIMIT $3`,
+      [sources, options.since?.toISOString() ?? null, limit],
+    ) as Array<{
+      request_id: string;
+      source: string;
+      ghl_contact_id: string | null;
+      ghl_conversation_id: string | null;
+      raw_body: string | null;
+      payload: unknown;
+    }>;
+
+    const summary = {
+      selected: rows.length,
+      processed: 0,
+      duplicateIgnored: 0,
+      ignoredChannel: 0,
+      failed: 0,
+      results: [] as Array<{ requestId: string; status: string; eventId?: string; error?: string }>,
+    };
+
+    for (const row of rows) {
+      const body = row.payload ?? (() => {
+        try { return JSON.parse(row.raw_body ?? '{}'); } catch { return {}; }
+      })();
+      const payload = body && typeof body === 'object' && !Array.isArray(body) ? body as Record<string, unknown> : {};
+      const text = (value: unknown): string | undefined => {
+        const normalized = value === undefined || value === null ? '' : String(value).trim();
+        return normalized || undefined;
+      };
+      const contact = payload.contact && typeof payload.contact === 'object' ? payload.contact as Record<string, unknown> : {};
+      const conversation = payload.conversation && typeof payload.conversation === 'object' ? payload.conversation as Record<string, unknown> : {};
+      const messageId = text(payload.ghl_message_id ?? payload.message_id ?? payload.messageId);
+      const contactId = row.ghl_contact_id || text(payload.ghl_contact_id ?? payload.contact_id ?? contact.id);
+      const conversationId = row.ghl_conversation_id || text(payload.ghl_conversation_id ?? payload.conversation_id ?? conversation.id);
+
+      try {
+        const response = await this.acceptCustomerReplied(
+          body,
+          row.source,
+          { contactId: contactId ?? undefined, conversationId: conversationId ?? undefined, messageId, requestId: row.request_id },
+          row.raw_body ?? JSON.stringify(body),
+        );
+        await this.processingAudit?.recordFromPayload({
+          requestId: row.request_id,
+          source: row.source,
+          eventId: response.eventId,
+          status: response.status,
+          body,
+          headers: { contactId: contactId ?? undefined, conversationId: conversationId ?? undefined, messageId },
+          metadata: { telemetry_version: 'webhook-processing.v1', replay: true },
+        });
+        await this.dataSource.query(
+          `UPDATE webhook_ingress_logs
+           SET status_code = 200, outcome = 'accepted', error_code = NULL,
+               completed_at = CURRENT_TIMESTAMP,
+               duration_ms = FLOOR(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - received_at)) * 1000)::integer
+           WHERE request_id = $1 AND outcome = 'failed'`,
+          [row.request_id],
+        );
+        summary.processed += 1;
+        if (response.status === 'duplicate_ignored') summary.duplicateIgnored += 1;
+        if (response.status === 'ignored_channel') summary.ignoredChannel += 1;
+        summary.results.push({ requestId: row.request_id, status: response.status, eventId: response.eventId });
+      } catch (error) {
+        summary.failed += 1;
+        summary.results.push({
+          requestId: row.request_id,
+          status: 'failed',
+          error: error instanceof Error ? error.message.slice(0, 300) : String(error),
+        });
+      }
+    }
+
+    return { accepted: summary.failed === 0, ...summary };
+  }
+
   async releaseDueConversation(id: string, now = currentLocalNow()): Promise<boolean> {
     return (this.dueFunctions as unknown as { releaseDueConversation: (conversationId: string, emittedAt: Date) => Promise<boolean> }).releaseDueConversation(id, now);
   }
