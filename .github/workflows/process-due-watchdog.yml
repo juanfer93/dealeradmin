@@ -8,6 +8,10 @@ on:
   # registered after workflow changes.
   schedule:
     - cron: '*/5 * * * *'
+    # GitHub may delay or drop a scheduled event during platform load. Keep
+    # an offset safety tick so a newly overdue row is not stranded until the
+    # next aligned tick; the database lock makes the overlapping call safe.
+    - cron: '2-59/5 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -23,10 +27,10 @@ jobs:
     concurrency:
       # Keep the safety net independent from the primary scheduler. The API
       # release is row-safe through FOR UPDATE SKIP LOCKED, so an overlapping
-      # attempt is harmless; sharing this Actions group would make the
-      # watchdog wait behind a stalled primary run and defeat the recovery.
+      # attempt is harmless. Cancel a stalled watchdog so the next safety tick
+      # can reclaim the work instead of waiting behind the blocked run.
       group: process-due-watchdog-release
-      cancel-in-progress: false
+      cancel-in-progress: true
     steps:
       - name: Check database due-cycle health
         id: due-health
