@@ -80,5 +80,8 @@ describe('ManualLeadService', () => {
     expect(queryRunner.rollbackTransaction).toHaveBeenCalledOnce();
     expect(queryRunner.commitTransaction).not.toHaveBeenCalled();
     expect(query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO leads'))).toBe(false);
+    const queuedDuplicateQuery = query.mock.calls.find(([sql]) => String(sql).includes('FROM conversations c'))?.[0];
+    expect(String(queuedDuplicateQuery)).toContain("c.qualification_snapshot->>'assigned_dealer_id' = $1::text");
+    expect(String(queuedDuplicateQuery)).toContain('COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $1::uuid');
   });
 });
