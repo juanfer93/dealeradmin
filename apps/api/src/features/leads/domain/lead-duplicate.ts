@@ -45,7 +45,7 @@ export async function findDealerLeadDuplicate(
     `SELECT l.id, l.first_name, l.last_name, l.canonical_phone, ld.status
      FROM leads l
      INNER JOIN lead_dealers ld ON ld.lead_id = l.id
-     WHERE COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $1
+     WHERE COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $1::uuid
        AND l.canonical_phone = $2
        AND LOWER(REGEXP_REPLACE(TRIM(CONCAT_WS(' ', l.first_name, l.last_name)), '\\s+', ' ', 'g')) = $3
        ${exclusion}
@@ -77,8 +77,8 @@ export async function findQueuedConversationIdentityDuplicate(
      FROM conversations c
      INNER JOIN leads l ON l.id = c.lead_id
      LEFT JOIN lead_dealers ld ON ld.lead_id = l.id
-     WHERE (c.qualification_snapshot->>'assigned_dealer_id' = $1
-            OR COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $1)
+       WHERE (c.qualification_snapshot->>'assigned_dealer_id' = $1::text
+            OR COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $1::uuid)
        AND (($2::text IS NOT NULL AND c.ghl_contact_id = $2::text)
             OR ($3::text IS NOT NULL AND (l.canonical_phone = $3::text OR c.qualification_snapshot->>'phone' = $3::text)))
        AND c.status = 'queued'
