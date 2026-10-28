@@ -4,6 +4,8 @@ on:
   # Keep exactly one scheduler with a standard five-minute expression. The
   # offset range expression stopped producing scheduled runs in production;
   # the regular cadence is easier for GitHub Actions to resume and observe.
+  # Keep this trigger on the default branch so GitHub re-registers the cadence
+  # whenever the scheduler workflow is published.
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:

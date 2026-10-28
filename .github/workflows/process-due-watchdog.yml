@@ -4,6 +4,8 @@ on:
   # Keep a second scheduler as a database-aware safety net. The endpoint owns
   # the row health check and the database lock, so duplicate invocations are
   # safe and a missed primary tick cannot strand a due cycle.
+  # Keep this trigger on the default branch so the safety-net cadence remains
+  # registered after workflow changes.
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
