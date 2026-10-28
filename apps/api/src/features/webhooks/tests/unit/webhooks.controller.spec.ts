@@ -107,6 +107,61 @@ describe('WebhooksController queued Guard backup', () => {
     expect(processDueConversations).not.toHaveBeenCalled();
   });
 
+  it('runs the independent automatic cycle with Guard and queued replay when due work exists', async () => {
+    const getDueConversationHealth = vi.fn()
+      .mockResolvedValueOnce({
+        accepted: true,
+        checkedAt: '2026-10-28T03:45:00.000Z',
+        waitingWindowCount: 1,
+        overdueCount: 1,
+        missingNextAttemptCount: 0,
+        oldestDueAt: '2026-10-28T03:44:00.000Z',
+        overdueConversations: [],
+      })
+      .mockResolvedValueOnce({
+        accepted: true,
+        checkedAt: '2026-10-28T03:46:00.000Z',
+        waitingWindowCount: 1,
+        overdueCount: 0,
+        missingNextAttemptCount: 0,
+        oldestDueAt: null,
+        overdueConversations: [],
+      });
+    const processDueConversations = vi.fn().mockResolvedValue({
+      accepted: true,
+      processed: 1,
+      advanced: 1,
+      skipped: 0,
+      remainingDue: 0,
+      guardContactIds: ['contact-cycle-a'],
+      guard: { failed: 0 },
+    });
+    const runGhlGuard = vi.fn().mockResolvedValue({ failed: 0, queuedReplaySelected: 0, queuedReplayCompleted: 0 });
+    const controller = new WebhooksController(
+      {} as never,
+      { getDueConversationHealth, processDueConversations, runGhlGuard } as never,
+      {} as never,
+      {} as never,
+    );
+
+    const result = await controller.automaticCycle();
+
+    expect(result.accepted).toBe(true);
+    expect(processDueConversations).toHaveBeenCalledWith(undefined, {
+      reconcileActive: false,
+      runGuard: true,
+      forceGuard: true,
+      recentOnly: true,
+    });
+    expect(runGhlGuard).toHaveBeenCalledWith(undefined, {
+      contactIds: [],
+      queuedOnly: true,
+      force: true,
+      recentOnly: true,
+    });
+    expect(getDueConversationHealth).toHaveBeenCalledTimes(2);
+  });
+
   it('does not acknowledge the backup while queued replays remain pending', async () => {
     const runGhlGuard = vi.fn().mockResolvedValue({
       enabled: true,

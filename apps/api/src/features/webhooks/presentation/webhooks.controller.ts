@@ -157,6 +157,48 @@ export class WebhooksController {
     };
   }
 
+  @Get('ghl/conversations/automatic-cycle')
+  @UseGuards(HmacSignatureGuard)
+  async automaticCycle() {
+    const healthBefore = await this.conversationWebhookService.getDueConversationHealth({ recentOnly: true });
+    const needsRelease = healthBefore.overdueCount > 0 || healthBefore.missingNextAttemptCount > 0;
+    const release = needsRelease
+      ? await this.conversationWebhookService.processDueConversations(undefined, {
+        reconcileActive: false,
+        runGuard: true,
+        forceGuard: true,
+        recentOnly: true,
+      })
+      : {
+        accepted: true,
+        processed: 0,
+        advanced: 0,
+        skipped: 0,
+        remainingDue: 0,
+        guardContactIds: [],
+        guardError: undefined,
+      };
+    const queuedBackup = await this.conversationWebhookService.runGhlGuard(undefined, {
+      contactIds: [],
+      queuedOnly: true,
+      force: true,
+      recentOnly: true,
+    });
+    const healthAfter = await this.conversationWebhookService.getDueConversationHealth({ recentOnly: true });
+    return {
+      accepted: release.accepted
+        && release.skipped === 0
+        && release.remainingDue === 0
+        && !release.guardError
+        && queuedBackup.failed === 0,
+      triggered: needsRelease,
+      healthBefore,
+      release,
+      queuedBackup,
+      healthAfter,
+    };
+  }
+
   @Get('ghl/conversations/run-guard')
   @UseGuards(HmacSignatureGuard)
   async runGuardCron(@Req() request: Request) {
