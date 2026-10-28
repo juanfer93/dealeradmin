@@ -37,9 +37,9 @@ function sameDealerLocationSql(conversationAlias: string): string {
              INNER JOIN dealer_location_aliases historical_location_alias
                ON historical_location_alias.dealer_id = current_location_alias.dealer_id
              WHERE current_location_alias.ghl_location_id = $5
-               AND current_location_alias.dealer_id = $2
+               AND current_location_alias.dealer_id = $2::uuid
                AND historical_location_alias.ghl_location_id = ${conversationAlias}.ghl_location_id
-               AND historical_location_alias.dealer_id = $2
+               AND historical_location_alias.dealer_id = $2::uuid
            )
          )`;
 }
@@ -57,7 +57,7 @@ export class ConversationQualificationFunctions {
        FROM leads l
        INNER JOIN lead_dealers ld ON ld.lead_id = l.id
        WHERE l.canonical_phone = $1
-         AND COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $3
+         AND COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $3::uuid
          AND ld.status = 'sent'
          AND ld.sent_at IS NOT NULL
          AND ld.sent_at <= $2::timestamptz
@@ -92,7 +92,7 @@ export class ConversationQualificationFunctions {
                AND ${sameDealerLocationSql('phone_evidence_conversation')}
            )
          )
-         AND (ld.dealer_id = $2 OR COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $2)
+         AND (ld.dealer_id = $2::uuid OR COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $2::uuid)
          AND ld.status IN ('pending', 'queued', 'sent')
          AND (ld.status <> 'sent' OR ld.sent_at IS NOT NULL)
          AND (
@@ -498,7 +498,7 @@ export class ConversationQualificationFunctions {
     const existing = await runner.query(
       `SELECT status, routing_status, assigned_dealer_id, routing_override, routing_reason, vehicle_type, down_payment,
               identification, bank_account, purchase_timeline, documents, has_unhandled_reengagement, reengagement_count
-       FROM lead_dealers WHERE lead_id = $1 AND dealer_id = $2 FOR UPDATE`,
+       FROM lead_dealers WHERE lead_id = $1 AND dealer_id = $2::uuid FOR UPDATE`,
       [leadId, sourceDealer.id],
     ) as ExistingDealerLead[];
     const current = existing[0];

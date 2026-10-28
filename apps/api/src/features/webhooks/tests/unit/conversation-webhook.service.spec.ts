@@ -885,7 +885,7 @@ describe('ConversationWebhookService', () => {
     expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO leads'))).toBe(false);
   });
 
-  it('casts the conversation status parameter consistently in the persistence update', async () => {
+  it('casts the conversation status parameter in the persistence update', async () => {
     const queryRunner = {
       connect: vi.fn(),
       startTransaction: vi.fn(),
@@ -913,7 +913,8 @@ describe('ConversationWebhookService', () => {
 
     const conversationUpdate = queryRunner.query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
     expect(conversationUpdate?.[0]).toContain('status = $2::varchar');
-    expect(conversationUpdate?.[0]).toContain("CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued')");
+    expect(conversationUpdate?.[0]).toContain('qualification_snapshot = $3::jsonb');
+    expect(conversationUpdate?.[0]).toContain('next_attempt_at = NULL');
   });
 
   it('ignora la cola cuando el mismo nombre y teléfono ya tienen otra conversación queued', async () => {
@@ -1290,7 +1291,7 @@ describe('ConversationWebhookService', () => {
     const reconciliationQuery = dataSource.query.mock.calls.find(([sql]) => String(sql).includes("status IN ('partial', 'waiting_window', 'stale_phone_ignored')"));
     expect(String(reconciliationQuery?.[0])).toContain('ORDER BY updated_at DESC');
     expect(String(reconciliationQuery?.[0])).toContain("status <> 'queued'");
-    expect(String(reconciliationQuery?.[0])).not.toContain("status = 'queued'");
+    expect(String(reconciliationQuery?.[0])).toContain("queued_sibling.status = 'queued'");
   });
 
   it('puts Danilo\'s historical Fredericksburg-2 row into the five-cycle window after repairing Ford F--150', async () => {

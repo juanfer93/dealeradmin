@@ -261,7 +261,7 @@ export class WebhookService {
                SELECT 1
                FROM lead_dealers scoped_ld
                WHERE scoped_ld.lead_id = leads.id
-                 AND COALESCE(scoped_ld.assigned_dealer_id, scoped_ld.dealer_id) = $5
+                 AND COALESCE(scoped_ld.assigned_dealer_id, scoped_ld.dealer_id) = $5::uuid
              )
            )
             OR (ghl_contact_id = $3 AND ghl_location_id = $4)
@@ -300,7 +300,7 @@ export class WebhookService {
         `SELECT status, routing_status, assigned_dealer_id, routing_override, routing_reason,
                 vehicle_type, down_payment, identification, bank_account, purchase_timeline, documents, easterns_zone
          FROM lead_dealers
-         WHERE lead_id = $1 AND dealer_id = $2
+         WHERE lead_id = $1 AND dealer_id = $2::uuid
          FOR UPDATE`,
         [leadId, dealers[0].id],
       )) as LeadDealerRow[];
