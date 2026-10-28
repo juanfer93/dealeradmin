@@ -64,7 +64,7 @@ export class GhlGuardService {
     const recentOnly = options.recentOnly === true;
     const recentCutoff = new Date(now.getTime() - RECENT_AUTOMATION_WINDOW_MS).toISOString();
     const recentPredicate = recentOnly
-      ? 'AND COALESCE(conversations.last_message_at, conversations.ready_at, conversations.created_at) >= $4::timestamptz'
+      ? 'AND COALESCE(c.last_message_at, c.ready_at, c.created_at) >= $4::timestamptz'
       : '';
     const skip = async (reason: GhlGuardSkipReason): Promise<GhlGuardRunResult> => {
       const target = contactIds.length > 0 ? ` contacts=${contactIds.join(',')}` : '';
@@ -127,18 +127,18 @@ export class GhlGuardService {
         targeted
           ? `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status,
                     qualification_snapshot->>'assigned_dealer_id' AS assigned_dealer_id
-         FROM conversations
+         FROM conversations c
          LEFT JOIN LATERAL (
            SELECT latest_guard.created_at
            FROM ghl_guard_logs latest_guard
-           WHERE latest_guard.conversation_id = conversations.id
+           WHERE latest_guard.conversation_id = c.id
            ORDER BY latest_guard.created_at DESC
            LIMIT 1
          ) last_guard ON TRUE
          LEFT JOIN LATERAL (
            SELECT retry_guard.next_retry_at
            FROM ghl_guard_logs retry_guard
-           WHERE retry_guard.conversation_id = conversations.id
+           WHERE retry_guard.conversation_id = c.id
              AND retry_guard.status = 'failed'
              AND retry_guard.next_retry_at IS NOT NULL
              AND retry_guard.next_retry_at <= CURRENT_TIMESTAMP
@@ -150,10 +150,10 @@ export class GhlGuardService {
            AND ghl_contact_id = ANY($3::text[])
            ${recentPredicate}
            ${queuedOnly ? "AND status = 'queued' AND queued_guard_replay_count = 0" : ''}
-           ${queuedSiblingExclusionSql()}
+           ${queuedSiblingExclusionSql('c')}
            AND NOT EXISTS (
              SELECT 1 FROM ghl_guard_logs active_guard
-             WHERE active_guard.conversation_id = conversations.id
+             WHERE active_guard.conversation_id = c.id
                AND active_guard.status IN ('pending', 'running')
                AND COALESCE(active_guard.lease_expires_at, active_guard.started_at, active_guard.scheduled_at) > CURRENT_TIMESTAMP
            )
@@ -168,18 +168,18 @@ export class GhlGuardService {
           : queuedOnly
           ? `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status,
                     qualification_snapshot->>'assigned_dealer_id' AS assigned_dealer_id
-         FROM conversations
+         FROM conversations c
          LEFT JOIN LATERAL (
            SELECT latest_guard.created_at
            FROM ghl_guard_logs latest_guard
-           WHERE latest_guard.conversation_id = conversations.id
+           WHERE latest_guard.conversation_id = c.id
            ORDER BY latest_guard.created_at DESC
            LIMIT 1
          ) last_guard ON TRUE
          LEFT JOIN LATERAL (
            SELECT retry_guard.next_retry_at
            FROM ghl_guard_logs retry_guard
-           WHERE retry_guard.conversation_id = conversations.id
+           WHERE retry_guard.conversation_id = c.id
              AND retry_guard.status = 'failed'
              AND retry_guard.next_retry_at IS NOT NULL
              AND retry_guard.next_retry_at <= CURRENT_TIMESTAMP
@@ -191,16 +191,16 @@ export class GhlGuardService {
              OR queued_guard_replay_claimed_at <= CURRENT_TIMESTAMP - ($3::integer * INTERVAL '1 millisecond'))
            AND ghl_location_id = ANY($2::text[])
            ${recentPredicate}
-           ${queuedSiblingExclusionSql()}
+           ${queuedSiblingExclusionSql('c')}
            AND NOT EXISTS (
              SELECT 1 FROM ghl_guard_logs active_guard
-             WHERE active_guard.conversation_id = conversations.id
+             WHERE active_guard.conversation_id = c.id
                AND active_guard.status IN ('pending', 'running')
                AND COALESCE(active_guard.lease_expires_at, active_guard.started_at, active_guard.scheduled_at) > CURRENT_TIMESTAMP
            )
            AND NOT EXISTS (
              SELECT 1 FROM ghl_guard_logs retry_guard
-             WHERE retry_guard.conversation_id = conversations.id
+             WHERE retry_guard.conversation_id = c.id
                AND retry_guard.status = 'failed'
                AND retry_guard.next_retry_at > CURRENT_TIMESTAMP
                -- Recovery of an abandoned Guard run must not defer the
@@ -220,18 +220,18 @@ export class GhlGuardService {
          LIMIT $1`
           : `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status,
                     qualification_snapshot->>'assigned_dealer_id' AS assigned_dealer_id
-         FROM conversations
+         FROM conversations c
          LEFT JOIN LATERAL (
            SELECT latest_guard.created_at
            FROM ghl_guard_logs latest_guard
-           WHERE latest_guard.conversation_id = conversations.id
+           WHERE latest_guard.conversation_id = c.id
            ORDER BY latest_guard.created_at DESC
            LIMIT 1
          ) last_guard ON TRUE
          LEFT JOIN LATERAL (
            SELECT retry_guard.next_retry_at
            FROM ghl_guard_logs retry_guard
-           WHERE retry_guard.conversation_id = conversations.id
+           WHERE retry_guard.conversation_id = c.id
              AND retry_guard.status = 'failed'
              AND retry_guard.next_retry_at IS NOT NULL
              AND retry_guard.next_retry_at <= CURRENT_TIMESTAMP
@@ -244,16 +244,16 @@ export class GhlGuardService {
                 OR queued_guard_replay_claimed_at <= CURRENT_TIMESTAMP - ($3::integer * INTERVAL '1 millisecond'))))
            AND ghl_location_id = ANY($2::text[])
            ${recentPredicate}
-           ${queuedSiblingExclusionSql()}
+           ${queuedSiblingExclusionSql('c')}
            AND NOT EXISTS (
              SELECT 1 FROM ghl_guard_logs active_guard
-             WHERE active_guard.conversation_id = conversations.id
+             WHERE active_guard.conversation_id = c.id
                AND active_guard.status IN ('pending', 'running')
                AND COALESCE(active_guard.lease_expires_at, active_guard.started_at, active_guard.scheduled_at) > CURRENT_TIMESTAMP
            )
            AND NOT EXISTS (
              SELECT 1 FROM ghl_guard_logs retry_guard
-             WHERE retry_guard.conversation_id = conversations.id
+               WHERE retry_guard.conversation_id = c.id
                AND retry_guard.status = 'failed'
                AND retry_guard.next_retry_at > CURRENT_TIMESTAMP
            )

@@ -11,7 +11,7 @@ export function queuedSiblingExclusionSql(currentAlias = 'conversations'): strin
                SELECT 1
                FROM conversations queued_sibling
                INNER JOIN leads queued_lead ON queued_lead.id = queued_sibling.lead_id
-               WHERE queued_sibling.id <> conversations.id
+               WHERE queued_sibling.id <> ${currentAlias}.id
                  AND queued_sibling.status = 'queued'
                  AND queued_sibling.ghl_location_id = ${currentAlias}.ghl_location_id
                  AND (
