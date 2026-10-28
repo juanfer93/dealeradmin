@@ -21,9 +21,11 @@ jobs:
       guard_contact_ids: ${{ steps.release_watchdog.outputs.guard_contact_ids }}
       fallback_needed: ${{ steps.due-health.outputs.fallback_needed }}
     concurrency:
-      # Share the primary release lock so the watchdog cannot overlap a
-      # normal release and count the same waiting cycle twice.
-      group: process-due-release
+      # Keep the safety net independent from the primary scheduler. The API
+      # release is row-safe through FOR UPDATE SKIP LOCKED, so an overlapping
+      # attempt is harmless; sharing this Actions group would make the
+      # watchdog wait behind a stalled primary run and defeat the recovery.
+      group: process-due-watchdog-release
       cancel-in-progress: false
     steps:
       - name: Check database due-cycle health
