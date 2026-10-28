@@ -26,12 +26,13 @@ describe('monthly lead reports', () => {
     })).toMatchObject({ enabled: true, from: 'jfpi_0793@icloud.com', to: 'pixelmediacolombia@gmail.com', smtpPort: 587 });
   });
 
-  it('calculates the October 2026 period at noon in Bogota as an exact UTC half-open range', () => {
-    const period = monthlyReportPeriod(new Date('2026-10-01T17:00:00.000Z'));
-    expect(period.periodKey).toBe('2026-10');
-    expect(period.start.toISOString()).toBe('2026-09-01T17:00:00.000Z');
-    expect(period.end.toISOString()).toBe('2026-10-01T17:00:00.000Z');
-    expect(periodFromKey('2026-10').label).toBe('Octubre 2026');
+  it('calculates the October 2026 period at noon in Bogota and labels the reported month', () => {
+    const period = monthlyReportPeriod(new Date('2026-11-01T17:00:00.000Z'));
+    expect(period.periodKey).toBe('2026-11');
+    expect(period.start.toISOString()).toBe('2026-10-01T17:00:00.000Z');
+    expect(period.end.toISOString()).toBe('2026-11-01T17:00:00.000Z');
+    expect(period.label).toBe('Octubre 2026');
+    expect(periodFromKey('2026-11').label).toBe('Octubre 2026');
   });
 
   it('shows the next calendar-month run after the current month schedule has passed', () => {
@@ -66,10 +67,10 @@ describe('monthly lead reports', () => {
     const mailer: ReportMailer = { send: vi.fn(async (message) => { order.push('send'); sent.push(message); return { messageId: 'provider-1' }; }) };
     const service = new MonthlyReportService(dataSource, exportService as never, mailer);
 
-    await expect(service.run(new Date('2026-10-01T17:00:00.000Z'))).resolves.toMatchObject({ status: 'sent', rowCount: 3, dealerCount: 2 });
+    await expect(service.run(new Date('2026-11-01T17:00:00.000Z'))).resolves.toMatchObject({ status: 'sent', rowCount: 3, dealerCount: 2 });
     expect(exportService.generateMonthlyReport).toHaveBeenCalledWith(
-      new Date('2026-09-01T17:00:00.000Z'),
       new Date('2026-10-01T17:00:00.000Z'),
+      new Date('2026-11-01T17:00:00.000Z'),
       'Reporte leads (Octubre 2026).xlsx',
     );
     expect(sent[0]).toMatchObject({
@@ -86,8 +87,8 @@ describe('monthly lead reports', () => {
     expect(archiveQuery?.[0]).toContain("UPDATE lead_dealers");
     expect(archiveQuery?.[0]).toContain("status = 'sent'");
     expect(archiveQuery?.[1]).toEqual([
-      new Date('2026-09-01T17:00:00.000Z'),
       new Date('2026-10-01T17:00:00.000Z'),
+      new Date('2026-11-01T17:00:00.000Z'),
     ]);
     expect(order.indexOf('insert')).toBeGreaterThan(order.indexOf('send'));
   });

@@ -29,7 +29,7 @@ test.describe('Easterns routing, override y selección múltiple', () => {
 
     await page.getByLabel('Dealers: Easterns Rosedale').check();
     await page.getByLabel('Dealers: Easterns Laurel').check();
-    await page.getByLabel('Dealers: Offlease Fredericksburg').check();
+    await page.getByLabel('Dealers: Offlease Fredericksburg', { exact: true }).check();
     await expect(page.getByRole('button', { name: 'Copiar todo', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Copiar todo', exact: true }).click();
     await expect(page.getByRole('button', { name: '¡Todo copiado!', exact: true })).toBeVisible();

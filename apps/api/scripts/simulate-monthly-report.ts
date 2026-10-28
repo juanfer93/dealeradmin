@@ -44,35 +44,41 @@ async function main(): Promise<void> {
     const dealers = await AppDataSource.query(`SELECT id, name FROM dealers WHERE active = true ORDER BY name ASC LIMIT 2`) as Array<{ id: string; name: string }>;
     if (dealers.length < 2) throw new Error('At least two active dealers are required for the simulation.');
 
-    const simulatedTimes = [
-      new Date(period.start.getTime() - 1),
-      period.start,
-      new Date(period.start.getTime() + 60 * 60 * 1000),
-      period.end,
-      new Date(period.end.getTime() + 1),
+    const cases = [
+      { suffix: 'Antes del inicio', createdAt: new Date(period.start.getTime() - 1), status: 'sent' as const, expected: false },
+      { suffix: 'Inicio incluido', createdAt: period.start, status: 'sent' as const, expected: true },
+      { suffix: 'Interior', createdAt: new Date(period.start.getTime() + 60 * 60 * 1000), status: 'sent' as const, expected: true },
+      { suffix: 'Final incluido', createdAt: new Date(period.end.getTime() - 1), status: 'sent' as const, expected: true },
+      { suffix: 'Final excluido', createdAt: period.end, status: 'sent' as const, expected: false },
+      { suffix: 'Despues del final', createdAt: new Date(period.end.getTime() + 1), status: 'sent' as const, expected: false },
+      { suffix: 'Pendiente dentro', createdAt: new Date(period.start.getTime() + 2 * 60 * 60 * 1000), status: 'pending' as const, expected: false },
     ];
-    for (const [index, createdAt] of simulatedTimes.entries()) {
+    const expectedNames: string[] = [];
+    const excludedNames: string[] = [];
+    for (const [index, testCase] of cases.entries()) {
+      const { createdAt, status } = testCase;
+      const name = `Reporte Frontera ${testCase.suffix}`;
+      if (testCase.expected) expectedNames.push(name);
+      else excludedNames.push(name);
       const inserted = await AppDataSource.query(
         `INSERT INTO leads (canonical_phone, first_name, last_name, ghl_contact_id, ghl_location_id, source, created_at, updated_at)
-         VALUES ($1, $2, 'Simulado', $3, $4, $5, $6, $6) RETURNING id`,
-        [`+1999${String(index).padStart(7, '0')}`, `Lead ${index + 1}`, `monthly-simulation-${tag}-${index}`, 'monthly-simulation', `monthly report simulation ${tag}`, createdAt],
+         VALUES ($1, $2, '', $3, $4, $5, $6, $6) RETURNING id`,
+        [`+1999${String(index).padStart(7, '0')}`, name, `monthly-simulation-${tag}-${index}`, 'monthly-simulation', `monthly report simulation ${tag}`, createdAt],
       ) as Array<{ id: string }>;
       const leadId = inserted[0].id;
       leadIds.push(leadId);
       await AppDataSource.query(
         `INSERT INTO lead_dealers (lead_id, dealer_id, routing_status, status, message_text, created_at, updated_at)
-         VALUES ($1, $2, 'simulation', 'pending', 'Lead de simulacion', $3, $3)`,
-        [leadId, dealers[index % 2].id, createdAt],
+         VALUES ($1, $2, 'simulation', $3, 'Lead de simulacion', $4, $4)`,
+        [leadId, dealers[index % 2].id, status, createdAt],
       );
+      if (status === 'sent') {
+        await AppDataSource.query(
+          `UPDATE lead_dealers SET sent_at = $2 WHERE lead_id = $1`,
+          [leadId, new Date(createdAt.getTime() + 30 * 60 * 1000)],
+        );
+      }
     }
-
-    const sentAt = new Date(period.end.getTime() + 30 * 60 * 1000);
-    await AppDataSource.query(
-      `UPDATE lead_dealers
-       SET status = 'sent', sent_at = $2, updated_at = $2
-       WHERE lead_id = $1`,
-      [leadIds[1], sentAt],
-    );
 
     const exportService = new ExportReportService(AppDataSource);
     const reportService = new MonthlyReportService(AppDataSource, exportService, mailer);
@@ -80,18 +86,25 @@ async function main(): Promise<void> {
     if (!mailer.message) throw new Error('The fake mailer did not capture a message.');
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load((mailer.message.attachment.content) as unknown as Parameters<typeof workbook.xlsx.load>[0]);
-    const simulatedRowsInReport = workbook.worksheets
+    const workbookNames = workbook.worksheets
       .flatMap((sheet) => sheet.getRows(2, sheet.rowCount - 1) ?? [])
-      .filter((row) => String(row.getCell(2).value ?? '').startsWith('Lead ')).length;
+      .map((row) => String(row.getCell(2).value ?? ''))
+      .filter((name) => name.startsWith('Reporte Frontera '));
+    const missingNames = expectedNames.filter((name) => !workbookNames.includes(name));
+    const unexpectedNames = excludedNames.filter((name) => workbookNames.includes(name));
+    if (missingNames.length > 0 || unexpectedNames.length > 0 || workbookNames.length !== expectedNames.length) {
+      throw new Error(`Monthly report boundary mismatch. Missing: ${missingNames.join(', ') || 'none'}. Unexpected: ${unexpectedNames.join(', ') || 'none'}. Included: ${workbookNames.length}. Expected: ${expectedNames.length}.`);
+    }
     const archiveState = await AppDataSource.query(
       `SELECT
          COUNT(*)::int AS preserved_count,
          COUNT(*) FILTER (WHERE status = 'sent' AND queue_archived_at IS NOT NULL)::int AS archived_sent_count,
-         COUNT(*) FILTER (WHERE status = 'sent' AND queue_archived_at IS NULL)::int AS visible_sent_count
+         COUNT(*) FILTER (WHERE status = 'sent' AND queue_archived_at IS NULL)::int AS visible_sent_count,
+         COUNT(*) FILTER (WHERE status = 'pending')::int AS pending_count
        FROM lead_dealers
        WHERE lead_id = ANY($1::uuid[])`,
       [leadIds],
-    ) as Array<{ preserved_count: number; archived_sent_count: number; visible_sent_count: number }>;
+    ) as Array<{ preserved_count: number; archived_sent_count: number; visible_sent_count: number; pending_count: number }>;
 
     const outputDirectory = resolve(process.cwd(), 'output', 'qa');
     await mkdir(outputDirectory, { recursive: true });
@@ -109,15 +122,19 @@ async function main(): Promise<void> {
     console.log(JSON.stringify({
       result,
       includedLeadCount: result.rowCount,
-      simulatedIncludedLeadCount: simulatedRowsInReport,
-      expectedSimulatedIncludedLeadCount: 2,
+      simulatedIncludedLeadCount: workbookNames.length,
+      expectedSimulatedIncludedLeadCount: expectedNames.length,
+      missingNames,
+      unexpectedNames,
       preservedLeadCount: Number(archiveState[0]?.preserved_count ?? 0),
       archivedSentCount: Number(archiveState[0]?.archived_sent_count ?? 0),
       visibleSentCount: Number(archiveState[0]?.visible_sent_count ?? 0),
-      expectedPreservedLeadCount: 5,
-      expectedArchivedSentCount: 1,
-      expectedVisibleSentCount: 0,
-      existingLocalLeadCount: (result.rowCount ?? 0) - simulatedRowsInReport,
+      pendingCount: Number(archiveState[0]?.pending_count ?? 0),
+      expectedPreservedLeadCount: cases.length,
+      expectedArchivedSentCount: expectedNames.length,
+      expectedVisibleSentCount: cases.filter((testCase) => testCase.status === 'sent' && !testCase.expected).length,
+      expectedPendingCount: cases.filter((testCase) => testCase.status === 'pending').length,
+      existingLocalLeadCount: (result.rowCount ?? 0) - workbookNames.length,
       xlsxPath,
       mailPath,
       smtpContacted: false,

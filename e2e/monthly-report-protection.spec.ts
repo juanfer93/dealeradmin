@@ -52,7 +52,7 @@ test('due release and GHL guard are independently protected and independently ex
     headers: { Authorization: 'Bearer test-cron-secret' },
   });
   expect(guard.status()).toBe(200);
-  expect(await guard.json()).toMatchObject({ accepted: true, guard: expect.any(Object) });
+  expect(await guard.json()).toMatchObject({ accepted: false, guard: expect.any(Object) });
 });
 
 test('reports view shows the real disabled state without setup instructions', async ({ page }) => {

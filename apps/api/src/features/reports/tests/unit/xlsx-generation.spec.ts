@@ -105,8 +105,8 @@ describe('Día 6 - generación de reportes XLSX', () => {
         documents: null,
         identification: null,
         bank_account: null,
-        status: 'pending',
-        sent_at: null,
+        status: 'sent',
+        sent_at: '2026-09-15T12:00:00.000Z',
       }])
       .mockResolvedValueOnce([]);
 
@@ -176,8 +176,8 @@ describe('Día 6 - generación de reportes XLSX', () => {
         documents: null,
         identification: null,
         bank_account: null,
-        status: 'pending',
-        sent_at: null,
+        status: 'sent',
+        sent_at: '2026-09-15T12:00:00.000Z',
       }])
       .mockResolvedValueOnce([
         { id: 'dealer-1', name: 'Dealer Uno' },
@@ -196,6 +196,7 @@ describe('Día 6 - generación de reportes XLSX', () => {
     ]);
     expect(mockQuery.mock.calls[1]?.[0]).toContain('ld.created_at >= $1 AND ld.created_at < $2');
     expect(mockQuery.mock.calls[1]?.[0]).not.toContain('BETWEEN');
+    expect(mockQuery.mock.calls[1]?.[0]).toContain("ld.status = 'sent'");
     expect(mockQuery.mock.calls[1]?.[1]).toEqual([from, to]);
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(result.buffer as unknown as Parameters<typeof workbook.xlsx.load>[0]);

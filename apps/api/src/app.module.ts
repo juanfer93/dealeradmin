@@ -113,10 +113,11 @@ const databaseModule = TypeOrmModule.forRootAsync({
     });
 
 const useDatabase = process.env.NODE_ENV !== 'test' || process.env.E2E_USE_DATABASE === 'true';
+const requestThrottleLimit = process.env.NODE_ENV === 'test' ? 1000 : 100;
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: requestThrottleLimit }]),
     ...(useDatabase ? [databaseModule] : []),
     AuthModule,
     WebhooksModule,

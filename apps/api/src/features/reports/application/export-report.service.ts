@@ -199,6 +199,7 @@ export class ExportReportService {
            JOIN dealers d ON d.id = COALESCE(ld.assigned_dealer_id, ld.dealer_id)
            JOIN leads l ON l.id = ld.lead_id
            WHERE ld.created_at >= $1 AND ld.created_at < $2
+             AND ld.status = 'sent'
            ORDER BY d.name ASC, ld.created_at DESC`,
           [from, to],
         ),

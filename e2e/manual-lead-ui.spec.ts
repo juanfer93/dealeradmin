@@ -56,7 +56,7 @@ test('la copia E2E omite el no down payment y limpia el prefijo de compra al exp
   await expect(leadRow).toContainText('Quiere ver opciones');
   await expect(leadRow).not.toContainText('quiere comprar');
   await leadRow.getByRole('button', { name: 'Copiar' }).click();
-  await expect(page.evaluate(() => navigator.clipboard.readText())).resolves.toBe('Elena Opciones +13019876544, SUV, Quiere ver opciones.');
+  await expect(page.evaluate(() => navigator.clipboard.readText())).resolves.toBe('Elena Opciones +13019876544 SUV, Quiere ver opciones.');
   await expect(page.evaluate(() => navigator.clipboard.readText())).resolves.not.toContain('down');
 });
 

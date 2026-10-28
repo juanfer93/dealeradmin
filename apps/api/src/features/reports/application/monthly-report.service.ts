@@ -63,7 +63,7 @@ export function monthlyReportPeriod(now: Date, timezone = 'America/Bogota'): Mon
   const start = localDateTimeToUtc(startYear, startMonth, 1, 12, 0, timezone);
   const end = localDateTimeToUtc(current.year, current.month, 1, 12, 0, timezone);
   const periodKey = `${current.year}-${pad(current.month)}`;
-  const label = `${MONTHS_ES[current.month - 1][0].toUpperCase()}${MONTHS_ES[current.month - 1].slice(1)} ${current.year}`;
+  const label = `${MONTHS_ES[startMonth - 1][0].toUpperCase()}${MONTHS_ES[startMonth - 1].slice(1)} ${startYear}`;
   return { periodKey, start, end, timezone, label };
 }
 
@@ -100,7 +100,9 @@ export function periodFromKey(periodKey: string, timezone = 'America/Bogota'): M
   const startMonth = month === 1 ? 12 : month - 1;
   const start = localDateTimeToUtc(startYear, startMonth, 1, 12, 0, timezone);
   const end = localDateTimeToUtc(year, month, 1, 12, 0, timezone);
-  const label = `${MONTHS_ES[month - 1][0].toUpperCase()}${MONTHS_ES[month - 1].slice(1)} ${year}`;
+  const reportMonth = month === 1 ? 12 : month - 1;
+  const reportYear = month === 1 ? year - 1 : year;
+  const label = `${MONTHS_ES[reportMonth - 1][0].toUpperCase()}${MONTHS_ES[reportMonth - 1].slice(1)} ${reportYear}`;
   return { periodKey, start, end, timezone, label };
 }
 
