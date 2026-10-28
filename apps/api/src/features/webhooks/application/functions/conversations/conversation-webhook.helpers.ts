@@ -14,7 +14,7 @@ export function clean(value: unknown): string {
 export function normalizedChannel(value: unknown): string {
   const channel = clean(value).toLowerCase();
   if (channel === 'wa' || channel === 'whatsapp' || channel.includes('whatsapp')) return 'whatsapp';
-  if (channel === 'fb' || channel === 'facebook' || channel.includes('messenger')) return 'messenger';
+  if (channel === 'fb' || channel === 'facebook' || channel.includes('messenger') || channel.includes('instagram')) return 'messenger';
   return channel;
 }
 

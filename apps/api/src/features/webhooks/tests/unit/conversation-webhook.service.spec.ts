@@ -214,6 +214,20 @@ describe('ConversationWebhookService', () => {
     ]);
   });
 
+  it('normalizes Instagram into the Messenger channel for non-Stafford dealers', async () => {
+    const service = new ConversationWebhookService();
+    const result = await service.acceptCustomerReplied(
+      { message_body: 'Busco un SUV.', channel: 'instagram' },
+      'arlington',
+      { contactId: 'ghl-instagram-contact', conversationId: 'ghl-instagram-conversation' },
+    );
+
+    expect(result).toMatchObject({ accepted: true, source: 'arlington', status: 'processed', conversationId: 'ghl-instagram-conversation' });
+    expect(getTestConversationEvents()).toEqual([
+      expect.objectContaining({ source: 'arlington', channel: 'messenger', conversationId: 'ghl-instagram-conversation' }),
+    ]);
+  });
+
   it('uses Stafford WhatsApp contact.phone when the buyer does not type the number', async () => {
     const transcript = [
       '¡Hola! 👋 Te saludamos de Off Lease Stafford. Para iniciar tu proceso, ¿cuál es tu nombre?',
