@@ -244,6 +244,39 @@ describe('WebhooksController queued Guard backup', () => {
     });
   });
 
+  it('reconciles a targeted partial contact before the slow Guard retry', async () => {
+    const reconcileContactIds = vi.fn().mockResolvedValue(1);
+    const runGhlGuard = vi.fn().mockResolvedValue({
+      enabled: true,
+      skipped: false,
+      selected: 1,
+      fetched: 0,
+      inserted: 0,
+      repaired: 0,
+      failed: 1,
+    });
+    const controller = new WebhooksController(
+      {} as never,
+      { reconcileContactIds, runGhlGuard } as never,
+      {} as never,
+      {} as never,
+    );
+
+    const result = await controller.runGuardCron({
+      query: { contact_ids: 'ghl-contact-timeout', reconcile: 'true' },
+    } as never);
+
+    expect(result.reconciledContactCount).toBe(1);
+    expect(reconcileContactIds).toHaveBeenCalledWith(['ghl-contact-timeout']);
+    expect(runGhlGuard).toHaveBeenCalledWith(undefined, {
+      contactIds: ['ghl-contact-timeout'],
+      queuedOnly: false,
+      force: true,
+      recentOnly: false,
+    });
+    expect(reconcileContactIds.mock.invocationCallOrder[0]).toBeLessThan(runGhlGuard.mock.invocationCallOrder[0]);
+  });
+
   it('acknowledges a completed bounded batch even when older queued rows remain', async () => {
     const controller = new WebhooksController(
       {} as never,

@@ -137,7 +137,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$CRON_SECRET"
-          guard_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/run-guard?contact_ids=$CONTACT_IDS"
+          guard_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/run-guard?contact_ids=$CONTACT_IDS&reconcile=true"
           max_attempts=4
           retry_delay_seconds=30
 

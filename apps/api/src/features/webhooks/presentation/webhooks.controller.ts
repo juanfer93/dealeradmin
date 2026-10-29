@@ -219,6 +219,10 @@ export class WebhooksController {
   async runGuardCron(@Req() request: Request) {
     const contactIds = this.queryContactIds(request);
     const queuedOnly = request.query.queued_backup === 'true';
+    const reconcileBeforeGuard = request.query.reconcile === 'true' && contactIds.length > 0;
+    const reconciledContactCount = reconcileBeforeGuard
+      ? await this.conversationWebhookService.reconcileContactIds(contactIds)
+      : 0;
     const guard = await this.conversationWebhookService.runGhlGuard(undefined, {
       contactIds,
       queuedOnly,
@@ -239,7 +243,7 @@ export class WebhooksController {
         // fail forever once historical queued rows existed.
         && (queuedReplaySelected > 0 || (guard.pendingQueuedReplayCount ?? 0) === 0)
       : !guard.skipped || guard.skipReason === 'in_memory_interval';
-    return { accepted, guard };
+    return { accepted, guard, reconciledContactCount };
   }
 
   @Get('ghl/replay-failed')

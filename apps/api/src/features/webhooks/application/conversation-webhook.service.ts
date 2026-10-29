@@ -78,6 +78,23 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     return this.reconciliation.reconcileMediaConversation(id, now);
   }
 
+  async reconcileContactIds(contactIds: string[], now = currentLocalNow()): Promise<number> {
+    if (!this.dataSource || contactIds.length === 0) return 0;
+    const ids = [...new Set(contactIds.map((value) => value.trim()).filter(Boolean))];
+    if (ids.length === 0) return 0;
+    const rows = await this.dataSource.query(
+      `SELECT id
+       FROM conversations
+       WHERE ghl_contact_id = ANY($1::text[])
+         AND status IN ('partial', 'waiting_window', 'stale_phone_ignored')
+       ORDER BY updated_at DESC
+       LIMIT 25`,
+      [ids],
+    ) as Array<{ id: string }>;
+    for (const row of rows) await this.reconciliation.reconcileConversation(row.id, now);
+    return rows.length;
+  }
+
   async acceptCustomerReplied(
     input: unknown,
     sourceValue: string,
