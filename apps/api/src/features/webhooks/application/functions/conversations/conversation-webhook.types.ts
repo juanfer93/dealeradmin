@@ -120,6 +120,10 @@ export type DueConversationHealth = {
   overdueCount: number;
   missingNextAttemptCount: number;
   oldestDueAt: string | null;
+  // Guard retries are durable work too. A failed GHL read must wake the
+  // scheduler even when the conversation is still partial and has no due
+  // waiting-window row.
+  guardRetryContactIds: string[];
   overdueConversations: Array<{
     id: string;
     ghlContactId: string;

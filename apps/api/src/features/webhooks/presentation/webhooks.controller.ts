@@ -126,13 +126,17 @@ export class WebhooksController {
   @UseGuards(HmacSignatureGuard)
   async dueConversationWatchdog() {
     const healthBefore = await this.conversationWebhookService.getDueConversationHealth({ recentOnly: true });
-    const needsRelease = healthBefore.overdueCount > 0 || healthBefore.missingNextAttemptCount > 0;
+    const guardRetryContactIds = healthBefore.guardRetryContactIds ?? [];
+    const needsRelease = healthBefore.overdueCount > 0
+      || healthBefore.missingNextAttemptCount > 0
+      || guardRetryContactIds.length > 0;
     if (!needsRelease) {
       return {
         accepted: true,
         triggered: false,
         skipped: 0,
         remainingDue: 0,
+        guardContactIds: [],
         healthBefore,
         healthAfter: healthBefore,
       };
@@ -151,6 +155,10 @@ export class WebhooksController {
       triggered: true,
       skipped: release.skipped,
       remainingDue: healthAfter.overdueCount,
+      guardContactIds: [...new Set([
+        ...(release.guardContactIds ?? []),
+        ...guardRetryContactIds,
+      ])],
       healthBefore,
       release,
       healthAfter,
@@ -161,12 +169,19 @@ export class WebhooksController {
   @UseGuards(HmacSignatureGuard)
   async automaticCycle() {
     const healthBefore = await this.conversationWebhookService.getDueConversationHealth({ recentOnly: true });
-    const needsRelease = healthBefore.overdueCount > 0 || healthBefore.missingNextAttemptCount > 0;
+    const guardRetryContactIds = healthBefore.guardRetryContactIds ?? [];
+    const needsRelease = healthBefore.overdueCount > 0
+      || healthBefore.missingNextAttemptCount > 0
+      || guardRetryContactIds.length > 0;
+    const guardRetryOptions = guardRetryContactIds.length > 0
+      ? { guardContactIds: guardRetryContactIds }
+      : {};
     const release = needsRelease
       ? await this.conversationWebhookService.processDueConversations(undefined, {
         reconcileActive: false,
         runGuard: true,
         forceGuard: true,
+        ...guardRetryOptions,
         recentOnly: true,
       })
       : {

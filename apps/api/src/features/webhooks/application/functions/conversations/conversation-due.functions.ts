@@ -33,6 +33,7 @@ export class ConversationDueFunctions {
           overdueCount: 0,
           missingNextAttemptCount: 0,
           oldestDueAt: null,
+          guardRetryContactIds: [],
           overdueConversations: [],
         };
       }
@@ -63,7 +64,22 @@ export class ConversationDueFunctions {
                   AND next_attempt_at IS NOT NULL
                   AND next_attempt_at <= CURRENT_TIMESTAMP
                   ${recentOnly ? 'AND COALESCE(last_message_at, ready_at, waiting_window_started_at, created_at) >= $1::timestamptz' : ''}
-              ) AS oldest_due_at
+              ) AS oldest_due_at,
+              COALESCE((
+                SELECT ARRAY_AGG(due_guard.ghl_contact_id ORDER BY due_guard.first_retry_at)
+                FROM (
+                  SELECT guard_log.ghl_contact_id, MIN(guard_log.next_retry_at) AS first_retry_at
+                  FROM ghl_guard_logs guard_log
+                  JOIN conversations guard_conversation ON guard_conversation.id = guard_log.conversation_id
+                  WHERE guard_log.status = 'failed'
+                    AND guard_log.next_retry_at IS NOT NULL
+                    AND guard_log.next_retry_at <= CURRENT_TIMESTAMP
+                    ${recentOnly ? 'AND COALESCE(guard_conversation.last_message_at, guard_conversation.ready_at, guard_conversation.waiting_window_started_at, guard_conversation.created_at) >= $1::timestamptz' : ''}
+                  GROUP BY guard_log.ghl_contact_id
+                  ORDER BY first_retry_at ASC
+                  LIMIT ${DUE_CONVERSATION_BATCH_SIZE}
+                ) due_guard
+              ), ARRAY[]::text[]) AS guard_retry_contact_ids
        FROM conversations`,
       recentParams,
     ) as Array<{
@@ -72,6 +88,7 @@ export class ConversationDueFunctions {
       overdue_count: number | string;
       missing_next_attempt_count: number | string;
       oldest_due_at: string | Date | null;
+      guard_retry_contact_ids: string[] | null;
     }>;
     const overdueConversations = await this.dataSource.query(
       `SELECT id, ghl_contact_id, next_attempt_at, waiting_window_attempts
@@ -98,6 +115,7 @@ export class ConversationDueFunctions {
       overdueCount: Number(row?.overdue_count ?? 0),
       missingNextAttemptCount: Number(row?.missing_next_attempt_count ?? 0),
       oldestDueAt: toIso(row?.oldest_due_at ?? null),
+      guardRetryContactIds: Array.isArray(row?.guard_retry_contact_ids) ? row.guard_retry_contact_ids : [],
       overdueConversations: overdueConversations.map((conversation) => ({
         id: conversation.id,
         ghlContactId: conversation.ghl_contact_id,
@@ -182,6 +200,8 @@ export class ConversationDueFunctions {
         skipped += 1;
       }
     }
+    const retryContactIds = [...new Set(options.guardContactIds ?? [])]
+      .filter((contactId) => !waitingContactIds.includes(contactId) && !queuedContactIds.includes(contactId));
 
     // Release the durable five-minute cycle before calling GHL. A slow or
     // stale external request must never leave next_attempt_at overdue and
@@ -242,6 +262,9 @@ export class ConversationDueFunctions {
       } catch (error) {
         guardError = error instanceof Error ? error.name : 'GHL_GUARD_RUN_FAILED';
       }
+    }
+    if (retryContactIds.length > 0 && options.runGuard !== false && this.guard) {
+      await runTargetedGuard(retryContactIds, { force: true });
     }
     let remainingDue = 0;
     if (due.length >= DUE_CONVERSATION_BATCH_SIZE || skipped > 0) {

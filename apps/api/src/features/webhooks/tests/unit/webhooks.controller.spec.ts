@@ -162,6 +162,57 @@ describe('WebhooksController queued Guard backup', () => {
     expect(getDueConversationHealth).toHaveBeenCalledTimes(2);
   });
 
+  it('wakes the Guard when only a durable GHL retry is due', async () => {
+    const getDueConversationHealth = vi.fn()
+      .mockResolvedValueOnce({
+        accepted: true,
+        checkedAt: '2026-10-29T17:10:00.000Z',
+        waitingWindowCount: 0,
+        overdueCount: 0,
+        missingNextAttemptCount: 0,
+        oldestDueAt: null,
+        guardRetryContactIds: ['ghl-contact-timeout'],
+        overdueConversations: [],
+      })
+      .mockResolvedValueOnce({
+        accepted: true,
+        checkedAt: '2026-10-29T17:10:05.000Z',
+        waitingWindowCount: 0,
+        overdueCount: 0,
+        missingNextAttemptCount: 0,
+        oldestDueAt: null,
+        guardRetryContactIds: [],
+        overdueConversations: [],
+      });
+    const processDueConversations = vi.fn().mockResolvedValue({
+      accepted: true,
+      processed: 0,
+      advanced: 0,
+      skipped: 0,
+      remainingDue: 0,
+      guardContactIds: ['ghl-contact-timeout'],
+      guard: { failed: 0 },
+    });
+    const runGhlGuard = vi.fn().mockResolvedValue({ failed: 0, queuedReplaySelected: 0, queuedReplayCompleted: 0 });
+    const controller = new WebhooksController(
+      {} as never,
+      { getDueConversationHealth, processDueConversations, runGhlGuard } as never,
+      {} as never,
+      {} as never,
+    );
+
+    const result = await controller.automaticCycle();
+
+    expect(result.triggered).toBe(true);
+    expect(processDueConversations).toHaveBeenCalledWith(undefined, {
+      reconcileActive: false,
+      runGuard: true,
+      forceGuard: true,
+      guardContactIds: ['ghl-contact-timeout'],
+      recentOnly: true,
+    });
+  });
+
   it('does not acknowledge the backup while queued replays remain pending', async () => {
     const runGhlGuard = vi.fn().mockResolvedValue({
       enabled: true,
