@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     outputs:
-      guard_contact_ids: ${{ steps.release_watchdog.outputs.guard_contact_ids }}
+      guard_contact_ids: ${{ steps.compose_guard_ids.outputs.guard_contact_ids }}
       fallback_needed: ${{ steps.due-health.outputs.fallback_needed }}
     concurrency:
       # Keep the safety net independent from the primary scheduler. The API
@@ -42,6 +42,7 @@ jobs:
 
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             echo "fallback_needed=true" >> "$GITHUB_OUTPUT"
+            echo "guard_retry_contact_ids=" >> "$GITHUB_OUTPUT"
             echo "Manual watchdog dispatch requested; checking and releasing due rows."
             exit 0
           fi
@@ -58,6 +59,15 @@ jobs:
           fi
 
           printf '%s\n' "$health_response"
+          guard_retry_contact_ids="$(node - "$health_response" <<'NODE'
+          const payload = JSON.parse(process.argv[2] ?? '{}');
+          const ids = Array.isArray(payload.guardRetryContactIds)
+            ? [...new Set(payload.guardRetryContactIds.filter((value) => typeof value === 'string' && value.trim()).map((value) => value.trim()))]
+            : [];
+          process.stdout.write(ids.join(','));
+          NODE
+          )"
+          echo "guard_retry_contact_ids=$guard_retry_contact_ids" >> "$GITHUB_OUTPUT"
           decision="$(node - "$health_response" <<'NODE'
           const payload = JSON.parse(process.argv[2] ?? '{}');
           const needsRelease = Number(payload.overdueCount ?? 0) > 0
@@ -132,6 +142,24 @@ jobs:
             echo "::error::Watchdog release did not clear due rows after ${max_attempts} attempts"
             exit 1
           done
+
+      - name: Compose durable Guard contact list
+        id: compose_guard_ids
+        if: always()
+        env:
+          HEALTH_GUARD_CONTACT_IDS: ${{ steps.due-health.outputs.guard_retry_contact_ids }}
+          RELEASE_GUARD_CONTACT_IDS: ${{ steps.release_watchdog.outputs.guard_contact_ids }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const values = [
+            process.env.HEALTH_GUARD_CONTACT_IDS ?? '',
+            process.env.RELEASE_GUARD_CONTACT_IDS ?? '',
+          ];
+          const ids = [...new Set(values.flatMap((value) => value.split(',')).map((value) => value.trim()).filter(Boolean))];
+          require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT, `guard_contact_ids=${ids.join(',')}\n`);
+          console.log(`Composed ${ids.length} durable Guard contact id(s).`);
+          NODE
 
   due-guard-watchdog:
     runs-on: ubuntu-latest
