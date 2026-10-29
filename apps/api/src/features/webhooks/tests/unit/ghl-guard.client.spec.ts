@@ -122,9 +122,21 @@ describe('GhlGuardClient', () => {
     process.env.GHL_GUARD_TIMEOUT_MS = '5';
     const response = new Response('{}', { status: 200 });
     response.json = () => new Promise<unknown>(() => {});
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+    const fetchMock = vi.fn().mockResolvedValue(response);
+    vi.stubGlobal('fetch', fetchMock);
 
     await expect(new GhlGuardClient().listMessages('pit-test-token', 'conversation-1'))
-      .resolves.toMatchObject({ ok: false, status: 0, errorCode: 'GHL_TIMEOUT' });
+      .resolves.toMatchObject({ ok: false, status: 0, errorCode: 'GHL_TIMEOUT', attemptCount: 1 });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('bounds a fetch that never resolves without retrying inside the same cycle', async () => {
+    process.env.GHL_GUARD_TIMEOUT_MS = '5';
+    const fetchMock = vi.fn().mockImplementation(() => new Promise<Response>(() => {}));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(new GhlGuardClient().listMessages('pit-test-token', 'conversation-1'))
+      .resolves.toMatchObject({ ok: false, status: 0, errorCode: 'GHL_TIMEOUT', attemptCount: 1 });
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 });

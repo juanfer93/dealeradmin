@@ -212,12 +212,16 @@ export class GhlGuardClient {
           try { responsePayload = await response.json(); } catch { /* Some gateway errors have no JSON body. */ }
           return { ok: false, status: response.status, errorCode: safeErrorCode(response.status, undefined), responsePayload, ...telemetry(attempt + 1) };
         })();
-        const timeoutError = new Error(`GHL request timed out after ${requestTimeoutMs}ms`);
-        timeoutError.name = 'AbortError';
-        const timedOut = new Promise<never>((_, reject) => {
+        const timedOut = new Promise<GhlGuardFetchResult<T>>((resolve) => {
           timeout = setTimeout(() => {
             controller.abort();
-            reject(timeoutError);
+            resolve({
+              ok: false,
+              status: 0,
+              errorCode: 'GHL_TIMEOUT',
+              requestPath: path,
+              ...telemetry(attempt + 1),
+            });
           }, requestTimeoutMs);
         });
         const result = await Promise.race([request, timedOut]);
