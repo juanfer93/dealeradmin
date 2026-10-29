@@ -319,6 +319,7 @@ jobs:
               accepted: result.accepted === true,
               skipped: guard?.skipped === true,
               skipReason: guard?.skipReason ?? null,
+              reconciledContactCount: Number(result.reconciledContactCount ?? 0),
             }, null, 2));
           } catch (error) {
             process.stdout.write(JSON.stringify({
@@ -326,6 +327,7 @@ jobs:
               accepted: false,
               skipped: false,
               skipReason: null,
+              reconciledContactCount: 0,
               error: `Invalid JSON response: ${error instanceof Error ? error.message : String(error)}`,
             }, null, 2));
           }
@@ -346,6 +348,12 @@ jobs:
             accepted="$(node -p 'JSON.parse(process.argv[1]).accepted ? "true" : "false"' "$summary")"
             if [ "$accepted" != "true" ]; then
               echo "::error::GHL guard did not accept the scheduled cycle"
+              exit 1
+            fi
+            reconciled="$(node -p 'JSON.parse(process.argv[1]).reconciledContactCount ?? 0' "$summary")"
+            echo "Reconciled targeted contact(s): $reconciled"
+            if [ "$reconciled" -lt 1 ]; then
+              echo "::error::Targeted Guard completed without reconciling a contact"
               exit 1
             fi
             exit 0
