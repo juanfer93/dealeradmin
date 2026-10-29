@@ -1,13 +1,14 @@
 name: Process due conversations
 
 on:
-  # Keep exactly one scheduler with a standard five-minute expression. The
-  # offset range expression stopped producing scheduled runs in production;
-  # the regular cadence is easier for GitHub Actions to resume and observe.
+  # Keep one scheduler at five-minute cadence, offset from minute zero so
+  # GitHub's busiest top-of-hour scheduling window is avoided. Changing this
+  # expression also re-registers a scheduler that may have gone quiet while
+  # remaining enabled.
   # Keep this trigger on the default branch so GitHub re-registers the cadence
   # whenever the scheduler workflow is published.
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '1-59/5 * * * *'
   workflow_dispatch:
     inputs:
       contact_ids:

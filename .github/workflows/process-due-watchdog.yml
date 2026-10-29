@@ -1,17 +1,17 @@
 name: Process due conversations watchdog
 
 on:
-  # Keep a second scheduler as a database-aware safety net. The endpoint owns
+  # Keep two offset schedulers as a database-aware safety net. The endpoint owns
   # the row health check and the database lock, so duplicate invocations are
   # safe and a missed primary tick cannot strand a due cycle.
   # Keep this trigger on the default branch so the safety-net cadence remains
   # registered after workflow changes.
   schedule:
-    - cron: '*/5 * * * *'
-    # GitHub may delay or drop a scheduled event during platform load. Keep
-    # an offset safety tick so a newly overdue row is not stranded until the
-    # next aligned tick; the database lock makes the overlapping call safe.
     - cron: '2-59/5 * * * *'
+    # GitHub may delay or drop a scheduled event during platform load. Keep a
+    # second offset safety tick so a newly overdue row is not stranded until
+    # the next aligned tick; the database lock makes the overlapping call safe.
+    - cron: '4-59/5 * * * *'
   workflow_dispatch:
 
 permissions:
