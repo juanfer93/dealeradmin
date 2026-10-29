@@ -41,10 +41,7 @@ jobs:
           set -euo pipefail
 
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            echo "fallback_needed=true" >> "$GITHUB_OUTPUT"
-            echo "guard_retry_contact_ids=" >> "$GITHUB_OUTPUT"
-            echo "Manual watchdog dispatch requested; checking and releasing due rows."
-            exit 0
+            echo "Manual watchdog dispatch requested; checking database due-cycle health."
           fi
 
           test -n "$CRON_SECRET"
