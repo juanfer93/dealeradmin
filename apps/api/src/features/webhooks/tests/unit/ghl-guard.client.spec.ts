@@ -130,6 +130,26 @@ describe('GhlGuardClient', () => {
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
+  it('does not retry when aborting a streaming response body rejects with AbortError', async () => {
+    process.env.GHL_GUARD_TIMEOUT_MS = '5';
+    const fetchMock = vi.fn((_url: string, init: RequestInit) => {
+      const response = new Response('{}', { status: 200 });
+      response.json = () => new Promise<unknown>((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => {
+          const error = new Error('The operation was aborted');
+          error.name = 'AbortError';
+          reject(error);
+        }, { once: true });
+      });
+      return Promise.resolve(response);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(new GhlGuardClient().listMessages('pit-test-token', 'conversation-1'))
+      .resolves.toMatchObject({ ok: false, status: 0, errorCode: 'GHL_TIMEOUT', attemptCount: 1 });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
   it('bounds a fetch that never resolves without retrying inside the same cycle', async () => {
     process.env.GHL_GUARD_TIMEOUT_MS = '5';
     const fetchMock = vi.fn().mockImplementation(() => new Promise<Response>(() => {}));

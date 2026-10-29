@@ -189,6 +189,7 @@ export class GhlGuardClient {
       const controller = new AbortController();
       const requestTimeoutMs = Math.max(1, Math.min(this.timeoutMs, remainingMs));
       let timeout: ReturnType<typeof setTimeout> | undefined;
+      let timedOutByGuard = false;
       try {
         const request = (async (): Promise<GhlGuardFetchResult<T>> => {
           const response = await fetch(`${this.baseUrl}${path}`, {
@@ -214,6 +215,7 @@ export class GhlGuardClient {
         })();
         const timedOut = new Promise<GhlGuardFetchResult<T>>((resolve) => {
           timeout = setTimeout(() => {
+            timedOutByGuard = true;
             controller.abort();
             resolve({
               ok: false,
@@ -228,6 +230,20 @@ export class GhlGuardClient {
         if (result.errorCode === 'GHL_RETRY' && attempt < attempts - 1) continue;
         return result;
       } catch (error) {
+        // Node's Response.json() can reject with AbortError immediately after
+        // this guard aborts a response body that is still streaming. That
+        // abort belongs to the timeout we already recorded, not to a new
+        // transport failure. Return one durable timeout so the next Guard
+        // cycle owns the retry instead of multiplying requests in this cycle.
+        if (timedOutByGuard || controller.signal.aborted) {
+          return {
+            ok: false,
+            status: 0,
+            errorCode: 'GHL_TIMEOUT',
+            requestPath: path,
+            ...telemetry(attempt + 1),
+          };
+        }
         if (attempt < attempts - 1 && shouldRetryThrownError(error)) {
           const retryable = await this.waitForRetry(250 * (attempt + 1), options.deadlineAt);
           if (!retryable) return { ok: false, status: 0, errorCode: 'GHL_TIMEOUT', requestPath: path, ...telemetry(attempt + 1) };

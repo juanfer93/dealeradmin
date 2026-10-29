@@ -1721,6 +1721,29 @@ describe('normalizeCollectorInput', () => {
     });
   });
 
+  it('does not keep Okey as a WhatsApp name when a later full name is declared', () => {
+    const message = [
+      '*Headline:* Off Lease Motors Of Stafford',
+      '*Source URL:* https://fb.me/7zLyw0eht',
+      '¡Hola! Quiero más información',
+      'Cómo puedo ver los autos',
+      'Okey',
+      'Melquin Morales',
+      'Un camaro',
+      'O un Honda',
+      '1500',
+      'Cualquiera solo quisiera verlos',
+    ].join('\n');
+    expect(normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      phone: '+17577019069',
+      message,
+      chat_history_log: message,
+      contact_name: 'Okey',
+    }).real_name).toBe('Melquin Morales');
+  });
+
   it('uses a Spanish predicted question for the next missing field', () => {
     const result = normalizeCollectorInput({
       channel: 'messenger',
