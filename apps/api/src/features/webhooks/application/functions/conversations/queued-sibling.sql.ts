@@ -27,3 +27,30 @@ export function queuedSiblingExclusionSql(currentAlias = 'conversations'): strin
              )
            )`;
 }
+
+/**
+ * A synthetic contact snapshot is only a lookup alias. Once the same contact
+ * has a canonical GHL conversation, selecting both rows would fetch the same
+ * remote transcript twice in one Guard run.
+ */
+export function canonicalConversationExclusionSql(currentAlias = 'conversations'): string {
+  if (!/^[a-z_]+$/.test(currentAlias)) throw new Error('Invalid SQL alias');
+  return `
+           AND NOT (
+             ${currentAlias}.ghl_conversation_id LIKE 'contact:%'
+             AND EXISTS (
+               SELECT 1
+               FROM conversations canonical_sibling
+               WHERE canonical_sibling.id <> ${currentAlias}.id
+                 AND canonical_sibling.ghl_location_id = ${currentAlias}.ghl_location_id
+                 AND canonical_sibling.ghl_contact_id = ${currentAlias}.ghl_contact_id
+                 AND canonical_sibling.ghl_conversation_id IS NOT NULL
+                 AND canonical_sibling.ghl_conversation_id NOT LIKE 'contact:%'
+                 AND (
+                   NULLIF(${currentAlias}.qualification_snapshot->>'assigned_dealer_id', '') IS NULL
+                   OR NULLIF(canonical_sibling.qualification_snapshot->>'assigned_dealer_id', '') IS NULL
+                   OR canonical_sibling.qualification_snapshot->>'assigned_dealer_id' = ${currentAlias}.qualification_snapshot->>'assigned_dealer_id'
+                 )
+             )
+           )`;
+}
