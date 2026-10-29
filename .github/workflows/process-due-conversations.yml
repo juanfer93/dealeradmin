@@ -277,7 +277,7 @@ jobs:
           test -n "$CRON_SECRET"
           guard_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/run-guard"
           if [ -n "$CONTACT_IDS" ]; then
-            guard_url="$guard_url?contact_ids=$CONTACT_IDS"
+            guard_url="$guard_url?contact_ids=$CONTACT_IDS&reconcile=true"
           fi
           # The production lease is three minutes. Keep retrying beyond that
           # lease lifetime so an invocation that is still draining GHL cannot
