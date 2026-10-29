@@ -21,11 +21,11 @@ export function markLeadSent(leadId: string, dealerId: string) {
 }
 
 export function deleteLead(leadId: string, dealerId: string, signal?: AbortSignal) {
-  return apiFetch(`/api/leads/${leadId}?dealerId=${encodeURIComponent(dealerId)}`, { method: 'DELETE', signal });
+  return apiFetch(`/api/leads/${encodeURIComponent(leadId)}/purge?dealerId=${encodeURIComponent(dealerId)}`, { method: 'DELETE', signal });
 }
 
 export function deleteLeads(items: Array<{ leadId: string; dealerId: string }>) {
-  return apiFetch('/api/leads', {
+  return apiFetch('/api/leads/purge', {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ items }),

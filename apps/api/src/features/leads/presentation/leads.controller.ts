@@ -27,6 +27,7 @@ import { buildManualLeadMessage } from '../domain/manual-message-builder';
 import { normalizeDownPayment } from '../domain/down-payment';
 import { normalizePhone } from '../domain/phone-normalizer';
 import { findDealerLeadDuplicate } from '../domain/lead-duplicate';
+import { purgeLeadForDealer } from '../application/lead-deletion';
 import {
   BulkDeleteRequestDto,
   CopyLeadRequestDto,
@@ -343,6 +344,67 @@ export class LeadsController {
     }
   }
 
+  @Delete('purge')
+  async purgeSelected(
+    @Req() request: Request,
+    @Body() body: BulkDeleteRequestDto,
+  ) {
+    this.requireSession(request);
+    if (!Array.isArray(body.items) || body.items.length === 0) {
+      throw new BadRequestException('Selecciona al menos un lead para eliminar');
+    }
+    if (body.items.length > 500) {
+      throw new BadRequestException('No se pueden eliminar más de 500 leads a la vez');
+    }
+
+    const items = body.items.map((item) => {
+      const candidate = (item && typeof item === 'object' ? item : {}) as BulkDeleteItem;
+      if (typeof candidate.leadId !== 'string' || !candidate.leadId.trim() || typeof candidate.dealerId !== 'string' || !candidate.dealerId.trim()) {
+        throw new BadRequestException('Cada lead seleccionado debe incluir leadId y dealerId');
+      }
+      return { leadId: candidate.leadId.trim(), dealerId: candidate.dealerId.trim() };
+    });
+    const uniqueItems = Array.from(new Map(items.map((item) => [`${item.leadId}:${item.dealerId}`, item])).values());
+
+    if (process.env.NODE_ENV === 'test' && process.env.E2E_USE_DATABASE !== 'true') {
+      let deletedLeadCount = 0;
+      let deletedRelationshipCount = 0;
+      for (const item of uniqueItems) {
+        const result = deleteTestLead(item.leadId, item.dealerId);
+        if (!result.ok) throw new BadRequestException('Lead no encontrado o dealer inválido');
+        if (result.deletedLead) deletedLeadCount += 1;
+        if (result.deletedRelationship) deletedRelationshipCount += 1;
+      }
+      return { success: true, requestedCount: uniqueItems.length, deletedLeadCount, deletedRelationshipCount, deletedConversationCount: 0, suppressedCount: 0 };
+    }
+
+    if (!this.dataSource) throw new UnauthorizedException('Lead data is unavailable');
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      let deletedLeadCount = 0;
+      let deletedRelationshipCount = 0;
+      let deletedConversationCount = 0;
+      let suppressedCount = 0;
+      for (const item of uniqueItems) {
+        const result = await purgeLeadForDealer(queryRunner, item.leadId, item.dealerId);
+        if (result.deletedLead) deletedLeadCount += 1;
+        if (result.deletedRelationship) deletedRelationshipCount += 1;
+        deletedConversationCount += result.deletedConversationCount;
+        if (result.suppressed) suppressedCount += 1;
+      }
+      await queryRunner.commitTransaction();
+      return { success: true, requestedCount: uniqueItems.length, deletedLeadCount, deletedRelationshipCount, deletedConversationCount, suppressedCount };
+    } catch (error) {
+      if (queryRunner.isTransactionActive) await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   @Delete()
   async deleteSelected(
     @Req() request: Request,
@@ -417,6 +479,38 @@ export class LeadsController {
         deletedLeadCount: 0,
         deletedRelationshipCount,
       };
+    } catch (error) {
+      if (queryRunner.isTransactionActive) await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  @Delete(':id/purge')
+  async purge(
+    @Req() request: Request,
+    @Param('id') leadId: string,
+    @Query('dealerId') dealerIdQuery?: string,
+  ) {
+    this.requireSession(request);
+    if (!dealerIdQuery) throw new BadRequestException('Dealer is required to permanently delete the lead');
+
+    if (process.env.NODE_ENV === 'test' && process.env.E2E_USE_DATABASE !== 'true') {
+      const result = deleteTestLead(leadId, dealerIdQuery);
+      if (!result.ok) throw new BadRequestException('Lead not found or cannot be deleted');
+      return { success: true, ...result, deletedConversationCount: 0, suppressed: false };
+    }
+
+    if (!this.dataSource) throw new UnauthorizedException('Lead data is unavailable');
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const result = await purgeLeadForDealer(queryRunner, leadId, dealerIdQuery);
+      await queryRunner.commitTransaction();
+      return { success: true, ...result };
     } catch (error) {
       if (queryRunner.isTransactionActive) await queryRunner.rollbackTransaction();
       throw error;

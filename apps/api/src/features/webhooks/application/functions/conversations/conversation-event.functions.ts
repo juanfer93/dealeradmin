@@ -28,6 +28,7 @@ import type {
   SourceKey,
 } from './conversation-webhook.types';
 import { configureWebhookTransactionSafety } from '../../transaction-safety';
+import { acquireLeadSuppressionLock, isLeadDeletionSuppressed } from '../../../../leads/application/lead-deletion';
 
 export class ConversationEventFunctions {
   constructor(
@@ -50,6 +51,8 @@ export class ConversationEventFunctions {
     try {
       await configureWebhookTransactionSafety(runner);
       const occurredAt = parseOccurredAt(event.occurred_at);
+      const suppressionPhone = safePhone(event.contact_phone);
+      await acquireLeadSuppressionLock(runner, locationId, event.ghl_contact_id);
       const insertedEvents = await runner.query(
         `INSERT INTO webhook_events (event_id, event_type, ghl_location_id, status, payload_hash, raw_transcript, capture_contract, capture_schema_version, received_at)
          VALUES ($1, $2, $3, 'pending', $4, $5, '{}'::jsonb, 'dealeradmin.conversation.v1', CURRENT_TIMESTAMP)
@@ -59,6 +62,16 @@ export class ConversationEventFunctions {
          RETURNING event_id`,
         [event.event_id, event.event_type, locationId, hash(rawBody), event.message_body ?? ''],
       ) as Array<{ event_id: string }>;
+      if (await isLeadDeletionSuppressed(runner, locationId, event.ghl_contact_id, suppressionPhone)) {
+        await runner.query(
+          `UPDATE webhook_events
+           SET status = 'suppressed', processed_at = CURRENT_TIMESTAMP, error_code = 'LEAD_DELETION_SUPPRESSED'
+           WHERE event_id = $1`,
+          [event.event_id],
+        );
+        await runner.commitTransaction();
+        return { accepted: true, eventId: event.event_id, conversationId: event.ghl_conversation_id, source, status: 'suppressed' };
+      }
       if (insertedEvents.length === 0) {
         await runner.rollbackTransaction();
         return { accepted: true, eventId: event.event_id, conversationId: event.ghl_conversation_id, source, status: 'duplicate_ignored' };

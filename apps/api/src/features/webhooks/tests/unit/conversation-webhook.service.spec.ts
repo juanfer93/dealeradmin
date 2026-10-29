@@ -1245,6 +1245,8 @@ describe('ConversationWebhookService', () => {
       isTransactionActive: true,
       query: vi.fn(async (sql: string) => {
         if (sql.includes('SET LOCAL lock_timeout')) return [];
+        if (sql.includes('pg_advisory_xact_lock')) return [];
+        if (sql.includes('FROM lead_deletion_suppressions')) return [];
         if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [{ event_id: 'evt-retry-failed' }];
         throw new Error('simulated downstream latency');
       }),
@@ -1265,6 +1267,39 @@ describe('ConversationWebhookService', () => {
     expect(eventInsert?.[0]).toContain("WHERE webhook_events.status = 'failed'");
     expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
     expect(dataSource.query).toHaveBeenCalled();
+  });
+
+  it('suprime un webhook de un contacto purgado sin reconstruir el lead', async () => {
+    const queryRunner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('SET LOCAL lock_timeout')) return [];
+        if (sql.includes('pg_advisory_xact_lock')) return [];
+        if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [{ event_id: 'evt-suppressed' }];
+        if (sql.includes('FROM lead_deletion_suppressions')) return [{ '?column?': 1 }];
+        return [];
+      }),
+    };
+    const service = new ConversationWebhookService({ createQueryRunner: () => queryRunner } as never);
+
+    await expect(service.acceptCustomerReplied(
+      { message_body: 'Todavía busco un SUV', channel: 'messenger' },
+      'fredericksburg',
+      { contactId: 'ghl-suppressed-contact', conversationId: 'ghl-suppressed-conversation' },
+    )).resolves.toMatchObject({
+      accepted: true,
+      conversationId: 'ghl-suppressed-conversation',
+      status: 'suppressed',
+    });
+
+    expect(queryRunner.query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO leads'))).toBe(false);
+    expect(queryRunner.query.mock.calls.some(([sql]) => String(sql).includes("status = 'suppressed'"))).toBe(true);
+    expect(queryRunner.commitTransaction).toHaveBeenCalledOnce();
   });
 
   it('reconciles active conversations every due poll and starts the five-cycle window', async () => {

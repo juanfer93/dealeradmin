@@ -2,6 +2,38 @@ import { describe, expect, it, vi } from 'vitest';
 import { WebhookService } from '../../application/webhook.service';
 
 describe('Protección contra re-procesamiento (Smart Merge)', () => {
+  it('no reconstruye un lead suprimido cuando llega otro webhook del mismo contacto', async () => {
+    const queryRunner = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      isTransactionActive: true,
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [{ event_id: 'evt-suppressed-lead' }];
+        if (sql.includes('FROM lead_deletion_suppressions')) return [{ '?column?': 1 }];
+        return [];
+      }),
+    };
+    const service = new WebhookService({ createQueryRunner: () => queryRunner } as never);
+
+    await expect(service.acceptLead({
+      event_id: 'evt-suppressed-lead',
+      event_type: 'lead.ready_for_whatsapp',
+      occurred_at: '2026-09-05T21:00:00.000Z',
+      dealer_id: 'STAFFORD',
+      dealer_name: 'Offlease Motors Stafford',
+      ghl_location_id: 'loc-suppressed',
+      ghl_contact_id: 'ghl-suppressed',
+      lead: { name: 'Oscar Rojas', phone: '+18046503373', vehicle_type: 'Civic 2007' },
+    })).resolves.toEqual({ accepted: true, eventId: 'evt-suppressed-lead', status: 'suppressed' });
+
+    expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO leads'))).toBe(false);
+    expect(queryRunner.query.mock.calls.some(([sql]) => sql.includes("status = 'suppressed'"))).toBe(true);
+    expect(queryRunner.commitTransaction).toHaveBeenCalledOnce();
+  });
+
   it('actualiza la cualificación y conserva sent para una relación ya despachada', async () => {
     const queryRunner = {
       connect: vi.fn(),

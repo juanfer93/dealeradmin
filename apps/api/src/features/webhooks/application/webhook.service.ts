@@ -15,6 +15,7 @@ import { normalizePhone } from '../../leads/domain/phone-normalizer';
 import { normalizeLeadName } from '../../leads/domain/lead-duplicate';
 import { normalizeDownPayment } from '../../leads/domain/down-payment';
 import { applyTestWebhookLead } from '../../leads/application/test-lead-store';
+import { acquireLeadSuppressionLock, canonicalSuppressionPhone, isLeadDeletionSuppressed } from '../../leads/application/lead-deletion';
 import { GeoroutingService } from '../../routing/domain/services/georouting.service';
 import { hasMinimumRoutingQualification, normalizeCollectorInput, normalizeRealName } from '../../leads/domain/collector-normalizer';
 import { buildDealeradminCaptureContract } from '../../leads/domain/dealeradmin-capture';
@@ -23,7 +24,7 @@ import { configureWebhookTransactionSafety } from './transaction-safety';
 type PersistedWebhookResponse = {
   accepted: true;
   eventId: string;
-  status: 'processed' | 'duplicate_ignored';
+  status: 'processed' | 'duplicate_ignored' | 'suppressed';
 };
 
 type TestWebhookResponse = {
@@ -125,6 +126,8 @@ export class WebhookService {
         qualification_memory: payload.lead.qualification_memory,
         chat_history_log: payload.lead.chat_history_log,
       }), payload.lead.phone);
+      const suppressionPhone = canonicalSuppressionPhone(payload.lead.phone);
+      await acquireLeadSuppressionLock(queryRunner, payload.ghl_location_id, payload.ghl_contact_id);
       const insertedEvents = (await queryRunner.query(
         `INSERT INTO webhook_events
           (event_id, event_type, ghl_location_id, status, payload_hash, raw_transcript, capture_contract, capture_schema_version, received_at)
@@ -133,6 +136,17 @@ export class WebhookService {
          RETURNING event_id`,
         [payload.event_id, payload.event_type, payload.ghl_location_id, payloadHash, captureContract.raw_evidence.transcript, JSON.stringify(captureContract), captureContract.extraction.schema_version],
       )) as EventRow[];
+
+      if (await isLeadDeletionSuppressed(queryRunner, payload.ghl_location_id, payload.ghl_contact_id, suppressionPhone)) {
+        await queryRunner.query(
+          `UPDATE webhook_events
+           SET status = 'suppressed', processed_at = CURRENT_TIMESTAMP, error_code = 'LEAD_DELETION_SUPPRESSED'
+           WHERE event_id = $1`,
+          [payload.event_id],
+        );
+        await queryRunner.commitTransaction();
+        return { accepted: true, eventId: payload.event_id, status: 'suppressed' };
+      }
 
       if (insertedEvents.length === 0) {
         const existingEvents = (await queryRunner.query(
@@ -145,10 +159,10 @@ export class WebhookService {
 
         // A failed event is retryable: GHL may re-send the same event_id after
         // the contact has been repaired. Already processed events remain
-        // idempotent and are ignored while their lead still exists. If the
-        // operator deliberately deleted that lead (for example, to remove a
-        // contaminated record), allow the repaired GHL delivery to rebuild it
-        // instead of silently acknowledging it as a duplicate forever.
+        // idempotent and are ignored while their lead still exists. A normal
+        // processed-event replay may rebuild a lead that no longer exists;
+        // an operator purge is handled earlier by the suppression tombstone
+        // and never reaches this replay path.
         let canReplayProcessedEvent = false;
         if (existingEvents[0]?.status === 'processed') {
           const liveLeads = (await queryRunner.query(
