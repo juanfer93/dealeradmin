@@ -45,6 +45,8 @@ const normalizeWhisperVehicleAliases = (value) => clean(value)
   .replace(/\b(?:4|four|for)\s*-?\s*run(?:ner|er)s?\b/gi, '4Runner')
   // Messenger/Whisper commonly renders RAV4 as "raw4".
   .replace(/\braw\s*4\b/gi, 'RAV4')
+  // GHL/Messenger can hear the spoken model as "rave four" or "rave 4".
+  .replace(/\brave\s*(?:4|four)\b/gi, 'RAV4')
   .replace(/\braw\s+four\b/gi, 'RAV4')
   // GHL/Messenger can also transcribe the spoken model as "rava".
   // Keep this alias scoped to vehicle extraction.

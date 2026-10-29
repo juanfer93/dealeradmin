@@ -638,6 +638,7 @@ describe('normalizeCollectorInput', () => {
   it.each([
     ['Cadillac if you have one in stock', 'Cadillac'],
     ['Raw four', 'RAV4'],
+    ['Rave four', 'RAV4'],
     ['Ttoca', 'truck'],
     ['unatroca', 'truck'],
     ['dumtruck', 'truck'],
@@ -1310,6 +1311,7 @@ describe('normalizeCollectorInput', () => {
     ['Tecomas', 'Tacoma'],
     ['suvaru sti', 'Subaru STI'],
     ['Rav 4', 'RAV4'],
+    ['Rave 4', 'RAV4'],
     ['4 runner', '4Runner'],
     ['for runner', '4Runner'],
     ['for runer', '4Runner'],

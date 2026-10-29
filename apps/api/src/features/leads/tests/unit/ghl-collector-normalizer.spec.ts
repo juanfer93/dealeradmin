@@ -113,6 +113,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     ['Camaros', 'Camaro'],
     ['Cadillac if you have one in stock', 'Cadillac'],
     ['Raw four', 'RAV4'],
+    ['Rave four', 'RAV4'],
     ['Ttoca', 'truck'],
     ['unatroca', 'truck'],
     ['dumtruck', 'truck'],

@@ -49,6 +49,8 @@ export function normalizeWhisperVehicleAliases(value: string): string {
     // GHL/Messenger can also transcribe the spoken model as "rava".
     // Keep this alias scoped to vehicle extraction.
     .replace(/\brava\b/gi, 'RAV4')
+    // GHL/Messenger can hear the spoken model as "rave four" or "rave 4".
+    .replace(/\brave\s*(?:4|four)\b/gi, 'RAV4')
     .replace(/\braw\s+four\b/gi, 'RAV4')
     // Messenger/Whisper can pluralize the model in "HEMI Durangos". Treat
     // that explicit request as the canonical Dodge model, while keeping a
