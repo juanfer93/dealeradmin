@@ -10,7 +10,7 @@
   "crons": [
     { "path": "/api/reports/monthly/run", "schedule": "0 17 1 * *" },
     {
-      "path": "/api/webhooks/ghl/conversations/watchdog",
+      "path": "/api/webhooks/ghl/conversations/automatic-cycle",
       "schedule": "*/5 * * * *"
     }
   ],
