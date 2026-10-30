@@ -33,6 +33,8 @@ export class ConversationDueFunctions {
           overdueCount: 0,
           missingNextAttemptCount: 0,
           oldestDueAt: null,
+          partialRecoveryDueCount: 0,
+          partialGuardContactIds: [],
           guardRetryContactIds: [],
           overdueConversations: [],
         };
@@ -65,6 +67,28 @@ export class ConversationDueFunctions {
                   AND next_attempt_at <= CURRENT_TIMESTAMP
                   ${recentOnly ? 'AND COALESCE(last_message_at, ready_at, waiting_window_started_at, created_at) >= $1::timestamptz' : ''}
               ) AS oldest_due_at,
+              COUNT(*) FILTER (
+                WHERE status = 'partial'
+                  AND partial_recovery_next_attempt_at IS NOT NULL
+                  AND partial_recovery_next_attempt_at <= CURRENT_TIMESTAMP
+                  ${recentOnly ? 'AND COALESCE(last_message_at, ready_at, partial_recovery_started_at, created_at) >= $1::timestamptz' : ''}
+              )::int AS partial_recovery_due_count,
+              COALESCE((
+                SELECT ARRAY_AGG(partial_guard.ghl_contact_id ORDER BY partial_guard.first_recovery_at)
+                FROM (
+                  SELECT partial_conversation.ghl_contact_id,
+                         MIN(partial_conversation.partial_recovery_next_attempt_at) AS first_recovery_at
+                  FROM conversations partial_conversation
+                  WHERE partial_conversation.status = 'partial'
+                    AND partial_conversation.ghl_contact_id IS NOT NULL
+                    AND partial_conversation.partial_recovery_next_attempt_at IS NOT NULL
+                    AND partial_conversation.partial_recovery_next_attempt_at <= CURRENT_TIMESTAMP
+                    ${recentOnly ? 'AND COALESCE(partial_conversation.last_message_at, partial_conversation.ready_at, partial_conversation.partial_recovery_started_at, partial_conversation.created_at) >= $1::timestamptz' : ''}
+                  GROUP BY partial_conversation.ghl_contact_id
+                  ORDER BY first_recovery_at ASC
+                  LIMIT ${DUE_CONVERSATION_BATCH_SIZE}
+                ) partial_guard
+              ), ARRAY[]::text[]) AS partial_guard_contact_ids,
               COALESCE((
                 SELECT ARRAY_AGG(due_guard.ghl_contact_id ORDER BY due_guard.first_retry_at)
                 FROM (
@@ -74,6 +98,9 @@ export class ConversationDueFunctions {
                   WHERE guard_log.status = 'failed'
                     AND guard_log.next_retry_at IS NOT NULL
                     AND guard_log.next_retry_at <= CURRENT_TIMESTAMP
+                    AND (guard_conversation.status <> 'partial'
+                      OR guard_conversation.partial_recovery_next_attempt_at IS NULL
+                      OR guard_conversation.partial_recovery_next_attempt_at <= CURRENT_TIMESTAMP)
                     ${recentOnly ? 'AND COALESCE(guard_conversation.last_message_at, guard_conversation.ready_at, guard_conversation.waiting_window_started_at, guard_conversation.created_at) >= $1::timestamptz' : ''}
                   GROUP BY guard_log.ghl_contact_id
                   ORDER BY first_retry_at ASC
@@ -88,6 +115,8 @@ export class ConversationDueFunctions {
       overdue_count: number | string;
       missing_next_attempt_count: number | string;
       oldest_due_at: string | Date | null;
+      partial_recovery_due_count: number | string;
+      partial_guard_contact_ids: string[] | null;
       guard_retry_contact_ids: string[] | null;
     }>;
     const overdueConversations = await this.dataSource.query(
@@ -115,6 +144,8 @@ export class ConversationDueFunctions {
       overdueCount: Number(row?.overdue_count ?? 0),
       missingNextAttemptCount: Number(row?.missing_next_attempt_count ?? 0),
       oldestDueAt: toIso(row?.oldest_due_at ?? null),
+      partialRecoveryDueCount: Number(row?.partial_recovery_due_count ?? 0),
+      partialGuardContactIds: Array.isArray(row?.partial_guard_contact_ids) ? row.partial_guard_contact_ids : [],
       guardRetryContactIds: Array.isArray(row?.guard_retry_contact_ids) ? row.guard_retry_contact_ids : [],
       overdueConversations: overdueConversations.map((conversation) => ({
         id: conversation.id,

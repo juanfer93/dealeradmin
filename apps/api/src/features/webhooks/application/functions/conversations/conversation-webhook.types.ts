@@ -26,6 +26,9 @@ export type ConversationRow = {
   next_attempt_at?: string | null;
   waiting_window_attempts?: number;
   waiting_window_started_at?: string | null;
+  partial_recovery_attempts?: number;
+  partial_recovery_started_at?: string | null;
+  partial_recovery_next_attempt_at?: string | null;
   isExisting?: boolean;
   hasPreviousMessage?: boolean;
 };
@@ -120,6 +123,8 @@ export type DueConversationHealth = {
   overdueCount: number;
   missingNextAttemptCount: number;
   oldestDueAt: string | null;
+  partialRecoveryDueCount: number;
+  partialGuardContactIds: string[];
   // Guard retries are durable work too. A failed GHL read must wake the
   // scheduler even when the conversation is still partial and has no due
   // waiting-window row.

@@ -2,6 +2,36 @@ import { describe, expect, it, vi } from 'vitest';
 import { ConversationDueFunctions } from '../../application/functions/conversations/conversation-due.functions';
 
 describe('ConversationDueFunctions', () => {
+  it('reports partial recovery contacts only after their durable 30-minute cycle is due', async () => {
+    const dataSource = {
+      query: vi.fn()
+        .mockResolvedValueOnce([{
+          checked_at: '2026-10-30T14:00:00.000Z',
+          waiting_window_count: 1,
+          overdue_count: 0,
+          missing_next_attempt_count: 0,
+          oldest_due_at: null,
+          partial_recovery_due_count: 1,
+          partial_guard_contact_ids: ['partial-contact'],
+          guard_retry_contact_ids: [],
+        }])
+        .mockResolvedValueOnce([]),
+    };
+    const service = new ConversationDueFunctions(
+      dataSource as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    const result = await service.getDueConversationHealth({ recentOnly: true, now: new Date('2026-10-30T14:00:00.000Z') });
+
+    expect(result.partialRecoveryDueCount).toBe(1);
+    expect(result.partialGuardContactIds).toEqual(['partial-contact']);
+    expect(String(dataSource.query.mock.calls[0][0])).toContain('partial_recovery_next_attempt_at <= CURRENT_TIMESTAMP');
+    expect(String(dataSource.query.mock.calls[0][0])).toContain('partial_recovery_started_at');
+  });
+
   it('does not let stale Guard recovery block the durable due-cycle release', async () => {
     const now = new Date('2026-10-28T17:00:00.000Z');
     const dataSource = {

@@ -283,6 +283,7 @@ export class ConversationQualificationFunctions {
       `SELECT id, status, ghl_conversation_id, qualification_snapshot, location_snapshot, ready_at,
               created_at, first_message_at,
               last_message_at,
+              partial_recovery_attempts, partial_recovery_started_at, partial_recovery_next_attempt_at,
               EXISTS (
                 SELECT 1
                 FROM conversation_messages cm
@@ -299,7 +300,8 @@ export class ConversationQualificationFunctions {
     if (input.dealerId) {
       const siblingRows = await runner.query(
         `SELECT id, status, ghl_conversation_id, qualification_snapshot, location_snapshot, ready_at,
-                created_at, first_message_at, last_message_at
+                created_at, first_message_at, last_message_at,
+                partial_recovery_attempts, partial_recovery_started_at, partial_recovery_next_attempt_at
          FROM conversations
          WHERE ghl_location_id = $1
            AND ghl_contact_id = $2
@@ -339,7 +341,8 @@ export class ConversationQualificationFunctions {
       `INSERT INTO conversations (lead_id, ghl_location_id, ghl_contact_id, ghl_conversation_id, channel, first_message_at, last_message_at)
        VALUES ($1, $2, $3, $4, $5, $6, $6)
        ON CONFLICT (ghl_location_id, ghl_contact_id, ghl_conversation_id) DO NOTHING
-       RETURNING id, status, ghl_conversation_id, qualification_snapshot, location_snapshot, ready_at, created_at, first_message_at, last_message_at`,
+       RETURNING id, status, ghl_conversation_id, qualification_snapshot, location_snapshot, ready_at, created_at, first_message_at, last_message_at,
+                 partial_recovery_attempts, partial_recovery_started_at, partial_recovery_next_attempt_at`,
       [input.leadId, input.locationId, input.contactId, input.conversationId, input.channel, input.occurredAt],
     ) as ConversationRow[];
     if (inserted[0]) return { ...inserted[0], isExisting: false };
@@ -350,6 +353,7 @@ export class ConversationQualificationFunctions {
       `SELECT id, status, ghl_conversation_id, qualification_snapshot, location_snapshot, ready_at,
               created_at, first_message_at,
               last_message_at,
+              partial_recovery_attempts, partial_recovery_started_at, partial_recovery_next_attempt_at,
               EXISTS (
                 SELECT 1
                 FROM conversation_messages cm

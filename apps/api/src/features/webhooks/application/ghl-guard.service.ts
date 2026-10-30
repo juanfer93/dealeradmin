@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import type { DataSource, QueryRunner } from 'typeorm';
-import { GHL_SOURCE_CONFIG, RECENT_AUTOMATION_WINDOW_MS, RECONCILIATION_LOCATION_IDS } from './functions/conversations/conversation-webhook.config';
+import { GHL_SOURCE_CONFIG, PARTIAL_RECOVERY_INTERVAL_MS, RECENT_AUTOMATION_WINDOW_MS, RECONCILIATION_LOCATION_IDS } from './functions/conversations/conversation-webhook.config';
 import type { SourceConfigMap, SourceKey } from './functions/conversations/conversation-webhook.types';
 import { ConversationReconciliationFunctions } from './functions/conversations/conversation-reconciliation.functions';
 import { needsConversationLookup, sourceForLocation, isConversationIdentityConflict } from './functions/ghl-guard/ghl-guard.helpers';
@@ -269,6 +269,9 @@ export class GhlGuardService {
                AND retry_guard.status = 'failed'
                AND retry_guard.next_retry_at > CURRENT_TIMESTAMP
            )
+           AND (status <> 'partial'
+             OR (partial_recovery_next_attempt_at IS NOT NULL
+               AND partial_recovery_next_attempt_at <= CURRENT_TIMESTAMP))
          ORDER BY CASE WHEN due_retry.next_retry_at IS NOT NULL THEN 0 ELSE 1 END,
                   due_retry.next_retry_at ASC NULLS LAST,
                   last_guard.created_at NULLS FIRST,
@@ -320,6 +323,19 @@ export class GhlGuardService {
       this.running = false;
       this.schedulePendingTargetedRun();
     }
+  }
+
+  private async markPartialRecoveryCycle(row: GuardConversationRow, now: Date): Promise<void> {
+    if (!this.dataSource || row.status !== 'partial') return;
+    await this.dataSource.query(
+      `UPDATE conversations
+       SET partial_recovery_attempts = COALESCE(partial_recovery_attempts, 0) + 1,
+           partial_recovery_started_at = COALESCE(partial_recovery_started_at, $2::timestamptz),
+           partial_recovery_next_attempt_at = $2::timestamptz + ($3::integer * INTERVAL '1 millisecond'),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND status = 'partial'`,
+      [row.id, now.toISOString(), PARTIAL_RECOVERY_INTERVAL_MS],
+    );
   }
 
   private enqueuePendingContactIds(contactIds: string[]): void {
@@ -377,6 +393,7 @@ export class GhlGuardService {
     const claimedQueuedReplayIds = new Set<string>();
     const completedQueuedReplayIds = new Set<string>();
     const startedAt = new Date();
+    const retryDelayMs = row.status === 'partial' ? PARTIAL_RECOVERY_INTERVAL_MS : undefined;
     try {
       logId = await this.persistence.createLog(runId, row, 'pending', now);
       if (!logId) {
@@ -384,21 +401,22 @@ export class GhlGuardService {
         return;
       }
       await this.persistence.updateLog(logId, 'running', { startedAt });
+      await this.markPartialRecoveryCycle(row, now);
       const deadlineAt = Date.now() + ghlGuardConversationTimeoutMs();
       source = sourceForLocation(this.sourceConfig, row.ghl_location_id);
       if (!source) {
         this.recordFailure(result, row, 'SOURCE_NOT_CONFIGURED');
-        await this.updateLog(logId, 'failed', { errorCode: 'SOURCE_NOT_CONFIGURED', finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });
+        await this.updateLog(logId, 'failed', { errorCode: 'SOURCE_NOT_CONFIGURED', retryDelayMs, finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });
         return;
       }
       const token = process.env[GHL_GUARD_TOKEN_ENV_BY_SOURCE[source]]?.trim();
       if (!token) {
         this.recordFailure(result, row, 'GHL_TOKEN_MISSING');
-        await this.updateLog(logId, 'failed', { errorCode: 'GHL_TOKEN_MISSING', source, finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });
+        await this.updateLog(logId, 'failed', { errorCode: 'GHL_TOKEN_MISSING', source, retryDelayMs, finishedAt: new Date(), durationMs: Date.now() });
         return;
       }
       if (await this.retryFunctions.isSourceCircuitOpen(source)) {
-        this.enqueuePendingContactIds([row.ghl_contact_id]);
+        if (row.status !== 'partial') this.enqueuePendingContactIds([row.ghl_contact_id]);
         this.recordFailure(result, row, 'GHL_CIRCUIT_OPEN', 'GHL source circuit is open; retrying the contact later');
         await this.persistence.updateLog(logId, 'skipped', {
           source,
@@ -459,7 +477,7 @@ export class GhlGuardService {
       if (needsConversationLookup(row.ghl_conversation_id) && !syntheticConversationId) {
         if (!this.client.searchConversationByContact) {
           this.recordFailure(result, row, 'GHL_CONVERSATION_LOOKUP_UNAVAILABLE');
-          await this.persistence.updateLog(logId, 'failed', { errorCode: 'GHL_CONVERSATION_LOOKUP_UNAVAILABLE', source, finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });
+          await this.persistence.updateLog(logId, 'failed', { errorCode: 'GHL_CONVERSATION_LOOKUP_UNAVAILABLE', source, retryDelayMs, finishedAt: new Date(), durationMs: Date.now() - startedAt.getTime() });
           return;
         }
         const lookup = await this.client.searchConversationByContact(token, row.ghl_location_id, row.ghl_contact_id, { deadlineAt });
@@ -475,10 +493,11 @@ export class GhlGuardService {
         if (!lookup.ok || !lookup.data?.conversation?.id) {
           const errorCode = lookup.errorCode || 'GHL_CONVERSATION_NOT_FOUND';
           this.recordFailure(result, row, errorCode);
-          this.retryFunctions.scheduleTransientRetry(row, errorCode, source);
+          this.retryFunctions.scheduleTransientRetry(row, errorCode, source, undefined, { suppressImmediateRetry: row.status === 'partial' });
           await this.persistence.updateLog(logId, 'failed', {
             errorCode,
             source,
+            retryDelayMs,
             httpStatus: lookup.status,
             requestPath: lookup.requestPath,
             responsePayload: lookup.responsePayload,
@@ -527,10 +546,11 @@ export class GhlGuardService {
       if (!fetched.ok || !fetched.data) {
         const errorCode = fetched.errorCode || 'GHL_MESSAGES_READ_FAILED';
         this.recordFailure(result, row, errorCode);
-        this.retryFunctions.scheduleTransientRetry(row, errorCode, source);
+        this.retryFunctions.scheduleTransientRetry(row, errorCode, source, undefined, { suppressImmediateRetry: row.status === 'partial' });
         await this.persistence.updateLog(logId, 'failed', {
           errorCode,
           source,
+          retryDelayMs,
           httpStatus: fetched.status,
           requestPath: fetched.requestPath,
           responsePayload: fetched.responsePayload,
@@ -668,10 +688,11 @@ export class GhlGuardService {
       if (queuedOnly && queuedReplayClaimed && !queuedReplayCompleted) {
         result.queuedReplayFailed = (result.queuedReplayFailed ?? 0) + 1;
       }
-      this.retryFunctions.scheduleTransientRetry(row, errorCode, source, errorMessage);
+      this.retryFunctions.scheduleTransientRetry(row, errorCode, source, errorMessage, { suppressImmediateRetry: row.status === 'partial' });
       await this.persistence.safeUpdateLog(logId, 'failed', {
         errorCode,
         errorMessage,
+        retryDelayMs,
         requestTimeoutMs: ghlGuardTimeoutMs(),
         circuitState: source ? this.retryFunctions.circuitState(source) : undefined,
         finishedAt: new Date(),

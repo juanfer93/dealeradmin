@@ -127,16 +127,18 @@ export class WebhooksController {
   async dueConversationWatchdog() {
     const healthBefore = await this.conversationWebhookService.getDueConversationHealth({ recentOnly: true });
     const guardRetryContactIds = healthBefore.guardRetryContactIds ?? [];
+    const partialGuardContactIds = healthBefore.partialGuardContactIds ?? [];
     const needsRelease = healthBefore.overdueCount > 0
       || healthBefore.missingNextAttemptCount > 0
       || guardRetryContactIds.length > 0;
     if (!needsRelease) {
       return {
         accepted: true,
-        triggered: false,
+        triggered: partialGuardContactIds.length > 0,
         skipped: 0,
         remainingDue: 0,
-        guardContactIds: [],
+        guardContactIds: partialGuardContactIds,
+        partialRecoveryTriggered: partialGuardContactIds.length > 0,
         healthBefore,
         healthAfter: healthBefore,
       };
@@ -158,7 +160,9 @@ export class WebhooksController {
       guardContactIds: [...new Set([
         ...(release.guardContactIds ?? []),
         ...guardRetryContactIds,
+        ...partialGuardContactIds,
       ])],
+      partialRecoveryTriggered: partialGuardContactIds.length > 0,
       healthBefore,
       release,
       healthAfter,
@@ -170,13 +174,15 @@ export class WebhooksController {
   async automaticCycle() {
     const healthBefore = await this.conversationWebhookService.getDueConversationHealth({ recentOnly: true });
     const guardRetryContactIds = healthBefore.guardRetryContactIds ?? [];
+    const partialGuardContactIds = healthBefore.partialGuardContactIds ?? [];
+    const guardContactIds = [...new Set([...guardRetryContactIds, ...partialGuardContactIds])];
     const needsRelease = healthBefore.overdueCount > 0
       || healthBefore.missingNextAttemptCount > 0
       || guardRetryContactIds.length > 0;
-    const guardRetryOptions = guardRetryContactIds.length > 0
-      ? { guardContactIds: guardRetryContactIds }
+    const guardRetryOptions = guardContactIds.length > 0
+      ? { guardContactIds }
       : {};
-    const release = needsRelease
+    const release = (needsRelease || guardContactIds.length > 0)
       ? await this.conversationWebhookService.processDueConversations(undefined, {
         reconcileActive: false,
         runGuard: true,
@@ -206,7 +212,7 @@ export class WebhooksController {
         && release.remainingDue === 0
         && !release.guardError
         && queuedBackup.failed === 0,
-      triggered: needsRelease,
+      triggered: needsRelease || partialGuardContactIds.length > 0,
       healthBefore,
       release,
       queuedBackup,

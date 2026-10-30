@@ -51,6 +51,7 @@ import { QueuedGuardReplay1710000041000 } from './database/migrations/1710000041
 import { GhlGuardGlobalLease1710000042000 } from './database/migrations/1710000042000-GhlGuardGlobalLease';
 import { QueuedGuardReplayRetry1710000043000 } from './database/migrations/1710000043000-QueuedGuardReplayRetry';
 import { RequeueMp4VoiceAttachments1710000045000 } from './database/migrations/1710000045000-RequeueMp4VoiceAttachments';
+import { PartialGuardRecovery1710000047000 } from './database/migrations/1710000047000-PartialGuardRecovery';
 import { POSTGRES_EXTRA } from './database/postgres-connection-options';
 
 const databaseModule = TypeOrmModule.forRootAsync({
@@ -105,6 +106,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             GhlGuardGlobalLease1710000042000,
             QueuedGuardReplayRetry1710000043000,
             RequeueMp4VoiceAttachments1710000045000,
+            PartialGuardRecovery1710000047000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,

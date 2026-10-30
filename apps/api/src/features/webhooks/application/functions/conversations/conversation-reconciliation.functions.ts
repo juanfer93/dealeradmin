@@ -5,7 +5,7 @@ import { evaluateDownPayment, normalizeDownPayment } from '../../../../leads/dom
 import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-duplicate';
 import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
 import { ConversationQualificationFunctions } from './conversation-qualification.functions';
-import { ACTIVE_RECONCILIATION_BATCH_SIZE, GHL_SOURCE_CONFIG, RECONCILIATION_LOCATION_IDS, CONVERSATION_STABILIZATION_MS, WAITING_WINDOW_MAX_ATTEMPTS, WAITING_WINDOW_RETRY_INTERVAL_MS } from './conversation-webhook.config';
+import { ACTIVE_RECONCILIATION_BATCH_SIZE, GHL_SOURCE_CONFIG, PARTIAL_RECOVERY_INTERVAL_MS, RECONCILIATION_LOCATION_IDS, CONVERSATION_STABILIZATION_MS, WAITING_WINDOW_MAX_ATTEMPTS, WAITING_WINDOW_RETRY_INTERVAL_MS } from './conversation-webhook.config';
 import { addProcessedImageEvidence, clean, extractNativeWhatsappPhone, inputIndicatesWhatsApp, isAttachmentEvidenceMessage, safePhone, splitName } from './conversation-webhook.helpers';
 import type { ConversationMessageRow, ConversationSnapshot, LocationSnapshot, MediaReconciliationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
 import { configureWebhookTransactionSafety } from '../../transaction-safety';
@@ -71,6 +71,7 @@ export class ConversationReconciliationFunctions {
         `SELECT c.id, c.channel, c.ghl_location_id, c.ghl_contact_id, c.ghl_conversation_id, c.status,
         c.qualification_snapshot, c.location_snapshot, c.ready_at, c.next_attempt_at, c.last_message_at,
         c.waiting_window_attempts, c.waiting_window_started_at,
+        c.partial_recovery_attempts, c.partial_recovery_started_at, c.partial_recovery_next_attempt_at,
                 l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name
          FROM conversations c
          JOIN leads l ON l.id = c.lead_id
@@ -95,6 +96,9 @@ export class ConversationReconciliationFunctions {
         last_message_at: string | null;
         waiting_window_attempts: number | string | null;
         waiting_window_started_at: string | null;
+        partial_recovery_attempts: number | string | null;
+        partial_recovery_started_at: string | null;
+        partial_recovery_next_attempt_at: string | null;
         lead_id: string;
         canonical_phone: string | null;
         first_name: string | null;
@@ -341,6 +345,15 @@ export class ConversationReconciliationFunctions {
       const nextWaitingWindowAttempts = status.status === 'waiting_window'
         ? shouldCountWaitingWindowAttempt ? currentWaitingWindowAttempts + 1 : currentWaitingWindowAttempts
         : 0;
+      const partialRecoveryAttempts = status.status === 'partial'
+        ? Number(row.partial_recovery_attempts ?? 0)
+        : 0;
+      const partialRecoveryStartedAt = status.status === 'partial'
+        ? row.partial_recovery_started_at ?? now.toISOString()
+        : null;
+      const partialRecoveryNextAttemptAt = status.status === 'partial'
+        ? row.partial_recovery_next_attempt_at ?? new Date(now.getTime() + PARTIAL_RECOVERY_INTERVAL_MS).toISOString()
+        : null;
       await runner.query(
         `UPDATE conversations
          SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
@@ -356,9 +369,12 @@ export class ConversationReconciliationFunctions {
                WHEN $2::varchar = 'queued' THEN waiting_window_started_at
                ELSE NULL
              END,
+             partial_recovery_attempts = CASE WHEN $2::varchar = 'partial' THEN $8 ELSE 0 END,
+             partial_recovery_started_at = CASE WHEN $2::varchar = 'partial' THEN $9::timestamptz ELSE NULL END,
+             partial_recovery_next_attempt_at = CASE WHEN $2::varchar = 'partial' THEN $10::timestamptz ELSE NULL END,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $1`,
-        [id, status.status, JSON.stringify(snapshot), JSON.stringify(location), nextAttemptAt, now.toISOString(), nextWaitingWindowAttempts],
+        [id, status.status, JSON.stringify(snapshot), JSON.stringify(location), nextAttemptAt, now.toISOString(), nextWaitingWindowAttempts, partialRecoveryAttempts, partialRecoveryStartedAt, partialRecoveryNextAttemptAt],
       );
       // A targeted Guard replay can keep a queued row queued while it repairs
       // the qualification snapshot from the complete GHL history. Persist

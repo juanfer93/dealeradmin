@@ -107,6 +107,38 @@ describe('WebhooksController queued Guard backup', () => {
     expect(processDueConversations).not.toHaveBeenCalled();
   });
 
+  it('wakes Guard for due partial recovery without releasing a waiting-window cycle', async () => {
+    const getDueConversationHealth = vi.fn().mockResolvedValue({
+      accepted: true,
+      checkedAt: '2026-10-30T14:00:00.000Z',
+      waitingWindowCount: 1,
+      overdueCount: 0,
+      missingNextAttemptCount: 0,
+      oldestDueAt: null,
+      partialRecoveryDueCount: 1,
+      partialGuardContactIds: ['partial-contact'],
+      guardRetryContactIds: [],
+      overdueConversations: [],
+    });
+    const processDueConversations = vi.fn();
+    const controller = new WebhooksController(
+      {} as never,
+      { getDueConversationHealth, processDueConversations } as never,
+      {} as never,
+      {} as never,
+    );
+
+    const result = await controller.dueConversationWatchdog();
+
+    expect(result).toMatchObject({
+      accepted: true,
+      triggered: true,
+      partialRecoveryTriggered: true,
+      guardContactIds: ['partial-contact'],
+    });
+    expect(processDueConversations).not.toHaveBeenCalled();
+  });
+
   it('runs the independent automatic cycle with Guard and queued replay when due work exists', async () => {
     const getDueConversationHealth = vi.fn()
       .mockResolvedValueOnce({

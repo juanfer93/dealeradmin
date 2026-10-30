@@ -3,6 +3,7 @@ import type { SourceConfigMap } from './conversation-webhook.types';
 export const CONVERSATION_STABILIZATION_MS = 15_000;
 export const WAITING_WINDOW_RETRY_INTERVAL_MS = 5 * 60 * 1000;
 export const WAITING_WINDOW_MAX_ATTEMPTS = 5;
+export const PARTIAL_RECOVERY_INTERVAL_MS = 30 * 60 * 1000;
 export const INCOMPLETE_QUALIFICATION_WINDOW_HOURS = 0.5;
 export const OUT_OF_WINDOW_QUALIFICATION_WINDOW_HOURS = 3;
 export const QUALIFICATION_RULE_TIMEZONE = 'America/Bogota';

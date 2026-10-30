@@ -23,7 +23,13 @@ export class GhlGuardRetryFunctions {
     private readonly enqueuePendingContactIds: (contactIds: string[]) => void,
   ) {}
 
-  scheduleTransientRetry(row: GuardConversationRow, errorCode: string, source?: SourceKey, errorMessage?: string): void {
+  scheduleTransientRetry(
+    row: GuardConversationRow,
+    errorCode: string,
+    source?: SourceKey,
+    errorMessage?: string,
+    options: { suppressImmediateRetry?: boolean } = {},
+  ): void {
     if (!isRetryableGuardFailure(errorCode, errorMessage)) {
       if (source) this.sourceCircuits.delete(source);
       return;
@@ -44,7 +50,7 @@ export class GhlGuardRetryFunctions {
     }
     // Keep the retry contact-scoped so a transient GHL/Neon failure cannot
     // strand the conversation or replay unrelated contacts.
-    this.enqueuePendingContactIds([row.ghl_contact_id]);
+    if (!options.suppressImmediateRetry) this.enqueuePendingContactIds([row.ghl_contact_id]);
   }
 
   async isSourceCircuitOpen(source: SourceKey): Promise<boolean> {

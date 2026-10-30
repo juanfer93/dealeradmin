@@ -58,10 +58,12 @@ jobs:
           printf '%s\n' "$health_response"
           guard_retry_contact_ids="$(node - "$health_response" <<'NODE'
           const payload = JSON.parse(process.argv[2] ?? '{}');
-          const ids = Array.isArray(payload.guardRetryContactIds)
-            ? [...new Set(payload.guardRetryContactIds.filter((value) => typeof value === 'string' && value.trim()).map((value) => value.trim()))]
-            : [];
-          process.stdout.write(ids.join(','));
+          const ids = [
+            ...(Array.isArray(payload.guardRetryContactIds) ? payload.guardRetryContactIds : []),
+            ...(Array.isArray(payload.partialGuardContactIds) ? payload.partialGuardContactIds : []),
+          ].filter((value) => typeof value === 'string' && value.trim());
+          const uniqueIds = [...new Set(ids.map((value) => value.trim()))];
+          process.stdout.write(uniqueIds.join(','));
           NODE
           )"
           echo "guard_retry_contact_ids=$guard_retry_contact_ids" >> "$GITHUB_OUTPUT"
@@ -69,7 +71,8 @@ jobs:
           const payload = JSON.parse(process.argv[2] ?? '{}');
           const needsRelease = Number(payload.overdueCount ?? 0) > 0
             || Number(payload.missingNextAttemptCount ?? 0) > 0
-            || (Array.isArray(payload.guardRetryContactIds) && payload.guardRetryContactIds.length > 0);
+            || (Array.isArray(payload.guardRetryContactIds) && payload.guardRetryContactIds.length > 0)
+            || (Array.isArray(payload.partialGuardContactIds) && payload.partialGuardContactIds.length > 0);
           process.stdout.write(needsRelease ? 'fallback' : 'healthy');
           NODE
           )"

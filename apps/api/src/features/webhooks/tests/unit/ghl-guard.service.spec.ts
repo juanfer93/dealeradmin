@@ -94,6 +94,28 @@ describe('GhlGuardService', () => {
     expect(selection).toContain('queued_lead.canonical_phone');
   });
 
+  it('selects only partial conversations whose durable recovery cycle is due', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.GHL_GUARD_ENABLED = 'true';
+
+    const lockRunner = {
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [{ owner_id: 'lease-owner' }] : []),
+      release: vi.fn(),
+    };
+    const dataSource = {
+      createQueryRunner: vi.fn().mockReturnValue(lockRunner),
+      query: vi.fn().mockResolvedValue([]),
+    };
+    const service = new GhlGuardService(dataSource as never, { reconcileConversation: vi.fn() } as never);
+
+    await service.run(new Date('2026-10-30T14:00:00.000Z'), { force: true });
+
+    const selection = lockRunner.query.mock.calls.find(([sql]) => String(sql).includes('FROM conversations'))?.[0] as string;
+    expect(selection).toContain("status <> 'partial'");
+    expect(selection).toContain('partial_recovery_next_attempt_at <= CURRENT_TIMESTAMP');
+  });
+
   it('reports when the advisory lock prevents a guard cycle', async () => {
     process.env.NODE_ENV = 'production';
     process.env.GHL_GUARD_ENABLED = 'true';
@@ -581,7 +603,7 @@ describe('GhlGuardService', () => {
 
     const row = {
       id: 'conversation-timeout', ghl_location_id: GHL_SOURCE_CONFIG.stafford.locationId,
-      ghl_contact_id: 'contact-timeout', ghl_conversation_id: 'contact:contact-timeout:messenger', status: 'partial',
+      ghl_contact_id: 'contact-timeout', ghl_conversation_id: 'contact:contact-timeout:messenger', status: 'waiting_window',
     };
     const firstLockRunner = {
       connect: vi.fn(),
@@ -621,6 +643,46 @@ describe('GhlGuardService', () => {
     expect(secondLockRunner.release).toHaveBeenCalledOnce();
   });
 
+  it('does not enqueue a five-minute retry after a partial recovery failure', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.GHL_GUARD_ENABLED = 'true';
+    process.env.GHL_GUARD_RETRY_DELAY_MS = '1';
+    process.env.GHL_PRIVATE_TOKEN_STAFFORD = 'pit-test-token';
+    vi.useFakeTimers();
+
+    const row = {
+      id: 'conversation-partial-timeout', ghl_location_id: GHL_SOURCE_CONFIG.stafford.locationId,
+      ghl_contact_id: 'contact-partial-timeout', ghl_conversation_id: 'contact:contact-partial-timeout:messenger', status: 'partial',
+    };
+    const lockRunner = {
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [{ owner_id: 'lease-owner' }] : sql.includes('FROM conversations') ? [row] : []),
+      release: vi.fn(),
+    };
+    const dataSource = {
+      createQueryRunner: vi.fn().mockReturnValue(lockRunner),
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO ghl_guard_logs')) return [{ id: 'partial-timeout-log' }];
+        if (sql.includes('UPDATE ghl_guard_logs')) return [{ id: 'partial-timeout-log', status: 'failed' }];
+        return [];
+      }),
+    };
+    const client = {
+      searchConversationByContact: vi.fn().mockResolvedValue({
+        ok: false, status: 0, errorCode: 'GHL_TIMEOUT', requestPath: '/conversations/search',
+      }),
+      listMessages: vi.fn(),
+    };
+    const service = new GhlGuardService(dataSource as never, { reconcileConversation: vi.fn() } as never, GHL_SOURCE_CONFIG, client);
+
+    await service.run(new Date('2026-10-30T14:00:00.000Z'), { contactIds: [row.ghl_contact_id], force: true });
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(dataSource.createQueryRunner).toHaveBeenCalledOnce();
+    expect(client.searchConversationByContact).toHaveBeenCalledOnce();
+    vi.clearAllTimers();
+  });
+
   it('retries durable Guard failure close-out after a transient Neon read timeout', async () => {
     const timeoutError = new Error('Query read timeout');
     timeoutError.name = 'QueryFailedError';
@@ -647,7 +709,7 @@ describe('GhlGuardService', () => {
 
     const row = {
       id: 'conversation-circuit', ghl_location_id: GHL_SOURCE_CONFIG.stafford.locationId,
-      ghl_contact_id: 'contact-circuit', ghl_conversation_id: 'contact:contact-circuit:messenger', status: 'partial',
+      ghl_contact_id: 'contact-circuit', ghl_conversation_id: 'contact:contact-circuit:messenger', status: 'waiting_window',
     };
     const makeLockRunner = () => ({
       connect: vi.fn(),

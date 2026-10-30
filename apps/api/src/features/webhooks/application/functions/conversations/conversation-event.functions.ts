@@ -5,7 +5,7 @@ import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-d
 import { normalizeGhlAttachments } from '../../../domain/ghl-attachment-normalizer';
 import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
 import { ConversationQualificationFunctions } from './conversation-qualification.functions';
-import { GHL_SOURCE_CONFIG, WAITING_WINDOW_RETRY_INTERVAL_MS } from './conversation-webhook.config';
+import { GHL_SOURCE_CONFIG, PARTIAL_RECOVERY_INTERVAL_MS, WAITING_WINDOW_RETRY_INTERVAL_MS } from './conversation-webhook.config';
 import {
   addProcessedImageEvidence,
   clean,
@@ -270,7 +270,9 @@ export class ConversationEventFunctions {
           `UPDATE conversations
            SET status = 'queued', qualification_snapshot = $2::jsonb, location_snapshot = $3::jsonb,
                last_message_at = GREATEST(COALESCE(last_message_at, $4::timestamptz), $4::timestamptz),
-               next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP
+               next_attempt_at = NULL,
+               partial_recovery_attempts = 0, partial_recovery_started_at = NULL, partial_recovery_next_attempt_at = NULL,
+               updated_at = CURRENT_TIMESTAMP
            WHERE id = $1`,
           [conversation.id, JSON.stringify(snapshot), JSON.stringify(location), occurredAt],
         );
@@ -295,7 +297,9 @@ export class ConversationEventFunctions {
           `UPDATE conversations
            SET status = 'stale_phone_ignored', qualification_snapshot = $2::jsonb,
                location_snapshot = $3::jsonb, last_message_at = GREATEST(COALESCE(last_message_at, $4::timestamptz), $4::timestamptz),
-               next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP
+               next_attempt_at = NULL,
+               partial_recovery_attempts = 0, partial_recovery_started_at = NULL, partial_recovery_next_attempt_at = NULL,
+               updated_at = CURRENT_TIMESTAMP
            WHERE id = $1`,
           [conversation.id, JSON.stringify(snapshot), JSON.stringify(location), occurredAt],
         );
@@ -315,7 +319,9 @@ export class ConversationEventFunctions {
         `UPDATE conversations
          SET status = $2::varchar, qualification_snapshot = $3::jsonb, location_snapshot = $4::jsonb,
              last_message_at = GREATEST(COALESCE(last_message_at, $5::timestamptz), $5::timestamptz), next_attempt_at = NULL,
-             waiting_window_attempts = 0, waiting_window_started_at = NULL, updated_at = CURRENT_TIMESTAMP
+             waiting_window_attempts = 0, waiting_window_started_at = NULL,
+             partial_recovery_attempts = 0, partial_recovery_started_at = NULL, partial_recovery_next_attempt_at = NULL,
+             updated_at = CURRENT_TIMESTAMP
            WHERE id = $1`,
           [conversation.id, isSameQueuedConversation ? 'queued' : 'duplicate_ignored', JSON.stringify(snapshot), JSON.stringify(location), occurredAt],
         );
@@ -336,13 +342,31 @@ export class ConversationEventFunctions {
              last_message_at = GREATEST(COALESCE(last_message_at, $5::timestamptz), $5::timestamptz), ready_at = CASE WHEN $2::varchar IN ('ready', 'waiting_window', 'queued') THEN COALESCE(ready_at, $7::timestamptz) ELSE ready_at END,
              next_attempt_at = $6, waiting_window_attempts = CASE WHEN $2::varchar = 'waiting_window' THEN CASE WHEN $8::boolean THEN 0 ELSE COALESCE(waiting_window_attempts, 0) END ELSE 0 END,
              waiting_window_started_at = CASE WHEN $2::varchar = 'waiting_window' THEN COALESCE(waiting_window_started_at, $7::timestamptz) ELSE NULL END,
+             partial_recovery_attempts = CASE WHEN $2::varchar = 'partial' THEN $9 ELSE 0 END,
+             partial_recovery_started_at = CASE WHEN $2::varchar = 'partial' THEN COALESCE(partial_recovery_started_at, $7::timestamptz) ELSE NULL END,
+             partial_recovery_next_attempt_at = CASE WHEN $2::varchar = 'partial' THEN $10::timestamptz ELSE NULL END,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $1`,
-        [conversation.id, status.status, JSON.stringify(snapshot), JSON.stringify(location), occurredAt, persistedNextAttemptAt, now.toISOString(), enteringWaitingWindow],
+        [
+          conversation.id,
+          status.status,
+          JSON.stringify(snapshot),
+          JSON.stringify(location),
+          occurredAt,
+          persistedNextAttemptAt,
+          now.toISOString(),
+          enteringWaitingWindow,
+          status.status === 'partial'
+            ? conversation.status === 'partial' ? Number(conversation.partial_recovery_attempts ?? 0) : 0
+            : 0,
+          status.status === 'partial'
+            ? new Date(now.getTime() + PARTIAL_RECOVERY_INTERVAL_MS).toISOString()
+            : null,
+        ],
       );
       if (status.status === 'ready') {
         await this.qualification.syncLeadDealer(runner, resolvedDealer, lead.id, snapshot, location, source);
-        await runner.query(`UPDATE conversations SET status = 'queued', dispatched_at = NULL, next_attempt_at = NULL, waiting_window_attempts = 0, waiting_window_started_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [conversation.id]);
+        await runner.query(`UPDATE conversations SET status = 'queued', dispatched_at = NULL, next_attempt_at = NULL, waiting_window_attempts = 0, waiting_window_started_at = NULL, partial_recovery_attempts = 0, partial_recovery_started_at = NULL, partial_recovery_next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [conversation.id]);
         queuedPauseEvent = await this.queueService.createQueuedPauseEvent(runner, conversation.status, 'queued', {
           conversationId: conversation.id,
           ghlConversationId: event.ghl_conversation_id,

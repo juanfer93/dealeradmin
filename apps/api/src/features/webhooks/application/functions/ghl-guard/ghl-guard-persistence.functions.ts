@@ -419,6 +419,7 @@ export class GhlGuardPersistenceFunctions {
     delete metadata.responsePayload;
     delete metadata.leadMetadata;
     delete metadata.completedFields;
+    delete metadata.retryDelayMs;
     const explicitDuration = typeof details.durationMs === 'number' && Number.isFinite(details.durationMs)
       ? details.durationMs
       : null;
@@ -445,7 +446,7 @@ export class GhlGuardPersistenceFunctions {
            request_elapsed_ms = COALESCE($21, request_elapsed_ms),
            request_timeout_ms = COALESCE($22, request_timeout_ms),
            circuit_state = COALESCE($23::varchar, circuit_state),
-           next_retry_at = CASE WHEN $2::varchar = 'failed' THEN CURRENT_TIMESTAMP + ($16::integer * INTERVAL '1 millisecond') ELSE next_retry_at END,
+           next_retry_at = CASE WHEN $2::varchar = 'failed' THEN CURRENT_TIMESTAMP + (COALESCE($24::integer, $16::integer) * INTERVAL '1 millisecond') ELSE next_retry_at END,
            lease_expires_at = CASE WHEN $2::varchar IN ('pending', 'running') THEN CURRENT_TIMESTAMP + ($17::integer * INTERVAL '1 millisecond') ELSE NULL END,
            metadata = jsonb_set(metadata || $14::jsonb, '{lifecycle}',
              COALESCE(metadata->'lifecycle', '[]'::jsonb) || jsonb_build_array($15::text))
@@ -465,7 +466,8 @@ export class GhlGuardPersistenceFunctions {
         details.requestAttempts ?? null,
         details.requestElapsedMs ?? null,
         details.requestTimeoutMs ?? null,
-        details.circuitState ?? null],
+        details.circuitState ?? null,
+        details.retryDelayMs ?? null],
     ) as GuardAuditRow[];
     if (rows[0]?.id) return;
 
