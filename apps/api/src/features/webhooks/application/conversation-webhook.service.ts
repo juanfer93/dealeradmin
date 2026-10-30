@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleDestroy, OnModuleInit, Optional, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
 import { GhlCustomerRepliedSchema } from '@dealeradmin/contracts';
 import type { DataSource, QueryRunner } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
@@ -33,6 +33,7 @@ export type * from './functions/conversations/conversation-webhook.types';
 
 @Injectable()
 export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(ConversationWebhookService.name);
   private duePollTimer?: ReturnType<typeof setInterval>;
   private duePollInFlight = false;
   private readonly queueService: ConversationQueueService;
@@ -59,8 +60,12 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
   onModuleInit(): void {
     if (process.env.NODE_ENV === 'test') return;
     this.duePollTimer = setInterval(() => {
-      void this.pollDueConversations();
-      void this.dispatchPendingQueuedPauseEvents();
+      void this.pollDueConversations().catch((error) => {
+        this.logger.error(`Automatic due-conversation poll failed: ${error instanceof Error ? error.message : String(error)}`);
+      });
+      void this.dispatchPendingQueuedPauseEvents().catch((error) => {
+        this.logger.error(`Pending queued-pause dispatch failed: ${error instanceof Error ? error.message : String(error)}`);
+      });
     }, DUE_CONVERSATION_POLL_MS);
     this.duePollTimer.unref?.();
   }
