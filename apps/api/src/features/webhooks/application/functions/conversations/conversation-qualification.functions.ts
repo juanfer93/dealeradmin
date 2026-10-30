@@ -223,6 +223,10 @@ export class ConversationQualificationFunctions {
         const assigned = candidates.find((row) => row.id === assignedDealerId);
         if (assigned) return assigned;
       }
+      // Keep the alternating group and its persisted history intact for a
+      // future reactivation, but route directly while only one candidate is
+      // active. This is the temporary White Marsh deactivation path.
+      if (candidates.length === 1) return candidates[0];
       if (candidates.length < 2) throw new BadRequestException(`El grupo alternado ${alternatingGroup} requiere al menos dos dealers activos`);
       const lockRows = await runner.query(
         `SELECT pg_try_advisory_xact_lock(hashtext($1)) AS acquired`,

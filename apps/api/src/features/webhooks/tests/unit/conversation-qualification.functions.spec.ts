@@ -2,6 +2,22 @@ import { describe, expect, it, vi } from 'vitest';
 import { ConversationQualificationFunctions } from '../../application/functions/conversations/conversation-qualification.functions';
 
 describe('ConversationQualificationFunctions', () => {
+  it('routes directly to the only active dealer while preserving the alternating group', async () => {
+    const runner = {
+      query: vi.fn().mockResolvedValueOnce([
+        { id: 'dealer-millersville', code: 'EAST-MILLERSVILLE', name: 'Easterns Millersville', timezone: 'America/New_York', routing_config: { allocation_key: 'easterns-millersville', allocation_order: 0 } },
+      ]),
+    };
+
+    const result = await new ConversationQualificationFunctions(
+      undefined,
+      { 'easterns-millersville': { locationId: 'millersville-location', defaultChannel: 'messenger', alternatingGroup: 'easterns-millersville' } } as never,
+    ).findSourceDealer(runner as never, 'millersville-location', 'easterns-millersville');
+
+    expect(result.id).toBe('dealer-millersville');
+    expect(runner.query).toHaveBeenCalledTimes(1);
+  });
+
   it('does not wait on the alternating dealer lock when another cycle owns it', async () => {
     const runner = {
       query: vi.fn()

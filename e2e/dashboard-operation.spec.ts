@@ -62,6 +62,17 @@ test.describe('Día 4 E2E Tests - Dashboard & Queue Operation', () => {
     await expect(table).not.toContainText('Andres Felipe');
   });
 
+  test('oculta White Marsh de la navegación y conserva Millersville visible', async ({ page }) => {
+    await page.goto('/login');
+    await page.fill('input[name="username"]', 'operator');
+    await page.fill('input[name="password"]', 'test-password');
+    await page.click('button[type="submit"]');
+    await expect(page).toHaveURL(/\/app$/);
+
+    await expect(page.getByRole('button', { name: /Easterns Millersville\s+\d+/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Easterns Nissan of White Marsh\s+\d+/ })).toHaveCount(0);
+  });
+
   test('El operador puede borrar un lead y la acción llega al endpoint persistente', async ({ page }) => {
     await page.goto('/login');
     await page.fill('input[name="username"]', 'operator');

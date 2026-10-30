@@ -63,7 +63,6 @@ export const testDealers: TestDealer[] = [
   { id: 'dealer-action-cars-es', code: 'ACTION-CARS-ES', name: 'Action Pre Owned Cars Español', pendingCount: 0, ghlLocationId: ACTION_CARS_LOCATION_ID },
   { id: 'dealer-action-cars-en', code: 'ACTION-CARS-EN', name: 'Action Pre Owned Cars English', pendingCount: 0, ghlLocationId: ACTION_CARS_LOCATION_ID },
   { id: 'dealer-easterns-millersville', code: 'EAST-MILLERSVILLE', name: 'Easterns Millersville', pendingCount: 0, ghlLocationId: EASTERN_MILLERSVILLE_LOCATION_ID },
-  { id: 'dealer-easterns-white-marsh', code: 'EAST-WHITE-MARSH', name: 'Easterns Nissan of White Marsh', pendingCount: 0, ghlLocationId: EASTERN_MILLERSVILLE_LOCATION_ID },
   { id: 'dealer-easterns-frederick', code: 'EAST-FREDERICK', name: 'Easterns Frederick', pendingCount: 0, ghlLocationId: EASTERN_FREDERICK_LOCATION_ID },
 ];
 

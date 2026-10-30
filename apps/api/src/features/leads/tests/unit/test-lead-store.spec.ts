@@ -6,12 +6,18 @@ import {
   resetTestLeadStore,
   testLead,
   smartMergeTestLead,
+  testDealers,
   updateTestLead,
 } from '../../application/test-lead-store';
 import { EASTERN_DEALER_IDS } from '../../../routing/domain/services/georouting.service';
 
 describe('Identidad de lead por dealer en fixtures', () => {
   beforeEach(() => resetTestLeadStore());
+
+  it('oculta White Marsh de la lista visible sin reemplazar Millersville', () => {
+    expect(testDealers.some((dealer) => dealer.name === 'Easterns Nissan of White Marsh')).toBe(false);
+    expect(testDealers.some((dealer) => dealer.name === 'Easterns Millersville')).toBe(true);
+  });
 
   it('bloquea el duplicado en el dealer destino pero permite el mismo lead en otro dealer', () => {
     addTestManualLead(

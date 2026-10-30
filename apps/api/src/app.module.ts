@@ -53,6 +53,7 @@ import { QueuedGuardReplayRetry1710000043000 } from './database/migrations/17100
 import { RequeueMp4VoiceAttachments1710000045000 } from './database/migrations/1710000045000-RequeueMp4VoiceAttachments';
 import { PartialGuardRecovery1710000047000 } from './database/migrations/1710000047000-PartialGuardRecovery';
 import { PartialGuardRecoveryLimit1710000048000 } from './database/migrations/1710000048000-PartialGuardRecoveryLimit';
+import { TemporarilyHideEasternsWhiteMarsh1710000049000 } from './database/migrations/1710000049000-TemporarilyHideEasternsWhiteMarsh';
 import { POSTGRES_EXTRA } from './database/postgres-connection-options';
 
 const databaseModule = TypeOrmModule.forRootAsync({
@@ -109,6 +110,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             RequeueMp4VoiceAttachments1710000045000,
             PartialGuardRecovery1710000047000,
             PartialGuardRecoveryLimit1710000048000,
+            TemporarilyHideEasternsWhiteMarsh1710000049000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,
