@@ -145,6 +145,35 @@ describe('LeadsController deletion', () => {
     expect(runner.commitTransaction).toHaveBeenCalledOnce();
     expect(runner.release).toHaveBeenCalledOnce();
   });
+
+  it('purges only the selected dealer relationship when the lead is shared', async () => {
+    process.env.NODE_ENV = 'production';
+    const runner = createRunner([
+      [{ id: 'lead-shared', ghl_contact_id: 'ghl-shared', ghl_location_id: 'loc-shared', canonical_phone: '+18046503373' }],
+      [{ lead_id: 'lead-shared' }],
+      [{ count: 2 }],
+      [{ lead_id: 'lead-shared' }],
+    ]);
+    const controller = createController(runner);
+
+    await expect(controller.purge({ cookies: {} } as never, 'lead-shared', 'dealer-spanish'))
+      .resolves.toEqual({
+        success: true,
+        deletedLead: false,
+        deletedRelationship: true,
+        deletedConversationCount: 0,
+        suppressed: false,
+      });
+
+    const calls = runner.query.mock.calls as unknown[][];
+    expect(calls[3]?.[0]).toContain('DELETE FROM lead_dealers');
+    expect(calls[3]?.[1]).toEqual(['lead-shared', 'dealer-spanish']);
+    expect(calls.some(([sql]) => String(sql).includes('DELETE FROM conversations'))).toBe(false);
+    expect(calls.some(([sql]) => String(sql).includes('DELETE FROM leads'))).toBe(false);
+    expect(calls.some(([sql]) => String(sql).includes('INSERT INTO lead_deletion_suppressions'))).toBe(false);
+    expect(runner.commitTransaction).toHaveBeenCalledOnce();
+    expect(runner.release).toHaveBeenCalledOnce();
+  });
 });
 
 describe('LeadsController queue read', () => {

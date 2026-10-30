@@ -1,4 +1,3 @@
-import { ConflictException } from '@nestjs/common';
 import type { QueryRunner } from 'typeorm';
 import { normalizePhone } from '../domain/phone-normalizer';
 
@@ -92,7 +91,23 @@ export async function purgeLeadForDealer(
     [leadId],
   ) as Array<{ count: number }>;
   if (Number(relationshipCountRows[0]?.count ?? 0) > 1) {
-    throw new ConflictException('El lead está vinculado a más de un dealer; se requiere una purga explícita global');
+    // A copied lead can intentionally share the same lead/conversation with
+    // another dealer. A global purge would remove the preserved dealer's
+    // conversation as well, so the strong delete is scoped to this dealer
+    // relationship when more than one dealer relationship remains.
+    const deletedRelationship = await runner.query(
+      `DELETE FROM lead_dealers
+       WHERE lead_id = $1
+         AND COALESCE(assigned_dealer_id, dealer_id) = $2
+       RETURNING lead_id`,
+      [leadId, dealerId],
+    ) as Array<{ lead_id: string }>;
+    return {
+      deletedLead: false,
+      deletedRelationship: deletedRelationship.length > 0,
+      deletedConversationCount: 0,
+      suppressed: false,
+    };
   }
 
   await acquireLeadSuppressionLock(runner, target.ghl_location_id, target.ghl_contact_id);
