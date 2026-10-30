@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import type { DataSource, QueryRunner } from 'typeorm';
-import { GHL_SOURCE_CONFIG, PARTIAL_RECOVERY_INTERVAL_MS, RECENT_AUTOMATION_WINDOW_MS, RECONCILIATION_LOCATION_IDS } from './functions/conversations/conversation-webhook.config';
+import { GHL_SOURCE_CONFIG, PARTIAL_RECOVERY_INTERVAL_MS, PARTIAL_RECOVERY_MAX_ATTEMPTS, RECENT_AUTOMATION_WINDOW_MS, RECONCILIATION_LOCATION_IDS } from './functions/conversations/conversation-webhook.config';
 import type { SourceConfigMap, SourceKey } from './functions/conversations/conversation-webhook.types';
 import { ConversationReconciliationFunctions } from './functions/conversations/conversation-reconciliation.functions';
 import { needsConversationLookup, sourceForLocation, isConversationIdentityConflict } from './functions/ghl-guard/ghl-guard.helpers';
@@ -270,7 +270,8 @@ export class GhlGuardService {
                AND retry_guard.next_retry_at > CURRENT_TIMESTAMP
            )
            AND (status <> 'partial'
-             OR (partial_recovery_next_attempt_at IS NOT NULL
+             OR (partial_recovery_enabled = true
+               AND partial_recovery_next_attempt_at IS NOT NULL
                AND partial_recovery_next_attempt_at <= CURRENT_TIMESTAMP))
          ORDER BY CASE WHEN due_retry.next_retry_at IS NOT NULL THEN 0 ELSE 1 END,
                   due_retry.next_retry_at ASC NULLS LAST,
@@ -329,12 +330,19 @@ export class GhlGuardService {
     if (!this.dataSource || row.status !== 'partial') return;
     await this.dataSource.query(
       `UPDATE conversations
-       SET partial_recovery_attempts = COALESCE(partial_recovery_attempts, 0) + 1,
+       SET partial_recovery_attempts = LEAST(COALESCE(partial_recovery_attempts, 0) + 1, $4::integer),
            partial_recovery_started_at = COALESCE(partial_recovery_started_at, $2::timestamptz),
-           partial_recovery_next_attempt_at = $2::timestamptz + ($3::integer * INTERVAL '1 millisecond'),
+           partial_recovery_enabled = CASE
+             WHEN COALESCE(partial_recovery_attempts, 0) + 1 >= $4::integer THEN false
+             ELSE true
+           END,
+           partial_recovery_next_attempt_at = CASE
+             WHEN COALESCE(partial_recovery_attempts, 0) + 1 >= $4::integer THEN NULL
+             ELSE $2::timestamptz + ($3::integer * INTERVAL '1 millisecond')
+           END,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $1 AND status = 'partial'`,
-      [row.id, now.toISOString(), PARTIAL_RECOVERY_INTERVAL_MS],
+      [row.id, now.toISOString(), PARTIAL_RECOVERY_INTERVAL_MS, PARTIAL_RECOVERY_MAX_ATTEMPTS],
     );
   }
 

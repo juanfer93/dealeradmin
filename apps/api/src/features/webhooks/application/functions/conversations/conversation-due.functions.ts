@@ -4,7 +4,7 @@ import { findQueuedConversationDuplicate, findQueuedConversationIdentityDuplicat
 import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
 import { ConversationQualificationFunctions } from './conversation-qualification.functions';
 import { ConversationReconciliationFunctions } from './conversation-reconciliation.functions';
-import { DUE_CONVERSATION_BATCH_SIZE, GHL_SOURCE_CONFIG, RECENT_AUTOMATION_WINDOW_MS, WAITING_WINDOW_MAX_ATTEMPTS, WAITING_WINDOW_RETRY_INTERVAL_MS } from './conversation-webhook.config';
+import { DUE_CONVERSATION_BATCH_SIZE, GHL_SOURCE_CONFIG, PARTIAL_RECOVERY_MAX_ATTEMPTS, RECENT_AUTOMATION_WINDOW_MS, WAITING_WINDOW_MAX_ATTEMPTS, WAITING_WINDOW_RETRY_INTERVAL_MS } from './conversation-webhook.config';
 import { clean } from './conversation-webhook.helpers';
 import type { ConversationSnapshot, LocationSnapshot, DueConversationHealth, DueConversationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
 import type { GhlGuardRunResult, GhlGuardService } from '../../ghl-guard.service';
@@ -69,6 +69,8 @@ export class ConversationDueFunctions {
               ) AS oldest_due_at,
               COUNT(*) FILTER (
                 WHERE status = 'partial'
+                  AND partial_recovery_enabled = true
+                  AND partial_recovery_attempts < ${PARTIAL_RECOVERY_MAX_ATTEMPTS}
                   AND partial_recovery_next_attempt_at IS NOT NULL
                   AND partial_recovery_next_attempt_at <= CURRENT_TIMESTAMP
                   ${recentOnly ? 'AND COALESCE(last_message_at, ready_at, partial_recovery_started_at, created_at) >= $1::timestamptz' : ''}
@@ -80,6 +82,8 @@ export class ConversationDueFunctions {
                          MIN(partial_conversation.partial_recovery_next_attempt_at) AS first_recovery_at
                   FROM conversations partial_conversation
                   WHERE partial_conversation.status = 'partial'
+                    AND partial_conversation.partial_recovery_enabled = true
+                    AND partial_conversation.partial_recovery_attempts < ${PARTIAL_RECOVERY_MAX_ATTEMPTS}
                     AND partial_conversation.ghl_contact_id IS NOT NULL
                     AND partial_conversation.partial_recovery_next_attempt_at IS NOT NULL
                     AND partial_conversation.partial_recovery_next_attempt_at <= CURRENT_TIMESTAMP
@@ -99,8 +103,10 @@ export class ConversationDueFunctions {
                     AND guard_log.next_retry_at IS NOT NULL
                     AND guard_log.next_retry_at <= CURRENT_TIMESTAMP
                     AND (guard_conversation.status <> 'partial'
-                      OR guard_conversation.partial_recovery_next_attempt_at IS NULL
-                      OR guard_conversation.partial_recovery_next_attempt_at <= CURRENT_TIMESTAMP)
+                      OR (guard_conversation.partial_recovery_enabled = true
+                        AND guard_conversation.partial_recovery_attempts < ${PARTIAL_RECOVERY_MAX_ATTEMPTS}
+                        AND guard_conversation.partial_recovery_next_attempt_at IS NOT NULL
+                        AND guard_conversation.partial_recovery_next_attempt_at <= CURRENT_TIMESTAMP))
                     ${recentOnly ? 'AND COALESCE(guard_conversation.last_message_at, guard_conversation.ready_at, guard_conversation.waiting_window_started_at, guard_conversation.created_at) >= $1::timestamptz' : ''}
                   GROUP BY guard_log.ghl_contact_id
                   ORDER BY first_retry_at ASC

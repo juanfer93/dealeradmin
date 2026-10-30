@@ -45,6 +45,7 @@ import { QualificationWaitingWindowAttempts1710000044000 } from './migrations/17
 import { RequeueMp4VoiceAttachments1710000045000 } from './migrations/1710000045000-RequeueMp4VoiceAttachments';
 import { LeadDeletionSuppressions1710000046000 } from './migrations/1710000046000-LeadDeletionSuppressions';
 import { PartialGuardRecovery1710000047000 } from './migrations/1710000047000-PartialGuardRecovery';
+import { PartialGuardRecoveryLimit1710000048000 } from './migrations/1710000048000-PartialGuardRecoveryLimit';
 import { POSTGRES_EXTRA } from './postgres-connection-options';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -105,6 +106,7 @@ export const AppDataSource = new DataSource({
     RequeueMp4VoiceAttachments1710000045000,
     LeadDeletionSuppressions1710000046000,
     PartialGuardRecovery1710000047000,
+    PartialGuardRecoveryLimit1710000048000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,
