@@ -1,0 +1,25 @@
+name: Monthly lead report
+
+on:
+  schedule:
+    # 17:00 UTC = 12:00 America/Bogota on the first day of each month.
+    - cron: '0 17 1 * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  send-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Run monthly report on Render
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$CRON_SECRET"
+          curl --fail-with-body --silent --show-error --request GET \
+            --connect-timeout 10 --max-time 120 \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            "https://dealeradmin.onrender.com/api/reports/monthly/run"

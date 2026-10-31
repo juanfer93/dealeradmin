@@ -32,7 +32,7 @@ jobs:
             --header "Authorization: Bearer $CRON_SECRET" \
             --data-urlencode "since=$SINCE" \
             --data-urlencode "limit=$LIMIT" \
-            "https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/replay-failed")"
+            "https://dealeradmin.onrender.com/api/webhooks/ghl/replay-failed")"
           printf '%s\n' "$response"
           node - "$response" <<'NODE'
           const result = JSON.parse(process.argv[2] ?? '{}');

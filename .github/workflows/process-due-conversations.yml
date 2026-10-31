@@ -25,7 +25,7 @@ jobs:
       guard_contact_ids: ${{ steps.release_due.outputs.guard_contact_ids }}
     # Four 60-second HTTP attempts plus three 10-second backoffs need more
     # than two minutes. Keep the timeout above the retry budget so a slow
-    # Vercel invocation is retried instead of leaving due rows stranded.
+    # Render invocation is retried instead of leaving due rows stranded.
     timeout-minutes: 6
     concurrency:
       group: process-due-release
@@ -39,7 +39,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$CRON_SECRET"
-          base_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/process-due-only"
+          base_url="https://dealeradmin.onrender.com/api/webhooks/ghl/conversations/process-due-only"
           target_url="$base_url"
           if [ -n "$CONTACT_IDS" ]; then
             target_url="$target_url?contact_ids=$CONTACT_IDS"
@@ -138,7 +138,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$CRON_SECRET"
-          guard_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/run-guard?contact_ids=$CONTACT_IDS&reconcile=true"
+          guard_url="https://dealeradmin.onrender.com/api/webhooks/ghl/conversations/run-guard?contact_ids=$CONTACT_IDS&reconcile=true"
           max_attempts=4
           retry_delay_seconds=30
 
@@ -188,7 +188,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$CRON_SECRET"
-          backup_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/run-guard?queued_backup=true"
+          backup_url="https://dealeradmin.onrender.com/api/webhooks/ghl/conversations/run-guard?queued_backup=true"
           # A webhook-triggered Guard may legitimately hold the global lease
           # while it finishes a slow GHL read. Drain several bounded batches
           # per workflow run, while leaving the remainder for the next cron.
@@ -276,7 +276,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$CRON_SECRET"
-          guard_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/run-guard"
+          guard_url="https://dealeradmin.onrender.com/api/webhooks/ghl/conversations/run-guard"
           if [ -n "$CONTACT_IDS" ]; then
             guard_url="$guard_url?contact_ids=$CONTACT_IDS&reconcile=true"
           fi

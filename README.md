@@ -7,7 +7,7 @@ Monorepo for the dealerADMIN operator console. The workspace contains a NestJS A
 1. Copy `.env.example` to `.env` and fill in secrets locally. Never commit the real file.
 2. Generate an Argon2id password hash with `node -e "require('argon2').hash('your-password').then(console.log)"` after dependencies are installed.
 3. Run `pnpm install`.
-4. Run the migration against Neon with the TypeORM migration command documented in `apps/api/README.md`.
+4. Run the migration against the configured PostgreSQL database with the TypeORM migration command documented in `apps/api/README.md`.
 5. Use `pnpm dev` from each app while developing, or run `pnpm build` for a production compilation check.
 
 The API rejects invalid configuration at startup. The webhook endpoint accepts only a valid `X-GHL-Signature` HMAC over the raw request body.
@@ -20,13 +20,13 @@ The API rejects invalid configuration at startup. The webhook endpoint accepts o
 
 ## Production migrations
 
-Vercel runs `pnpm --filter api migrate` before `pnpm build`, so every production deployment applies pending TypeORM migrations against the configured `DATABASE_URL` (Neon). Configure `DATABASE_URL` in Vercel for the Production environment before deploying. The command is idempotent: already-applied migrations are skipped.
+Render runs `pnpm --filter api migrate` after the production build, so every deployment applies pending TypeORM migrations against the configured `DATABASE_URL`. The command is idempotent: already-applied migrations are skipped.
 
 ## Verificación completa de conversaciones y GHL Guard
 
 La recepción del webhook sigue siendo la fuente principal. El GHL Guard es una capa de auditoría y reparación que prioriza conversaciones con `last_message_at` más reciente, vuelve a leer sus mensajes mediante el token privado de la subcuenta y reutiliza la normalización existente únicamente cuando encuentra datos faltantes o atrasados por latencia. No reemplaza el webhook ni cambia las reglas de routing.
 
-El scheduler del guard está en GitHub Actions, en `.github/workflows/process-due-conversations.yml`, y se ejecuta cada cinco minutos contra `GET /api/webhooks/ghl/conversations/process-due`. El workflow usa el secreto de repositorio `CRON_SECRET` y también puede ejecutarse manualmente con `workflow_dispatch`. No se configura ese intervalo en `vercel.json` porque la cuenta Hobby de Vercel solo permite cron jobs diarios; Vercel conserva únicamente el cron mensual del reporte.
+El scheduler del guard está en GitHub Actions, en `.github/workflows/process-due-conversations.yml`, y se ejecuta cada cinco minutos contra el API publicado en Render. El workflow usa el secreto de repositorio `CRON_SECRET` y también puede ejecutarse manualmente con `workflow_dispatch`. El reporte mensual se ejecuta mediante `.github/workflows/monthly-report.yml`, también contra Render.
 
 Para diagnosticar una conversación se debe seguir toda la cadena en Neon:
 

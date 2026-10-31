@@ -11,7 +11,7 @@ TypeORM is configured with `synchronize: false`. Run migrations explicitly after
 pnpm --filter api migrate
 ```
 
-The Vercel build also runs that command automatically before compiling the app. It creates the routing tables and the `lead_ingestion_batches` / `lead_ingestion_rows` audit tables for bulk uploads.
+The Render build also runs that command automatically after compiling the app. It creates the routing tables and the `lead_ingestion_batches` / `lead_ingestion_rows` audit tables for bulk uploads.
 
 ## Reglas de calificación para dealerADMIN
 
@@ -35,7 +35,7 @@ Cada fila conserva el ciclo `pending` → `running` → `succeeded`/`failed`/`sk
 
 El endpoint del cron ejecuta la liberación de vencidos y el guard en el mismo request, pero deja fuera la pasada pesada de reconciliación activa para conservar el presupuesto de tiempo de la función serverless. La reparación de latencia ocurre cuando el guard vuelve a leer GHL, inserta los mensajes que falten y ejecuta la normalización aditiva; una conversación que ya tiene información en GHL puede completar su copia local en el siguiente ciclo de cinco minutos sin borrar datos existentes.
 
-El ciclo automático de cinco minutos lo ejecuta GitHub Actions mediante `.github/workflows/process-due-conversations.yml`. El repositorio debe tener configurado el secreto `CRON_SECRET`, con el mismo valor que usa la API. El cron mensual permanece en Vercel; no se debe mover el guard de cinco minutos a `vercel.json` mientras el proyecto esté en el plan Hobby.
+El ciclo automático de cinco minutos lo ejecuta GitHub Actions mediante `.github/workflows/process-due-conversations.yml`. El repositorio debe tener configurado el secreto `CRON_SECRET`, con el mismo valor que usa la API. El reporte mensual lo ejecuta `.github/workflows/monthly-report.yml` contra Render.
 
 Variables opcionales:
 

@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 15
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      DEALERADMIN_API_URL: https://dealeradmin-api-eight.vercel.app/api
+      DEALERADMIN_API_URL: https://dealeradmin.onrender.com/api
       GHL_WEBHOOK_SECRET: ${{ secrets.GHL_WEBHOOK_SECRET }}
       GHL_MEDIA_BEARER_TOKEN: ${{ secrets.GHL_MEDIA_BEARER_TOKEN }}
       MEDIA_LOCAL_VISION_MODEL: HuggingFaceTB/SmolVLM-500M-Instruct

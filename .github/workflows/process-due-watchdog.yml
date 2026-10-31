@@ -45,7 +45,7 @@ jobs:
           fi
 
           test -n "$CRON_SECRET"
-          health_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/due-health?recent_only=true"
+          health_url="https://dealeradmin.onrender.com/api/webhooks/ghl/conversations/due-health?recent_only=true"
           if ! health_response="$(curl --fail-with-body --silent --show-error \
             --connect-timeout 10 --max-time 30 \
             --header "Authorization: Bearer $CRON_SECRET" \
@@ -93,7 +93,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$CRON_SECRET"
-          endpoint="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/watchdog"
+          endpoint="https://dealeradmin.onrender.com/api/webhooks/ghl/conversations/watchdog"
           max_attempts=4
           retry_delay_seconds=10
 
@@ -179,7 +179,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$CRON_SECRET"
-          guard_url="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/run-guard?contact_ids=$CONTACT_IDS&reconcile=true"
+          guard_url="https://dealeradmin.onrender.com/api/webhooks/ghl/conversations/run-guard?contact_ids=$CONTACT_IDS&reconcile=true"
           max_attempts=4
           retry_delay_seconds=30
 
@@ -228,7 +228,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$CRON_SECRET"
-          endpoint="https://dealeradmin-api-eight.vercel.app/api/webhooks/ghl/conversations/run-guard?queued_backup=true"
+          endpoint="https://dealeradmin.onrender.com/api/webhooks/ghl/conversations/run-guard?queued_backup=true"
           max_batches=5
           retry_delay_seconds=20
           progress=0
