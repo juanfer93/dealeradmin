@@ -44,8 +44,11 @@ export class ConversationDueFunctions {
 
     const recentOnly = options.recentOnly === true;
     const recentCutoff = new Date((options.now ?? new Date()).getTime() - RECENT_AUTOMATION_WINDOW_MS).toISOString();
+    // A Guard reconciliation can refresh ready_at/waiting_window_started_at
+    // while last_message_at remains older. Use the latest lifecycle activity
+    // so an active waiting window cannot age out of unattended recovery.
     const recentPredicate = recentOnly
-      ? ` AND COALESCE(last_message_at, ready_at, waiting_window_started_at, created_at) >= $1::timestamptz`
+      ? ` AND GREATEST(last_message_at, ready_at, waiting_window_started_at, created_at) >= $1::timestamptz`
       : '';
     const recentParams = recentOnly ? [recentCutoff] : [];
     const summary = await this.dataSource.query(
@@ -55,17 +58,17 @@ export class ConversationDueFunctions {
                 WHERE status = 'waiting_window'
                   AND next_attempt_at IS NOT NULL
                   AND next_attempt_at <= CURRENT_TIMESTAMP
-                  ${recentOnly ? 'AND COALESCE(last_message_at, ready_at, waiting_window_started_at, created_at) >= $1::timestamptz' : ''}
+                  ${recentOnly ? 'AND GREATEST(last_message_at, ready_at, waiting_window_started_at, created_at) >= $1::timestamptz' : ''}
               )::int AS overdue_count,
               COUNT(*) FILTER (
                 WHERE status = 'waiting_window' AND next_attempt_at IS NULL
-                  ${recentOnly ? 'AND COALESCE(last_message_at, ready_at, waiting_window_started_at, created_at) >= $1::timestamptz' : ''}
+                  ${recentOnly ? 'AND GREATEST(last_message_at, ready_at, waiting_window_started_at, created_at) >= $1::timestamptz' : ''}
               )::int AS missing_next_attempt_count,
               MIN(next_attempt_at) FILTER (
                 WHERE status = 'waiting_window'
                   AND next_attempt_at IS NOT NULL
                   AND next_attempt_at <= CURRENT_TIMESTAMP
-                  ${recentOnly ? 'AND COALESCE(last_message_at, ready_at, waiting_window_started_at, created_at) >= $1::timestamptz' : ''}
+                  ${recentOnly ? 'AND GREATEST(last_message_at, ready_at, waiting_window_started_at, created_at) >= $1::timestamptz' : ''}
               ) AS oldest_due_at,
               COUNT(*) FILTER (
                 WHERE status = 'partial'
@@ -73,7 +76,7 @@ export class ConversationDueFunctions {
                   AND partial_recovery_attempts < ${PARTIAL_RECOVERY_MAX_ATTEMPTS}
                   AND partial_recovery_next_attempt_at IS NOT NULL
                   AND partial_recovery_next_attempt_at <= CURRENT_TIMESTAMP
-                  ${recentOnly ? 'AND COALESCE(last_message_at, ready_at, partial_recovery_started_at, created_at) >= $1::timestamptz' : ''}
+                  ${recentOnly ? 'AND GREATEST(last_message_at, ready_at, partial_recovery_started_at, created_at) >= $1::timestamptz' : ''}
               )::int AS partial_recovery_due_count,
               COALESCE((
                 SELECT ARRAY_AGG(partial_guard.ghl_contact_id ORDER BY partial_guard.first_recovery_at)
@@ -87,7 +90,7 @@ export class ConversationDueFunctions {
                     AND partial_conversation.ghl_contact_id IS NOT NULL
                     AND partial_conversation.partial_recovery_next_attempt_at IS NOT NULL
                     AND partial_conversation.partial_recovery_next_attempt_at <= CURRENT_TIMESTAMP
-                    ${recentOnly ? 'AND COALESCE(partial_conversation.last_message_at, partial_conversation.ready_at, partial_conversation.partial_recovery_started_at, partial_conversation.created_at) >= $1::timestamptz' : ''}
+                    ${recentOnly ? 'AND GREATEST(partial_conversation.last_message_at, partial_conversation.ready_at, partial_conversation.partial_recovery_started_at, partial_conversation.created_at) >= $1::timestamptz' : ''}
                   GROUP BY partial_conversation.ghl_contact_id
                   ORDER BY first_recovery_at ASC
                   LIMIT ${DUE_CONVERSATION_BATCH_SIZE}
@@ -107,7 +110,7 @@ export class ConversationDueFunctions {
                         AND guard_conversation.partial_recovery_attempts < ${PARTIAL_RECOVERY_MAX_ATTEMPTS}
                         AND guard_conversation.partial_recovery_next_attempt_at IS NOT NULL
                         AND guard_conversation.partial_recovery_next_attempt_at <= CURRENT_TIMESTAMP))
-                    ${recentOnly ? 'AND COALESCE(guard_conversation.last_message_at, guard_conversation.ready_at, guard_conversation.waiting_window_started_at, guard_conversation.created_at) >= $1::timestamptz' : ''}
+                    ${recentOnly ? 'AND GREATEST(guard_conversation.last_message_at, guard_conversation.ready_at, guard_conversation.waiting_window_started_at, guard_conversation.created_at) >= $1::timestamptz' : ''}
                   GROUP BY guard_log.ghl_contact_id
                   ORDER BY first_retry_at ASC
                   LIMIT ${DUE_CONVERSATION_BATCH_SIZE}
@@ -131,7 +134,7 @@ export class ConversationDueFunctions {
        WHERE status = 'waiting_window'
          AND next_attempt_at IS NOT NULL
          AND next_attempt_at <= CURRENT_TIMESTAMP
-         ${recentOnly ? 'AND COALESCE(last_message_at, ready_at, waiting_window_started_at, created_at) >= $1::timestamptz' : ''}
+         ${recentOnly ? 'AND GREATEST(last_message_at, ready_at, waiting_window_started_at, created_at) >= $1::timestamptz' : ''}
        ORDER BY next_attempt_at ASC
        LIMIT ${recentOnly ? '$2' : '$1'}`,
       recentOnly ? [recentCutoff, DUE_CONVERSATION_BATCH_SIZE] : [DUE_CONVERSATION_BATCH_SIZE],
@@ -196,7 +199,7 @@ export class ConversationDueFunctions {
              waiting_window_attempts = GREATEST(waiting_window_attempts, 0),
              waiting_window_started_at = COALESCE(waiting_window_started_at, $1::timestamptz)
          WHERE status = 'waiting_window' AND next_attempt_at IS NULL
-           ${recentOnly ? 'AND COALESCE(last_message_at, ready_at, waiting_window_started_at, created_at) >= $2::timestamptz' : ''}`,
+           ${recentOnly ? 'AND GREATEST(last_message_at, ready_at, waiting_window_started_at, created_at) >= $2::timestamptz' : ''}`,
         recentOnly ? [now.toISOString(), recentCutoff] : [now.toISOString()],
       );
     }
@@ -211,7 +214,7 @@ export class ConversationDueFunctions {
       : await this.dataSource.query(
         `SELECT c.id, c.ghl_contact_id FROM conversations c
          WHERE c.status = 'waiting_window' AND c.next_attempt_at IS NOT NULL AND c.next_attempt_at <= $1
-           ${recentOnly ? 'AND COALESCE(c.last_message_at, c.ready_at, c.waiting_window_started_at, c.created_at) >= $3::timestamptz' : ''}
+           ${recentOnly ? 'AND GREATEST(c.last_message_at, c.ready_at, c.waiting_window_started_at, c.created_at) >= $3::timestamptz' : ''}
          ORDER BY c.next_attempt_at ASC LIMIT $2`,
         recentOnly ? [now.toISOString(), DUE_CONVERSATION_BATCH_SIZE, recentCutoff] : [now.toISOString(), DUE_CONVERSATION_BATCH_SIZE],
       ) as Array<{ id: string; ghl_contact_id: string }>;
@@ -315,7 +318,7 @@ export class ConversationDueFunctions {
         : await this.dataSource.query(
           `SELECT COUNT(*)::int AS count FROM conversations
            WHERE status = 'waiting_window' AND next_attempt_at IS NOT NULL AND next_attempt_at <= $1
-             ${recentOnly ? 'AND COALESCE(last_message_at, ready_at, waiting_window_started_at, created_at) >= $2::timestamptz' : ''}`,
+             ${recentOnly ? 'AND GREATEST(last_message_at, ready_at, waiting_window_started_at, created_at) >= $2::timestamptz' : ''}`,
           recentOnly ? [now.toISOString(), recentCutoff] : [now.toISOString()],
         ) as Array<{ count: number | string }>;
       remainingDue = Number(remainingRows?.[0]?.count ?? 0);
