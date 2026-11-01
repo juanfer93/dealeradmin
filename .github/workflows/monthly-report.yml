@@ -4,8 +4,7 @@ on:
   schedule:
     # 17:00-17:50 UTC = 12:00-12:50 America/Bogota on the first day of each month.
     # The monthly service is idempotent per period, so these bounded safety ticks
-    # absorb a missed GitHub schedule event or a cold Render instance without
-    # sending the report more than once.
+    # absorb a missed GitHub schedule event without sending the report more than once.
     - cron: '0,10,20,30,40,50 17 1 * *'
   workflow_dispatch:
 
@@ -18,16 +17,41 @@ concurrency:
 jobs:
   send-report:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
-      - name: Run monthly report on Render
+      - name: Check out the report runner
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Send monthly report from GitHub Actions
         env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          MONTHLY_REPORTS_ENABLED: 'true'
+          MONTHLY_REPORTS_DRY_RUN: 'false'
+          MONTHLY_REPORTS_FROM: ${{ secrets.MONTHLY_REPORTS_FROM }}
+          MONTHLY_REPORTS_TO: ${{ secrets.MONTHLY_REPORTS_TO }}
+          MONTHLY_REPORTS_TIMEZONE: ${{ secrets.MONTHLY_REPORTS_TIMEZONE }}
+          MONTHLY_REPORTS_SEND_HOUR: ${{ secrets.MONTHLY_REPORTS_SEND_HOUR }}
+          MONTHLY_REPORTS_SEND_MINUTE: ${{ secrets.MONTHLY_REPORTS_SEND_MINUTE }}
+          MONTHLY_REPORTS_SMTP_HOST: ${{ secrets.MONTHLY_REPORTS_SMTP_HOST }}
+          MONTHLY_REPORTS_SMTP_PORT: ${{ secrets.MONTHLY_REPORTS_SMTP_PORT }}
+          MONTHLY_REPORTS_SMTP_SECURE: ${{ secrets.MONTHLY_REPORTS_SMTP_SECURE }}
+          MONTHLY_REPORTS_SMTP_PASSWORD: ${{ secrets.MONTHLY_REPORTS_SMTP_PASSWORD }}
         run: |
           set -euo pipefail
-          test -n "$CRON_SECRET"
-          curl --fail-with-body --silent --show-error --request GET \
-            --connect-timeout 10 --max-time 120 \
-            --retry 2 --retry-all-errors --retry-delay 15 --retry-max-time 180 \
-            --header "Authorization: Bearer $CRON_SECRET" \
-            "https://dealeradmin.onrender.com/api/reports/monthly/run"
+          test -n "$DATABASE_URL"
+          test -n "$MONTHLY_REPORTS_SMTP_PASSWORD"
+          pnpm --filter api run:monthly-report
