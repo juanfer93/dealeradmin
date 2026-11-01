@@ -23,7 +23,8 @@ describe('monthly lead reports', () => {
     expect(parseMonthlyReportsConfig({
       MONTHLY_REPORTS_ENABLED: 'true',
       MONTHLY_REPORTS_SMTP_PASSWORD: 'unit-test-placeholder',
-    })).toMatchObject({ enabled: true, from: 'jfpi_0793@icloud.com', to: 'pixelmediacolombia@gmail.com', smtpPort: 587 });
+      MONTHLY_REPORTS_CC: 'jfpi_0793@hotmail.com',
+    })).toMatchObject({ enabled: true, from: 'jfpi_0793@icloud.com', to: 'pixelmediacolombia@gmail.com', cc: 'jfpi_0793@hotmail.com', smtpPort: 587 });
   });
 
   it('calculates the October 2026 period at noon in Bogota and labels the reported month', () => {
@@ -46,6 +47,7 @@ describe('monthly lead reports', () => {
   it('builds the same summary and attachment contract passed to the mailer', async () => {
     vi.stubEnv('MONTHLY_REPORTS_ENABLED', 'true');
     vi.stubEnv('MONTHLY_REPORTS_SMTP_PASSWORD', 'unit-test-placeholder');
+    vi.stubEnv('MONTHLY_REPORTS_CC', 'jfpi_0793@hotmail.com');
     const sent: ReportMail[] = [];
     const order: string[] = [];
     const query = vi.fn(async (sql: string, _params?: unknown[]) => {
@@ -76,6 +78,7 @@ describe('monthly lead reports', () => {
     expect(sent[0]).toMatchObject({
       from: 'jfpi_0793@icloud.com',
       to: ['pixelmediacolombia@gmail.com'],
+      cc: ['jfpi_0793@hotmail.com'],
       subject: 'Reporte leads (Octubre 2026)',
       attachment: { filename: 'Reporte leads (Octubre 2026).xlsx' },
     });

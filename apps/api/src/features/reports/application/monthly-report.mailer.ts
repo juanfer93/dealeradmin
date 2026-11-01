@@ -6,6 +6,7 @@ import type { MonthlyReportsConfig } from '@dealeradmin/config';
 export type ReportMail = {
   from: string;
   to: string[];
+  cc?: string[];
   subject: string;
   text: string;
   attachment: { filename: string; content: Buffer };
@@ -80,12 +81,14 @@ export class SmtpReportMailer implements ReportMailer {
       await command(socket, Buffer.from(this.config.smtpUser, 'utf8').toString('base64'));
       await command(socket, Buffer.from(this.config.smtpPassword, 'utf8').toString('base64'));
       await command(socket, `MAIL FROM:<${message.from}>`);
-      for (const recipient of message.to) await command(socket, `RCPT TO:<${recipient}>`);
+      const cc = message.cc ?? [];
+      for (const recipient of [...message.to, ...cc]) await command(socket, `RCPT TO:<${recipient}>`);
       await command(socket, 'DATA');
       const boundary = `dealeradmin-${randomUUID()}`;
       const payload = [
         `From: ${message.from}`,
         `To: ${message.to.join(', ')}`,
+        ...(cc.length > 0 ? [`Cc: ${cc.join(', ')}`] : []),
         `Subject: ${encodedHeader(message.subject)}`,
         'MIME-Version: 1.0',
         `Content-Type: multipart/mixed; boundary="${boundary}"`,

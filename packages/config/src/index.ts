@@ -19,6 +19,7 @@ export type MonthlyReportsConfig = {
   enabled: boolean;
   from: string;
   to: string;
+  cc: string;
   timezone: string;
   sendHour: number;
   sendMinute: number;
@@ -46,6 +47,19 @@ function parseEmail(value: string | undefined, key: string, required: boolean): 
   return normalized;
 }
 
+function parseEmailList(value: string | undefined, key: string, required: boolean): string {
+  const emails = (value ?? '')
+    .split(',')
+    .map((email) => email.trim())
+    .filter(Boolean);
+  if (emails.length === 0) {
+    if (required) throw new Error(`Invalid monthly reports email configuration: ${key}.`);
+    return '';
+  }
+  emails.forEach((email) => parseEmail(email, key, true));
+  return emails.join(',');
+}
+
 export function parseMonthlyReportsConfig(source: NodeJS.ProcessEnv = process.env): MonthlyReportsConfig {
   const enabled = source.MONTHLY_REPORTS_ENABLED === MONTHLY_REPORTS_TRUE;
   if (!enabled) {
@@ -53,6 +67,7 @@ export function parseMonthlyReportsConfig(source: NodeJS.ProcessEnv = process.en
       enabled: false,
       from: '',
       to: '',
+      cc: '',
       timezone: 'America/Bogota',
       sendHour: 12,
       sendMinute: 0,
@@ -88,7 +103,8 @@ export function parseMonthlyReportsConfig(source: NodeJS.ProcessEnv = process.en
   const smtpSecure = parseExactBoolean(source.MONTHLY_REPORTS_SMTP_SECURE, false);
   const dryRun = parseExactBoolean(source.MONTHLY_REPORTS_DRY_RUN, false);
   const from = parseEmail(source.MONTHLY_REPORTS_FROM ?? 'jfpi_0793@icloud.com', 'MONTHLY_REPORTS_FROM', true);
-  const to = parseEmail(source.MONTHLY_REPORTS_TO ?? 'pixelmediacolombia@gmail.com', 'MONTHLY_REPORTS_TO', true);
+  const to = parseEmailList(source.MONTHLY_REPORTS_TO ?? 'pixelmediacolombia@gmail.com', 'MONTHLY_REPORTS_TO', true);
+  const cc = parseEmailList(source.MONTHLY_REPORTS_CC, 'MONTHLY_REPORTS_CC', false);
   const smtpHost = source.MONTHLY_REPORTS_SMTP_HOST?.trim() || 'smtp.mail.me.com';
   const smtpUser = parseEmail(source.MONTHLY_REPORTS_SMTP_USER ?? from, 'MONTHLY_REPORTS_SMTP_USER', true);
   if (smtpUser.toLowerCase() !== from.toLowerCase()) {
@@ -97,7 +113,7 @@ export function parseMonthlyReportsConfig(source: NodeJS.ProcessEnv = process.en
   const smtpPassword = source.MONTHLY_REPORTS_SMTP_PASSWORD ?? '';
   if (!smtpPassword) throw new Error('MONTHLY_REPORTS_SMTP_PASSWORD is required when monthly reports are enabled.');
 
-  return { enabled, from, to, timezone, sendHour, sendMinute, smtpHost, smtpPort, smtpSecure, smtpUser, smtpPassword, dryRun };
+  return { enabled, from, to, cc, timezone, sendHour, sendMinute, smtpHost, smtpPort, smtpSecure, smtpUser, smtpPassword, dryRun };
 }
 
 export function parseEnvironment(source: NodeJS.ProcessEnv = process.env): Environment {

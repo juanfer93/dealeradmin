@@ -43,6 +43,7 @@ jobs:
           MONTHLY_REPORTS_DRY_RUN: 'false'
           MONTHLY_REPORTS_FROM: ${{ secrets.MONTHLY_REPORTS_FROM }}
           MONTHLY_REPORTS_TO: ${{ secrets.MONTHLY_REPORTS_TO }}
+          MONTHLY_REPORTS_CC: ${{ secrets.MONTHLY_REPORTS_CC }}
           MONTHLY_REPORTS_TIMEZONE: ${{ secrets.MONTHLY_REPORTS_TIMEZONE }}
           MONTHLY_REPORTS_SEND_HOUR: ${{ secrets.MONTHLY_REPORTS_SEND_HOUR }}
           MONTHLY_REPORTS_SEND_MINUTE: ${{ secrets.MONTHLY_REPORTS_SEND_MINUTE }}
@@ -54,4 +55,5 @@ jobs:
           set -euo pipefail
           test -n "$DATABASE_URL"
           test -n "$MONTHLY_REPORTS_SMTP_PASSWORD"
+          pnpm --filter @dealeradmin/config build
           pnpm --filter api run:monthly-report

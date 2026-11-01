@@ -186,6 +186,7 @@ export class MonthlyReportService {
       const message: ReportMail = {
         from: config.from,
         to: config.to.split(',').map((value) => value.trim()).filter(Boolean),
+        cc: config.cc.split(',').map((value) => value.trim()).filter(Boolean),
         subject,
         text: body,
         attachment: { filename: fileName, content: report.buffer },
