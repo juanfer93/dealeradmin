@@ -2,11 +2,18 @@ name: Monthly lead report
 
 on:
   schedule:
-    # 17:00 UTC = 12:00 America/Bogota on the first day of each month.
-    - cron: '0 17 1 * *'
+    # 17:00-17:50 UTC = 12:00-12:50 America/Bogota on the first day of each month.
+    # The monthly service is idempotent per period, so these bounded safety ticks
+    # absorb a missed GitHub schedule event or a cold Render instance without
+    # sending the report more than once.
+    - cron: '0,10,20,30,40,50 17 1 * *'
   workflow_dispatch:
 
 permissions: {}
+
+concurrency:
+  group: monthly-lead-report
+  cancel-in-progress: false
 
 jobs:
   send-report:
@@ -21,5 +28,6 @@ jobs:
           test -n "$CRON_SECRET"
           curl --fail-with-body --silent --show-error --request GET \
             --connect-timeout 10 --max-time 120 \
+            --retry 2 --retry-all-errors --retry-delay 15 --retry-max-time 180 \
             --header "Authorization: Bearer $CRON_SECRET" \
             "https://dealeradmin.onrender.com/api/reports/monthly/run"
