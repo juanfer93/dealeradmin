@@ -159,8 +159,8 @@ export class GhlGuardService {
            AND ghl_contact_id = ANY($3::text[])
            ${recentPredicate}
            ${queuedOnly ? "AND status = 'queued' AND queued_guard_replay_count = 0" : ''}
-           ${queuedSiblingExclusionSql('c')}
-           ${canonicalConversationExclusionSql('c')}
+           ${targeted ? '' : queuedSiblingExclusionSql('c')}
+           ${targeted ? '' : canonicalConversationExclusionSql('c')}
            AND NOT EXISTS (
              SELECT 1 FROM ghl_guard_logs active_guard
              WHERE active_guard.conversation_id = c.id
