@@ -2396,6 +2396,32 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeRealName('Tienes Tacomas')).toBe('');
   });
 
+  it('falls back to the Stafford WhatsApp contact name when the conversation only has a greeting', () => {
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Buen Dis',
+      phone: '+16862055349',
+      message: 'Buen día',
+      chat_history_log: 'Buen día',
+    });
+
+    expect(result.real_name).toBe('Buen Dis');
+  });
+
+  it('prefers a real Stafford WhatsApp name declared after a greeting', () => {
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Buen Dis',
+      phone: '+16862055349',
+      message: 'Jessica',
+      chat_history_log: 'Buen día\nJessica',
+    });
+
+    expect(result.real_name).toBe('Jessica');
+  });
+
   it('does not use a vehicle statement as an Arlington buyer name', () => {
     expect(normalizeCollectorInput({
       source: 'arlington',

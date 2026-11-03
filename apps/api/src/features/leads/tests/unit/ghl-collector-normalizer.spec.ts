@@ -1113,6 +1113,26 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.qualification_progress.predicted_bot_question).toBe('');
   });
 
+  it('uses the Stafford contact name after a greeting, but prefers a later real name', () => {
+    expect(execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Buen Dis',
+      phone: '+16862055349',
+      message: 'Buen día',
+      chat_history_log: 'Buen día',
+    }).real_name).toBe('Buen Dis');
+
+    expect(execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Buen Dis',
+      phone: '+16862055349',
+      message: 'Jessica',
+      chat_history_log: 'Buen día\nJessica',
+    }).real_name).toBe('Jessica');
+  });
+
   it('does not cross transcript lines and read a phone area code as down payment in Custom Code', () => {
     const result = execute({
       phone: '+14438626592',
