@@ -157,6 +157,7 @@ export class GhlGuardService {
          WHERE status NOT IN ('sent', 'ignored_channel', 'stale_phone_ignored')
            AND ghl_location_id = ANY($2::text[])
            AND ghl_contact_id = ANY($3::text[])
+           ${targeted ? "AND status <> 'duplicate_ignored'" : ''}
            ${recentPredicate}
            ${queuedOnly ? "AND status = 'queued' AND queued_guard_replay_count = 0" : ''}
            ${targeted ? '' : queuedSiblingExclusionSql('c')}

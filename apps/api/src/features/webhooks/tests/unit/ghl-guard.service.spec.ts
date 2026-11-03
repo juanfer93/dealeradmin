@@ -338,6 +338,7 @@ describe('GhlGuardService', () => {
     expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(row.id, expect.any(Date), true, true, true, false);
     const selectionCall = lockRunner.query.mock.calls.find(([sql]) => String(sql).includes('FROM conversations')) as [string, unknown[]] | undefined;
     expect(selectionCall?.[0]).toContain('ghl_contact_id = ANY($3::text[])');
+    expect(selectionCall?.[0]).toContain("status <> 'duplicate_ignored'");
     expect(selectionCall?.[0]).not.toContain('queued_sibling');
     expect(selectionCall?.[0]).not.toContain('canonical_sibling');
     expect(selectionCall?.[1]).toEqual([expect.any(Number), expect.arrayContaining([row.ghl_location_id]), ['contact-targeted']]);
