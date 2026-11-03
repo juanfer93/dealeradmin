@@ -82,7 +82,7 @@ export function isPhoneAreaCodeAmount(value: string, phone: string): boolean {
 const INVALID_REAL_NAMES = new Set([
   '.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'location', 'whatsapp', 'facebook',
   'in pa', 'in messenger', 'for sure', 'tienes tacomas', 'sorry',
-  'saludos', 'hello', 'hi', 'hey', 'hola', 'ola', 'greetings', 'buen dia', 'buen día', 'buenos dias', 'buenos días', 'buenas tardes',
+  'saludos', 'hello', 'hi', 'hey', 'hola', 'ola', 'greetings', 'buen dia', 'buen día', 'buen dis', 'buenos dias', 'buenos días', 'buenas tardes',
   'buenas noches', 'bendiciones', 'buenos dias bendiciones', 'buenas tardes bendiciones', 'buenas noches bendiciones',
   'thu chikitha linda',
   'información', 'informacion', 'más información', 'mas informacion', 'más info', 'mas info',

@@ -84,7 +84,7 @@ const memoryValue = (aliases) => {
   const match = normalizedMemory.match(new RegExp(`(?:^|[^a-z])(?:${pattern})\\s*(?::|=|-|\\bis\\b|\\bare\\b)\\s*([^;]+)`, 'i'));
   return clean(match?.[1]).replace(/(trade[- ]?in)\d+$/i, '$1');
 };
-const invalidRealNames = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'saludos', 'hello', 'hi', 'hey', 'hola', 'greetings', 'buen dia', 'buen día', 'buenos dias', 'buenos días', 'buenas tardes', 'buenas noches', 'bendiciones', 'buenos dias bendiciones', 'buenas tardes bendiciones', 'buenas noches bendiciones', 'thu chikitha linda', 'como asi', 'como así', 'cómo asi', 'cómo así', 'how so', 'what do you mean', 'me lo puede explicar', 'me puede explicar', 'me lo puedes explicar', 'me puedes explicar']);
+const invalidRealNames = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'saludos', 'hello', 'hi', 'hey', 'hola', 'greetings', 'buen dia', 'buen día', 'buen dis', 'buenos dias', 'buenos días', 'buenas tardes', 'buenas noches', 'bendiciones', 'buenos dias bendiciones', 'buenas tardes bendiciones', 'buenas noches bendiciones', 'thu chikitha linda', 'como asi', 'como así', 'cómo asi', 'cómo así', 'how so', 'what do you mean', 'me lo puede explicar', 'me puede explicar', 'me lo puedes explicar', 'me puedes explicar']);
 const qualificationResponseMarkers = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|baltimore|maryland|where are you located|where are you|what|which|how|como\s+as[ií]|how\s+so|what\s+do\s+you\s+mean|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|ubicaci[oó]n|ubicados?|vehicle|car|auto|carro|coche|veh[ií]culo|suv|sedan|midsize|mid[- ]?size|medium[- ]?size|mediano|mediana|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|cheques?|checks?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
 const genericVehicleIntent = /\b(?:need|needs|looking\s+for|want|wants|seeking|shopping\s+for|trying\s+to\s+find|necesito|busco|buscando|quiero|me\s+interesa)\b[\s\S]*\b(?:vehicle|car|auto|carro|coche|veh[ií]culo|truck|suv|sedan|van|camioneta|pickup|pick-up)\b/i;
 const inventoryIntent = /\b(?:inventory|inventario|see\s+(?:the\s+)?inventory|can\s+i\s+see|show\s+me|mu[eé]strame|ver\s+(?:el\s+)?inventario)\b/i;
@@ -366,6 +366,7 @@ const normalizeProfileDisplayName = (value) => {
   return normalizeRealName(withoutDecoration) ? candidate : '';
 };
 const suppliedName = normalizeRealName(inputData.real_name);
+const hasSuppliedRealName = Boolean(clean(inputData.real_name));
 const profile = inputData.profile && typeof inputData.profile === 'object' ? inputData.profile : {};
 const whatsappProfile = inputData.whatsapp && typeof inputData.whatsapp === 'object' && inputData.whatsapp.profile && typeof inputData.whatsapp.profile === 'object' ? inputData.whatsapp.profile : {};
 const rawContactName = first(inputData.contact_name, inputData.contactName, profile.name, whatsappProfile.name, inputData.name);
@@ -374,6 +375,7 @@ const staffordWhatsApp = isStaffordWhatsApp(inputData.source, channel);
 const contactName = isMessengerChannel(channel)
   ? normalizeProfileDisplayName(rawContactName)
   : (isProfileDisplayName(rawContactName) ? '' : normalizeRealName(rawContactName));
+const whatsappContactFallback = hasSuppliedRealName || /^lead$/i.test(rawContactName) ? '' : rawContactName;
 // Messenger/Instagram contact labels are display metadata, not proof of a
 // buyer's real name. Only an explicit name answer may populate qualification;
 // an already persisted explicit name can be retained during replay.
@@ -405,7 +407,10 @@ const normalizeWhatsAppCandidate = (value) => {
 const realName = isMessengerChannel(channel)
   ? (declaredNameFromText(rawMessage) || declaredNameFromText(rawHistory) || messengerProfileName || '')
   : isWhatsAppChannel(channel)
-    ? whatsappNames.map(normalizeWhatsAppCandidate).find(Boolean) || ''
+    ? whatsappNames.map(normalizeWhatsAppCandidate).find(Boolean)
+      || (staffordWhatsApp
+        ? (/^(?:un|una|a|an|my|mi|the)\s+/i.test(whatsappContactFallback) && (vehicleBrands.test(whatsappContactFallback) || vehicleModels.test(whatsappContactFallback) || vehicleCategories.test(whatsappContactFallback)) ? '' : whatsappContactFallback)
+        : '')
     : ((isBusinessName(suppliedName) || isProfileDisplayName(suppliedName)) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) || '';
 const isCampaignButton = (value) => /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today|quiero financiar un auto(?: con ustedes)?|me gustaria financiar un auto(?: con ustedes)?|financiar un auto(?: con ustedes)?|(?:quiero )?financiar con easterns?)$/.test(normalizeMatch(String(value ?? '').replace(/([!?])\s*\d{1,3}$/, '$1').replace(/[!?.,]/g, '')));
 const isNonVehicleIntent = (value) => nonVehicleIntentValues.test(clean(value).replace(/[!?.,]/g, '').trim());

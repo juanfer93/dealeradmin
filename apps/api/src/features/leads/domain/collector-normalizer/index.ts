@@ -45,13 +45,20 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const suppliedName = normalizeRealName(input.real_name);
   const profileDisplayName = profileDisplayNameFromInput(input);
   const profileName = profileNameFromInput(input, isMessengerChannel(channel));
+  const whatsappContactFallback = firstNonEmpty(input.real_name)
+    || clean(input.source).toLowerCase() !== 'stafford'
+    || !isWhatsAppChannel(channel)
+    || /^lead$/i.test(firstNonEmpty(input.contact_name, input.contactName, input.profile?.name, input.name))
+    ? EMPTY
+    : firstNonEmpty(input.contact_name, input.contactName, input.profile?.name, input.name);
   const extractedNames = [realNameFromQualificationMemory(memory), extractRealNameFromText(rawMessage), extractRealNameFromText(rawHistory)];
   const whatsappNames = [extractDeclaredRealNameFromText(rawMessage), extractDeclaredRealNameFromText(rawHistory), extractRealNameFromText(rawMessage), extractRealNameFromText(rawHistory), profileName, realNameFromQualificationMemory(memory)];
   const messengerDeclaredName = [extractDeclaredRealNameFromText(rawMessage), extractDeclaredRealNameFromText(rawHistory)].map(normalizeRealName).find(Boolean) ?? EMPTY;
   const realName = isMessengerChannel(channel)
     ? messengerDeclaredName || profileDisplayName || suppliedName
     : isWhatsAppChannel(channel)
-      ? whatsappNames.map((candidate) => isStaffordWhatsAppVehicleLabel(candidate, input.source, channel) ? EMPTY : normalizeRealName(candidate)).find(Boolean) ?? EMPTY
+      ? whatsappNames.map((candidate) => isStaffordWhatsAppVehicleLabel(candidate, input.source, channel) ? EMPTY : normalizeRealName(candidate)).find(Boolean)
+        || (isStaffordWhatsAppVehicleLabel(whatsappContactFallback, input.source, channel) ? EMPTY : whatsappContactFallback)
       : (isLikelyBusinessName(suppliedName) || isLikelyProfileDisplayName(suppliedName) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) ?? EMPTY;
 
   const chatPhone = extractPhone(input.chat_history_log) || extractPhone(input.message) || extractPhone(input.phone);

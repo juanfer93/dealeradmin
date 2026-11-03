@@ -1133,6 +1133,17 @@ describe('HighLevel collector custom-code normalizer', () => {
     }).real_name).toBe('Jessica');
   });
 
+  it('ignores the stored Buen dis greeting variant before a later Stafford name', () => {
+    expect(execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Buen Dis',
+      phone: '+16862055349',
+      message: 'Buen dis\nJessica',
+      chat_history_log: 'Buen dis\nJessica',
+    }).real_name).toBe('Jessica');
+  });
+
   it('does not cross transcript lines and read a phone area code as down payment in Custom Code', () => {
     const result = execute({
       phone: '+14438626592',

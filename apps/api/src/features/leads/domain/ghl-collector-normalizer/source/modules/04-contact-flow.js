@@ -117,6 +117,7 @@ const normalizeProfileDisplayName = (value) => {
   return normalizeRealName(withoutDecoration) ? candidate : '';
 };
 const suppliedName = normalizeRealName(inputData.real_name);
+const hasSuppliedRealName = Boolean(clean(inputData.real_name));
 const profile = inputData.profile && typeof inputData.profile === 'object' ? inputData.profile : {};
 const whatsappProfile = inputData.whatsapp && typeof inputData.whatsapp === 'object' && inputData.whatsapp.profile && typeof inputData.whatsapp.profile === 'object' ? inputData.whatsapp.profile : {};
 const rawContactName = first(inputData.contact_name, inputData.contactName, profile.name, whatsappProfile.name, inputData.name);
@@ -125,6 +126,7 @@ const staffordWhatsApp = isStaffordWhatsApp(inputData.source, channel);
 const contactName = isMessengerChannel(channel)
   ? normalizeProfileDisplayName(rawContactName)
   : (isProfileDisplayName(rawContactName) ? '' : normalizeRealName(rawContactName));
+const whatsappContactFallback = hasSuppliedRealName || /^lead$/i.test(rawContactName) ? '' : rawContactName;
 // Messenger/Instagram contact labels are display metadata, not proof of a
 // buyer's real name. Only an explicit name answer may populate qualification;
 // an already persisted explicit name can be retained during replay.
@@ -156,7 +158,10 @@ const normalizeWhatsAppCandidate = (value) => {
 const realName = isMessengerChannel(channel)
   ? (declaredNameFromText(rawMessage) || declaredNameFromText(rawHistory) || messengerProfileName || '')
   : isWhatsAppChannel(channel)
-    ? whatsappNames.map(normalizeWhatsAppCandidate).find(Boolean) || ''
+    ? whatsappNames.map(normalizeWhatsAppCandidate).find(Boolean)
+      || (staffordWhatsApp
+        ? (/^(?:un|una|a|an|my|mi|the)\s+/i.test(whatsappContactFallback) && (vehicleBrands.test(whatsappContactFallback) || vehicleModels.test(whatsappContactFallback) || vehicleCategories.test(whatsappContactFallback)) ? '' : whatsappContactFallback)
+        : '')
     : ((isBusinessName(suppliedName) || isProfileDisplayName(suppliedName)) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) || '';
 const isCampaignButton = (value) => /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today|quiero financiar un auto(?: con ustedes)?|me gustaria financiar un auto(?: con ustedes)?|financiar un auto(?: con ustedes)?|(?:quiero )?financiar con easterns?)$/.test(normalizeMatch(String(value ?? '').replace(/([!?])\s*\d{1,3}$/, '$1').replace(/[!?.,]/g, '')));
 const isNonVehicleIntent = (value) => nonVehicleIntentValues.test(clean(value).replace(/[!?.,]/g, '').trim());

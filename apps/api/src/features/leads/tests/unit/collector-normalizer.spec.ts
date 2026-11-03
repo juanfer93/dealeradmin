@@ -2422,6 +2422,19 @@ describe('normalizeCollectorInput', () => {
     expect(result.real_name).toBe('Jessica');
   });
 
+  it('ignores the stored Buen dis greeting variant before a later Stafford name', () => {
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Buen Dis',
+      phone: '+16862055349',
+      message: 'Buen dis\nJessica',
+      chat_history_log: 'Buen dis\nJessica',
+    });
+
+    expect(result.real_name).toBe('Jessica');
+  });
+
   it('does not use a vehicle statement as an Arlington buyer name', () => {
     expect(normalizeCollectorInput({
       source: 'arlington',
