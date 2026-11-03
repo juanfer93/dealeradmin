@@ -414,6 +414,17 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.real_name).toBe('Ahorasi');
   });
 
+  it('removes a WhatsApp greeting prefix from a Stafford contact name', () => {
+    const result = execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Hola Le Saluda Calixto',
+      message: 'Quiero una SUV',
+    });
+
+    expect(result.real_name).toBe('Calixto');
+  });
+
   it('does not discard an Easterns lead when GHL marks it stop bot', () => {
     const result = execute({
       source: 'easterns',

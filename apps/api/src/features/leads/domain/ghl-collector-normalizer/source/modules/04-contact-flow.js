@@ -36,7 +36,9 @@ const englishLocationResponse = /^(?:i(?:'m| am)\s+)?(?:in|from|near|around|loca
 const profileDisplayLabelMarkers = /\b(?:me\s+puede(?:s)?\s+(?:mandar|enviar)|(?:mandar|enviar)\s+(?:fotos?|informaci[oó]n)|fotos?\s+de|copiar)\b/i;
 const nameSuffixPunctuation = /\b(jr|sr|ii|iii|iv|v)\.(?=\s|,|$)/gi;
 const normalizeNameSuffixPunctuation = (value) => clean(value).replace(nameSuffixPunctuation, '$1').replace(/,\s*$/, '').trim();
-for (const technicalName of ['location', 'in pa', 'in messenger', 'for sure', 'tienes tacomas', 'sorry', 'información', 'informacion', 'más información', 'mas informacion', 'más info', 'mas info', 'more information', 'more info', 'details', 'detalles']) invalidRealNames.add(technicalName);
+const conversationalNamePrefix = /^(?:hola|hello|hi|hey)[,!\s]+(?:(?:le|les|te)\s+saluda(?:n)?|saludos?\s+de)[,!\s]+/i;
+const stripConversationalNamePrefix = (value) => clean(value).replace(conversationalNamePrefix, '').trim();
+for (const technicalName of ['location', 'in pa', 'in messenger', 'for sure', 'tienes tacomas', 'sorry', 'hola le saluda', 'le saluda', 'les saluda', 'información', 'informacion', 'más información', 'mas informacion', 'más info', 'mas info', 'more information', 'more info', 'details', 'detalles']) invalidRealNames.add(technicalName);
 const isValidRealName = (value) => {
   const candidate = normalizeNameSuffixPunctuation(value);
   const tokens = candidate ? candidate.split(/\s+/) : [];
@@ -45,7 +47,7 @@ const isValidRealName = (value) => {
     || /^[A-ZÁÉÍÓÚÜÑ]\.?$/u.test(token)));
 };
 const normalizeRealName = (value) => {
-  const candidate = normalizeNameSuffixPunctuation(value);
+  const candidate = normalizeNameSuffixPunctuation(stripConversationalNamePrefix(value));
   if (!candidate || invalidRealNames.has(candidate.toLowerCase()) || phoneLikeText(candidate) || !isValidRealName(candidate) || technicalNameLabel.test(candidate) || locationResponse.test(candidate) || englishLocationResponse.test(candidate) || profileDisplayLabelMarkers.test(candidate) || singleWordNameBlocklist.test(candidate) || isBaltimoreVariant(candidate) || qualificationResponseMarkers.test(candidate) || genericVehicleIntent.test(candidate) || inventoryIntent.test(candidate) || greetingOnly.test(candidate) || isVehicleStatement(candidate)) return '';
   if (candidate.length > 100 || candidate.split(/\s+/).length > 5) return '';
   return formatPersonalName(candidate);
