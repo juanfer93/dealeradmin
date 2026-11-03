@@ -1,6 +1,6 @@
 import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import type { DataSource } from 'typeorm';
-import { detectLeadLanguage, extractRecentMessagePhone, isAdvisorHandoffVehicle, isQualificationComplete, isStaffordWhatsAppVehicleLabel, normalizeCollectorInput, normalizeRealName } from '../../../../leads/domain/collector-normalizer';
+import { detectLeadLanguage, extractRecentMessagePhone, isAdvisorHandoffVehicle, isQualificationComplete, isStaffordWhatsAppVehicleLabel, normalizeCollectorInput, normalizeRealName, profileDisplayNameFromInput } from '../../../../leads/domain/collector-normalizer';
 import { evaluateDownPayment, normalizeDownPayment } from '../../../../leads/domain/down-payment';
 import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-duplicate';
 import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
@@ -217,7 +217,7 @@ export class ConversationReconciliationFunctions {
       const currentRealName = normalizeRealName(clean(current.real_name));
       const contactRealName = isStaffordWhatsAppVehicleLabel(contactName, source, row.channel)
         ? ''
-        : normalizeRealName(contactName);
+        : profileDisplayNameFromInput({ channel: row.channel, contact_name: contactName }) || normalizeRealName(contactName);
       const realName = targeted
         ? clean(normalized.real_name) || contactRealName
         : preserveOrNormalize(currentRealName, normalized.real_name) || contactRealName;
@@ -308,6 +308,10 @@ export class ConversationReconciliationFunctions {
         // while preserving Messenger/Instagram profile labels for display;
         // those labels are never copied into qualification real_name.
         await runner.query(`UPDATE leads SET first_name = '', last_name = '', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [row.lead_id]);
+      } else {
+        const fallbackLeadName = language === 'en' ? '(Lead without name)' : '(Lead sin nombre)';
+        const { firstName, lastName } = splitName(fallbackLeadName);
+        await runner.query(`UPDATE leads SET first_name = $2, last_name = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [row.lead_id, firstName, lastName]);
       }
       if (effectivePhone && effectivePhone !== row.canonical_phone) {
         await runner.query(

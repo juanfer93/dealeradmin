@@ -148,6 +148,11 @@ export function normalizeWebhookInput(input: unknown, defaultChannel: string, he
   const triggerData = asRecord(value.triggerData);
   const triggerMessage = asRecord(triggerData.message);
   const nativeMessage = Object.keys(nestedMessage).length > 0 ? nestedMessage : triggerMessage;
+  const rawChannel = clean(value.channel ?? customData.channel ?? nativeMessage.channel ?? defaultChannel).toLowerCase();
+  const isSocialProfileChannel = /(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(rawChannel);
+  const nativeProfileName = nestedContact.name
+    ?? nestedProfile.name
+    ?? nestedWhatsappProfile.name;
   const attachmentValue = [
     value.message_attachments,
     value.messageAttachments,
@@ -187,13 +192,20 @@ export function normalizeWebhookInput(input: unknown, defaultChannel: string, he
       ?? nativeMessage.text
       ?? value.body,
     contact_phone: value.contact_phone ?? customData.contact_phone ?? nestedContact.phone ?? value.phone,
-    contact_name: value.contact_name
-      ?? customData.contact_name
-      ?? nestedContact.name
-      ?? nestedProfile.name
-      ?? nestedWhatsappProfile.name
-      ?? value.name
-      ?? value.full_name,
+    // On Messenger/Instagram the native contact/profile name is the identity
+    // source. Custom fields can contain the latest conversational answer and
+    // must not replace it (this was especially visible on Action English).
+    contact_name: isSocialProfileChannel
+      ? nativeProfileName
+        ?? value.contact_name
+        ?? customData.contact_name
+        ?? value.name
+        ?? value.full_name
+      : value.contact_name
+        ?? customData.contact_name
+        ?? nativeProfileName
+        ?? value.name
+        ?? value.full_name,
     // Prefer the channel attached to this message. Attribution is contact
     // metadata and may describe an older WhatsApp interaction even when the
     // current message arrived through Messenger.

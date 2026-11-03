@@ -21,7 +21,7 @@ export function isAdvisorHandoffVehicle(value: string | null | undefined): boole
 }
 
 export function isMessengerChannel(value: string | null | undefined): boolean {
-  return /(?:^|[^a-z])(?:messenger|facebook)(?:$|[^a-z])/i.test(clean(value));
+  return /(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(clean(value));
 }
 
 export function isWhatsAppChannel(value: string | null | undefined): boolean {

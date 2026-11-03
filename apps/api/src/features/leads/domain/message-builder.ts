@@ -1,4 +1,5 @@
 export type MessageLeadData = {
+  real_name?: string | null;
   language?: 'es' | 'en' | null;
   vehicle_type?: string | null;
   down_payment?: string | null;
@@ -159,9 +160,13 @@ export function buildWhatsAppMessage(name: string, phone: string, data: MessageL
       ? language === 'es' ? timelineValue : 'wants to see options'
       : language === 'es' ? `quiere comprar ${timelineValue.toLowerCase()}` : `wants to buy ${timelineValue.toLowerCase()}`
     : '';
+  const missingRealName = /^\(lead\s+(?:sin\s+nombre|without\s+name)\)$/i.test(name.trim());
+  const missingRealNameNote = missingRealName
+    ? language === 'es' ? 'no dijo su nombre real' : "didn't say their real name"
+    : '';
 
   const identity = [name.trim(), phone, vehicle].filter(Boolean).join(' ');
-  const parts = [identity, down, previousFinancing, identification, bankAccount, documents, timeline].filter(Boolean);
+  const parts = [identity, down, previousFinancing, identification, bankAccount, documents, timeline, missingRealNameNote].filter(Boolean);
   const uniqueParts = [...new Map(parts.map((part) => [part.toLowerCase(), part])).values()];
   return uniqueParts.join(', ') + '.';
 }

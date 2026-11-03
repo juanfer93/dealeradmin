@@ -1,5 +1,5 @@
 import type { DataSource, QueryRunner } from 'typeorm';
-import { detectLeadLanguage, extractRecentMessagePhone, isAdvisorHandoffVehicle, isQualificationComplete, normalizeCollectorInput, normalizeRealName } from '../../../../leads/domain/collector-normalizer';
+import { detectLeadLanguage, extractRecentMessagePhone, isAdvisorHandoffVehicle, isQualificationComplete, normalizeCollectorInput, normalizeRealName, profileDisplayNameFromInput } from '../../../../leads/domain/collector-normalizer';
 import { evaluateDownPayment, normalizeDownPayment } from '../../../../leads/domain/down-payment';
 import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-duplicate';
 import { normalizeGhlAttachments } from '../../../domain/ghl-attachment-normalizer';
@@ -81,7 +81,7 @@ export class ConversationEventFunctions {
         ? undefined
         : await this.qualification.findSourceDealer(runner, locationId, source);
       const displayName = clean(event.contact_name) || 'Lead';
-      const normalizedName = normalizeRealName(displayName) || 'Lead';
+      const normalizedName = profileDisplayNameFromInput({ channel: event.channel, contact_name: displayName }) || normalizeRealName(displayName) || 'Lead';
       const { firstName, lastName } = splitName(normalizedName);
       let lead = await this.qualification.upsertLead(runner, {
         locationId,
@@ -177,7 +177,9 @@ export class ConversationEventFunctions {
       const location = await this.qualification.resolveLocation(runner, transcript);
       const language = this.sourceConfig[source].splitByLanguage ? detectLeadLanguage(transcript) : undefined;
       const additiveField = (incoming: unknown, existing: unknown): string => clean(incoming) || clean(existing);
-      const contactRealName = normalizeRealName(displayName);
+      const contactRealName = event.channel.toLowerCase() === 'messenger'
+        ? profileDisplayNameFromInput({ channel: event.channel, contact_name: displayName })
+        : normalizeRealName(displayName);
       const transcriptRealName = event.channel.toLowerCase() === 'whatsapp'
         ? transcript
           .split(/\n+/)
@@ -191,9 +193,10 @@ export class ConversationEventFunctions {
       // single-word extraction from a later message (for example "Sorry").
       // Preserve the first meaningful name; later cycles may add fields but
       // must not replace it with conversational text.
-      const realName = additiveField(transcriptRealName, previousSnapshot.real_name)
-        || contactRealName
+      const previousRealName = normalizeRealName(clean(previousSnapshot.real_name));
+      const realName = additiveField(transcriptRealName, previousRealName)
         || clean(normalized.real_name)
+        || contactRealName
         || '';
       const vehicleType = additiveField(normalized.vehicle_type, previousSnapshot.vehicle_type);
       const downPayment = normalizeDownPayment(additiveField(normalized.down_payment, previousSnapshot.down_payment));
@@ -244,6 +247,13 @@ export class ConversationEventFunctions {
         language,
         qualification_progress: normalized.qualification_progress,
       };
+      const fallbackLeadName = language === 'en' ? '(Lead without name)' : '(Lead sin nombre)';
+      const persistedLeadName = realName || fallbackLeadName;
+      const { firstName: persistedFirstName, lastName: persistedLastName } = splitName(persistedLeadName);
+      await runner.query(
+        `UPDATE leads SET first_name = $2, last_name = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        [lead.id, persistedFirstName, persistedLastName],
+      );
       const assignedDealerId = clean(conversation.qualification_snapshot?.assigned_dealer_id);
       const resolvedDealer = sourceDealer ?? await this.qualification.findSourceDealer(runner, locationId, source, language, assignedDealerId || undefined);
       snapshot.assigned_dealer_id = resolvedDealer.id;

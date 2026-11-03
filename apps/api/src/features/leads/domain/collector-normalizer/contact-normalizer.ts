@@ -81,6 +81,7 @@ export function isPhoneAreaCodeAmount(value: string, phone: string): boolean {
 
 const INVALID_REAL_NAMES = new Set([
   '.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'location', 'whatsapp', 'facebook',
+  'in pa', 'in messenger', 'sorry',
   'saludos', 'hello', 'hi', 'hey', 'hola', 'ola', 'greetings', 'buenos dias', 'buenas tardes',
   'buenas noches', 'bendiciones', 'buenos dias bendiciones', 'buenas tardes bendiciones', 'buenas noches bendiciones',
   'thu chikitha linda',
@@ -102,6 +103,7 @@ const REAL_NAME_PATTERN = new RegExp(`^${REAL_NAME_TOKEN}(?:\\s+${REAL_NAME_TOKE
 const NAME_SUFFIX_PUNCTUATION = /\b(jr|sr|ii|iii|iv|v)\.(?=\s|,|$)/gi;
 const TECHNICAL_NAME_LABEL = /^(?:precio|price)\s+(?:de|of)\b/i;
 const LOCATION_RESPONSE = /^(?:estoy|vivo)\s+en\b/i;
+const ENGLISH_LOCATION_RESPONSE = /^(?:i(?:'m| am)\s+)?(?:in|from|near|around|located\s+in)\s+(?:maryland|md|virginia|va|pennsylvania|pa|delaware|de|new\s+york|ny|new\s+jersey|nj|district\s+of\s+columbia|washington\s+dc|dc)$/i;
 const NAME_PARTICLES = new Set(['da', 'de', 'del', 'der', 'di', 'la', 'las', 'los', 'van', 'von', 'y']);
 
 function formatPersonalName(value: string): string {
@@ -145,12 +147,29 @@ export function normalizeRealName(value: string | null | undefined): string {
   if (!candidate || INVALID_REAL_NAMES.has(candidate.toLowerCase())) return EMPTY;
   if (PHONE_LIKE_TEXT.test(candidate) || candidate.replace(/\D/g, '').length >= 7) return EMPTY;
   if (!isValidRealName(candidate)) return EMPTY;
-  if (TECHNICAL_NAME_LABEL.test(candidate) || LOCATION_RESPONSE.test(candidate)) return EMPTY;
+  if (TECHNICAL_NAME_LABEL.test(candidate) || LOCATION_RESPONSE.test(candidate) || ENGLISH_LOCATION_RESPONSE.test(candidate)) return EMPTY;
   if (PROFILE_DISPLAY_LABEL_MARKERS.test(candidate)) return EMPTY;
   if (SINGLE_WORD_NAME_BLOCKLIST.test(candidate) || isBaltimoreVariant(candidate)) return EMPTY;
   if (QUALIFICATION_RESPONSE_MARKERS.test(candidate) || GENERIC_VEHICLE_INTENT.test(candidate) || INVENTORY_INTENT.test(candidate) || GREETING_ONLY.test(candidate) || isVehicleStatement(candidate)) return EMPTY;
   if (candidate.length > 100 || candidate.split(/\s+/).length > 5) return EMPTY;
   return formatPersonalName(candidate);
+}
+
+/**
+ * Social channels provide a display identity rather than a typed name field.
+ * Keep it verbatim so names made only of emoji/symbols are not replaced by
+ * `Lead`. Conversational location replies are excluded because they can be
+ * present in the same payload when GHL has no native profile name.
+ */
+export function profileDisplayNameFromInput(input: CollectorInput): string {
+  const candidate = firstNonEmpty(input.contact_name, input.contactName, input.profile?.name, input.name);
+  if (!candidate
+    || /^lead$/i.test(candidate)
+    || /^\(lead\s+(?:sin\s+nombre|without\s+name)\)$/i.test(candidate)
+    || ENGLISH_LOCATION_RESPONSE.test(candidate)
+    || LOCATION_RESPONSE.test(candidate)
+    || !/\p{L}/u.test(candidate)) return EMPTY;
+  return candidate;
 }
 
 const NON_CONVERSATIONAL_METADATA_LINE = /(?:\b(?:headline|source\s+url|attribution|ad\s*(?:id|name))\b|https?:\/\/|fb\.me\/|\.post\b)/i;

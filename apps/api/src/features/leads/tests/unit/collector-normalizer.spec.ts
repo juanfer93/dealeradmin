@@ -56,6 +56,23 @@ describe('normalizeCollectorInput', () => {
     expect(result.real_name).toBe('Daniel Reyes');
   });
 
+  it('rejects an emoji-only Instagram profile so the lead uses the no-name fallback', () => {
+    expect(normalizeCollectorInput({
+      channel: 'instagram',
+      contact_name: '🤷🏻‍♂️',
+      message: 'I want an SUV',
+    }).real_name).toBe('');
+  });
+
+  it('does not turn an English location reply such as In PA into a name', () => {
+    expect(normalizeCollectorInput({
+      channel: 'messenger',
+      message: 'In PA',
+      chat_history_log: 'What state are you in?\nIn PA',
+    }).real_name).toBe('');
+    expect(normalizeRealName('In PA')).toBe('');
+  });
+
   it.each([
     ['What vehicles are eligible?\nAnything you got\n814 603 0494', 'en'],
     ['No sé qué carro quiero\n814 603 0494', 'es'],
@@ -2211,12 +2228,12 @@ describe('normalizeCollectorInput', () => {
     expect(result.vehicle_type).toBe('Sedan');
   });
 
-  it('keeps Messenger contact labels out of real_name when supplied separately', () => {
+  it('uses the Facebook profile name as Messenger identity when no name is declared', () => {
     expect(normalizeCollectorInput({
       channel: 'messenger',
       contact_name: 'Hay Les Aviso',
       message: 'Que requisitos necesito',
-    }).real_name).toBe('');
+    }).real_name).toBe('Hay Les Aviso');
   });
 
   it('does not replace a Messenger label with a conversational reply', () => {
@@ -2238,10 +2255,10 @@ describe('normalizeCollectorInput', () => {
       contact_name: 'Andrea⚘️',
       message: 'Licencia y pasaporte',
       chat_history_log: transcript,
-    }).real_name).toBe('');
+    }).real_name).toBe('Andrea⚘️');
   });
 
-  it('accepts a Messenger name only when the transcript explicitly answers the name prompt', () => {
+  it('lets an explicitly declared name replace the Facebook profile name', () => {
     expect(normalizeCollectorInput({
       channel: 'messenger',
       contact_name: 'Como Así',
@@ -2253,7 +2270,7 @@ describe('normalizeCollectorInput', () => {
       contact_name: 'Como Así',
       chat_history_log: 'Infiniti Q50\nMe lo puede explicar',
       message: 'Me lo puede explicar',
-    }).real_name).toBe('');
+    }).real_name).toBe('Como Así');
   });
 
   it('uses only a declared chat name for WhatsApp', () => {
@@ -2764,7 +2781,7 @@ describe('normalizeCollectorInput', () => {
     expect(result.qualification_memory).toBe('vehicle: Quiere hablar con un asesor');
   });
 
-  it('keeps Messenger identity in profile metadata instead of the intent message', () => {
+  it('keeps the Messenger profile name instead of the intent message', () => {
     const result = normalizeCollectorInput({
       channel: 'messenger',
       contact_name: 'Juan Perez',
@@ -2772,7 +2789,7 @@ describe('normalizeCollectorInput', () => {
       chat_history_log: 'Can I See Inventory',
     });
 
-    expect(result.real_name).toBe('');
+    expect(result.real_name).toBe('Juan Perez');
     expect(result.real_name).not.toContain('Inventory');
   });
 

@@ -649,7 +649,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
 
     expect(result).toMatchObject({
-      real_name: '',
+      real_name: 'Osman Ali P Guillén',
       phone: '+18049250909',
       vehicle_type: 'truck',
       qualification_complete: true,
@@ -1335,15 +1335,15 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
   });
 
-  it('keeps Messenger contact labels out of real_name in Custom Code', () => {
+  it('uses the Messenger contact label as real_name in Custom Code', () => {
     expect(execute({
       channel: 'messenger',
       contact_name: 'Hay Les Aviso',
       message: 'Que requisitos necesito',
-    }).real_name).toBe('');
+    }).real_name).toBe('Hay Les Aviso');
   });
 
-  it('does not replace a Messenger label with a conversational reply in Custom Code', () => {
+  it('preserves a Messenger profile label with decorative emoji in Custom Code', () => {
     const transcript = [
       'Quiero financiar un auto',
       'Ando en busca de honda oh un Toyota',
@@ -1362,16 +1362,16 @@ describe('HighLevel collector custom-code normalizer', () => {
       contact_name: 'Andrea⚘️',
       message: 'Licencia y pasaporte',
       chat_history_log: transcript,
-    }).real_name).toBe('');
+    }).real_name).toBe('Andrea⚘️');
   });
 
-  it('does not promote the Easterns vehicle-intent reply to real_name in Custom Code', () => {
+  it('keeps the Messenger profile name ahead of vehicle-intent text in Custom Code', () => {
     expect(execute({
       channel: 'messenger',
       contact_name: 'Juiccy Zayy',
       message: 'Need a vehicle fast',
       chat_history_log: 'Need a vehicle fast\nSUV\nBaltimore',
-    }).real_name).toBe('');
+    }).real_name).toBe('Juiccy Zayy');
     expect(execute({ message: 'Need a vehicle fast' }).real_name).toBe('');
   });
 
@@ -1906,7 +1906,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.phone).toBe('+15714223667');
   });
 
-  it('keeps Messenger identity in profile metadata instead of the intent message', () => {
+  it('keeps Messenger identity instead of the intent message', () => {
     const result = execute({
       channel: 'messenger',
       contact_name: 'Juan Perez',
@@ -1914,7 +1914,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       chat_history_log: 'Can I See Inventory',
     });
 
-    expect(result.real_name).toBe('');
+    expect(result.real_name).toBe('Juan Perez');
     expect(result.real_name).not.toContain('Inventory');
   });
 

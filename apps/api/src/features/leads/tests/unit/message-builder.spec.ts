@@ -2,6 +2,23 @@ import { describe, expect, it } from 'vitest';
 import { buildWhatsAppMessage } from '../../domain/message-builder';
 
 describe('qualification message normalization', () => {
+  it('adds the Spanish no-real-name note after the purchase timeline', () => {
+    const message = buildWhatsAppMessage('(Lead sin nombre)', '+15550001111', {
+      vehicle_type: 'SUV',
+      purchase_timeline: 'este mes',
+    });
+    expect(message).toBe('(Lead sin nombre) +15550001111 SUV, quiere comprar este mes, no dijo su nombre real.');
+  });
+
+  it('adds the English no-real-name note after the purchase timeline', () => {
+    const message = buildWhatsAppMessage('(Lead without name)', '+15550001111', {
+      language: 'en',
+      vehicle_type: 'SUV',
+      purchase_timeline: 'this month',
+    });
+    expect(message).toBe("(Lead without name) +15550001111 SUV, wants to buy this month, didn't say their real name.");
+  });
+
   it('rounds 999 and omits insufficient amounts from the advisor-facing copy', () => {
     expect(buildWhatsAppMessage('Lead', '+15550001111', { down_payment: '999' })).toContain('1000 de down');
     expect(buildWhatsAppMessage('Lead', '+15550001111', { down_payment: '850' })).not.toContain('850');

@@ -1,6 +1,6 @@
 import { CASH_DOWN_PAYMENT, evaluateDownPayment, visibleDownPayment } from '../down-payment';
 import { ADVISOR_HANDOFF_VEHICLE, EMPTY } from './constants';
-import { extractPhone, extractRealNameFromText, extractDeclaredRealNameFromText, isLikelyBusinessName, isLikelyProfileDisplayName, isPhoneAreaCodeAmount, isPhoneOnlyLine, normalizeRealName, PHONE_LIKE_TEXT, profileNameFromInput, realNameFromQualificationMemory } from './contact-normalizer';
+import { extractPhone, extractRealNameFromText, extractDeclaredRealNameFromText, isLikelyBusinessName, isLikelyProfileDisplayName, isPhoneAreaCodeAmount, isPhoneOnlyLine, normalizeRealName, PHONE_LIKE_TEXT, profileDisplayNameFromInput, profileNameFromInput, realNameFromQualificationMemory } from './contact-normalizer';
 import { detectLeadLanguage } from './language-normalizer';
 import { collectorFlowPolicy, effectiveChannel, extractCustomerLocation, isAdvisorHandoffVehicle, isMessengerChannel, isWhatsAppChannel } from './flow-policy';
 import { clean, conversationalEvidence, firstNonEmpty, isEmptyMarker, lastMeaningfulLine, memoryText, memoryValue } from './text-cleaner';
@@ -17,6 +17,7 @@ export { ADVISOR_HANDOFF_VEHICLE } from './constants';
 export { RECENT_PHONE_EVIDENCE_DAYS } from './constants';
 export { extractRecentMessagePhone } from './contact-normalizer';
 export { isValidRealName, normalizeRealName, realNameFromQualificationMemory } from './contact-normalizer';
+export { profileDisplayNameFromInput } from './contact-normalizer';
 export { detectLeadLanguage } from './language-normalizer';
 export { isAdvisorHandoffVehicle } from './flow-policy';
 
@@ -597,6 +598,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const historyForExtraction = stripCampaignButtonPhrases(rawHistory);
   const channel = effectiveChannel(input);
   const suppliedName = normalizeRealName(input.real_name);
+  const profileDisplayName = profileDisplayNameFromInput(input);
   const profileName = profileNameFromInput(input, isMessengerChannel(channel));
   const extractedNames = [
     realNameFromQualificationMemory(memory),
@@ -611,26 +613,23 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     profileName,
     realNameFromQualificationMemory(memory),
   ];
-  const messengerTextName = [
+  const messengerDeclaredName = [
     extractDeclaredRealNameFromText(rawMessage),
     extractDeclaredRealNameFromText(rawHistory),
-    // Legacy callers that do not provide a separate profile label may still
-    // pass a transcript-only name. Once GHL supplies contact_name/profile.name,
-    // however, only an explicit answer to the name prompt is authoritative.
-    ...(firstNonEmpty(input.contact_name, input.contactName, input.profile?.name, input.name) ? [] : extractedNames),
   ].map(normalizeRealName).find(Boolean) ?? EMPTY;
+  const messengerTranscriptName = profileDisplayName
+    ? EMPTY
+    : extractedNames.map(normalizeRealName).find(Boolean) ?? EMPTY;
   // Messenger/Instagram contact labels are display metadata, not proof of a
   // buyer's real name. Only an explicit name answer may populate the
   // qualification field; an already persisted explicit name can be retained.
   // This prevents replies such as "Me lo puede explicar" from becoming a
   // real_name during a transcript replay.
-  const messengerProfileName = suppliedName;
   const realName = isMessengerChannel(channel)
-    // A valid contact/profile name is authoritative. Message text may replace
-    // only a business/technical label, or answer an explicit name prompt.
-    ? (messengerProfileName && !isLikelyBusinessName(messengerProfileName)
-      ? messengerProfileName
-      : messengerTextName || messengerProfileName)
+    // Facebook/Instagram profile identity is authoritative. Only an explicit
+    // name declaration in the conversation may replace it. Keep the profile
+    // value verbatim so emoji-only identities remain usable.
+    ? (messengerDeclaredName || profileDisplayName || suppliedName || messengerTranscriptName)
     : isWhatsAppChannel(channel)
       // WhatsApp gets a declared chat name first, then the profile name. The
       // message body and profile are separate fields in the webhook contract.

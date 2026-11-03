@@ -525,9 +525,11 @@ export class ConversationQualificationFunctions {
     const preservesAssignment = Boolean(current?.routing_override || alreadySent);
     const assignedDealerId = preservesAssignment ? current?.assigned_dealer_id || routing.dealerId : routing.dealerId;
     const routingReason = preservesAssignment ? current?.routing_reason || routing.reason : routing.reason;
-    const messageText = buildWhatsAppMessage(snapshot.real_name || 'Lead', snapshot.phone, {
+    const messageLanguage = snapshot.qualification_progress?.language ?? snapshot.language;
+    const fallbackLeadName = messageLanguage === 'en' ? '(Lead without name)' : '(Lead sin nombre)';
+    const messageText = buildWhatsAppMessage(snapshot.real_name || fallbackLeadName, snapshot.phone, {
       ...snapshot,
-      language: snapshot.qualification_progress?.language ?? snapshot.language,
+      language: messageLanguage,
       dealer_name: sourceDealer.name,
     });
     const hasUnhandledReengagement = reengagement || Boolean(current?.has_unhandled_reengagement);

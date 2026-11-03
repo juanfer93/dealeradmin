@@ -32,10 +32,11 @@ const realNameToken = "[\\p{L}\\p{M}]+(?:[-'][\\p{L}\\p{M}]+)*";
 const realNamePattern = new RegExp(`^${realNameToken}(?:\\s+${realNameToken})*$`, 'u');
 const technicalNameLabel = /^(?:precio|price)\s+(?:de|of)\b/i;
 const locationResponse = /^(?:estoy|vivo)\s+en\b/i;
+const englishLocationResponse = /^(?:i(?:'m| am)\s+)?(?:in|from|near|around|located\s+in)\s+(?:maryland|md|virginia|va|pennsylvania|pa|delaware|de|new\s+york|ny|new\s+jersey|nj|district\s+of\s+columbia|washington\s+dc|dc)$/i;
 const profileDisplayLabelMarkers = /\b(?:me\s+puede(?:s)?\s+(?:mandar|enviar)|(?:mandar|enviar)\s+(?:fotos?|informaci[oó]n)|fotos?\s+de|copiar)\b/i;
 const nameSuffixPunctuation = /\b(jr|sr|ii|iii|iv|v)\.(?=\s|,|$)/gi;
 const normalizeNameSuffixPunctuation = (value) => clean(value).replace(nameSuffixPunctuation, '$1').replace(/,\s*$/, '').trim();
-for (const technicalName of ['location', 'información', 'informacion', 'más información', 'mas informacion', 'más info', 'mas info', 'more information', 'more info', 'details', 'detalles']) invalidRealNames.add(technicalName);
+for (const technicalName of ['location', 'in pa', 'in messenger', 'sorry', 'información', 'informacion', 'más información', 'mas informacion', 'más info', 'mas info', 'more information', 'more info', 'details', 'detalles']) invalidRealNames.add(technicalName);
 const isValidRealName = (value) => {
   const candidate = normalizeNameSuffixPunctuation(value);
   const tokens = candidate ? candidate.split(/\s+/) : [];
@@ -45,11 +46,11 @@ const isValidRealName = (value) => {
 };
 const normalizeRealName = (value) => {
   const candidate = normalizeNameSuffixPunctuation(value);
-  if (!candidate || invalidRealNames.has(candidate.toLowerCase()) || phoneLikeText(candidate) || !isValidRealName(candidate) || technicalNameLabel.test(candidate) || locationResponse.test(candidate) || profileDisplayLabelMarkers.test(candidate) || singleWordNameBlocklist.test(candidate) || isBaltimoreVariant(candidate) || qualificationResponseMarkers.test(candidate) || genericVehicleIntent.test(candidate) || inventoryIntent.test(candidate) || greetingOnly.test(candidate) || isVehicleStatement(candidate)) return '';
+  if (!candidate || invalidRealNames.has(candidate.toLowerCase()) || phoneLikeText(candidate) || !isValidRealName(candidate) || technicalNameLabel.test(candidate) || locationResponse.test(candidate) || englishLocationResponse.test(candidate) || profileDisplayLabelMarkers.test(candidate) || singleWordNameBlocklist.test(candidate) || isBaltimoreVariant(candidate) || qualificationResponseMarkers.test(candidate) || genericVehicleIntent.test(candidate) || inventoryIntent.test(candidate) || greetingOnly.test(candidate) || isVehicleStatement(candidate)) return '';
   if (candidate.length > 100 || candidate.split(/\s+/).length > 5) return '';
   return formatPersonalName(candidate);
 };
-const isMessengerChannel = (value) => /(?:^|[^a-z])(?:messenger|facebook)(?:$|[^a-z])/i.test(clean(value));
+const isMessengerChannel = (value) => /(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(clean(value));
 const isWhatsAppChannel = (value) => /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(clean(value));
 const isStaffordWhatsApp = (source, value) => clean(source).toLocaleLowerCase() === 'stafford' && isWhatsAppChannel(value);
 const effectiveChannel = (input) => {
@@ -112,7 +113,8 @@ const normalizeProfileDisplayName = (value) => {
     .replace(/[\p{So}\p{Sk}\p{Cf}\uFE0F]/gu, '')
     .replace(/\s+/g, ' ')
     .trim();
-  return isProfileDisplayName(withoutDecoration) ? '' : normalizeRealName(withoutDecoration);
+  if (isProfileDisplayName(withoutDecoration)) return '';
+  return normalizeRealName(withoutDecoration) ? candidate : '';
 };
 const suppliedName = normalizeRealName(inputData.real_name);
 const profile = inputData.profile && typeof inputData.profile === 'object' ? inputData.profile : {};
@@ -126,7 +128,7 @@ const contactName = isMessengerChannel(channel)
 // Messenger/Instagram contact labels are display metadata, not proof of a
 // buyer's real name. Only an explicit name answer may populate qualification;
 // an already persisted explicit name can be retained during replay.
-const messengerProfileName = suppliedName;
+const messengerProfileName = contactName || suppliedName;
 const extractedNames = [
   memoryValue(['real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name', 'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre']),
   nameFromText(rawMessage),
@@ -152,9 +154,7 @@ const normalizeWhatsAppCandidate = (value) => {
   return normalizeRealName(candidate);
 };
 const realName = isMessengerChannel(channel)
-  ? (messengerProfileName && !isBusinessName(messengerProfileName)
-    ? messengerProfileName
-    : declaredNameFromText(rawMessage) || declaredNameFromText(rawHistory) || messengerProfileName || '')
+  ? (declaredNameFromText(rawMessage) || declaredNameFromText(rawHistory) || messengerProfileName || '')
   : isWhatsAppChannel(channel)
     ? whatsappNames.map(normalizeWhatsAppCandidate).find(Boolean) || ''
     : ((isBusinessName(suppliedName) || isProfileDisplayName(suppliedName)) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) || '';

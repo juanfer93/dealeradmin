@@ -9,6 +9,7 @@ import {
 } from '../../application/conversation-webhook.service';
 import { normalizeCollectorInput } from '../../../leads/domain/collector-normalizer';
 import { getTestConversationEvents, resetTestConversationEvents } from '../../application/test-conversation-store';
+import { normalizeWebhookInput } from '../../application/functions/conversations/conversation-webhook.helpers';
 
 describe('ConversationWebhookService', () => {
   const originalNodeEnv = process.env.NODE_ENV;
@@ -44,6 +45,18 @@ describe('ConversationWebhookService', () => {
   const staffordVehicleOnlySnapshot = { phone: '+13015550123', vehicle_type: 'SUV', down_payment: '', purchase_timeline: '', qualification_complete: false };
   const staffordWithDownSnapshot = { phone: '+13015550123', vehicle_type: 'SUV', down_payment: '2000', purchase_timeline: '', qualification_complete: false };
   const easternsLocation = { city: 'Laurel', state: 'MD', zip_code: null, easterns_zone: null };
+
+  it('prefers the native Facebook/Instagram profile name over a conversational custom field', () => {
+    expect(normalizeWebhookInput({
+      channel: 'instagram',
+      contact: { name: '🤷🏻‍♂️' },
+      customData: { contact_name: 'In PA' },
+      message: { body: 'I want an SUV' },
+    }, 'messenger', {})).toMatchObject({
+      contact_name: '🤷🏻‍♂️',
+      channel: 'messenger',
+    });
+  });
   const easternsDealer = { timezone: 'America/New_York', routing_config: { group: 'Easterns' } };
 
   it('captures one inbound message using the native contact id header', async () => {
