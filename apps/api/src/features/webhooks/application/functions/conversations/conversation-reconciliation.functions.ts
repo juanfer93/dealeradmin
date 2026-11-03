@@ -223,9 +223,10 @@ export class ConversationReconciliationFunctions {
       const contactRealName = isStaffordWhatsAppVehicleLabel(contactName, source, row.channel)
         ? ''
         : isSocialProfileChannel ? profileName : profileDisplayNameFromInput({ channel: row.channel, contact_name: contactName }) || normalizeRealName(contactName);
+      const normalizedSocialProfileName = isSocialProfileChannel ? normalizeRealName(profileName) : '';
       const realName = targeted
-        ? clean(normalized.real_name) || contactRealName
-        : preserveOrNormalize(currentRealName, normalized.real_name) || contactRealName;
+        ? normalizedSocialProfileName || clean(normalized.real_name) || contactRealName
+        : normalizedSocialProfileName || preserveOrNormalize(currentRealName, normalized.real_name) || contactRealName;
       const vehicle = targeted ? clean(normalized.vehicle_type) : preserveOrNormalize(current.vehicle_type, normalized.vehicle_type);
       const vehicleYear = targeted
         ? normalized.vehicle_year

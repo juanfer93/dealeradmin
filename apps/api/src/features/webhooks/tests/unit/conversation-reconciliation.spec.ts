@@ -291,6 +291,59 @@ describe('ConversationReconciliationFunctions', () => {
     expect(leadUpdate).toBeDefined();
   });
 
+  it('promotes the native Messenger profile over a stale campaign label', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('SELECT c.id, c.channel')) return [{
+        id: 'conversation-messenger-stale-profile',
+        channel: 'messenger',
+        ghl_location_id: GHL_SOURCE_CONFIG['fredericksburg-2'].locationId,
+        ghl_contact_id: 'stale-messenger-contact',
+        ghl_conversation_id: 'ghl-stale-messenger',
+        status: 'queued',
+        qualification_snapshot: {
+          real_name: 'Muy Honesta Contigo Es',
+          profile_name: 'Jlp Lopez',
+          phone: '+14343286704',
+          vehicle_type: 'Camaro 2017',
+          qualification_complete: true,
+        },
+        location_snapshot: { city: null, state: null, zip_code: null, easterns_zone: null },
+        ready_at: null,
+        next_attempt_at: null,
+        last_message_at: '2026-11-03T16:00:12.073Z',
+        waiting_window_attempts: 0,
+        lead_id: 'lead-stale-messenger',
+        canonical_phone: '+14343286704',
+        first_name: 'Muy',
+        last_name: 'Honesta Contigo Es',
+      }];
+      if (sql.includes('SELECT cm.body')) return [
+        { body: 'Busco algún honda.', direction: 'inbound', occurred_at: '2026-11-03T15:59:29.540Z' },
+        { body: 'ESta a viendo un lexsus Y me gustó. Era un 2010', direction: 'inbound', occurred_at: '2026-11-03T16:00:12.073Z' },
+      ];
+      return [];
+    });
+    const runner = { connect: vi.fn(), startTransaction: vi.fn(), commitTransaction: vi.fn(), rollbackTransaction: vi.fn(), release: vi.fn(), isTransactionActive: true, query };
+    const qualification = {
+      resolveLocation: vi.fn().mockResolvedValue({ city: null, state: null, zip_code: null, easterns_zone: null }),
+      findSourceDealer: vi.fn().mockResolvedValue({ id: 'dealer-fredericksburg-2', timezone: 'America/New_York', routing_config: {} }),
+      statusForConversation: vi.fn().mockReturnValue({ status: 'queued', nextAttemptAt: null }),
+      syncLeadDealer: vi.fn(),
+    };
+    const reconciliation = new ConversationReconciliationFunctions(
+      { createQueryRunner: () => runner } as never,
+      qualification as never,
+      { createQueuedPauseEvent: vi.fn(), dispatchQueuedPauseEvent: vi.fn() } as never,
+    );
+
+    await reconciliation.reconcileConversation('conversation-messenger-stale-profile', new Date('2026-11-03T16:01:00.000Z'), true, true, true);
+
+    const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ real_name: 'Jlp Lopez', profile_name: 'Jlp Lopez' });
+    const leadUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE leads SET first_name')) as [string, unknown[]] | undefined;
+    expect(leadUpdate?.[1]).toEqual(['lead-stale-messenger', 'Jlp', 'Lopez']);
+  });
+
   it('clears a conversational reply during the ordinary watchdog cycle', async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('SELECT c.id, c.channel')) return [{
