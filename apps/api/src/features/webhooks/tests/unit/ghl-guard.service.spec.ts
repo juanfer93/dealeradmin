@@ -566,7 +566,7 @@ describe('GhlGuardService', () => {
       createLog: vi.fn().mockResolvedValue('guard-log-queued-local'),
       updateLog: vi.fn().mockResolvedValue(undefined),
       claimQueuedReplay: vi.fn().mockResolvedValue({ allowed: true, claimed: true }),
-      persistMessages: vi.fn().mockResolvedValue({ skipped: false, inserted: 1, repaired: 0 }),
+      persistMessages: vi.fn().mockResolvedValue({ skipped: true, inserted: 0, repaired: 0 }),
       mergeSyntheticConversationMessages: vi.fn().mockResolvedValue(0),
       readLeadMetadata: vi.fn().mockResolvedValue({}),
       completeQueuedReplay: vi.fn(async (conversationId: string) => {
@@ -587,10 +587,12 @@ describe('GhlGuardService', () => {
 
     const result = await service.run(new Date('2026-10-22T12:00:00.000Z'), { contactIds: [row.ghl_contact_id], force: true, queuedOnly: true });
 
-    expect(result).toMatchObject({ selected: 1, fetched: 1, inserted: 1, failed: 0, queuedReplaySelected: 1, queuedReplayCompleted: 1 });
+    expect(result).toMatchObject({ selected: 1, fetched: 1, inserted: 0, failed: 0, queuedReplaySelected: 1, queuedReplayCompleted: 1 });
     expect(persistence.claimQueuedReplay).toHaveBeenCalledWith(row.id, true);
     expect(persistence.claimQueuedReplay).toHaveBeenCalledWith(canonical.id, true);
     expect(completedReplayIds).toEqual(expect.arrayContaining([row.id, canonical.id]));
+    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(canonical.id, expect.any(Date), true, true, true, false);
+    expect(reconciliation.reconcileConversation).toHaveBeenCalledWith(row.id, expect.any(Date), true, true, true, false);
     expect(persistence.releaseQueuedReplay).not.toHaveBeenCalled();
   });
 

@@ -577,9 +577,24 @@ export class GhlGuardService {
       if (persisted.skipped) {
         // The queued row can be a synthetic local snapshot whose canonical
         // sibling is already protected (for example, sent). The backup still
-        // executed the GHL read successfully, so consume the one queued replay
-        // instead of leaving the row permanently eligible at count=0.
+        // executed the GHL read successfully. Reconcile it before consuming
+        // the replay: a successful read can contain no new messages while
+        // still carrying native profile/name evidence that repairs a stale
+        // qualification snapshot.
         if (queuedReplayClaimed) {
+          await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true, true, false);
+          if (syntheticConversationId && syntheticConversationId !== effectiveRow.id) {
+            await this.dataSource!.query(
+              `UPDATE conversations synthetic
+               SET qualification_snapshot = canonical.qualification_snapshot,
+                   location_snapshot = canonical.location_snapshot,
+                   updated_at = CURRENT_TIMESTAMP
+               FROM conversations canonical
+               WHERE synthetic.id = $1 AND canonical.id = $2`,
+              [syntheticConversationId, effectiveRow.id],
+            );
+            await this.reconciliation.reconcileConversation(syntheticConversationId, new Date(), true, true, true, false);
+          }
           for (const replayId of claimedQueuedReplayIds) {
             const completed = await this.persistence.completeQueuedReplay(replayId);
             if (!completed) throw new Error('GHL_GUARD_QUEUED_REPLAY_COMPLETION_NOT_PERSISTED');
@@ -597,7 +612,7 @@ export class GhlGuardService {
             requestPath: fetched.requestPath,
             pages: fetched.data.pages,
             truncated: fetched.data.truncated,
-            reconciled: false,
+            reconciled: true,
             finishedAt: new Date(),
             durationMs: Date.now() - startedAt.getTime(),
             ...lookupMetadata,
