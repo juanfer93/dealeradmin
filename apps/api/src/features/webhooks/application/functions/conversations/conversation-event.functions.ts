@@ -81,6 +81,10 @@ export class ConversationEventFunctions {
         ? undefined
         : await this.qualification.findSourceDealer(runner, locationId, source);
       const displayName = clean(event.contact_name) || 'Lead';
+      const isSocialProfileChannel = /(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(event.channel);
+      const profileName = isSocialProfileChannel
+        ? profileDisplayNameFromInput({ channel: event.channel, contact_name: displayName })
+        : '';
       const normalizedName = profileDisplayNameFromInput({ channel: event.channel, contact_name: displayName }) || normalizeRealName(displayName) || 'Lead';
       const { firstName, lastName } = splitName(normalizedName);
       let lead = await this.qualification.upsertLead(runner, {
@@ -177,8 +181,8 @@ export class ConversationEventFunctions {
       const location = await this.qualification.resolveLocation(runner, transcript);
       const language = this.sourceConfig[source].splitByLanguage ? detectLeadLanguage(transcript) : undefined;
       const additiveField = (incoming: unknown, existing: unknown): string => clean(incoming) || clean(existing);
-      const contactRealName = event.channel.toLowerCase() === 'messenger'
-        ? profileDisplayNameFromInput({ channel: event.channel, contact_name: displayName })
+      const contactRealName = isSocialProfileChannel
+        ? profileName
         : normalizeRealName(displayName);
       const transcriptRealName = event.channel.toLowerCase() === 'whatsapp'
         ? transcript
@@ -193,10 +197,10 @@ export class ConversationEventFunctions {
       // single-word extraction from a later message (for example "Sorry").
       // Preserve the first meaningful name; later cycles may add fields but
       // must not replace it with conversational text.
-      const previousRealName = normalizeRealName(clean(previousSnapshot.real_name));
+      const previousRealName = isSocialProfileChannel ? '' : normalizeRealName(clean(previousSnapshot.real_name));
       const realName = additiveField(transcriptRealName, previousRealName)
-        || clean(normalized.real_name)
         || contactRealName
+        || clean(normalized.real_name)
         || '';
       const vehicleType = additiveField(normalized.vehicle_type, previousSnapshot.vehicle_type);
       const downPayment = normalizeDownPayment(additiveField(normalized.down_payment, previousSnapshot.down_payment));
@@ -213,6 +217,7 @@ export class ConversationEventFunctions {
       const downPaymentRule = evaluateDownPayment(vehicleType, downPayment);
       const snapshot: ConversationSnapshot = {
         real_name: realName,
+        profile_name: profileName || clean(previousSnapshot.profile_name),
         phone: effectivePhone || '',
         vehicle_type: vehicleType,
         vehicle_year: vehicleYear,

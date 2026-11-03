@@ -81,7 +81,7 @@ export function isPhoneAreaCodeAmount(value: string, phone: string): boolean {
 
 const INVALID_REAL_NAMES = new Set([
   '.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'location', 'whatsapp', 'facebook',
-  'in pa', 'in messenger', 'sorry',
+  'in pa', 'in messenger', 'for sure', 'tienes tacomas', 'sorry',
   'saludos', 'hello', 'hi', 'hey', 'hola', 'ola', 'greetings', 'buenos dias', 'buenas tardes',
   'buenas noches', 'bendiciones', 'buenos dias bendiciones', 'buenas tardes bendiciones', 'buenas noches bendiciones',
   'thu chikitha linda',
@@ -169,6 +169,7 @@ export function profileDisplayNameFromInput(input: CollectorInput): string {
     || ENGLISH_LOCATION_RESPONSE.test(candidate)
     || LOCATION_RESPONSE.test(candidate)
     || !/\p{L}/u.test(candidate)) return EMPTY;
+  if (INVALID_REAL_NAMES.has(candidate.toLowerCase())) return EMPTY;
   return candidate;
 }
 

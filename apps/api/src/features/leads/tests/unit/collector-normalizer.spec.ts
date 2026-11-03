@@ -71,6 +71,16 @@ describe('normalizeCollectorInput', () => {
       chat_history_log: 'What state are you in?\nIn PA',
     }).real_name).toBe('');
     expect(normalizeRealName('In PA')).toBe('');
+    expect(normalizeRealName('For Sure')).toBe('');
+  });
+
+  it('does not reuse a conversational Messenger label when no native profile name is present', () => {
+    expect(normalizeCollectorInput({
+      channel: 'messenger',
+      real_name: 'In Messenger',
+      message: 'Quiere hablar con un asesor',
+      chat_history_log: 'Quiere hablar con un asesor',
+    }).real_name).toBe('');
   });
 
   it.each([
@@ -363,7 +373,7 @@ describe('normalizeCollectorInput', () => {
       chat_history_log: 'Primeor\nTahoe\n1000 down',
     });
 
-    expect(result.real_name).toBe('Primeor');
+    expect(result.real_name).toBe('');
     expect(normalizeRealName('Location')).toBe('');
   });
 
@@ -2270,7 +2280,7 @@ describe('normalizeCollectorInput', () => {
       contact_name: 'Como Así',
       chat_history_log: 'Infiniti Q50\nMe lo puede explicar',
       message: 'Me lo puede explicar',
-    }).real_name).toBe('Como Así');
+    }).real_name).toBe('');
   });
 
   it('uses only a declared chat name for WhatsApp', () => {
@@ -2369,6 +2379,21 @@ describe('normalizeCollectorInput', () => {
 
     expect(result.real_name).toBe('');
     expect(result.vehicle_type).toBe('Ford Explorer');
+  });
+
+  it('does not use a Stafford WhatsApp vehicle question as the buyer name', () => {
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Tienes Tacomas',
+      real_name: 'Tienes Tacomas',
+      phone: '+12409886272',
+      message: 'CR-V',
+      chat_history_log: 'Tienes Tacomas\nCR-V',
+    });
+
+    expect(result.real_name).toBe('');
+    expect(normalizeRealName('Tienes Tacomas')).toBe('');
   });
 
   it('does not use a vehicle statement as an Arlington buyer name', () => {

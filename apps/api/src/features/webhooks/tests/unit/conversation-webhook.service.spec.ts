@@ -1342,7 +1342,7 @@ describe('ConversationWebhookService', () => {
           ghl_location_id: GHL_SOURCE_CONFIG.easterns.locationId,
           ghl_contact_id: 'contact-reconcile',
           status: 'stale_phone_ignored',
-          qualification_snapshot: { real_name: '', phone: '', vehicle_type: '', down_payment: '', purchase_timeline: '', documents: '', identification: '', bank_account: '', qualification_memory: '', qualification_complete: false, missing_qualification: [] },
+          qualification_snapshot: { real_name: '', profile_name: 'Emma Oertly', phone: '', vehicle_type: '', down_payment: '', purchase_timeline: '', documents: '', identification: '', bank_account: '', qualification_memory: '', qualification_complete: false, missing_qualification: [] },
           location_snapshot: { city: 'Laurel', state: 'MD', zip_code: null, easterns_zone: null },
           ready_at: null,
           lead_id: 'lead-reconcile',

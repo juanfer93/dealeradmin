@@ -136,6 +136,21 @@ export function extractNativeWhatsappPhone(messages: ConversationMessageRow[]): 
   return null;
 }
 
+export function extractNativeProfileName(messages: ConversationMessageRow[], channel: string): string {
+  if (!/(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(clean(channel))) return '';
+  for (const message of [...messages].reverse()) {
+    const payload = asRecord(message.raw_payload);
+    const contact = asRecord(payload.contact);
+    const profile = asRecord(payload.profile);
+    const whatsappProfile = asRecord(asRecord(payload.whatsapp).profile);
+    const candidate = [contact.name, profile.name, whatsappProfile.name, payload.profile_name]
+      .map(clean)
+      .find(Boolean);
+    if (candidate) return candidate;
+  }
+  return '';
+}
+
 export function normalizeWebhookInput(input: unknown, defaultChannel: string, headers: { contactId?: string; conversationId?: string; messageId?: string }): Record<string, unknown> {
   const value = asRecord(input);
   const nestedContact = asRecord(value.contact);

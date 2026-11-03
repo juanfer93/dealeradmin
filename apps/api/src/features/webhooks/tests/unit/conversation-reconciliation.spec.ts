@@ -286,7 +286,7 @@ describe('ConversationReconciliationFunctions', () => {
     await reconciliation.reconcileConversation('conversation-como-asi', new Date('2026-10-26T19:45:00.000Z'), true, false, true);
 
     const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
-    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ real_name: 'Como Así', phone: '+12405215639', vehicle_type: 'Infiniti q50' });
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ real_name: '', phone: '+12405215639', vehicle_type: 'Infiniti q50' });
     const leadUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE leads SET first_name')) as [string, unknown[]] | undefined;
     expect(leadUpdate).toBeDefined();
   });
@@ -334,7 +334,7 @@ describe('ConversationReconciliationFunctions', () => {
     await reconciliation.reconcileConversation('conversation-como-asi-cycle', new Date('2026-10-26T19:55:00.000Z'), true);
 
     const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
-    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ real_name: 'Como Así', phone: '+12405215639', vehicle_type: 'Infiniti q50' });
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ real_name: '', phone: '+12405215639', vehicle_type: 'Infiniti q50' });
     const leadUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE leads SET first_name')) as [string, unknown[]] | undefined;
     expect(leadUpdate).toBeDefined();
   });

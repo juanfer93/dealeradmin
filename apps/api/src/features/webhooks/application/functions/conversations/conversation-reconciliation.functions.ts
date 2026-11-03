@@ -6,7 +6,7 @@ import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-d
 import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
 import { ConversationQualificationFunctions } from './conversation-qualification.functions';
 import { ACTIVE_RECONCILIATION_BATCH_SIZE, GHL_SOURCE_CONFIG, PARTIAL_RECOVERY_INTERVAL_MS, PARTIAL_RECOVERY_MAX_ATTEMPTS, RECONCILIATION_LOCATION_IDS, CONVERSATION_STABILIZATION_MS, WAITING_WINDOW_MAX_ATTEMPTS, WAITING_WINDOW_RETRY_INTERVAL_MS } from './conversation-webhook.config';
-import { addProcessedImageEvidence, clean, extractNativeWhatsappPhone, inputIndicatesWhatsApp, isAttachmentEvidenceMessage, safePhone, splitName } from './conversation-webhook.helpers';
+import { addProcessedImageEvidence, clean, extractNativeProfileName, extractNativeWhatsappPhone, inputIndicatesWhatsApp, isAttachmentEvidenceMessage, safePhone, splitName } from './conversation-webhook.helpers';
 import type { ConversationMessageRow, ConversationSnapshot, LocationSnapshot, MediaReconciliationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
 import { configureWebhookTransactionSafety } from '../../transaction-safety';
 import { isEmptyMarker } from '../../../../leads/domain/collector-normalizer/text-cleaner';
@@ -172,7 +172,12 @@ export class ConversationReconciliationFunctions {
         await runner.rollbackTransaction();
         return;
       }
+      const isSocialProfileChannel = /(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(row.channel);
       const contactName = clean(`${row.first_name || ''} ${row.last_name || ''}`) || 'Lead';
+      const profileCandidate = clean(current.profile_name) || extractNativeProfileName(messages, row.channel);
+      const profileName = isSocialProfileChannel
+        ? profileDisplayNameFromInput({ channel: row.channel, contact_name: profileCandidate })
+        : '';
       const recentPhone = safePhone(extractRecentMessagePhone(evidenceMessages.map((message) => ({ ...message, is_attachment_evidence: isAttachmentEvidenceMessage(message) })), now));
       const nativeWhatsappPhone = this.isStaffordWhatsApp(source, row.channel)
         ? safePhone(row.canonical_phone) || extractNativeWhatsappPhone(messages)
@@ -193,7 +198,7 @@ export class ConversationReconciliationFunctions {
         // contaminated name/down-payment fields back into the normalizer or
         // they can win over the newer evidence in the conversation.
         real_name: targeted ? '' : clean(current.real_name),
-        contact_name: contactName,
+        contact_name: isSocialProfileChannel ? profileName : contactName,
         vehicle_type: targeted ? '' : clean(current.vehicle_type),
         down_payment: targeted ? '' : clean(current.down_payment),
         purchase_timeline: targeted ? '' : clean(current.purchase_timeline),
@@ -214,10 +219,10 @@ export class ConversationReconciliationFunctions {
       // Never preserve a stale conversational reply as a real name. The
       // periodic watchdog uses a non-targeted reconciliation, so sanitize the
       // existing snapshot before applying the additive merge as well.
-      const currentRealName = normalizeRealName(clean(current.real_name));
+      const currentRealName = isSocialProfileChannel ? '' : normalizeRealName(clean(current.real_name));
       const contactRealName = isStaffordWhatsAppVehicleLabel(contactName, source, row.channel)
         ? ''
-        : profileDisplayNameFromInput({ channel: row.channel, contact_name: contactName }) || normalizeRealName(contactName);
+        : isSocialProfileChannel ? profileName : profileDisplayNameFromInput({ channel: row.channel, contact_name: contactName }) || normalizeRealName(contactName);
       const realName = targeted
         ? clean(normalized.real_name) || contactRealName
         : preserveOrNormalize(currentRealName, normalized.real_name) || contactRealName;
@@ -273,6 +278,7 @@ export class ConversationReconciliationFunctions {
         : normalized.qualification_progress;
       const snapshot: ConversationSnapshot = {
         real_name: realName,
+        profile_name: profileName || current.profile_name,
         phone: effectivePhone,
         vehicle_type: vehicle,
         vehicle_year: vehicleYear,

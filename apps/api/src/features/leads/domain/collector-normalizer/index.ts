@@ -617,9 +617,6 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     extractDeclaredRealNameFromText(rawMessage),
     extractDeclaredRealNameFromText(rawHistory),
   ].map(normalizeRealName).find(Boolean) ?? EMPTY;
-  const messengerTranscriptName = profileDisplayName
-    ? EMPTY
-    : extractedNames.map(normalizeRealName).find(Boolean) ?? EMPTY;
   // Messenger/Instagram contact labels are display metadata, not proof of a
   // buyer's real name. Only an explicit name answer may populate the
   // qualification field; an already persisted explicit name can be retained.
@@ -629,7 +626,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     // Facebook/Instagram profile identity is authoritative. Only an explicit
     // name declaration in the conversation may replace it. Keep the profile
     // value verbatim so emoji-only identities remain usable.
-    ? (messengerDeclaredName || profileDisplayName || suppliedName || messengerTranscriptName)
+    ? (messengerDeclaredName || profileDisplayName || suppliedName)
     : isWhatsAppChannel(channel)
       // WhatsApp gets a declared chat name first, then the profile name. The
       // message body and profile are separate fields in the webhook contract.

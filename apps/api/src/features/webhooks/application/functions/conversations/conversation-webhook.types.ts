@@ -58,6 +58,7 @@ export type ExistingDealerLead = {
 
 export type ConversationSnapshot = {
   real_name: string;
+  profile_name?: string;
   phone: string;
   vehicle_type: string;
   vehicle_year?: number | null;
