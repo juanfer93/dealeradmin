@@ -82,6 +82,7 @@ export function isPhoneAreaCodeAmount(value: string, phone: string): boolean {
 const INVALID_REAL_NAMES = new Set([
   '.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'location', 'whatsapp', 'facebook',
   'in pa', 'in messenger', 'for sure', 'tienes tacomas', 'sorry',
+  'hola le saluda', 'le saluda', 'les saluda',
   'saludos', 'hello', 'hi', 'hey', 'hola', 'ola', 'greetings', 'buen dia', 'buen día', 'buen dis', 'buenos dias', 'buenos días', 'buenas tardes',
   'buenas noches', 'bendiciones', 'buenos dias bendiciones', 'buenas tardes bendiciones', 'buenas noches bendiciones',
   'thu chikitha linda',
@@ -101,6 +102,7 @@ export const PHONE_LIKE_TEXT = /\b(?:mi|my)\s+(?:n[uú]mero|number|phone|tel[eé
 const REAL_NAME_TOKEN = "[\\p{L}\\p{M}]+(?:[-'][\\p{L}\\p{M}]+)*";
 const REAL_NAME_PATTERN = new RegExp(`^${REAL_NAME_TOKEN}(?:\\s+${REAL_NAME_TOKEN})*$`, 'u');
 const NAME_SUFFIX_PUNCTUATION = /\b(jr|sr|ii|iii|iv|v)\.(?=\s|,|$)/gi;
+const CONVERSATIONAL_NAME_PREFIX = /^(?:hola|hello|hi|hey)[,!\s]+(?:(?:le|les|te)\s+saluda(?:n)?|saludos?\s+de)[,!\s]+/i;
 const TECHNICAL_NAME_LABEL = /^(?:precio|price)\s+(?:de|of)\b/i;
 const LOCATION_RESPONSE = /^(?:estoy|vivo)\s+en\b/i;
 const ENGLISH_LOCATION_RESPONSE = /^(?:i(?:'m| am)\s+)?(?:in|from|near|around|located\s+in)\s+(?:maryland|md|virginia|va|pennsylvania|pa|delaware|de|new\s+york|ny|new\s+jersey|nj|district\s+of\s+columbia|washington\s+dc|dc)$/i;
@@ -117,6 +119,10 @@ function formatPersonalName(value: string): string {
 
 function normalizeNameSuffixPunctuation(value: string): string {
   return value.replace(NAME_SUFFIX_PUNCTUATION, '$1').replace(/,\s*$/, '').trim();
+}
+
+function stripConversationalNamePrefix(value: string): string {
+  return value.replace(CONVERSATIONAL_NAME_PREFIX, '').trim();
 }
 
 export function isValidRealName(value: string | null | undefined): boolean {
@@ -143,7 +149,7 @@ export function normalizeRealName(value: string | null | undefined): string {
   // `Andrea⚘️` is retained instead of being persisted as an empty value.
   const decoratedCandidate = clean(value).normalize('NFC').replace(/[\p{So}\p{Sk}\p{Cf}\uFE0F]/gu, '').replace(/\s+/g, ' ').trim();
   const declaredCandidate = decoratedCandidate.match(NAME_DECLARATION)?.[1] || decoratedCandidate;
-  const candidate = normalizeNameSuffixPunctuation(declaredCandidate);
+  const candidate = normalizeNameSuffixPunctuation(stripConversationalNamePrefix(declaredCandidate));
   if (!candidate || INVALID_REAL_NAMES.has(candidate.toLowerCase())) return EMPTY;
   if (PHONE_LIKE_TEXT.test(candidate) || candidate.replace(/\D/g, '').length >= 7) return EMPTY;
   if (!isValidRealName(candidate)) return EMPTY;

@@ -2422,6 +2422,17 @@ describe('normalizeCollectorInput', () => {
     expect(result.real_name).toBe('Jessica');
   });
 
+  it('strips a greeting prefix from a Stafford WhatsApp contact name', () => {
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Hola Le Saluda Calixto',
+      message: 'Quiero una SUV',
+    });
+
+    expect(result.real_name).toBe('Calixto');
+  });
+
   it('ignores the stored Buen dis greeting variant before a later Stafford name', () => {
     const result = normalizeCollectorInput({
       source: 'stafford',
