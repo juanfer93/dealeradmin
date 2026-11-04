@@ -216,6 +216,38 @@ test('acepta la conversación completa de Messenger con teléfono capturado en e
   }
 });
 
+test('captura CarHub Stafford por Messenger y exige el teléfono escrito en el chat', async ({ request }) => {
+  const suffix = `ghl-e2e-carhub-messenger-${Date.now()}`;
+  const messages = ['I am looking for an SUV', 'My phone is 703-555-0198'];
+
+  for (const [index, message] of messages.entries()) {
+    const eventId = `${suffix}-${index + 1}`;
+    const response = await request.post('http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/carhub', {
+      data: JSON.stringify({
+        message_body: message,
+        contact_phone: '',
+        contact_name: 'CarHub Buyer',
+        channel: 'messenger',
+        event_id: eventId,
+      }),
+      headers: {
+        'content-type': 'application/json',
+        'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
+        'X-DealerADMIN-Contact-ID': `${suffix}-contact`,
+        'X-DealerADMIN-Conversation-ID': `${suffix}-conversation`,
+        'X-DealerADMIN-Message-ID': `${eventId}-message`,
+      },
+    });
+
+    expect(response.status(), `CarHub message ${index + 1}`).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      accepted: true,
+      source: 'carhub',
+      status: 'processed',
+    });
+  }
+});
+
 test('reproduce Easterns y conserva el nombre real cuando el primer mensaje expresa intención de vehículo', async ({ request }) => {
   const suffix = `ghl-e2e-easterns-real-name-${Date.now()}`;
   const messages = ['Need a vehicle fast', 'SUV', 'Baltimore', '4433782388', 'Not much in hand 🤚 nothing to 500', 'Now', 'Yes'];

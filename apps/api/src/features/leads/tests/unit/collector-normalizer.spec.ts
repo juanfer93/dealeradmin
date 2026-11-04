@@ -1851,6 +1851,14 @@ describe('normalizeCollectorInput', () => {
     });
   });
 
+  it('keeps CarHub Stafford on the Messenger phone-required flow', () => {
+    expect(normalizeCollectorInput({ source: 'carhub', channel: 'messenger', phone: '', contact_name: 'CarHub Buyer', message: 'I am looking for an SUV' })).toMatchObject({
+      real_name: 'CarHub Buyer',
+      phone: '',
+      qualification_step: 'phone',
+    });
+  });
+
   it('keeps no-down as a known flexible-dealer answer', () => {
     expect(normalizeCollectorInput({ source: 'easterns', channel: 'messenger', real_name: 'Cliente', message: 'No tengo pago inicial' })).toMatchObject({
       down_payment: 'No down payment',
@@ -2458,6 +2466,20 @@ describe('normalizeCollectorInput', () => {
     });
 
     expect(result.real_name).toBe('Calixto');
+  });
+
+  it('strips a bare greeting from a Stafford WhatsApp contact name', () => {
+    expect(normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Hola Manuel Cordero',
+      message: 'Busco una CR-V',
+    }).real_name).toBe('Manuel Cordero');
+  });
+
+  it('does not treat a temporal reply or generic MKT label as a WhatsApp name', () => {
+    expect(normalizeRealName('Mañana')).toBe('');
+    expect(normalizeRealName('MKT')).toBe('');
   });
 
   it('ignores the stored Buen dis greeting variant before a later Stafford name', () => {

@@ -35,6 +35,14 @@ describe('Identidad de lead por dealer en fixtures', () => {
     }));
   });
 
+  it('expone CarHub Stafford en la lista de dealers del frontend', () => {
+    expect(testDealers).toContainEqual(expect.objectContaining({
+      code: 'CARHUB-STAFFORD',
+      name: 'CarHub Stafford',
+      ghlLocationId: 'fVyKDmI0Il432etqbODo',
+    }));
+  });
+
   it('bloquea el duplicado en el dealer destino pero permite el mismo lead en otro dealer', () => {
     addTestManualLead(
       'dealer-stafford',

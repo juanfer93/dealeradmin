@@ -58,6 +58,7 @@ import { TemporarilyHideEasternsWhiteMarsh1710000049000 } from './database/migra
 import { CountryClubCarsDealer1710000050000 } from './database/migrations/1710000050000-CountryClubCarsDealer';
 import { LuckiMazdaDealer1710000051000 } from './database/migrations/1710000051000-LuckiMazdaDealer';
 import { RenameCountryClubCarsDealer1710000052000 } from './database/migrations/1710000052000-RenameCountryClubCarsDealer';
+import { CarHubStaffordDealer1710000053000 } from './database/migrations/1710000053000-CarHubStaffordDealer';
 import { POSTGRES_EXTRA } from './database/postgres-connection-options';
 
 const databaseModule = TypeOrmModule.forRootAsync({
@@ -119,6 +120,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             CountryClubCarsDealer1710000050000,
             LuckiMazdaDealer1710000051000,
             RenameCountryClubCarsDealer1710000052000,
+            CarHubStaffordDealer1710000053000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,

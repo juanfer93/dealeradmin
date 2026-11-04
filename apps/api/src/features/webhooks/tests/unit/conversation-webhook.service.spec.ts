@@ -669,6 +669,26 @@ describe('ConversationWebhookService', () => {
     ]);
   });
 
+  it('configures CarHub Stafford as a Messenger-only phone-required source', async () => {
+    expect(GHL_SOURCE_CONFIG.carhub).toEqual({
+      locationId: 'fVyKDmI0Il432etqbODo',
+      defaultChannel: 'messenger',
+      supportedChannels: ['messenger'],
+    });
+
+    const service = new ConversationWebhookService();
+    const result = await service.acceptCustomerReplied(
+      { message_body: 'I am looking for an SUV.', channel: 'messenger', ghl_location_id: 'fVyKDmI0Il432etqbODo' },
+      'carhub',
+      { contactId: 'ghl-carhub-contact', conversationId: 'ghl-carhub-conversation' },
+    );
+
+    expect(result).toMatchObject({ source: 'carhub', conversationId: 'ghl-carhub-conversation' });
+    expect(getTestConversationEvents()).toEqual([
+      expect.objectContaining({ source: 'carhub', channel: 'messenger' }),
+    ]);
+  });
+
   it('configures Lucki Mazda as a WhatsApp-only source', async () => {
     expect(GHL_SOURCE_CONFIG.lucki).toEqual({
       locationId: 'cd9Slb2Fk2vNY3l4ukG9',

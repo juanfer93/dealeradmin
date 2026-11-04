@@ -20,6 +20,7 @@ const LOCATIONS = [
   ['STAFFORD', 'LiaoSID3nvAhad49ZpNJ'],
   ['COUNTRY_CLUB', 'k9DePpsNBu9qWT1C6pW0'],
   ['LUCKI_MAZDA', 'cd9Slb2Fk2vNY3l4ukG9'],
+  ['CARHUB', 'fVyKDmI0Il432etqbODo'],
   ['FREDERICKSBURG', 'MyxWNKacThim798E8KC6'],
   ['FREDERICKSBURG_2', 'bAuMEQeH48xAtu9tAMFf'],
   ['EASTERNS', 'xN2LSSl62okzv9GnOJPU'],

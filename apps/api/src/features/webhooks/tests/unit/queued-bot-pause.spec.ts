@@ -137,6 +137,10 @@ describe('queued Conversation AI pause', () => {
     expect(isQueuedPauseSourceEnabled('lucki')).toBe(false);
   });
 
+  it('does not enable queued pause for CarHub Stafford', () => {
+    expect(isQueuedPauseSourceEnabled('carhub')).toBe(false);
+  });
+
   it('allocates a new eventId for a later queued re-entry', async () => {
     const inserted: unknown[][] = [];
     let sequence = 0;

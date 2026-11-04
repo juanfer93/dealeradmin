@@ -425,6 +425,19 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result.real_name).toBe('Calixto');
   });
 
+  it('removes a bare greeting from a Stafford contact name in Custom Code', () => {
+    expect(execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Hola Manuel Cordero',
+      message: 'Busco una CR-V',
+    }).real_name).toBe('Manuel Cordero');
+  });
+
+  it('rejects temporal replies and generic MKT labels as WhatsApp names in Custom Code', () => {
+    expect(execute({ channel: 'whatsapp', contact_name: 'MKT', message: 'Mañana' }).real_name).toBe('');
+  });
+
   it('does not discard an Easterns lead when GHL marks it stop bot', () => {
     const result = execute({
       source: 'easterns',
