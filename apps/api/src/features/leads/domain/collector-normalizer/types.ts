@@ -76,6 +76,7 @@ export type CollectorOutput = {
 export type CollectorFlowPolicy = {
   sourceAware: boolean;
   stafford: boolean;
+  nativeWhatsapp: boolean;
   requiresLocation: boolean;
   phoneSatisfiedByNative: boolean;
 };

@@ -61,10 +61,10 @@ const amount = (value) => {
 const validAmount = (value) => amount(value);
 const GENERAL_DOWN_PAYMENT_MINIMUM = 1000;
 const OFFLEASE_DOWN_PAYMENT_MINIMUM = 1500;
-const OFFLEASE_DEALER_IDS = new Set(['fredericksburg', 'fredericksburg-2', 'fredericksburg 2', 'stafford']);
+const OFFLEASE_DEALER_IDS = new Set(['fredericksburg', 'fredericksburg-2', 'fredericksburg 2']);
 const isOffleaseDealer = (value) => {
   const normalized = clean(value).toLocaleLowerCase();
-  return OFFLEASE_DEALER_IDS.has(normalized) || /^offlease(?:\s+motors)?\s+(?:fredericksburg(?:\s*2)?|stafford)$/i.test(normalized);
+  return OFFLEASE_DEALER_IDS.has(normalized) || /^offlease(?:\s+motors)?\s+fredericksburg(?:\s*2)?$/i.test(normalized);
 };
 const visibleDownPayment = (value, dealerOrSource) => {
   const normalized = validAmount(value);
@@ -428,7 +428,7 @@ const previousFinancing = financingQuestionAsked && previousFinancingNo.test(lat
       : previousFinancingNo.test(conversationalEvidence(predictorQuestion && !financingQuestionAsked ? rawHistory.split(/\r?\n/).slice(0, -1).join('\n') : rawMessage, rawMemory))
         ? 'no'
         : first(memoryValue(['previous_financing', 'previous financing', 'financing history', 'historial de financiamiento']), '');
-const recoveredStaffordPreviousFinancing = inputData.source === 'stafford' && isWhatsAppChannel(inputData.channel)
+const recoveredStaffordPreviousFinancing = ['stafford', 'country', 'lucki'].includes(inputData.source) && isWhatsAppChannel(inputData.channel)
   && economicSedanIntent.test(rawHistory)
   && rawHistory.split(/\r?\n/).map(clean).some((line) => /^\$?1[,.]?000(?:\s+m[aá]xim(?:o|um))?$/i.test(line))
   ? (() => {
@@ -459,7 +459,7 @@ let down = validAmount(cashDown && tradeInLanguage.test(conversationalDownSource
   : downCandidate);
 down = visibleDownPayment(down, source);
 const sourceAware = Boolean(source);
-const stafford = source === 'stafford';
+const stafford = source === 'stafford' || source === 'country' || source === 'lucki' || source === 'action-cars';
 const requiresLocation = ['easterns', 'easterns-millersville'].includes(source);
 const allowFuzzyBaltimore = source === 'easterns';
 const phoneSatisfiedByNative = stafford && isWhatsAppChannel(inputData.channel);

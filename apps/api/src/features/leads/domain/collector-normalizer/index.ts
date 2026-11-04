@@ -46,7 +46,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const profileDisplayName = profileDisplayNameFromInput(input);
   const profileName = profileNameFromInput(input, isMessengerChannel(channel));
   const whatsappContactFallback = firstNonEmpty(input.real_name)
-    || clean(input.source).toLowerCase() !== 'stafford'
+    || !policy.nativeWhatsapp
     || !isWhatsAppChannel(channel)
     || /^lead$/i.test(firstNonEmpty(input.contact_name, input.contactName, input.profile?.name, input.name))
     ? EMPTY

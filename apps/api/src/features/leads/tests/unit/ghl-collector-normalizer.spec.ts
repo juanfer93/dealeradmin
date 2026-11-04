@@ -886,7 +886,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     ['stafford', 'whatsapp', 'SUV', 'Sí'],
     ['fredericksburg', 'messenger', 'Toyota Tacoma', 'Yes, I financed a vehicle before'],
   ])('keeps the common qualification complete after financing-history wording: %s', (source, channel, vehicle, answer) => {
-    expect(execute({
+    const result = execute({
       source,
       channel,
       phone: '+15405550123',
@@ -894,12 +894,14 @@ describe('HighLevel collector custom-code normalizer', () => {
       message: answer,
       chat_history_log: `QA Buyer\n${vehicle}\n1000`,
       previous_predicted_bot_question: 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?',
-    })).toMatchObject({
+    });
+    expect(result).toMatchObject({
       previous_financing: 'yes',
-      down_payment: '',
-      down_payment_amount: null,
       qualification_step: 'complete',
     });
+    expect(result).toMatchObject(source === 'stafford'
+      ? { down_payment: '1000', down_payment_amount: 1000 }
+      : { down_payment: '', down_payment_amount: null });
   });
 
   it('keeps the regular minimum when the financing-history answer is negative in Custom Code', () => {
@@ -912,7 +914,8 @@ describe('HighLevel collector custom-code normalizer', () => {
       previous_predicted_bot_question: 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?',
     })).toMatchObject({
       previous_financing: 'no',
-      down_payment: '',
+      down_payment: '1000',
+      down_payment_amount: 1000,
       down_payment_sufficient: false,
       qualification_step: 'complete',
     });

@@ -129,6 +129,14 @@ describe('queued Conversation AI pause', () => {
     });
   });
 
+  it('does not enable queued pause for Country Club Cars', () => {
+    expect(isQueuedPauseSourceEnabled('country')).toBe(false);
+  });
+
+  it('does not enable queued pause for Lucki Mazda', () => {
+    expect(isQueuedPauseSourceEnabled('lucki')).toBe(false);
+  });
+
   it('allocates a new eventId for a later queued re-entry', async () => {
     const inserted: unknown[][] = [];
     let sequence = 0;

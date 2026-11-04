@@ -25,9 +25,14 @@ describe('normalización de pago inicial', () => {
     expect(visibleDownPayment('1200', 'fredericksburg')).toBe('');
   });
 
-  it.each(['stafford', 'fredericksburg', 'fredericksburg-2', 'fredericksburg 2'])('aplica el mismo mínimo Offlease a %s', (source) => {
+  it.each(['fredericksburg', 'fredericksburg-2', 'fredericksburg 2'])('aplica el mínimo de 1500 a %s', (source) => {
     expect(visibleDownPayment('1499', source)).toBe('');
     expect(visibleDownPayment('1500', source)).toBe('1500');
+  });
+
+  it('mantiene Stafford en el mínimo general de 1000', () => {
+    expect(visibleDownPayment('1000', 'stafford')).toBe('1000');
+    expect(visibleDownPayment('1200', 'Offlease Motors Stafford')).toBe('1200');
   });
 
   it.each(['No tengo down payment', "I don't have a down payment", 'sin enganche'])('preserva la evidencia negativa %s en BD, pero no en el texto copiado', (value) => {

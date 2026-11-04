@@ -32,10 +32,11 @@ export function isQueuedTransition(previousStatus: string | null | undefined, ne
 }
 
 export function isQueuedPauseSourceEnabled(source: string): boolean {
-  // Every configured source now has an individual queued-pause workflow,
-  // including Stafford's native WhatsApp workflow. Keep the guard explicit so
-  // an empty source cannot be treated as a routable delivery target.
-  return source.trim().length > 0;
+  // Configured sources can opt into an individual queued-pause workflow,
+  // including Stafford's native WhatsApp workflow. Country Club and Lucki are
+  // explicitly excluded because their contacts are handled externally.
+  const normalizedSource = source.trim().toLowerCase();
+  return source.trim().length > 0 && !['country', 'lucki'].includes(normalizedSource);
 }
 
 export function queuedPauseWebhookEnvName(source: string): string {

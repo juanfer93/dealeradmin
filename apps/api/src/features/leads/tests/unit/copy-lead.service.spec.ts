@@ -119,4 +119,25 @@ describe('CopyLeadService', () => {
     const insertParams = calls[5]?.[1] as unknown[];
     expect(String(insertParams?.[10])).not.toContain('1200');
   });
+
+  it('copies a Stafford down payment from 1000 without applying the Fredericksburg visibility gate', async () => {
+    const runner = createRunner([
+      [{ ...sourceRow, source_dealer_name: 'Offlease Motors Stafford', down_payment: '1200', message_text: 'Jose Lopez +15551234567 Honda CR-V, 1200 down.' }],
+      [{ id: 'dealer-target', name: 'Dealer Target' }],
+      [],
+      [],
+      [],
+    ]);
+    const dataSource = { createQueryRunner: vi.fn(() => runner) };
+    const service = new CopyLeadService(dataSource as never);
+
+    await expect(service.execute('lead-1', { sourceDealerId: 'dealer-source', targetDealerId: 'dealer-target' }))
+      .resolves.toMatchObject({ success: true });
+
+    const calls = runner.query.mock.calls as unknown[][];
+    expect(calls[5]?.[1]).toEqual([
+      'lead-1', 'dealer-target', 'Honda CR-V', '1200', 'this month', 'proof of income: yes',
+      'yes', 'yes', null, 'Copied from Offlease Motors Stafford', sourceRow.message_text.replace('2000', '1200'),
+    ]);
+  });
 });

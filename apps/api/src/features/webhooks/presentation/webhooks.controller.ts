@@ -77,6 +77,7 @@ export class WebhooksController {
   async processDueConversations(@Req() request: Request) {
     await this.ingressAudit.recoverStale();
     const requestedNow = request.header('X-DealerADMIN-Test-Now');
+    const dueContactIds = this.queryContactIds(request);
     return this.conversationWebhookService.processDueConversations(this.controlledTestNow(requestedNow), {
       // HTTP E2E runs against the real database but must only release the
       // explicit due-window rows; bounded historical reconciliation is covered
@@ -84,6 +85,7 @@ export class WebhooksController {
       // test fixture's own webhook sequence.
       reconcileActive: process.env.NODE_ENV !== 'test',
       runGuard: false,
+      ...(dueContactIds.length > 0 ? { dueContactIds } : {}),
     });
   }
 

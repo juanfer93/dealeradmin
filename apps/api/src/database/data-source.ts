@@ -47,6 +47,9 @@ import { LeadDeletionSuppressions1710000046000 } from './migrations/171000004600
 import { PartialGuardRecovery1710000047000 } from './migrations/1710000047000-PartialGuardRecovery';
 import { PartialGuardRecoveryLimit1710000048000 } from './migrations/1710000048000-PartialGuardRecoveryLimit';
 import { TemporarilyHideEasternsWhiteMarsh1710000049000 } from './migrations/1710000049000-TemporarilyHideEasternsWhiteMarsh';
+import { CountryClubCarsDealer1710000050000 } from './migrations/1710000050000-CountryClubCarsDealer';
+import { LuckiMazdaDealer1710000051000 } from './migrations/1710000051000-LuckiMazdaDealer';
+import { RenameCountryClubCarsDealer1710000052000 } from './migrations/1710000052000-RenameCountryClubCarsDealer';
 import { POSTGRES_EXTRA } from './postgres-connection-options';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -109,6 +112,9 @@ export const AppDataSource = new DataSource({
     PartialGuardRecovery1710000047000,
     PartialGuardRecoveryLimit1710000048000,
     TemporarilyHideEasternsWhiteMarsh1710000049000,
+    CountryClubCarsDealer1710000050000,
+    LuckiMazdaDealer1710000051000,
+    RenameCountryClubCarsDealer1710000052000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,

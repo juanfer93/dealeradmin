@@ -38,13 +38,15 @@ export function effectiveChannel(input: CollectorInput): string {
 export function collectorFlowPolicy(input: CollectorInput): CollectorFlowPolicy {
   const source = clean(input.source).toLocaleLowerCase();
   const sourceAware = Boolean(source);
-  const stafford = source === 'stafford';
+  const stafford = source === 'stafford' || source === 'country' || source === 'lucki';
+  const nativeWhatsapp = stafford || source === 'action-cars';
   const requiresLocation = source === 'easterns' || source === 'easterns-millersville';
   return {
     sourceAware,
     stafford,
+    nativeWhatsapp,
     requiresLocation,
-    phoneSatisfiedByNative: stafford && isWhatsAppChannel(input.channel),
+    phoneSatisfiedByNative: nativeWhatsapp && isWhatsAppChannel(input.channel),
   };
 }
 

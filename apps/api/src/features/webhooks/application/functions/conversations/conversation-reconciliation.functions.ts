@@ -424,6 +424,6 @@ export class ConversationReconciliationFunctions {
   }
 
   private isStaffordWhatsApp(source: SourceKey, channel: string): boolean {
-    return source === 'stafford' && channel.trim().toLowerCase() === 'whatsapp';
+    return (source === 'stafford' || source === 'country' || source === 'lucki' || source === 'action-cars') && channel.trim().toLowerCase() === 'whatsapp';
   }
 }

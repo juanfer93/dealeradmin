@@ -19,6 +19,22 @@ describe('Identidad de lead por dealer en fixtures', () => {
     expect(testDealers.some((dealer) => dealer.name === 'Easterns Millersville')).toBe(true);
   });
 
+  it('expone Country Club Cars en la lista de dealers del frontend', () => {
+    expect(testDealers).toContainEqual(expect.objectContaining({
+      code: 'COUNTRY-CLUB',
+      name: 'Country Club Cars Inc',
+      ghlLocationId: 'k9DePpsNBu9qWT1C6pW0',
+    }));
+  });
+
+  it('expone Lucki Mazda of Woodbridge en la lista de dealers del frontend', () => {
+    expect(testDealers).toContainEqual(expect.objectContaining({
+      code: 'LUCKI-MAZDA',
+      name: 'Lucki Mazda of Woodbridge',
+      ghlLocationId: 'cd9Slb2Fk2vNY3l4ukG9',
+    }));
+  });
+
   it('bloquea el duplicado en el dealer destino pero permite el mismo lead en otro dealer', () => {
     addTestManualLead(
       'dealer-stafford',

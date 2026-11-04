@@ -24,8 +24,8 @@ function isNoDownPayment(value: string | null | undefined): boolean {
 
 function isOffleaseDealer(value: string | null | undefined): boolean {
   const normalized = clean(value).toLocaleLowerCase();
-  return new Set(['fredericksburg', 'fredericksburg-2', 'fredericksburg 2', 'stafford']).has(normalized)
-    || /^offlease(?:\s+motors)?\s+(?:fredericksburg(?:\s*2)?|stafford)$/i.test(normalized);
+  return new Set(['fredericksburg', 'fredericksburg-2', 'fredericksburg 2']).has(normalized)
+    || /^offlease(?:\s+motors)?\s+fredericksburg(?:\s*2)?$/i.test(normalized);
 }
 
 function visibleDownPayment(value: string | null | undefined, dealerName?: string | null): string {

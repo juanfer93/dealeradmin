@@ -6,7 +6,7 @@ import { clean } from './text-cleaner';
 import { isWhatsAppChannel } from './flow-policy';
 
 export function isStaffordWhatsAppVehicleLabel(value: string, source: string | null | undefined, channel: string | null | undefined): boolean {
-  if (clean(source).toLocaleLowerCase() !== 'stafford' || !isWhatsAppChannel(channel)) return false;
+  if (!['stafford', 'country', 'lucki', 'action-cars'].includes(clean(source).toLocaleLowerCase()) || !isWhatsAppChannel(channel)) return false;
   const candidate = clean(value);
   return /^(?:un|una|a|an|my|mi|the)\s+/i.test(candidate)
     && (VEHICLE_BRANDS.test(candidate) || VEHICLE_MODELS.test(candidate) || VEHICLE_CATEGORIES.test(candidate));

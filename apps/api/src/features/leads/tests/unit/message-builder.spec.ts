@@ -22,6 +22,7 @@ describe('qualification message normalization', () => {
   it('rounds 999 and omits insufficient amounts from the advisor-facing copy', () => {
     expect(buildWhatsAppMessage('Lead', '+15550001111', { down_payment: '999' })).toContain('1000 de down');
     expect(buildWhatsAppMessage('Lead', '+15550001111', { down_payment: '850' })).not.toContain('850');
+    expect(buildWhatsAppMessage('Lead', '+15550001111', { down_payment: '1200', dealer_name: 'Offlease Motors Stafford' })).toContain('1200 de down');
     expect(buildWhatsAppMessage('Lead', '+15550001111', { down_payment: '1200', dealer_name: 'Offlease Fredericksburg' })).not.toContain('1200');
     expect(buildWhatsAppMessage('Lead', '+15550001111', { down_payment: '1500', dealer_name: 'Offlease Fredericksburg' })).toContain('1500 de down');
   });

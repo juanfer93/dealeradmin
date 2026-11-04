@@ -644,6 +644,56 @@ describe('ConversationWebhookService', () => {
     });
   });
 
+  it('configures Country Club Cars as a WhatsApp-only source', async () => {
+    expect(GHL_SOURCE_CONFIG.country).toEqual({
+      locationId: 'k9DePpsNBu9qWT1C6pW0',
+      defaultChannel: 'whatsapp',
+      supportedChannels: ['whatsapp'],
+    });
+
+    const service = new ConversationWebhookService();
+    const result = await service.acceptCustomerReplied(
+      { message_body: 'Carlos', channel: 'whatsapp', ghl_location_id: 'k9DePpsNBu9qWT1C6pW0' },
+      'country',
+      { contactId: 'ghl-country-contact', conversationId: 'ghl-country-conversation' },
+    );
+
+    expect(result).toMatchObject({ source: 'country', conversationId: 'ghl-country-conversation' });
+    await expect(service.acceptCustomerReplied(
+      { message_body: 'Messenger should be ignored', channel: 'messenger', ghl_location_id: 'k9DePpsNBu9qWT1C6pW0' },
+      'country',
+      { contactId: 'ghl-country-messenger-contact', conversationId: 'ghl-country-messenger-conversation' },
+    )).resolves.toMatchObject({ source: 'country', status: 'ignored_channel' });
+    expect(getTestConversationEvents()).toEqual([
+      expect.objectContaining({ source: 'country', channel: 'whatsapp' }),
+    ]);
+  });
+
+  it('configures Lucki Mazda as a WhatsApp-only source', async () => {
+    expect(GHL_SOURCE_CONFIG.lucki).toEqual({
+      locationId: 'cd9Slb2Fk2vNY3l4ukG9',
+      defaultChannel: 'whatsapp',
+      supportedChannels: ['whatsapp'],
+    });
+
+    const service = new ConversationWebhookService();
+    const result = await service.acceptCustomerReplied(
+      { message_body: 'Carlos', channel: 'whatsapp', ghl_location_id: 'cd9Slb2Fk2vNY3l4ukG9' },
+      'lucki',
+      { contactId: 'ghl-lucki-contact', conversationId: 'ghl-lucki-conversation' },
+    );
+
+    expect(result).toMatchObject({ source: 'lucki', conversationId: 'ghl-lucki-conversation' });
+    await expect(service.acceptCustomerReplied(
+      { message_body: 'Messenger should be ignored', channel: 'messenger', ghl_location_id: 'cd9Slb2Fk2vNY3l4ukG9' },
+      'lucki',
+      { contactId: 'ghl-lucki-messenger-contact', conversationId: 'ghl-lucki-messenger-conversation' },
+    )).resolves.toMatchObject({ source: 'lucki', status: 'ignored_channel' });
+    expect(getTestConversationEvents()).toEqual([
+      expect.objectContaining({ source: 'lucki', channel: 'whatsapp' }),
+    ]);
+  });
+
   it('keeps the two Koons Fredericksburg dealers as separate Messenger sources', async () => {
     expect(GHL_SOURCE_CONFIG['koons-fred']).toEqual({
       locationId: 'xuHo0opTO2g5edIuPJRl',
@@ -696,11 +746,11 @@ describe('ConversationWebhookService', () => {
     ]);
   });
 
-  it('splits the shared Action Pre Owned Cars source into Spanish and English queues', async () => {
+  it('keeps Action Pre Owned Cars on WhatsApp by default, retains Messenger, and splits Spanish/English queues', async () => {
     expect(GHL_SOURCE_CONFIG['action-cars']).toEqual({
       locationId: 'ZxadcudjvBz7KFCB1od4',
-      defaultChannel: 'messenger',
-      supportedChannels: ['messenger'],
+      defaultChannel: 'whatsapp',
+      supportedChannels: ['whatsapp', 'messenger'],
       splitByLanguage: true,
     });
 
@@ -717,6 +767,23 @@ describe('ConversationWebhookService', () => {
 
     await expect(findSourceDealer.call(service, queryRunner, 'ZxadcudjvBz7KFCB1od4', 'action-cars', 'es')).resolves.toMatchObject({ id: 'dealer-action-es' });
     await expect(findSourceDealer.call(service, queryRunner, 'ZxadcudjvBz7KFCB1od4', 'action-cars', 'en')).resolves.toMatchObject({ id: 'dealer-action-en' });
+
+    const whatsapp = await service.acceptCustomerReplied(
+      { message_body: 'I am looking for an SUV.', channel: 'whatsapp', ghl_location_id: 'ZxadcudjvBz7KFCB1od4' },
+      'action-cars',
+      { contactId: 'ghl-action-whatsapp-contact', conversationId: 'ghl-action-whatsapp-conversation' },
+    );
+    const messenger = await service.acceptCustomerReplied(
+      { message_body: 'Busco una SUV.', channel: 'messenger', ghl_location_id: 'ZxadcudjvBz7KFCB1od4' },
+      'action-cars',
+      { contactId: 'ghl-action-messenger-contact', conversationId: 'ghl-action-messenger-conversation' },
+    );
+    expect(whatsapp).toMatchObject({ source: 'action-cars', status: 'processed' });
+    expect(messenger).toMatchObject({ source: 'action-cars', status: 'processed' });
+    expect(getTestConversationEvents()).toEqual([
+      expect.objectContaining({ source: 'action-cars', channel: 'whatsapp' }),
+      expect.objectContaining({ source: 'action-cars', channel: 'messenger' }),
+    ]);
   });
 
   it('alternates to White Marsh when the latest valid assignment is Millersville', async () => {
@@ -1065,6 +1132,12 @@ describe('ConversationWebhookService', () => {
   it('keeps Stafford in the common incomplete window after stabilization when down is missing', () => {
     const now = new Date('2026-09-11T14:00:15.000Z');
     expect(evaluateStatus(staffordVehicleOnlySnapshot, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, 'stafford', now, 'due', '2026-09-11T14:00:00.000Z'))
+      .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:05:15.000Z' });
+  });
+
+  it.each(['country', 'lucki'] as const)('moves %s through the waiting window after native WhatsApp qualification', (source) => {
+    const now = new Date('2026-09-11T14:00:15.000Z');
+    expect(evaluateStatus({ phone: '+13015550123', vehicle_type: 'SUV', down_payment: '', qualification_complete: false }, easternsLocation, { timezone: 'America/New_York', routing_config: {} }, source, now, 'due', '2026-09-11T14:00:00.000Z'))
       .toEqual({ status: 'waiting_window', nextAttemptAt: '2026-09-11T14:05:15.000Z' });
   });
 

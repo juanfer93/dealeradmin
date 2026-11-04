@@ -12,7 +12,6 @@ export const OFFLEASE_DEALER_IDS = new Set([
   'fredericksburg',
   'fredericksburg-2',
   'fredericksburg 2',
-  'stafford',
 ]);
 const TRADE_IN_PATTERNS = [
   /\btrade[\s-]?in\b/i,
@@ -109,7 +108,7 @@ export function hasRequiredDownPayment(vehicle: string | null | undefined, downP
 export function isOffleaseDealer(value: string | null | undefined): boolean {
   const normalized = value?.trim().toLocaleLowerCase() || '';
   return OFFLEASE_DEALER_IDS.has(normalized)
-    || /^offlease(?:\s+motors)?\s+(?:fredericksburg(?:\s*2)?|stafford)$/i.test(normalized);
+    || /^offlease(?:\s+motors)?\s+fredericksburg(?:\s*2)?$/i.test(normalized);
 }
 
 export function downPaymentVisibilityMinimum(dealerOrSource?: string | null): number {

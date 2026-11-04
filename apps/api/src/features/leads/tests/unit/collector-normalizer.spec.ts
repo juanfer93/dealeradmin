@@ -441,11 +441,9 @@ describe('normalizeCollectorInput', () => {
       previous_predicted_bot_question: 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?',
     });
 
-    expect(result).toMatchObject({
-      down_payment: '',
-      down_payment_amount: null,
-      qualification_step: 'complete',
-    });
+    expect(result).toMatchObject(source === 'stafford'
+      ? { down_payment: '1000', down_payment_amount: 1000, qualification_step: 'complete' }
+      : { down_payment: '', down_payment_amount: null, qualification_step: 'complete' });
   });
 
   it('does not add an Offlease minimum when the buyer denies previous financing', () => {
@@ -458,7 +456,8 @@ describe('normalizeCollectorInput', () => {
     });
 
     expect(result).toMatchObject({
-      down_payment: '',
+      down_payment: '1000',
+      down_payment_amount: 1000,
       down_payment_sufficient: false,
       qualification_step: 'complete',
     });
@@ -1114,7 +1113,7 @@ describe('normalizeCollectorInput', () => {
 
     expect(result.vehicle_type).toBe('Sedan');
     expect(result.phone).toBe('+19392249226');
-    expect(result.down_payment).toBe('');
+    expect(result.down_payment).toBe('1000');
     expect(result.previous_financing).toBe('yes');
     expect(result.down_payment_sufficient).toBe(false);
   });
@@ -1821,6 +1820,34 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ source: 'stafford', channel: 'whatsapp', phone: '+18045550123', message: 'Carlos' }).qualification_progress).toMatchObject({
       step: 'vehicle_type',
       predicted_bot_question: '¿Qué vehículo estás buscando?',
+    });
+  });
+
+  it('uses the same native WhatsApp name and phone flow for Country Club Cars', () => {
+    expect(normalizeCollectorInput({ source: 'country', channel: 'whatsapp', phone: '+18045550123', message: 'Carlos' })).toMatchObject({
+      real_name: 'Carlos',
+      phone: '+18045550123',
+      qualification_step: 'vehicle_type',
+    });
+  });
+
+  it('uses the same native WhatsApp name and phone flow for Lucki Mazda', () => {
+    expect(normalizeCollectorInput({ source: 'lucki', channel: 'whatsapp', phone: '+18045550123', message: 'Carlos' })).toMatchObject({
+      real_name: 'Carlos',
+      phone: '+18045550123',
+      qualification_step: 'vehicle_type',
+    });
+  });
+
+  it('uses the native WhatsApp contact name and phone for Action Cars while retaining Messenger fallback', () => {
+    expect(normalizeCollectorInput({ source: 'action-cars', channel: 'whatsapp', phone: '+18045550123', contact_name: 'Action Buyer', message: 'I am looking for an SUV' })).toMatchObject({
+      real_name: 'Action Buyer',
+      phone: '+18045550123',
+      qualification_step: 'complete',
+    });
+    expect(normalizeCollectorInput({ source: 'action-cars', channel: 'messenger', phone: '', contact_name: 'Action Messenger Buyer', message: 'I am looking for an SUV' })).toMatchObject({
+      real_name: 'Action Messenger Buyer',
+      qualification_step: 'phone',
     });
   });
 
@@ -3091,7 +3118,7 @@ describe('normalizeCollectorInput', () => {
     });
   });
 
-  it('hides an Offlease down payment below 1500 while retaining the phone-plus-vehicle route', () => {
+  it('uses the dealer-specific visibility minimum while retaining the phone-plus-vehicle route', () => {
     expect(normalizeCollectorInput({
       source: 'fredericksburg',
       real_name: 'QA Customer',
@@ -3111,6 +3138,14 @@ describe('normalizeCollectorInput', () => {
       vehicle_type: 'Honda Civic',
       message: '1500',
     }).down_payment).toBe('1500');
+
+    expect(normalizeCollectorInput({
+      source: 'stafford',
+      real_name: 'QA Customer',
+      phone: '+13015550127',
+      vehicle_type: 'Honda Civic',
+      message: '1200',
+    }).down_payment).toBe('1200');
   });
 
   it.each([

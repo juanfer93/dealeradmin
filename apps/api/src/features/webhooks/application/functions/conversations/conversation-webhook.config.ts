@@ -18,8 +18,13 @@ export const STALE_PHONE_REENTRY_DAYS = 3;
 // the safety net while still allowing recent inbound activity to recover it.
 export const RECENT_AUTOMATION_WINDOW_MS = 24 * 60 * 60 * 1000;
 
+const COUNTRY_CLUB_LOCATION_ID = 'k9DePpsNBu9qWT1C6pW0';
+const LUCKI_MAZDA_LOCATION_ID = 'cd9Slb2Fk2vNY3l4ukG9';
+
 export const GHL_SOURCE_CONFIG: SourceConfigMap = {
   stafford: { locationId: 'LiaoSID3nvAhad49ZpNJ', defaultChannel: 'whatsapp', supportedChannels: ['whatsapp'] },
+  country: { locationId: COUNTRY_CLUB_LOCATION_ID, defaultChannel: 'whatsapp', supportedChannels: ['whatsapp'] },
+  lucki: { locationId: LUCKI_MAZDA_LOCATION_ID, defaultChannel: 'whatsapp', supportedChannels: ['whatsapp'] },
   fredericksburg: { locationId: 'MyxWNKacThim798E8KC6', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
   'fredericksburg-2': { locationId: 'bAuMEQeH48xAtu9tAMFf', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
   easterns: { locationId: 'xN2LSSl62okzv9GnOJPU', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
@@ -27,7 +32,7 @@ export const GHL_SOURCE_CONFIG: SourceConfigMap = {
   'koons-fred': { locationId: 'xuHo0opTO2g5edIuPJRl', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
   'koons-fred-eng': { locationId: 'ozAIEblxTjrh0PfoaHge', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
   'koons-culpeper': { locationId: 'bTNJHpNZ8FaS1PUHkuUq', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
-  'action-cars': { locationId: 'ZxadcudjvBz7KFCB1od4', defaultChannel: 'messenger', supportedChannels: ['messenger'], splitByLanguage: true },
+  'action-cars': { locationId: 'ZxadcudjvBz7KFCB1od4', defaultChannel: 'whatsapp', supportedChannels: ['whatsapp', 'messenger'], splitByLanguage: true },
   'easterns-millersville': { locationId: '113zMWQlhKKBUu5wOYtR', defaultChannel: 'messenger', supportedChannels: ['messenger'], alternatingGroup: 'easterns-millersville' },
   'easterns-frederick': { locationId: 'MRHcOwdTqaN5cug3eSWW', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
 };
