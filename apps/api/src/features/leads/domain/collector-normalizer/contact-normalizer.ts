@@ -85,6 +85,7 @@ const INVALID_REAL_NAMES = new Set([
   'hola le saluda', 'le saluda', 'les saluda', 'mañana', 'manana', 'mkt',
   'saludos', 'hello', 'hi', 'hey', 'hola', 'ola', 'greetings', 'buen dia', 'buen día', 'buen dis', 'buenos dias', 'buenos días', 'buenas tardes',
   'buenas noches', 'bendiciones', 'buenos dias bendiciones', 'buenas tardes bendiciones', 'buenas noches bendiciones',
+  'solo whatsapp', 'solo whasap',
   'thu chikitha linda',
   'información', 'informacion', 'más información', 'mas informacion', 'más info', 'mas info',
   'more information', 'more info', 'details', 'detalles', 'como asi', 'como así', 'cómo asi', 'cómo así', 'how so',
@@ -184,7 +185,8 @@ const NON_CONVERSATIONAL_METADATA_LINE = /(?:\b(?:headline|source\s+url|attribut
 export function extractRealNameFromText(value: string): string {
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter((line) => line && !NON_CONVERSATIONAL_METADATA_LINE.test(line));
   const segments = lines.flatMap((line) => line.split(/[.!?;]+/).map(clean).filter(Boolean));
-  for (const segment of segments) {
+  let firstCandidate = EMPTY;
+  for (const [index, segment] of segments.entries()) {
     const explicit = segment.match(NAME_DECLARATION);
     const named = normalizeRealName(explicit?.[1]);
     if (named) return named;
@@ -193,14 +195,21 @@ export function extractRealNameFromText(value: string): string {
     const isOneWordName = /^[a-záéíóúüñ][a-záéíóúüñ'-]{1,39}$/i.test(candidate) && isTitleCasedToken && !SINGLE_WORD_NAME_BLOCKLIST.test(candidate);
     const isFullName = /^[a-záéíóúüñ][a-záéíóúüñ'-]*(?:\s+[a-záéíóúüñ][a-záéíóúüñ'-]*){1,3}$/i.test(candidate);
     if (!isOneWordName && !isFullName) continue;
-    const previousSegment = segments[segments.indexOf(segment) - 1] ?? EMPTY;
-    const nextSegment = segments[segments.indexOf(segment) + 1] ?? EMPTY;
+    const previousSegment = segments[index - 1] ?? EMPTY;
+    const nextSegment = segments[index + 1] ?? EMPTY;
     if (isOneWordName && (/(?:^|\s)(?:no|not|manda|send|give)\s*$/i.test(previousSegment) || /^(?:una?|nada|vale|bale|ubicaci[oó]n)$/i.test(nextSegment))) continue;
     if (GENERIC_VEHICLE_INTENT.test(candidate) || /\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) continue;
     const name = normalizeRealName(candidate);
-    if (name) return name;
+    if (!name) continue;
+    if (!firstCandidate) {
+      firstCandidate = name;
+      continue;
+    }
+    const previous = firstCandidate.toLocaleLowerCase();
+    const current = name.toLocaleLowerCase();
+    if (current.length > previous.length && current.startsWith(previous)) firstCandidate = name;
   }
-  return EMPTY;
+  return firstCandidate;
 }
 
 export function extractDeclaredRealNameFromText(value: string): string {

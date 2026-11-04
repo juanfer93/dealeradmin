@@ -438,6 +438,15 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(execute({ channel: 'whatsapp', contact_name: 'MKT', message: 'Mañana' }).real_name).toBe('');
   });
 
+  it('prefers the latest explicit WhatsApp name when an earlier reply is truncated', () => {
+    expect(execute({
+      channel: 'whatsapp',
+      contact_name: 'MKT',
+      message: 'Si. Solo whasap',
+      chat_history_log: 'Mañana\nJos\nJose\nSi. Solo whasap',
+    }).real_name).toBe('Jose');
+  });
+
   it('does not discard an Easterns lead when GHL marks it stop bot', () => {
     const result = execute({
       source: 'easterns',

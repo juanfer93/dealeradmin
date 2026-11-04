@@ -38,7 +38,7 @@ const nameSuffixPunctuation = /\b(jr|sr|ii|iii|iv|v)\.(?=\s|,|$)/gi;
 const normalizeNameSuffixPunctuation = (value) => clean(value).replace(nameSuffixPunctuation, '$1').replace(/,\s*$/, '').trim();
 const conversationalNamePrefix = /^(?:hola|hello|hi|hey)[,!\s]+(?:(?:(?:le|les|te)\s+saluda(?:n)?|saludos?\s+de)[,!\s]+)?/i;
 const stripConversationalNamePrefix = (value) => clean(value).replace(conversationalNamePrefix, '').trim();
-for (const technicalName of ['location', 'in pa', 'in messenger', 'for sure', 'tienes tacomas', 'sorry', 'hola le saluda', 'le saluda', 'les saluda', 'mañana', 'manana', 'mkt', 'información', 'informacion', 'más información', 'mas informacion', 'más info', 'mas info', 'more information', 'more info', 'details', 'detalles']) invalidRealNames.add(technicalName);
+for (const technicalName of ['location', 'in pa', 'in messenger', 'for sure', 'tienes tacomas', 'sorry', 'hola le saluda', 'le saluda', 'les saluda', 'mañana', 'manana', 'mkt', 'solo whatsapp', 'solo whasap', 'información', 'informacion', 'más información', 'mas informacion', 'más info', 'mas info', 'more information', 'more info', 'details', 'detalles']) invalidRealNames.add(technicalName);
 const isValidRealName = (value) => {
   const candidate = normalizeNameSuffixPunctuation(value);
   const tokens = candidate ? candidate.split(/\s+/) : [];
@@ -76,6 +76,7 @@ const nonConversationalMetadataLine = /(?:\b(?:headline|source\s+url|attribution
 const nameFromText = (value) => {
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter((line) => line && !nonConversationalMetadataLine.test(line));
   const segments = lines.flatMap((line) => line.split(/[.!?;]+/).map(clean).filter(Boolean));
+  let firstCandidate = '';
   for (const segment of segments) {
     const named = normalizeRealName(segment.match(nameDeclaration)?.[1]);
     if (named) return named;
@@ -88,9 +89,16 @@ const nameFromText = (value) => {
     if (!isOneWordName && !isFullName) continue;
     if (genericVehicleIntent.test(candidate) || /\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) continue;
     const name = normalizeRealName(candidate);
-    if (name) return name;
+    if (!name) continue;
+    if (!firstCandidate) {
+      firstCandidate = name;
+      continue;
+    }
+    const previous = firstCandidate.toLocaleLowerCase();
+    const current = name.toLocaleLowerCase();
+    if (current.length > previous.length && current.startsWith(previous)) firstCandidate = name;
   }
-  return '';
+  return firstCandidate;
 };
 const declaredNameFromText = (value) => {
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter((line) => line && !nonConversationalMetadataLine.test(line));
