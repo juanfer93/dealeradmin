@@ -1974,15 +1974,22 @@ describe('normalizeCollectorInput', () => {
       channel: 'messenger',
       contact_name: 'Perfil de Messenger',
       message: 'Me llamo Juan Pérez',
-      chat_history_log: '__NAME_PROMPT__\nMe llamo Juan Pérez',
+      chat_history_log: '¡Perfecto! Para registrarte correctamente y brindarte una mejor atención, ¿cuál es tu nombre y apellido?\nMe llamo Juan Pérez',
     }).real_name).toBe('Juan Pérez');
     expect(normalizeCollectorInput({
       source: 'action-cars',
       channel: 'messenger',
       contact_name: 'Perfil de Messenger',
       message: 'Busco una Mazda 300',
-      chat_history_log: '__NAME_PROMPT__\nBusco una Mazda 300',
+      chat_history_log: '¡Perfecto! Para registrarte correctamente y brindarte una mejor atención, ¿cuál es tu nombre y apellido?\nBusco una Mazda 300',
     }).real_name).toBe('Perfil de Messenger');
+    expect(normalizeCollectorInput({
+      source: 'action-cars',
+      channel: 'whatsapp',
+      contact_name: 'Perfil de WhatsApp',
+      message: 'Me llamo Juan Pérez',
+      chat_history_log: '¡Perfecto! Para registrarte correctamente y brindarte una mejor atención, ¿cuál es tu nombre y apellido?\nMe llamo Juan Pérez',
+    }).real_name).toBe('Juan Pérez');
   });
 
   it('keeps CarHub Stafford on the Messenger phone-required flow', () => {
