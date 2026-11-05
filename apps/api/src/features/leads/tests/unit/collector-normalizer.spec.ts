@@ -1859,6 +1859,19 @@ describe('normalizeCollectorInput', () => {
     });
   });
 
+  it('uses native WhatsApp identity and phone for CarHub Stafford while retaining Messenger phone collection', () => {
+    expect(normalizeCollectorInput({ source: 'carhub', channel: 'whatsapp', phone: '+13015550123', contact_name: 'CarHub Buyer', message: 'I am looking for an SUV' })).toMatchObject({
+      real_name: 'Carhub Buyer',
+      phone: '+13015550123',
+      qualification_step: 'complete',
+    });
+    expect(normalizeCollectorInput({ source: 'carhub', channel: 'messenger', phone: '', contact_name: 'CarHub Messenger Buyer', message: 'I am looking for an SUV' })).toMatchObject({
+      real_name: 'CarHub Messenger Buyer',
+      phone: '',
+      qualification_step: 'phone',
+    });
+  });
+
   it('keeps no-down as a known flexible-dealer answer', () => {
     expect(normalizeCollectorInput({ source: 'easterns', channel: 'messenger', real_name: 'Cliente', message: 'No tengo pago inicial' })).toMatchObject({
       down_payment: 'No down payment',

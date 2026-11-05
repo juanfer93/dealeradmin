@@ -80,7 +80,7 @@ export function sourceKey(value: string, sourceConfig: SourceConfigMap): SourceK
 }
 
 export function isStaffordWhatsApp(source: SourceKey, channel: string): boolean {
-  return (source === 'stafford' || source === 'country' || source === 'lucki' || source === 'action-cars') && channel.trim().toLowerCase() === 'whatsapp';
+  return (source === 'stafford' || source === 'country' || source === 'lucki' || source === 'carhub' || source === 'action-cars') && channel.trim().toLowerCase() === 'whatsapp';
 }
 
 export function parseOccurredAt(value: string | undefined): string {

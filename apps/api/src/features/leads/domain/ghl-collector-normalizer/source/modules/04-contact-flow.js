@@ -54,7 +54,7 @@ const normalizeRealName = (value) => {
 };
 const isMessengerChannel = (value) => /(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(clean(value));
 const isWhatsAppChannel = (value) => /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(clean(value));
-const isStaffordWhatsApp = (source, value) => ['stafford', 'country', 'lucki', 'action-cars'].includes(clean(source).toLocaleLowerCase()) && isWhatsAppChannel(value);
+const isStaffordWhatsApp = (source, value) => ['stafford', 'country', 'lucki', 'carhub', 'action-cars'].includes(clean(source).toLocaleLowerCase()) && isWhatsAppChannel(value);
 const effectiveChannel = (input) => {
   const channel = clean(input.channel);
   if (channel) return channel;

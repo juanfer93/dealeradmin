@@ -303,7 +303,7 @@ const normalizeRealName = (value) => {
 };
 const isMessengerChannel = (value) => /(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(clean(value));
 const isWhatsAppChannel = (value) => /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(clean(value));
-const isStaffordWhatsApp = (source, value) => ['stafford', 'country', 'lucki', 'action-cars'].includes(clean(source).toLocaleLowerCase()) && isWhatsAppChannel(value);
+const isStaffordWhatsApp = (source, value) => ['stafford', 'country', 'lucki', 'carhub', 'action-cars'].includes(clean(source).toLocaleLowerCase()) && isWhatsAppChannel(value);
 const effectiveChannel = (input) => {
   const channel = clean(input.channel);
   if (channel) return channel;
@@ -893,7 +893,7 @@ let down = validAmount(cashDown && tradeInLanguage.test(conversationalDownSource
   : downCandidate);
 down = visibleDownPayment(down, source);
 const sourceAware = Boolean(source);
-const stafford = source === 'stafford' || source === 'country' || source === 'lucki' || source === 'action-cars';
+const stafford = source === 'stafford' || source === 'country' || source === 'lucki' || source === 'carhub' || source === 'action-cars';
 const requiresLocation = ['easterns', 'easterns-millersville'].includes(source);
 const allowFuzzyBaltimore = source === 'easterns';
 const phoneSatisfiedByNative = stafford && isWhatsAppChannel(inputData.channel);

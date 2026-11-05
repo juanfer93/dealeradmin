@@ -669,22 +669,30 @@ describe('ConversationWebhookService', () => {
     ]);
   });
 
-  it('configures CarHub Stafford as a Messenger-only phone-required source', async () => {
+  it('configures CarHub Stafford for WhatsApp and Messenger', async () => {
     expect(GHL_SOURCE_CONFIG.carhub).toEqual({
       locationId: 'fVyKDmI0Il432etqbODo',
-      defaultChannel: 'messenger',
-      supportedChannels: ['messenger'],
+      defaultChannel: 'whatsapp',
+      supportedChannels: ['whatsapp', 'messenger'],
     });
 
     const service = new ConversationWebhookService();
-    const result = await service.acceptCustomerReplied(
-      { message_body: 'I am looking for an SUV.', channel: 'messenger', ghl_location_id: 'fVyKDmI0Il432etqbODo' },
+    const whatsappResult = await service.acceptCustomerReplied(
+      { message_body: 'I am looking for an SUV.', channel: 'whatsapp', contact_phone: '+13015550123', ghl_location_id: 'fVyKDmI0Il432etqbODo' },
       'carhub',
-      { contactId: 'ghl-carhub-contact', conversationId: 'ghl-carhub-conversation' },
+      { contactId: 'ghl-carhub-whatsapp-contact', conversationId: 'ghl-carhub-whatsapp-conversation' },
     );
 
-    expect(result).toMatchObject({ source: 'carhub', conversationId: 'ghl-carhub-conversation' });
+    expect(whatsappResult).toMatchObject({ source: 'carhub', conversationId: 'ghl-carhub-whatsapp-conversation' });
+    const messengerResult = await service.acceptCustomerReplied(
+      { message_body: 'I am looking for an SUV.', channel: 'messenger', ghl_location_id: 'fVyKDmI0Il432etqbODo' },
+      'carhub',
+      { contactId: 'ghl-carhub-messenger-contact', conversationId: 'ghl-carhub-messenger-conversation' },
+    );
+
+    expect(messengerResult).toMatchObject({ source: 'carhub', conversationId: 'ghl-carhub-messenger-conversation' });
     expect(getTestConversationEvents()).toEqual([
+      expect.objectContaining({ source: 'carhub', channel: 'whatsapp' }),
       expect.objectContaining({ source: 'carhub', channel: 'messenger' }),
     ]);
   });
