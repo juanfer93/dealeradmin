@@ -49,6 +49,26 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeRealName('Nose Depende Cuánto Pidan')).toBe('');
   });
 
+  it('uses the retained WhatsApp name only when the transcript has no real-name answer', () => {
+    expect(normalizeCollectorInput({
+      source: 'lucki',
+      channel: 'whatsapp',
+      contact_name: 'Y Viendo El Beiculo',
+      profile: { name: 'Y Viendo El Beiculo' },
+      message: 'Ramón',
+      chat_history_log: '__NAME_PROMPT__\nSi me puedes mandar los modelos\nRamón',
+    }).real_name).toBe('Ramón');
+
+    expect(normalizeCollectorInput({
+      source: 'lucki',
+      channel: 'whatsapp',
+      contact_name: '(Lead sin nombre)',
+      profile: { name: 'Noo' },
+      message: 'Honda Civic',
+      chat_history_log: 'Honda Civic\n1000',
+    }).real_name).toBe('Noo');
+  });
+
   it.each(['Para Aprobar', 'Precio', 'Nose Depende Cuánto Pidan'])('rejects Lucki qualification text as a WhatsApp name: %s', (value) => {
     expect(normalizeCollectorInput({
       source: 'lucki',

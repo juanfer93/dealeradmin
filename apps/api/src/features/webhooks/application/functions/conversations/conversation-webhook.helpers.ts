@@ -137,7 +137,7 @@ export function extractNativeWhatsappPhone(messages: ConversationMessageRow[]): 
 }
 
 export function extractNativeProfileName(messages: ConversationMessageRow[], channel: string): string {
-  if (!/(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(clean(channel))) return '';
+  if (!/(?:^|[^a-z])(?:messenger|facebook|instagram|whats?app)(?:$|[^a-z])/i.test(clean(channel))) return '';
   for (const message of [...messages].reverse()) {
     const payload = asRecord(message.raw_payload);
     const contact = asRecord(payload.contact);

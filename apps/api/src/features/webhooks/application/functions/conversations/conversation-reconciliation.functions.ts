@@ -14,6 +14,7 @@ import { queuedSiblingExclusionSql } from './queued-sibling.sql';
 
 const DOWN_PAYMENT_PROMPT = /\b(?:down|payment|enganche|pago\s+inicial|pago\s+de\s+entrada|inicial)\b/i;
 const DOWN_PAYMENT_QUESTION = /\b(?:cu[aá]nto|con\s+cu[aá]nto|how\s+much|approximately|aproximadamente|disponible|available|contar[ií]as|tendr[ií]as)\b/i;
+const NAME_PROMPT = /(?:what(?:'s| is)?\s+(?:your|the)\s+name|full\s+name|what\s+should\s+i\s+call|how\s+do\s+you\s+(?:call|go by)|c[oó]mo\s+te\s+llamas|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i;
 
 function isDownPaymentPrompt(value: unknown): boolean {
   const prompt = clean(value);
@@ -156,6 +157,7 @@ export class ConversationReconciliationFunctions {
       for (const item of evidenceMessages) {
         if (item.direction === 'outbound') {
           previousOutbound = clean(item.body);
+          if (NAME_PROMPT.test(previousOutbound)) transcriptLines.push('__NAME_PROMPT__');
           continue;
         }
         const body = clean(item.body);
@@ -199,6 +201,7 @@ export class ConversationReconciliationFunctions {
         // they can win over the newer evidence in the conversation.
         real_name: targeted ? '' : clean(current.real_name),
         contact_name: isSocialProfileChannel ? profileName : contactName,
+        profile: { name: isSocialProfileChannel ? profileName : profileCandidate },
         vehicle_type: targeted ? '' : clean(current.vehicle_type),
         down_payment: targeted ? '' : clean(current.down_payment),
         purchase_timeline: targeted ? '' : clean(current.purchase_timeline),

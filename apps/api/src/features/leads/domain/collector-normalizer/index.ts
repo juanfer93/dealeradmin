@@ -45,21 +45,22 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const suppliedName = normalizeRealName(input.real_name);
   const profileDisplayName = profileDisplayNameFromInput(input);
   const profileName = profileNameFromInput(input, isMessengerChannel(channel));
+  const whatsappProfileName = firstNonEmpty(input.profile?.name);
   const whatsappContactFallback = firstNonEmpty(input.real_name)
     || !policy.nativeWhatsapp
     || !isWhatsAppChannel(channel)
     || /^lead$/i.test(firstNonEmpty(input.contact_name, input.contactName, input.profile?.name, input.name))
     ? EMPTY
-    : firstNonEmpty(input.contact_name, input.contactName, input.profile?.name, input.name);
+    : firstNonEmpty(whatsappProfileName, input.contact_name, input.contactName, input.name);
   const invalidWhatsappFallback = /^(?:estoy|estoy trabajando luego chat|trabajando luego chat|mes|usad[ao]s?|disculpe son un dealer|para aprobar|precio|nose depende cu[aá]nto pidan|no s[eé] depende cu[aá]nto pidan)$/i.test(clean(whatsappContactFallback));
   const extractedNames = [realNameFromQualificationMemory(memory), extractRealNameFromText(rawMessage), extractRealNameFromText(rawHistory)];
-  const whatsappNames = [extractDeclaredRealNameFromText(rawMessage), extractDeclaredRealNameFromText(rawHistory), extractRealNameFromText(rawMessage), extractRealNameFromText(rawHistory), profileName, realNameFromQualificationMemory(memory)];
+  const whatsappNames = [extractDeclaredRealNameFromText(rawMessage), extractDeclaredRealNameFromText(rawHistory), extractRealNameFromText(rawMessage), extractRealNameFromText(rawHistory), normalizeRealName(whatsappProfileName), profileName, realNameFromQualificationMemory(memory)];
   const messengerDeclaredName = [extractDeclaredRealNameFromText(rawMessage), extractDeclaredRealNameFromText(rawHistory)].map(normalizeRealName).find(Boolean) ?? EMPTY;
   const realName = isMessengerChannel(channel)
     ? messengerDeclaredName || profileDisplayName || suppliedName
     : isWhatsAppChannel(channel)
       ? whatsappNames.map((candidate) => isStaffordWhatsAppVehicleLabel(candidate, input.source, channel) ? EMPTY : normalizeRealName(candidate)).find(Boolean)
-        || (isStaffordWhatsAppVehicleLabel(whatsappContactFallback, input.source, channel) || invalidWhatsappFallback ? EMPTY : whatsappContactFallback)
+        || (isStaffordWhatsAppVehicleLabel(whatsappContactFallback, input.source, channel) || (!whatsappProfileName && invalidWhatsappFallback) ? EMPTY : whatsappContactFallback)
       : (isLikelyBusinessName(suppliedName) || isLikelyProfileDisplayName(suppliedName) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) ?? EMPTY;
 
   const chatPhone = extractPhone(input.chat_history_log) || extractPhone(input.message) || extractPhone(input.phone);
