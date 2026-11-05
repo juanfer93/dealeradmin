@@ -13,6 +13,7 @@ import { isCampaignButton, isNonVehicleIntent, stripCampaignButtonPhrases, TRADE
 import { recoverPreviousFinancing } from './financing-normalizer';
 import { extractVehicle, inferVehicleIntent, isStaffordWhatsAppVehicleLabel } from './vehicle-extractor';
 import { affirmativeDownConfirmation, extractDownPayment, extractLatestDownPayment, extractQuestionedDownPayment, extractStandaloneDownPayment, extractTradeInDownPayment, firstValidAmount, isConcatenatedVehicleYearAmount, normalizeAmount } from './down-payment-extractor';
+import { extractLeadFormContext } from './form-normalizer';
 
 export { hasMinimumRoutingQualification, isQualificationComplete } from './reconciliation';
 export type { CollectorInput, CollectorLanguage, CollectorOutput, QualificationProgress, QualificationStep } from './types';
@@ -22,6 +23,8 @@ export { extractRecentMessagePhone, isValidRealName, normalizeRealName, realName
 export { detectLeadLanguage } from './language-normalizer';
 export { isAdvisorHandoffVehicle } from './flow-policy';
 export { isStaffordWhatsAppVehicleLabel } from './vehicle-extractor';
+export { extractLeadFormContext } from './form-normalizer';
+export type { LeadFormContext } from './form-normalizer';
 
 export function normalizeCollectorInput(input: CollectorInput): CollectorOutput {
   const message = clean(input.message);
@@ -41,6 +44,9 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const messageForExtraction = stripCampaignButtonPhrases(rawMessage);
   const historyForExtraction = stripCampaignButtonPhrases(rawHistory);
   const channel = effectiveChannel(input);
+  const formContext = String(input.source ?? '').toLowerCase() === 'carhub'
+    ? extractLeadFormContext([rawHistory, rawMessage].filter(Boolean).join('\n'))
+    : null;
 
   const suppliedName = normalizeRealName(input.real_name);
   const profileDisplayName = profileDisplayNameFromInput(input);
@@ -54,10 +60,10 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     : firstNonEmpty(whatsappProfileName, input.contact_name, input.contactName, input.name);
   const invalidWhatsappFallback = /^(?:estoy|estoy trabajando luego chat|trabajando luego chat|mes|usad[ao]s?|disculpe son un dealer|para aprobar|precio|nose depende cu[aá]nto pidan|no s[eé] depende cu[aá]nto pidan)$/i.test(clean(whatsappContactFallback));
   const extractedNames = [realNameFromQualificationMemory(memory), extractRealNameFromText(rawMessage), extractRealNameFromText(rawHistory)];
-  const whatsappNames = [extractDeclaredRealNameFromText(rawMessage), extractDeclaredRealNameFromText(rawHistory), extractRealNameFromText(rawMessage), extractRealNameFromText(rawHistory), normalizeRealName(whatsappProfileName), profileName, realNameFromQualificationMemory(memory)];
+  const whatsappNames = [formContext?.full_name ?? EMPTY, extractDeclaredRealNameFromText(rawMessage), extractDeclaredRealNameFromText(rawHistory), extractRealNameFromText(rawMessage), extractRealNameFromText(rawHistory), normalizeRealName(whatsappProfileName), profileName, realNameFromQualificationMemory(memory)];
   const messengerDeclaredName = [extractDeclaredRealNameFromText(rawMessage), extractDeclaredRealNameFromText(rawHistory)].map(normalizeRealName).find(Boolean) ?? EMPTY;
   const realName = isMessengerChannel(channel)
-    ? messengerDeclaredName || profileDisplayName || suppliedName
+    ? formContext?.full_name || messengerDeclaredName || profileDisplayName || suppliedName
     : isWhatsAppChannel(channel)
       ? whatsappNames.map((candidate) => isStaffordWhatsAppVehicleLabel(candidate, input.source, channel) ? EMPTY : normalizeRealName(candidate)).find(Boolean)
         || (isStaffordWhatsAppVehicleLabel(whatsappContactFallback, input.source, channel) || (!whatsappProfileName && invalidWhatsappFallback) ? EMPTY : whatsappContactFallback)
@@ -70,6 +76,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const vehicleSource = [historyForExtraction, messageForExtraction].filter(Boolean).join('\n');
   const transcriptVehicle = extractVehicle(vehicleSource);
   const explicitVehicle = normalizeVehicle(firstNonEmpty(
+    formContext?.vehicle,
     transcriptVehicle,
     [memoryValue(memory, ['vehicle_type', 'vehicle', 'type']), [memoryValue(memory, ['make', 'brand', 'marca']), memoryValue(memory, ['model', 'vehicle_model', 'modelo'])].filter(Boolean).join(' ')].filter(Boolean).join(' — '),
     memoryValue(memory, ['vehicle', 'vehicle_type']),
@@ -78,7 +85,10 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const extractedVehicle = inferVehicleIntent(vehicleSource, explicitVehicle);
   const hasExistingAdvisorMarker = [memoryValue(memory, ['vehicle_type', 'vehicle', 'type']), input.vehicle_type].some((value) => isAdvisorHandoffVehicle(value));
   const transcriptVehicleYear = extractVehicleYear(vehicleSource);
-  const vehicleYear = [transcriptVehicleYear, ...(transcriptVehicle ? [] : [extractVehicleYear(input.vehicle_type), extractVehicleYear(memoryValue(memory, ['vehicle_type', 'vehicle', 'type']))])].find((value): value is number => value !== null) ?? null;
+  const formVehicleYear = extractVehicleYear(formContext?.vehicle ?? EMPTY);
+  const vehicleYear = formContext?.vehicle
+    ? formVehicleYear
+    : [transcriptVehicleYear, ...(transcriptVehicle ? [] : [extractVehicleYear(input.vehicle_type), extractVehicleYear(memoryValue(memory, ['vehicle_type', 'vehicle', 'type']))])].find((value): value is number => value !== null) ?? null;
   const vehicleBase = extractedVehicle || (hasExistingAdvisorMarker || phoneFromConversation || (isWhatsAppChannel(input.channel) && chatPhone) ? ADVISOR_HANDOFF_VEHICLE : EMPTY);
   const vehicle = vehicleBase && vehicleYear !== null && !isAdvisorHandoffVehicle(vehicleBase) ? `${vehicleBase} ${vehicleYear}` : vehicleBase;
   const hasRealVehicle = Boolean(vehicle) && !isAdvisorHandoffVehicle(vehicle);
@@ -107,8 +117,8 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   down = visibleDownPayment(down, input.source);
   const downPaymentRule = evaluateDownPayment(vehicle, down);
 
-  const normalizedTimeline = normalizeTimeline(firstNonEmpty(extractTimeline(messageForExtraction), extractTimeline(history), extractTimeline(memoryText(memory)), memoryValue(memory, ['timeline', 'purchase timeline', 'purchase_timeline']), input.purchase_timeline), language);
-  const timeline = language === 'es' && normalizedTimeline === 'today' ? 'hoy' : normalizedTimeline;
+  const normalizedTimeline = normalizeTimeline(firstNonEmpty(formContext?.purchase_timeline, extractTimeline(messageForExtraction), extractTimeline(history), extractTimeline(memoryText(memory)), memoryValue(memory, ['timeline', 'purchase timeline', 'purchase_timeline']), input.purchase_timeline), language);
+  const timeline = language === 'es' && normalizedTimeline === 'today' ? 'hoy' : normalizedTimeline || clean(formContext?.purchase_timeline);
   const memoryDocumentFacts = [memoryValue(memory, ['documents']), memoryValue(memory, ['identification', 'id', 'itin', 'passport', 'pasaporte']) ? `identification: ${memoryValue(memory, ['identification', 'id', 'itin', 'passport', 'pasaporte'])}` : EMPTY, memoryValue(memory, ['proof of income', 'income proof', 'prueba de ingresos', 'comprobante de ingresos']) ? `proof of income: ${memoryValue(memory, ['proof of income', 'income proof', 'prueba de ingresos', 'comprobante de ingresos'])}` : EMPTY].filter(Boolean).join('; ');
   const docs = mergeDocuments(firstNonEmpty(memoryDocumentFacts, input.documents), [rawHistory, rawMessage].filter(Boolean).join('\n'));
   const identification = firstNonEmpty(docs.id, memoryValue(memory, ['identification', 'id']), input.identification);
@@ -135,7 +145,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     vehicle_category: downPaymentRule.category, required_down_payment: downPaymentRule.minimum, down_payment_amount: downPaymentRule.amount, down_payment_sufficient: downPaymentRule.meetsMinimum,
     down_payment: down, previous_financing: previousFinancing, purchase_timeline: timeline, documents: docs.value, identification, bank_account: bankAccount,
     qualification_memory: mergedMemory, has_identification: docs.id, has_income_proof: docs.income, next_question: nextQuestion, qualification_step: step,
-    qualification_progress: qualificationProgress, qualification_complete: qualificationComplete, missing_qualification: missingQualification, qualification_source: qualificationSource,
+    qualification_progress: qualificationProgress, qualification_complete: qualificationComplete, missing_qualification: missingQualification, qualification_source: qualificationSource, form_context: formContext,
     phone: chatPhone,
     chat_history_log: [clean(input.chat_history_log), clean(input.message)].filter((value, index, values) => value && values.findIndex((item) => item.toLowerCase() === value.toLowerCase()) === index).join('\n'),
     dealeradmin_send_now: qualificationComplete && Boolean(chatPhone),

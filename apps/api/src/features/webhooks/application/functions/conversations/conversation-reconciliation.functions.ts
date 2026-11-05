@@ -234,9 +234,13 @@ export class ConversationReconciliationFunctions {
       const realName = targeted
         ? actionCarsSpanishNameFlow
           ? clean(normalized.real_name) || normalizedSocialProfileName || contactRealName
+          : source === 'carhub'
+            ? clean(normalized.real_name) || normalizedSocialProfileName || contactRealName
           : normalizedSocialProfileName || clean(normalized.real_name) || contactRealName
         : actionCarsSpanishNameFlow
           ? clean(normalized.real_name) || normalizedSocialProfileName || preserveOrNormalize(currentRealName, normalized.real_name) || contactRealName
+          : source === 'carhub'
+            ? clean(normalized.real_name) || normalizedSocialProfileName || preserveOrNormalize(currentRealName, normalized.real_name) || contactRealName
           : normalizedSocialProfileName || preserveOrNormalize(currentRealName, normalized.real_name) || contactRealName;
       const vehicle = targeted ? clean(normalized.vehicle_type) : preserveOrNormalize(current.vehicle_type, normalized.vehicle_type);
       const vehicleYear = targeted
@@ -305,6 +309,7 @@ export class ConversationReconciliationFunctions {
         identification,
         bank_account: bankAccount,
         qualification_memory: qualificationMemory,
+        form_context: normalized.form_context ?? current.form_context ?? null,
         qualification_complete: qualificationComplete,
         missing_qualification: missingQualification,
         message_count: additiveOnly ? Math.max(Number(current.message_count || 0), messages.filter((message) => message.direction === 'inbound').length) : messages.filter((message) => message.direction === 'inbound').length,

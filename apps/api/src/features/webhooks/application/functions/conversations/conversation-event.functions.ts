@@ -205,6 +205,11 @@ export class ConversationEventFunctions {
           || previousRealName
           || contactRealName
           || ''
+        : source === 'carhub'
+          ? additiveField(transcriptRealName, previousRealName)
+            || clean(normalized.real_name)
+            || contactRealName
+            || ''
         : additiveField(transcriptRealName, previousRealName)
           || contactRealName
           || clean(normalized.real_name)
@@ -240,6 +245,7 @@ export class ConversationEventFunctions {
         identification,
         bank_account: bankAccount,
         qualification_memory: qualificationMemory,
+        form_context: normalized.form_context ?? (previousSnapshot.form_context as ConversationSnapshot['form_context'] | undefined) ?? null,
         qualification_complete: isQualificationComplete({
           real_name: realName,
           phone: effectivePhone,

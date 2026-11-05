@@ -1,5 +1,5 @@
 import type { GhlCustomerRepliedDto } from '@dealeradmin/contracts';
-import type { CollectorLanguage, QualificationProgress } from '../../../../leads/domain/collector-normalizer';
+import type { CollectorLanguage, LeadFormContext, QualificationProgress } from '../../../../leads/domain/collector-normalizer';
 
 export type SourceKey = 'stafford' | 'country' | 'lucki' | 'carhub' | 'fredericksburg' | 'fredericksburg-2' | 'easterns' | 'arlington' | 'koons-fred' | 'koons-fred-eng' | 'koons-culpeper' | 'action-cars' | 'easterns-millersville' | 'easterns-frederick';
 export type SourceConfig = {
@@ -74,6 +74,7 @@ export type ConversationSnapshot = {
   identification: string;
   bank_account: string;
   qualification_memory: string;
+  form_context?: LeadFormContext | null;
   qualification_complete: boolean;
   missing_qualification: string[];
   message_count: number;

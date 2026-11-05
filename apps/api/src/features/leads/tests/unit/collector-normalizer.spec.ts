@@ -2013,6 +2013,44 @@ describe('normalizeCollectorInput', () => {
     });
   });
 
+  it('uses the CarHub form name and facts without changing the normal Messenger flow', () => {
+    const form = `*Headline:* El Secreto para Conseguir las MEJORES Ofertas en Autos
+*Source URL:* https://fb.me/5eo7ugHfj
+
+¡Hola! Completé el formulario y me gustaría obtener más información sobre el negocio.
+Phone number: (301) 956-0179
+¿Prefieres pagar de contado o financiar?: Financiamiento
+¿En qué rango se encuentra tu puntaje de crédito?: 450 - 550
+¿Cuánto planeas dar de enganche?: Planeo usar mi vehículo actual como (parte del) enganche
+Full name: Jose Eduardo Martins Cabral
+¿Cuándo planeas comprar tu próximo vehículo?: Entre 1 semana y 1 mes
+¿Prefieres que te contactemos por llamada o mensaje de texto?: Mensaje de texto
+¿Hay algún tipo de vehículo que te interese?: SUV`;
+    expect(normalizeCollectorInput({
+      source: 'carhub',
+      channel: 'messenger',
+      contact_name: 'Eduardoxeca',
+      message: form,
+      chat_history_log: form,
+    })).toMatchObject({
+      real_name: 'Jose Eduardo Martins Cabral',
+      phone: '+13019560179',
+      purchase_timeline: 'Entre 1 semana y 1 mes',
+      form_context: {
+        full_name: 'Jose Eduardo Martins Cabral',
+        vehicle: 'SUV',
+        credit_score_range: '450 - 550',
+        contact_preference: 'Mensaje de texto',
+      },
+    });
+    expect(normalizeCollectorInput({
+      source: 'carhub',
+      channel: 'messenger',
+      contact_name: 'Eduardoxeca',
+      message: 'I am looking for a Honda Civic',
+    })).toMatchObject({ real_name: 'Eduardoxeca', vehicle_type: 'Honda Civic' });
+  });
+
   it('keeps no-down as a known flexible-dealer answer', () => {
     expect(normalizeCollectorInput({ source: 'easterns', channel: 'messenger', real_name: 'Cliente', message: 'No tengo pago inicial' })).toMatchObject({
       down_payment: 'No down payment',

@@ -133,6 +133,76 @@ describe('ConversationReconciliationFunctions', () => {
     });
   });
 
+  it('reconciles CarHub form facts before the Messenger profile label', async () => {
+    const form = `*Headline:* El Secreto para Conseguir las MEJORES Ofertas en Autos
+*Source URL:* https://fb.me/5eo7ugHfj
+¡Hola! Completé el formulario y me gustaría obtener más información sobre el negocio.
+Phone number: (301) 956-0179
+¿Prefieres pagar de contado o financiar?: Financiamiento
+¿En qué rango se encuentra tu puntaje de crédito?: 450 - 550
+¿Cuánto planeas dar de enganche?: Planeo usar mi vehículo actual como (parte del) enganche
+Full name: Jose Eduardo Martins Cabral
+¿Cuándo planeas comprar tu próximo vehículo?: Entre 1 semana y 1 mes
+¿Prefieres que te contactemos por llamada o mensaje de texto?: Mensaje de texto
+¿Hay algún tipo de vehículo que te interese?: SUV`;
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('SELECT c.id, c.channel')) return [{
+        id: 'conversation-carhub-form',
+        channel: 'messenger',
+        ghl_location_id: GHL_SOURCE_CONFIG.carhub.locationId,
+        ghl_contact_id: 'kDHezyCgTFC6nTOWgBiy',
+        ghl_conversation_id: 'HRl44GNFfyf7SHDVAK5V',
+        status: 'waiting_window',
+        qualification_snapshot: {
+          real_name: 'Eduardoxeca',
+          profile_name: 'Eduardoxeca',
+          phone: '+13019560179',
+          vehicle_type: '',
+          qualification_complete: false,
+        },
+        location_snapshot: { city: null, state: null, zip_code: null, easterns_zone: null },
+        ready_at: null,
+        next_attempt_at: '2026-11-05T15:25:00.000Z',
+        last_message_at: '2026-11-05T15:22:20.768Z',
+        waiting_window_attempts: 1,
+        lead_id: 'lead-carhub-form',
+        canonical_phone: '+13019560179',
+        first_name: 'Eduardoxeca',
+        last_name: '',
+      }];
+      if (sql.includes('SELECT cm.body')) return [
+        { body: form, direction: 'inbound', occurred_at: '2026-11-05T15:20:30.038Z' },
+        { body: 'Volkswagen Jetta TDI 2014', direction: 'inbound', occurred_at: '2026-11-05T15:22:20.768Z' },
+      ];
+      return [];
+    });
+    const runner = { connect: vi.fn(), startTransaction: vi.fn(), commitTransaction: vi.fn(), rollbackTransaction: vi.fn(), release: vi.fn(), isTransactionActive: true, query };
+    const qualification = {
+      resolveLocation: vi.fn().mockResolvedValue({ city: null, state: null, zip_code: null, easterns_zone: null }),
+      findSourceDealer: vi.fn().mockResolvedValue({ id: 'dealer-carhub', timezone: 'America/New_York', routing_config: {} }),
+      statusForConversation: vi.fn().mockReturnValue({ status: 'waiting_window', nextAttemptAt: '2026-11-05T15:27:00.000Z' }),
+      syncLeadDealer: vi.fn(),
+    };
+    const reconciliation = new ConversationReconciliationFunctions(
+      { createQueryRunner: () => runner } as never,
+      qualification as never,
+      { createQueuedPauseEvent: vi.fn(), dispatchQueuedPauseEvent: vi.fn() } as never,
+    );
+
+    await reconciliation.reconcileConversation('conversation-carhub-form', new Date('2026-11-05T15:23:00.000Z'), true);
+
+    const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({
+      real_name: 'Jose Eduardo Martins Cabral',
+      vehicle_type: 'SUV',
+      form_context: {
+        full_name: 'Jose Eduardo Martins Cabral',
+        vehicle: 'SUV',
+        credit_score_range: '450 - 550',
+      },
+    });
+  });
+
   it('preserves the lead canonical phone when Messenger history has no phone candidate', async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('SELECT c.id, c.channel')) {

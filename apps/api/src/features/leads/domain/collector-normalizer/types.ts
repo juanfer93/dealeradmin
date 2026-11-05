@@ -1,4 +1,5 @@
 import type { VehicleCategory } from '../down-payment';
+import type { LeadFormContext } from './form-normalizer';
 
 export type CollectorInput = {
   source?: string | null;
@@ -68,6 +69,7 @@ export type CollectorOutput = {
   qualification_complete: boolean;
   missing_qualification: string[];
   qualification_source: 'custom_fields' | 'qualification_memory' | 'both' | 'none';
+  form_context: LeadFormContext | null;
   phone: string;
   chat_history_log: string;
   dealeradmin_send_now: boolean;
