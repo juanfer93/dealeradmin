@@ -1,5 +1,5 @@
 import type { DataSource, QueryRunner } from 'typeorm';
-import { detectLeadLanguage, extractRecentMessagePhone, isAdvisorHandoffVehicle, isQualificationComplete, normalizeCollectorInput, normalizeRealName, profileDisplayNameFromInput } from '../../../../leads/domain/collector-normalizer';
+import { detectLeadLanguage, extractRecentMessagePhone, isAdvisorHandoffVehicle, isQualificationComplete, isStaffordWhatsAppVehicleLabel, normalizeCollectorInput, normalizeRealName, profileDisplayNameFromInput } from '../../../../leads/domain/collector-normalizer';
 import { evaluateDownPayment, normalizeDownPayment } from '../../../../leads/domain/down-payment';
 import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-duplicate';
 import { normalizeGhlAttachments } from '../../../domain/ghl-attachment-normalizer';
@@ -144,6 +144,7 @@ export class ConversationEventFunctions {
       const nativeWhatsappPhone = isStaffordWhatsApp(source, event.channel)
         ? safePhone(event.contact_phone) || extractNativeWhatsappPhone(messages)
         : null;
+      const nativeWhatsapp = isStaffordWhatsApp(source, event.channel);
       const normalizedGhlPhone = isStaffordWhatsApp(source, event.channel) ? null : safePhone(event.contact_phone);
       const verifiedMessengerPhone = recentPhone && (!normalizedGhlPhone || recentPhone === normalizedGhlPhone) ? recentPhone : null;
       const eligiblePhone = isStaffordWhatsApp(source, event.channel) ? recentPhone || nativeWhatsappPhone || '' : verifiedMessengerPhone || '';
@@ -186,7 +187,7 @@ export class ConversationEventFunctions {
       const contactRealName = isSocialProfileChannel
         ? profileName
         : normalizeRealName(displayName);
-      const transcriptRealName = event.channel.toLowerCase() === 'whatsapp'
+      const transcriptRealName = event.channel.toLowerCase() === 'whatsapp' && !nativeWhatsapp
         ? transcript
           .split(/\n+/)
           .map((line) => normalizeRealName(line))
@@ -200,7 +201,15 @@ export class ConversationEventFunctions {
       // Preserve the first meaningful name; later cycles may add fields but
       // must not replace it with conversational text.
       const previousRealName = isSocialProfileChannel ? '' : normalizeRealName(clean(previousSnapshot.real_name));
-      const realName = actionCarsSpanishNameFlow
+      const authoritativePreviousRealName = nativeWhatsapp && previousRealName && !isStaffordWhatsAppVehicleLabel(previousRealName, source, event.channel)
+        ? previousRealName
+        : '';
+      const realName = nativeWhatsapp
+        ? authoritativePreviousRealName
+          || clean(normalized.real_name)
+          || contactRealName
+          || ''
+        : actionCarsSpanishNameFlow
         ? additiveField(transcriptRealName, clean(normalized.real_name))
           || previousRealName
           || contactRealName

@@ -94,6 +94,28 @@ describe('HighLevel collector custom-code normalizer', () => {
     }).real_name).toBe('Alpha Buyer');
   });
 
+  it('uses the native WhatsApp name instead of vehicle answers', () => {
+    const result = execute({
+      source: 'lucki',
+      channel: 'whatsapp',
+      contact_name: 'Luis Maquin',
+      profile: { name: 'Luis Maquin' },
+      phone: '+5219614387881',
+      message: 'yo tengo una honda crv lo quero cambiar sera que se puede',
+      chat_history_log: [
+        '*Headline:* Usados desde $191/mes* · ¿Cuál eliges?',
+        '*Source URL:* https://fb.me/5aZxvIJuU',
+        'Una camioneta familiar',
+        'Como toyota ho Honda',
+        'yo tengo una honda crv lo quero cambiar sera que se puede',
+      ].join('\n'),
+      qualification_memory: 'real_name: Como Toyota Ho Honda; vehicle: Honda CR-V',
+      real_name: 'Una Camioneta Familiar',
+    });
+
+    expect(result).toMatchObject({ real_name: 'Luis Maquin', vehicle_type: 'Honda CR-V' });
+  });
+
   it.each(['Para Aprobar', 'Precio', 'Nose Depende Cuánto Pidan'])('rejects Lucki qualification text as a WhatsApp name: %s', (value) => {
     expect(execute({
       source: 'lucki',

@@ -52,23 +52,25 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const profileDisplayName = profileDisplayNameFromInput(input);
   const profileName = profileNameFromInput(input, isMessengerChannel(channel));
   const whatsappProfileName = firstNonEmpty(input.profile?.name);
-  const whatsappContactFallback = firstNonEmpty(input.real_name)
-    || !policy.nativeWhatsapp
+  const whatsappContactFallback = !policy.nativeWhatsapp
     || !isWhatsAppChannel(channel)
     || /^lead$/i.test(firstNonEmpty(input.contact_name, input.contactName, input.profile?.name, input.name))
     ? EMPTY
     : firstNonEmpty(whatsappProfileName, input.contact_name, input.contactName, input.name);
   const invalidWhatsappFallback = /^(?:estoy|estoy trabajando luego chat|trabajando luego chat|mes|usad[ao]s?|disculpe son un dealer|para aprobar|precio|nose depende cu[aá]nto pidan|no s[eé] depende cu[aá]nto pidan)$/i.test(clean(whatsappContactFallback));
   const extractedNames = [realNameFromQualificationMemory(memory), extractRealNameFromText(rawMessage), extractRealNameFromText(rawHistory)];
+  const nativeWhatsappName = isStaffordWhatsAppVehicleLabel(whatsappContactFallback, input.source, channel)
+    ? EMPTY
+    : normalizeRealName(whatsappContactFallback);
   const whatsappNames = [
     formContext?.full_name ?? EMPTY,
     extractDeclaredRealNameFromText(rawMessage),
     extractDeclaredRealNameFromText(rawHistory),
     extractRealNameFromText(rawMessage, { onlyAfterNameQuestion: true }),
     extractRealNameFromText(rawHistory, { onlyAfterNameQuestion: true }),
-    normalizeRealName(whatsappProfileName),
     extractRealNameFromText(rawMessage),
     extractRealNameFromText(rawHistory),
+    nativeWhatsappName,
     realNameFromQualificationMemory(memory),
     profileName,
   ];

@@ -185,7 +185,8 @@ export class ConversationReconciliationFunctions {
         : this.sourceConfig[source].splitByLanguage ? detectLeadLanguage(transcript) : current.language;
       const actionCarsSpanishNameFlow = isActionCarsSpanishNameFlow(source, row.channel, language);
       const recentPhone = safePhone(extractRecentMessagePhone(evidenceMessages.map((message) => ({ ...message, is_attachment_evidence: isAttachmentEvidenceMessage(message) })), now));
-      const nativeWhatsappPhone = this.isStaffordWhatsApp(source, row.channel)
+      const nativeWhatsapp = this.isStaffordWhatsApp(source, row.channel);
+      const nativeWhatsappPhone = nativeWhatsapp
         ? safePhone(row.canonical_phone) || extractNativeWhatsappPhone(messages)
         : null;
       const existingPhone = safePhone(current.phone) || safePhone(row.canonical_phone);
@@ -227,11 +228,16 @@ export class ConversationReconciliationFunctions {
       // periodic watchdog uses a non-targeted reconciliation, so sanitize the
       // existing snapshot before applying the additive merge as well.
       const currentRealName = isSocialProfileChannel ? '' : normalizeRealName(clean(current.real_name));
+      const authoritativeCurrentRealName = nativeWhatsapp && currentRealName && !isStaffordWhatsAppVehicleLabel(currentRealName, source, row.channel)
+        ? currentRealName
+        : '';
       const contactRealName = isStaffordWhatsAppVehicleLabel(contactName, source, row.channel)
         ? ''
         : isSocialProfileChannel ? profileName : profileDisplayNameFromInput({ channel: row.channel, contact_name: contactName }) || normalizeRealName(contactName);
       const normalizedSocialProfileName = isSocialProfileChannel ? normalizeRealName(profileName) : '';
-      const realName = targeted
+      const realName = nativeWhatsapp
+        ? authoritativeCurrentRealName || clean(normalized.real_name) || contactRealName
+        : targeted
         ? actionCarsSpanishNameFlow
           ? clean(normalized.real_name) || normalizedSocialProfileName || contactRealName
           : source === 'carhub' || source === 'alpha'

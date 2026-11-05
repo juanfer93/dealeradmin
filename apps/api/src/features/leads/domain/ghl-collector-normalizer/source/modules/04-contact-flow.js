@@ -154,7 +154,7 @@ const contactName = isMessengerChannel(channel)
   ? normalizeProfileDisplayName(rawContactName)
   : (isProfileDisplayName(rawContactName) ? '' : normalizeRealName(rawContactName));
 const whatsappProfileName = clean(profile.name);
-const whatsappContactFallback = hasSuppliedRealName || /^lead$/i.test(rawContactName) ? '' : (whatsappProfileName || rawContactName);
+const whatsappContactFallback = /^lead$/i.test(rawContactName) ? '' : (whatsappProfileName || rawContactName);
 const invalidWhatsappFallback = /^(?:estoy|estoy trabajando luego chat|trabajando luego chat|mes|usad[ao]s?|disculpe son un dealer|para aprobar|precio|nose depende cu[aá]nto pidan|no s[eé] depende cu[aá]nto pidan)$/i.test(clean(whatsappContactFallback));
 // Messenger/Instagram contact labels are display metadata, not proof of a
 // buyer's real name. Only an explicit name answer may populate qualification;
@@ -170,9 +170,9 @@ const whatsappNames = [
   declaredNameFromText(rawHistory),
   nameFromText(rawMessage),
   nameFromText(rawHistory),
-  normalizeRealName(whatsappProfileName),
-  contactName,
+  staffordWhatsApp && /^(?:un|una|a|an|my|mi|the|como|quiero|busco|buscando|tengo|tienes|hay|have|do you have|looking for)\b/i.test(whatsappContactFallback) && (vehicleBrands.test(whatsappContactFallback) || vehicleModels.test(whatsappContactFallback) || vehicleCategories.test(whatsappContactFallback)) ? '' : normalizeRealName(whatsappContactFallback),
   memoryValue(['real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name', 'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre']),
+  contactName,
 ];
 const normalizeWhatsAppCandidate = (value) => {
   const candidate = clean(value);
@@ -180,7 +180,7 @@ const normalizeWhatsAppCandidate = (value) => {
   // the contact name (for example, "Un Ford Explorer Estoppel"). Do not let
   // that label become the buyer's real name; recover the name only from an
   // explicit declaration or a valid conversational answer.
-  const startsWithVehicleArticle = /^(?:un|una|a|an|my|mi|the)\s+/i.test(candidate);
+  const startsWithVehicleArticle = /^(?:un|una|a|an|my|mi|the|como|quiero|busco|buscando|tengo|tienes|hay|have|do you have|looking for)\b/i.test(candidate);
   const containsVehicleToken = vehicleBrands.test(candidate) || vehicleModels.test(candidate) || vehicleCategories.test(candidate);
   if (staffordWhatsApp && candidate && startsWithVehicleArticle && containsVehicleToken) return '';
   return normalizeRealName(candidate);
