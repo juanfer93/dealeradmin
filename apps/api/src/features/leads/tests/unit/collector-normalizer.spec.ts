@@ -2051,6 +2051,27 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ source: 'country-club', channel: 'whatsapp', message: 'Español' }).real_name).toBe('');
   });
 
+  it('ignores Lucki Employee Action Log metadata and falls back to the native WhatsApp name', () => {
+    const transcript = [
+      'BUSCO UNA SUV',
+      'Honda',
+      'Employee action log created',
+      'Si es mi.primera vez',
+      'Cuanto de down payment',
+      'Tiene ho da element?',
+    ].join('\n');
+
+    expect(normalizeCollectorInput({
+      source: 'lucki',
+      channel: 'whatsapp',
+      contact_name: 'Employee Action Log Created',
+      profile: { name: 'Adriana' },
+      message: 'Tiene ho da element?',
+      chat_history_log: transcript,
+    }).real_name).toBe('Adriana');
+    expect(normalizeRealName('Employee Action Log Created')).toBe('');
+  });
+
   it('uses the CarHub form name and facts without changing the normal Messenger flow', () => {
     const form = `*Headline:* El Secreto para Conseguir las MEJORES Ofertas en Autos
 *Source URL:* https://fb.me/5eo7ugHfj

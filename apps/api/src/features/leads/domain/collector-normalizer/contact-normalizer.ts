@@ -111,6 +111,8 @@ INVALID_REAL_NAMES.add('nose depende cuánto pidan');
 INVALID_REAL_NAMES.add('nose depende cuanto pidan');
 INVALID_REAL_NAMES.add('no sé depende cuánto pidan');
 INVALID_REAL_NAMES.add('no se depende cuanto pidan');
+INVALID_REAL_NAMES.add('employee action log created');
+INVALID_REAL_NAMES.add('primera vez');
 const BUSINESS_NAME_MARKERS = /\b(?:auto\s*sales|motors?|dealership|dealer|llc|inc(?:orporated)?|corp(?:oration)?|company|tatuajes?|tattoos?|operaciones?|operations?|transport(?:ation)?|logistics|construction|remodeling|roofing|realty|consulting|services?|servicios?|shop|tienda|salon|barbershop|restaurant)\b/i;
 const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|baltimore|baltimor|baltmore|baltimroe|balitmore|baltimre|baltimorre|baltimoro|balitmor|baltimo|bomltimo|maryland|where are you located|where are you|what|which|how|como\s+as[ií]|how\s+so|what\s+do\s+you\s+mean|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|qué|que|ubicaci[oó]n|ubicados?|cu[aá]l(?:\s+ser[ií]a)?|ser[ií]a|gracias|thank you|thank|vehicle|car|auto|carro|coche|veh[ií]culo|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|sim|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|cheques?|checks?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
 const PROFILE_DISPLAY_LABEL_MARKERS = /\b(?:me\s+puede(?:s)?\s+(?:mandar|enviar)|(?:mandar|enviar)\s+(?:fotos?|informaci[oó]n)|fotos?\s+de|copiar)\b/i;
@@ -203,7 +205,7 @@ export function profileDisplayNameFromInput(input: CollectorInput): string {
   return candidate;
 }
 
-const NON_CONVERSATIONAL_METADATA_LINE = /(?:\b(?:headline|source\s+url|attribution|ad\s*(?:id|name)|opportunity\s+(?:created|updated|changed))\b|https?:\/\/|fb\.me\/|\.post\b)/i;
+const NON_CONVERSATIONAL_METADATA_LINE = /(?:\b(?:headline|source\s+url|attribution|ad\s*(?:id|name)|opportunity\s+(?:created|updated|changed)|employee\s+action\s+log\s+(?:created|updated|changed))\b|https?:\/\/|fb\.me\/|\.post\b)/i;
 
 export function extractRealNameFromText(value: string): string {
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter((line) => line && !NON_CONVERSATIONAL_METADATA_LINE.test(line));
