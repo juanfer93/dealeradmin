@@ -1956,6 +1956,14 @@ describe('normalizeCollectorInput', () => {
     });
   });
 
+  it('uses the native WhatsApp contact name and phone flow for Alpha Motorsports', () => {
+    expect(normalizeCollectorInput({ source: 'alpha', channel: 'whatsapp', phone: '+18045550123', contact_name: 'Alpha Buyer', message: 'I am looking for an SUV' })).toMatchObject({
+      real_name: 'Alpha Buyer',
+      phone: '+18045550123',
+      qualification_step: 'complete',
+    });
+  });
+
   it('uses the native WhatsApp contact name and phone for Action Cars while retaining Messenger fallback', () => {
     expect(normalizeCollectorInput({ source: 'action-cars', channel: 'whatsapp', phone: '+18045550123', contact_name: 'Action Buyer', message: 'I am looking for an SUV' })).toMatchObject({
       real_name: 'Action Buyer',

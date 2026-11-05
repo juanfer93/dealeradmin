@@ -55,7 +55,7 @@ const normalizeRealName = (value) => {
 };
 const isMessengerChannel = (value) => /(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(clean(value));
 const isWhatsAppChannel = (value) => /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(clean(value));
-const isStaffordWhatsApp = (source, value) => ['stafford', 'country', 'lucki', 'carhub', 'action-cars'].includes(clean(source).toLocaleLowerCase()) && isWhatsAppChannel(value);
+const isStaffordWhatsApp = (source, value) => ['stafford', 'country', 'lucki', 'carhub', 'alpha', 'action-cars'].includes(clean(source).toLocaleLowerCase()) && isWhatsAppChannel(value);
 const effectiveChannel = (input) => {
   const channel = clean(input.channel);
   if (channel) return channel;
@@ -176,7 +176,7 @@ const whatsappNames = [
 ];
 const normalizeWhatsAppCandidate = (value) => {
   const candidate = clean(value);
-  // Stafford, Country Club Cars, Lucki Mazda, and Action Pre Owned Cars use native WhatsApp contact data. GHL sometimes exposes a vehicle/offer label as
+  // Stafford, Country Club Cars, Lucki Mazda, CarHub, Alpha, and Action Pre Owned Cars use native WhatsApp contact data. GHL sometimes exposes a vehicle/offer label as
   // the contact name (for example, "Un Ford Explorer Estoppel"). Do not let
   // that label become the buyer's real name; recover the name only from an
   // explicit declaration or a valid conversational answer.

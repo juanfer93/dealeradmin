@@ -24,6 +24,7 @@ export const GHL_GUARD_TOKEN_ENV_BY_SOURCE: Record<SourceKey, string> = {
   country: 'GHL_PRIVATE_TOKEN_COUNTRY_CLUB',
   lucki: 'GHL_PRIVATE_TOKEN_LUCKI_MAZDA',
   carhub: 'GHL_PRIVATE_TOKEN_CARHUB',
+  alpha: 'GHL_PRIVATE_TOKEN_ALPHA',
   fredericksburg: 'GHL_PRIVATE_TOKEN_FREDERICKSBURG',
   'fredericksburg-2': 'GHL_PRIVATE_TOKEN_FREDERICKSBURG_2',
   easterns: 'GHL_PRIVATE_TOKEN_EASTERNS',

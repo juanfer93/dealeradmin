@@ -205,7 +205,7 @@ export class ConversationEventFunctions {
           || previousRealName
           || contactRealName
           || ''
-        : source === 'carhub'
+        : source === 'carhub' || source === 'alpha'
           ? additiveField(transcriptRealName, previousRealName)
             || clean(normalized.real_name)
             || contactRealName

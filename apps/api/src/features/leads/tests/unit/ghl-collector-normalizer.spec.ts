@@ -83,6 +83,15 @@ describe('HighLevel collector custom-code normalizer', () => {
       message: 'Honda Civic',
       chat_history_log: 'Honda Civic\n1000',
     }).real_name).toBe('Noo');
+
+    expect(execute({
+      source: 'alpha',
+      channel: 'whatsapp',
+      contact_name: 'Alpha Buyer',
+      profile: { name: 'Alpha Buyer' },
+      message: 'Honda Civic',
+      chat_history_log: 'Honda Civic\n1000',
+    }).real_name).toBe('Alpha Buyer');
   });
 
   it.each(['Para Aprobar', 'Precio', 'Nose Depende Cuánto Pidan'])('rejects Lucki qualification text as a WhatsApp name: %s', (value) => {

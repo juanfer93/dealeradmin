@@ -141,6 +141,10 @@ describe('queued Conversation AI pause', () => {
     expect(isQueuedPauseSourceEnabled('carhub')).toBe(false);
   });
 
+  it('does not enable queued pause for Alpha Motorsports', () => {
+    expect(isQueuedPauseSourceEnabled('alpha')).toBe(false);
+  });
+
   it('allocates a new eventId for a later queued re-entry', async () => {
     const inserted: unknown[][] = [];
     let sequence = 0;

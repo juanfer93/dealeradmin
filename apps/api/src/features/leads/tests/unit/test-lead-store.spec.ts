@@ -43,6 +43,14 @@ describe('Identidad de lead por dealer en fixtures', () => {
     }));
   });
 
+  it('expone Alpha Motorsports of Manassas en la lista de dealers del frontend', () => {
+    expect(testDealers).toContainEqual(expect.objectContaining({
+      code: 'ALPHA-MOTORSPORTS',
+      name: 'Alpha Motorsports of Manassas',
+      ghlLocationId: 'PoaMOa1VgcgtnqUBv3EP',
+    }));
+  });
+
   it('bloquea el duplicado en el dealer destino pero permite el mismo lead en otro dealer', () => {
     addTestManualLead(
       'dealer-stafford',

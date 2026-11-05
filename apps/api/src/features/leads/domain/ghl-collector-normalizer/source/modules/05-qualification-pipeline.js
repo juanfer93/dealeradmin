@@ -459,7 +459,7 @@ let down = validAmount(cashDown && tradeInLanguage.test(conversationalDownSource
   : downCandidate);
 down = visibleDownPayment(down, source);
 const sourceAware = Boolean(source);
-const stafford = source === 'stafford' || source === 'country' || source === 'lucki' || source === 'carhub' || source === 'action-cars';
+const stafford = source === 'stafford' || source === 'country' || source === 'lucki' || source === 'carhub' || source === 'alpha' || source === 'action-cars';
 const requiresLocation = ['easterns', 'easterns-millersville'].includes(source);
 const allowFuzzyBaltimore = source === 'easterns';
 const phoneSatisfiedByNative = stafford && isWhatsAppChannel(inputData.channel);

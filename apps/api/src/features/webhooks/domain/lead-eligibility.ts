@@ -24,6 +24,7 @@ export function evaluateLeadEligibility(input: LeadEligibilityInput): LeadEligib
     ?? (dealerCode === 'country-club' ? ['whatsapp'] : undefined)
     ?? (dealerCode === 'lucki-mazda' ? ['whatsapp'] : undefined)
     ?? (dealerCode === 'carhub-stafford' ? ['whatsapp', 'messenger'] : undefined)
+    ?? (dealerCode === 'alpha-motorsports' ? ['whatsapp', 'messenger'] : undefined)
     ?? (dealerCode === 'stafford' ? ['whatsapp', 'messenger'] : undefined);
   const channel = input.channel?.trim().toLowerCase();
   if (channel && allowedChannels && !allowedChannels.some((candidate) => candidate.toLowerCase() === channel)) {

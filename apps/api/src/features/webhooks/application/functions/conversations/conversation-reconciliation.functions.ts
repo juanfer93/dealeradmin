@@ -234,12 +234,12 @@ export class ConversationReconciliationFunctions {
       const realName = targeted
         ? actionCarsSpanishNameFlow
           ? clean(normalized.real_name) || normalizedSocialProfileName || contactRealName
-          : source === 'carhub'
+          : source === 'carhub' || source === 'alpha'
             ? clean(normalized.real_name) || normalizedSocialProfileName || contactRealName
           : normalizedSocialProfileName || clean(normalized.real_name) || contactRealName
         : actionCarsSpanishNameFlow
           ? clean(normalized.real_name) || normalizedSocialProfileName || preserveOrNormalize(currentRealName, normalized.real_name) || contactRealName
-          : source === 'carhub'
+          : source === 'carhub' || source === 'alpha'
             ? clean(normalized.real_name) || normalizedSocialProfileName || preserveOrNormalize(currentRealName, normalized.real_name) || contactRealName
           : normalizedSocialProfileName || preserveOrNormalize(currentRealName, normalized.real_name) || contactRealName;
       const vehicle = targeted ? clean(normalized.vehicle_type) : preserveOrNormalize(current.vehicle_type, normalized.vehicle_type);
@@ -437,6 +437,6 @@ export class ConversationReconciliationFunctions {
   }
 
   private isStaffordWhatsApp(source: SourceKey, channel: string): boolean {
-    return (source === 'stafford' || source === 'country' || source === 'lucki' || source === 'carhub' || source === 'action-cars') && channel.trim().toLowerCase() === 'whatsapp';
+    return (source === 'stafford' || source === 'country' || source === 'lucki' || source === 'carhub' || source === 'alpha' || source === 'action-cars') && channel.trim().toLowerCase() === 'whatsapp';
   }
 }

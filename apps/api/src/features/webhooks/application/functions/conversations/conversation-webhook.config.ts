@@ -21,12 +21,14 @@ export const RECENT_AUTOMATION_WINDOW_MS = 24 * 60 * 60 * 1000;
 const COUNTRY_CLUB_LOCATION_ID = 'k9DePpsNBu9qWT1C6pW0';
 const LUCKI_MAZDA_LOCATION_ID = 'cd9Slb2Fk2vNY3l4ukG9';
 const CARHUB_STAFFORD_LOCATION_ID = 'fVyKDmI0Il432etqbODo';
+const ALPHA_MOTORSPORTS_LOCATION_ID = 'PoaMOa1VgcgtnqUBv3EP';
 
 export const GHL_SOURCE_CONFIG: SourceConfigMap = {
   stafford: { locationId: 'LiaoSID3nvAhad49ZpNJ', defaultChannel: 'whatsapp', supportedChannels: ['whatsapp'] },
   country: { locationId: COUNTRY_CLUB_LOCATION_ID, defaultChannel: 'whatsapp', supportedChannels: ['whatsapp'] },
   lucki: { locationId: LUCKI_MAZDA_LOCATION_ID, defaultChannel: 'whatsapp', supportedChannels: ['whatsapp'] },
   carhub: { locationId: CARHUB_STAFFORD_LOCATION_ID, defaultChannel: 'whatsapp', supportedChannels: ['whatsapp', 'messenger'] },
+  alpha: { locationId: ALPHA_MOTORSPORTS_LOCATION_ID, defaultChannel: 'whatsapp', supportedChannels: ['whatsapp', 'messenger'] },
   fredericksburg: { locationId: 'MyxWNKacThim798E8KC6', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
   'fredericksburg-2': { locationId: 'bAuMEQeH48xAtu9tAMFf', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
   easterns: { locationId: 'xN2LSSl62okzv9GnOJPU', defaultChannel: 'messenger', supportedChannels: ['messenger'] },

@@ -697,6 +697,34 @@ describe('ConversationWebhookService', () => {
     ]);
   });
 
+  it('configures Alpha Motorsports for WhatsApp and Messenger', async () => {
+    expect(GHL_SOURCE_CONFIG.alpha).toEqual({
+      locationId: 'PoaMOa1VgcgtnqUBv3EP',
+      defaultChannel: 'whatsapp',
+      supportedChannels: ['whatsapp', 'messenger'],
+    });
+
+    const service = new ConversationWebhookService();
+    const whatsappResult = await service.acceptCustomerReplied(
+      { message_body: 'I am looking for an SUV.', channel: 'whatsapp', contact_phone: '+13015550123', contact_name: 'Alpha Buyer', ghl_location_id: 'PoaMOa1VgcgtnqUBv3EP' },
+      'alpha',
+      { contactId: 'ghl-alpha-whatsapp-contact', conversationId: 'ghl-alpha-whatsapp-conversation' },
+    );
+
+    expect(whatsappResult).toMatchObject({ source: 'alpha', conversationId: 'ghl-alpha-whatsapp-conversation' });
+    const messengerResult = await service.acceptCustomerReplied(
+      { message_body: 'I am looking for an SUV.', channel: 'messenger', ghl_location_id: 'PoaMOa1VgcgtnqUBv3EP' },
+      'alpha',
+      { contactId: 'ghl-alpha-messenger-contact', conversationId: 'ghl-alpha-messenger-conversation' },
+    );
+
+    expect(messengerResult).toMatchObject({ source: 'alpha', conversationId: 'ghl-alpha-messenger-conversation' });
+    expect(getTestConversationEvents()).toEqual([
+      expect.objectContaining({ source: 'alpha', channel: 'whatsapp' }),
+      expect.objectContaining({ source: 'alpha', channel: 'messenger' }),
+    ]);
+  });
+
   it('configures Lucki Mazda as a WhatsApp-only source', async () => {
     expect(GHL_SOURCE_CONFIG.lucki).toEqual({
       locationId: 'cd9Slb2Fk2vNY3l4ukG9',

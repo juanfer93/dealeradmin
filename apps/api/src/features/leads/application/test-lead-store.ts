@@ -48,6 +48,7 @@ export const EASTERN_FREDERICK_LOCATION_ID = 'MRHcOwdTqaN5cug3eSWW';
 export const COUNTRY_CLUB_LOCATION_ID = 'k9DePpsNBu9qWT1C6pW0';
 export const LUCKI_MAZDA_LOCATION_ID = 'cd9Slb2Fk2vNY3l4ukG9';
 export const CARHUB_STAFFORD_LOCATION_ID = 'fVyKDmI0Il432etqbODo';
+export const ALPHA_MOTORSPORTS_LOCATION_ID = 'PoaMOa1VgcgtnqUBv3EP';
 
 const TEST_DEALER_ALIASES: Record<string, string> = {
   'dealer-fredericksburg-2': 'dealer-fredericksburg',
@@ -59,6 +60,7 @@ export const testDealers: TestDealer[] = [
   { id: 'dealer-country-club', code: 'COUNTRY-CLUB', name: 'Country Club Cars Inc', pendingCount: 0, ghlLocationId: COUNTRY_CLUB_LOCATION_ID },
   { id: 'dealer-lucki-mazda', code: 'LUCKI-MAZDA', name: 'Lucki Mazda of Woodbridge', pendingCount: 0, ghlLocationId: LUCKI_MAZDA_LOCATION_ID },
   { id: 'dealer-carhub-stafford', code: 'CARHUB-STAFFORD', name: 'CarHub Stafford', pendingCount: 0, ghlLocationId: CARHUB_STAFFORD_LOCATION_ID },
+  { id: 'dealer-alpha-motorsports', code: 'ALPHA-MOTORSPORTS', name: 'Alpha Motorsports of Manassas', pendingCount: 0, ghlLocationId: ALPHA_MOTORSPORTS_LOCATION_ID },
   { id: EASTERN_DEALER_IDS.rosedale, code: 'DLR-EAST-ROSE', name: 'Easterns Rosedale', pendingCount: 0 },
   { id: EASTERN_DEALER_IDS.laurel, code: 'DLR-EAST-LAUR', name: 'Easterns Laurel', pendingCount: 1 },
   { id: EASTERN_DEALER_IDS.sterling, code: 'DLR-EAST-STER', name: 'Easterns Sterling', pendingCount: 0 },

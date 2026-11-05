@@ -39,7 +39,7 @@ export function collectorFlowPolicy(input: CollectorInput): CollectorFlowPolicy 
   const source = clean(input.source).toLocaleLowerCase();
   const sourceAware = Boolean(source);
   const stafford = source === 'stafford' || source === 'country' || source === 'lucki';
-  const nativeWhatsapp = stafford || source === 'carhub' || source === 'action-cars';
+  const nativeWhatsapp = stafford || source === 'carhub' || source === 'alpha' || source === 'action-cars';
   const requiresLocation = source === 'easterns' || source === 'easterns-millersville';
   return {
     sourceAware,
