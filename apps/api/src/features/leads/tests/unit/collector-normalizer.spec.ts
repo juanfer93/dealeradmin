@@ -2072,6 +2072,20 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeRealName('Employee Action Log Created')).toBe('');
   });
 
+  it('treats a standalone ITIN message as identification instead of a buyer name', () => {
+    const result = normalizeCollectorInput({
+      source: 'lucki',
+      channel: 'whatsapp',
+      contact_name: 'Employee Action Log Created',
+      profile: { name: 'Adriana' },
+      message: 'Itin',
+      chat_history_log: 'Honda element\nItin',
+    });
+
+    expect(result).toMatchObject({ real_name: 'Adriana', identification: 'yes' });
+    expect(result.documents).toContain('identification: yes');
+  });
+
   it('uses the CarHub form name and facts without changing the normal Messenger flow', () => {
     const form = `*Headline:* El Secreto para Conseguir las MEJORES Ofertas en Autos
 *Source URL:* https://fb.me/5eo7ugHfj

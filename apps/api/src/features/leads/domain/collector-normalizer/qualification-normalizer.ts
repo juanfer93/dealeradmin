@@ -80,6 +80,10 @@ export function yesNo(value: string): 'yes' | 'no' | '' {
 export function mergeDocuments(current: string, message: string): { value: string; id: string; income: string } {
   const source = conversationalEvidence(message);
   const currentSource = clean(current);
+  const standaloneIdentification = source
+    .split(/[\n;,]+/)
+    .map(clean)
+    .some((line) => /^(?:id|itin|identification|identificaci[oó]n|driver.?s license|license|licencia|passport|pasaporte)\.?$/i.test(line));
   const answer = (documentPattern: string): 'yes' | 'no' | '' => {
     const positive = 'yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available';
     const negative = "no|nó|dont|don't|no tengo|i do not|do not have|don't have|not available";
@@ -94,7 +98,7 @@ export function mergeDocuments(current: string, message: string): { value: strin
     }
     return '';
   };
-  const id = answer('id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b');
+  const id = standaloneIdentification ? 'yes' : answer('id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b');
   const income = answer('proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina|bank account|cuenta bancaria|cuenta de banco');
   const parts = [...new Set(clean(current).split(';').map(clean).filter(Boolean))];
   if (id && !/\b(?:id|identification|identificación|license|licencia)\s*:/i.test(current) && !/\b(?:id|identification|identificación|license|licencia)\b/i.test(current)) parts.push(`identification: ${id}`);

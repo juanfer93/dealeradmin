@@ -189,6 +189,8 @@ describe('ConversationReconciliationFunctions', () => {
     expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({
       real_name: 'Adriana',
       phone: '+17039406305',
+      identification: 'yes',
+      documents: expect.stringContaining('identification: yes'),
     });
   });
 
