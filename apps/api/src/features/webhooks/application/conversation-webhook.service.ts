@@ -91,7 +91,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       `SELECT id
        FROM conversations
        WHERE ghl_contact_id = ANY($1::text[])
-         AND status IN ('partial', 'waiting_window', 'stale_phone_ignored')
+         AND status IN ('partial', 'waiting_window', 'stale_phone_ignored', 'queued', 'duplicate_ignored')
        ORDER BY updated_at DESC
        LIMIT 25`,
       [ids],
