@@ -2013,6 +2013,33 @@ describe('normalizeCollectorInput', () => {
     });
   });
 
+  it('ignores Opportunity Created metadata and prefers a declared Country Club WhatsApp name', () => {
+    const result = normalizeCollectorInput({
+      source: 'country-club',
+      channel: 'whatsapp',
+      real_name: 'Opportunity Created',
+      contact_name: 'Opportunity Created',
+      profile: { name: 'Opportunity Created' },
+      message: 'Josue ramirez',
+      chat_history_log: 'Opportunity created\nEspañol\nEn donde estan ubicados\nUna toyota hilander 2019\nJosue ramirez',
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Josue Ramirez',
+      vehicle_type: 'Toyota Highlander 2019',
+    });
+  });
+
+  it('uses the native Country Club WhatsApp name only when no declared name exists', () => {
+    expect(normalizeCollectorInput({
+      source: 'country-club',
+      channel: 'whatsapp',
+      contact_name: 'Josue Ramirez',
+      profile: { name: 'Josue Ramirez' },
+      message: 'Una Toyota Highlander 2019',
+    }).real_name).toBe('Josue Ramirez');
+  });
+
   it('uses the CarHub form name and facts without changing the normal Messenger flow', () => {
     const form = `*Headline:* El Secreto para Conseguir las MEJORES Ofertas en Autos
 *Source URL:* https://fb.me/5eo7ugHfj
@@ -2037,11 +2064,36 @@ Full name: Jose Eduardo Martins Cabral
       phone: '+13019560179',
       purchase_timeline: 'Entre 1 semana y 1 mes',
       form_context: {
+        headline: 'El Secreto para Conseguir las MEJORES Ofertas en Autos',
+        source_url: 'https://fb.me/5eo7ugHfj',
+        phone: '+13019560179',
+        financing_preference: 'Financiamiento',
         full_name: 'Jose Eduardo Martins Cabral',
         vehicle: 'SUV',
         credit_score_range: '450 - 550',
+        down_payment_preference: 'Planeo usar mi vehículo actual como (parte del) enganche',
+        purchase_timeline: 'Entre 1 semana y 1 mes',
         contact_preference: 'Mensaje de texto',
       },
+    });
+    const compactForm = form.replace(/\s+/g, ' ');
+    expect(normalizeCollectorInput({
+      source: 'carhub',
+      channel: 'messenger',
+      contact_name: 'Eduardoxeca',
+      message: compactForm,
+      chat_history_log: compactForm,
+    }).form_context).toMatchObject({
+      headline: 'El Secreto para Conseguir las MEJORES Ofertas en Autos',
+      source_url: 'https://fb.me/5eo7ugHfj',
+      phone: '+13019560179',
+      financing_preference: 'Financiamiento',
+      credit_score_range: '450 - 550',
+      down_payment_preference: 'Planeo usar mi vehículo actual como (parte del) enganche',
+      full_name: 'Jose Eduardo Martins Cabral',
+      purchase_timeline: 'Entre 1 semana y 1 mes',
+      contact_preference: 'Mensaje de texto',
+      vehicle: 'SUV',
     });
     expect(normalizeCollectorInput({
       source: 'carhub',

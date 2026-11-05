@@ -81,6 +81,7 @@ export function isPhoneAreaCodeAmount(value: string, phone: string): boolean {
 
 const INVALID_REAL_NAMES = new Set([
   '.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'location', 'whatsapp', 'facebook',
+  'opportunity created',
   'in pa', 'in messenger', 'for sure', 'tienes tacomas', 'sorry',
   'hola le saluda', 'le saluda', 'les saluda', 'mañana', 'manana', 'mkt',
   'saludos', 'hello', 'hi', 'hey', 'hola', 'ola', 'greetings', 'buen dia', 'buen día', 'buen dis', 'buenos dias', 'buenos días', 'buenas tardes',
@@ -196,7 +197,7 @@ export function profileDisplayNameFromInput(input: CollectorInput): string {
   return candidate;
 }
 
-const NON_CONVERSATIONAL_METADATA_LINE = /(?:\b(?:headline|source\s+url|attribution|ad\s*(?:id|name))\b|https?:\/\/|fb\.me\/|\.post\b)/i;
+const NON_CONVERSATIONAL_METADATA_LINE = /(?:\b(?:headline|source\s+url|attribution|ad\s*(?:id|name)|opportunity\s+(?:created|updated|changed))\b|https?:\/\/|fb\.me\/|\.post\b)/i;
 
 export function extractRealNameFromText(value: string): string {
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter((line) => line && !NON_CONVERSATIONAL_METADATA_LINE.test(line));

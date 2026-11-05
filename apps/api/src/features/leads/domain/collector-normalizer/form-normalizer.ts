@@ -16,16 +16,36 @@ export type LeadFormContext = {
 
 const FORM_MARKER = /(?:\bheadline\s*:|\bsource\s+url\s*:|filled\s+out\s+your\s+form|complet[eé]\s+el\s+formulario)/i;
 
-function normalizedLine(value: string): string {
-  return clean(value).replace(/^\*+|\*+$/g, '').trim();
+// The form can arrive as a normal multiline message or as one compacted
+// reconciliation string. Keep every known label as a hard parsing boundary.
+const FORM_FIELD_LABELS = [
+  '\\*{0,2}headline',
+  '\\*{0,2}source\\s+url',
+  'phone\\s+number',
+  'n[uú]mero\\s+de\\s+tel[eé]fono',
+  '(?:¿\\s*)?prefieres\\s+pagar\\s+de\\s+contado\\s+o\\s+financiar\\??',
+  'cash\\s+or\\s+finance',
+  '(?:¿\\s*)?en\\s+qu[eé](?:\\s+rango)?\\s+se\\s+encuentra\\s+tu\\s+puntaje\\s+de\\s+cr[eé]dito\\??',
+  'credit\\s+score\\s+range',
+  '(?:¿\\s*)?cu[aá]nto\\s+planeas\\s+dar\\s+de\\s+enganche\\??',
+  'down\\s+payment',
+  '(?:¿\\s*)?full\\s+name',
+  'nombre\\s+completo',
+  '(?:¿\\s*)?cu[aá]ndo\\s+planeas\\s+comprar\\s+tu\\s+pr[oó]ximo\\s+veh[ií]culo\\??',
+  'purchase\\s+timeline',
+  '(?:¿\\s*)?prefieres\\s+que\\s+te\\s+contactemos\\s+por\\s+llamada\\s+o\\s+mensaje\\s+de\\s+texto\\??',
+  'contact\\s+preference',
+  '(?:¿\\s*)?hay\\s+alg[uú]n\\s+tipo\\s+de\\s+veh[ií]culo\\s+que\\s+te\\s+interese\\??',
+  'vehicle\\s+of\\s+interest',
+].join('|');
+
+function normalizedValue(value: string): string {
+  return clean(value).replace(/^\*+\s*|\s*\*+$/g, '').trim();
 }
 
-function lineValue(lines: string[], labels: RegExp): string {
-  for (const line of lines) {
-    const match = normalizedLine(line).match(labels);
-    if (match?.[1]) return clean(match[1]);
-  }
-  return '';
+function fieldValue(source: string, label: string): string {
+  const match = source.match(new RegExp(`${label}\\s*:\\s*(.*?)(?=\\s*(?:${FORM_FIELD_LABELS})\\s*:|\\s*Inbox\\s+URL\\s*:|\\s*\\n|\\s*(?:hello|¡?hola)[!,]?\\s|$)`, 'i'));
+  return normalizedValue(match?.[1] ?? '');
 }
 
 function formPhone(value: string): string {
@@ -41,24 +61,22 @@ function formPhone(value: string): string {
 export function extractLeadFormContext(value: string | null | undefined): LeadFormContext | null {
   const source = String(value ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source || !FORM_MARKER.test(source)) return null;
-  // Reconciliation intentionally compacts each stored message before
-  // rebuilding the transcript. Recreate boundaries before parsing so a
-  // compacted form is equivalent to the original multi-line payload.
-  const formLines = source.replace(/\s+(?=(?:\*{0,2}(?:headline|source\s+url|phone\s+number|full\s+name)\s*:|[¿?](?:prefieres|en\s+qu[eé]|cu[aá]nto|cu[aá]ndo|hay\s+alg[uú]n)\b))/gi, '\n');
-  const lines = formLines.split('\n').map(clean).filter(Boolean);
-  const fullNameValue = lineValue(lines, /^\s*(?:\*+)?(?:full\s+name|nombre\s+completo)\s*:\s*(.*?)\s*(?:\*+)?$/i);
+  // Reconciliation may compact stored messages into one line. Parsing against
+  // label boundaries makes compact and multiline payloads equivalent.
+  const compactSource = source.replace(/[ \t]+/g, ' ').replace(/\n+/g, '\n').trim();
+  const fullNameValue = fieldValue(compactSource, '(?:\\*{0,2}full\\s+name|nombre\\s+completo)');
   const fullName = normalizeRealName(fullNameValue) || fullNameValue;
   const context: LeadFormContext = {
-    headline: lineValue(lines, /^\s*(?:\*+)?headline\s*:\s*(.*?)\s*(?:\*+)?$/i),
-    source_url: lineValue(lines, /^\s*(?:\*+)?source\s+url\s*:\s*(.*?)\s*(?:\*+)?$/i),
-    phone: formPhone(lineValue(lines, /^\s*(?:phone\s+number|n[uú]mero\s+de\s+tel[eé]fono)\s*:\s*(.*?)\s*(?:\*+)?$/i)),
-    financing_preference: lineValue(lines, /(?:prefieres\s+pagar\s+de\s+contado\s+o\s+financiar|cash\s+or\s+finance)\??\s*:\s*(.*?)\s*$/i),
-    credit_score_range: lineValue(lines, /(?:puntaje\s+de\s+cr[eé]dito|credit\s+score\s+range)\??\s*:\s*(.*?)\s*$/i),
-    down_payment_preference: lineValue(lines, /(?:planeas\s+dar\s+de\s+enganche|down\s+payment)\??\s*:\s*(.*?)\s*$/i),
+    headline: fieldValue(compactSource, '\\*{0,2}headline'),
+    source_url: fieldValue(compactSource, '\\*{0,2}source\\s+url'),
+    phone: formPhone(fieldValue(compactSource, '(?:phone\\s+number|n[uú]mero\\s+de\\s+tel[eé]fono)')),
+    financing_preference: fieldValue(compactSource, '(?:prefieres\\s+pagar\\s+de\\s+contado\\s+o\\s+financiar\\??|cash\\s+or\\s+finance)'),
+    credit_score_range: fieldValue(compactSource, '(?:en\\s+qu[eé](?:\\s+rango)?\\s+se\\s+encuentra\\s+tu\\s+puntaje\\s+de\\s+cr[eé]dito\\??|credit\\s+score\\s+range)'),
+    down_payment_preference: fieldValue(compactSource, '(?:cu[aá]nto\\s+planeas\\s+dar\\s+de\\s+enganche\\??|down\\s+payment)'),
     full_name: fullName,
-    purchase_timeline: lineValue(lines, /(?:planeas\s+comprar\s+tu\s+pr[oó]ximo\s+veh[ií]culo|purchase\s+timeline)\??\s*:\s*(.*?)\s*$/i),
-    contact_preference: lineValue(lines, /(?:prefieres\s+que\s+te\s+contactemos\s+por\s+llamada\s+o\s+mensaje\s+de\s+texto|contact\s+preference)\??\s*:\s*(.*?)\s*$/i),
-    vehicle: lineValue(lines, /(?:hay\s+alg[uú]n\s+tipo\s+de\s+veh[ií]culo\s+que\s+te\s+interese|vehicle\s+of\s+interest)\??\s*:\s*(.*?)\s*$/i),
+    purchase_timeline: fieldValue(compactSource, '(?:cu[aá]ndo\\s+planeas\\s+comprar\\s+tu\\s+pr[oó]ximo\\s+veh[ií]culo\\??|purchase\\s+timeline)'),
+    contact_preference: fieldValue(compactSource, '(?:prefieres\\s+que\\s+te\\s+contactemos\\s+por\\s+llamada\\s+o\\s+mensaje\\s+de\\s+texto\\??|contact\\s+preference)'),
+    vehicle: fieldValue(compactSource, '(?:hay\\s+alg[uú]n\\s+tipo\\s+de\\s+veh[ií]culo\\s+que\\s+te\\s+interese\\??|vehicle\\s+of\\s+interest)'),
   };
   return Object.values(context).some(Boolean) ? context : null;
 }
