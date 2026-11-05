@@ -207,7 +207,7 @@ export function profileDisplayNameFromInput(input: CollectorInput): string {
 
 const NON_CONVERSATIONAL_METADATA_LINE = /(?:\b(?:headline|source\s+url|attribution|ad\s*(?:id|name)|opportunity\s+(?:created|updated|changed)|employee\s+action\s+log\s+(?:created|updated|changed))\b|https?:\/\/|fb\.me\/|\.post\b)/i;
 
-export function extractRealNameFromText(value: string): string {
+export function extractRealNameFromText(value: string, options: { onlyAfterNameQuestion?: boolean } = {}): string {
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter((line) => line && !NON_CONVERSATIONAL_METADATA_LINE.test(line));
   const segments = lines.flatMap((line) => line.split(/[.!?;]+/).map(clean).filter(Boolean));
   let firstCandidate = EMPTY;
@@ -248,7 +248,7 @@ export function extractRealNameFromText(value: string): string {
     const current = name.toLocaleLowerCase();
     if (current.length > previous.length && current.startsWith(previous)) firstCandidate = name;
   }
-  return nameAfterQuestion || firstCandidate;
+  return nameAfterQuestion || (options.onlyAfterNameQuestion ? EMPTY : firstCandidate);
 }
 
 export function extractDeclaredRealNameFromText(value: string): string {

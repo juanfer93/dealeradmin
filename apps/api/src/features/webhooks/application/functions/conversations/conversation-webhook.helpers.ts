@@ -141,7 +141,9 @@ export function safePhone(value: string | null | undefined): string | null {
 export function extractNativeWhatsappPhone(messages: ConversationMessageRow[]): string | null {
   for (const message of [...messages].reverse()) {
     if (!message.raw_payload || typeof message.raw_payload !== 'object' || Array.isArray(message.raw_payload)) continue;
-    const value = (message.raw_payload as Record<string, unknown>).contact_phone;
+    const payload = asRecord(message.raw_payload);
+    const customData = asRecord(payload.custom_data ?? payload.customData);
+    const value = payload.contact_phone ?? customData.contact_phone ?? customData.contactPhone;
     const phone = safePhone(typeof value === 'string' ? value : null);
     if (phone) return phone;
   }
@@ -152,10 +154,22 @@ export function extractNativeProfileName(messages: ConversationMessageRow[], cha
   if (!/(?:^|[^a-z])(?:messenger|facebook|instagram|whats?app)(?:$|[^a-z])/i.test(clean(channel))) return '';
   for (const message of [...messages].reverse()) {
     const payload = asRecord(message.raw_payload);
+    const customData = asRecord(payload.custom_data ?? payload.customData);
     const contact = asRecord(payload.contact);
     const profile = asRecord(payload.profile);
     const whatsappProfile = asRecord(asRecord(payload.whatsapp).profile);
-    const candidate = [contact.name, profile.name, whatsappProfile.name, payload.profile_name]
+    const candidate = [
+      contact.name,
+      profile.name,
+      whatsappProfile.name,
+      payload.profile_name,
+      payload.contact_name,
+      payload.contactName,
+      customData.contact_name,
+      customData.contactName,
+      customData.profile_name,
+      customData.profileName,
+    ]
       .map(clean)
       .find(Boolean);
     if (candidate) return candidate;

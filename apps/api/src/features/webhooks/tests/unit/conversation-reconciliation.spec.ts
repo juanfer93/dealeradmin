@@ -133,6 +133,65 @@ describe('ConversationReconciliationFunctions', () => {
     });
   });
 
+  it('uses the native WhatsApp name nested in custom_data during a targeted queued replay', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('SELECT c.id, c.channel')) return [{
+        id: 'conversation-lucki-adriana',
+        channel: 'whatsapp',
+        ghl_location_id: GHL_SOURCE_CONFIG.lucki.locationId,
+        ghl_contact_id: 'lucki-adriana-contact',
+        ghl_conversation_id: 'lucki-adriana-conversation',
+        status: 'queued',
+        qualification_snapshot: {
+          real_name: 'Itin',
+          profile_name: '',
+          phone: '+17039406305',
+          vehicle_type: 'Honda element',
+          qualification_complete: true,
+          language: 'es',
+        },
+        location_snapshot: { city: null, state: null, zip_code: null, easterns_zone: null },
+        ready_at: null,
+        next_attempt_at: null,
+        last_message_at: '2026-11-05T15:14:48.190Z',
+        waiting_window_attempts: 0,
+        lead_id: 'lead-lucki-adriana',
+        canonical_phone: '+17039406305',
+        first_name: 'Employee',
+        last_name: 'Action Log Created',
+      }];
+      if (sql.includes('SELECT cm.body')) return [
+        { body: 'BUSCO UNA SUV', direction: 'inbound', occurred_at: '2026-11-05T04:13:52.160Z', raw_payload: { custom_data: { channel: 'whatsapp', contact_name: 'Adriana', contact_phone: '(703) 940-6305' } } },
+        { body: 'Honda', direction: 'inbound', occurred_at: '2026-11-05T05:07:36.811Z', raw_payload: { custom_data: { channel: 'whatsapp', contact_name: 'Adriana' } } },
+        { body: 'Employee action log created', direction: 'outbound', occurred_at: '2026-11-05T05:07:43.349Z', raw_payload: {} },
+        { body: 'Si es mi.primera vez', direction: 'inbound', occurred_at: '2026-11-05T15:14:28.466Z', raw_payload: { custom_data: { channel: 'whatsapp', contact_name: 'Adriana' } } },
+        { body: 'Tiene ho da element?', direction: 'inbound', occurred_at: '2026-11-05T15:14:48.190Z', raw_payload: { custom_data: { channel: 'whatsapp', contact_name: 'Adriana' } } },
+        { body: 'Itin', direction: 'inbound', occurred_at: '2026-11-05T15:30:44.310Z', raw_payload: { customData: { channel: 'whatsapp', contact_name: 'Adriana', message_body: 'Itin' } } },
+      ];
+      return [];
+    });
+    const runner = { connect: vi.fn(), startTransaction: vi.fn(), commitTransaction: vi.fn(), rollbackTransaction: vi.fn(), release: vi.fn(), isTransactionActive: true, query };
+    const qualification = {
+      resolveLocation: vi.fn().mockResolvedValue({ city: null, state: null, zip_code: null, easterns_zone: null }),
+      findSourceDealer: vi.fn().mockResolvedValue({ id: 'dealer-lucki', timezone: 'America/New_York', routing_config: {} }),
+      statusForConversation: vi.fn().mockReturnValue({ status: 'queued', nextAttemptAt: null }),
+      syncLeadDealer: vi.fn(),
+    };
+    const reconciliation = new ConversationReconciliationFunctions(
+      { createQueryRunner: () => runner } as never,
+      qualification as never,
+      { createQueuedPauseEvent: vi.fn(), dispatchQueuedPauseEvent: vi.fn() } as never,
+    );
+
+    await reconciliation.reconcileConversation('conversation-lucki-adriana', new Date('2026-11-05T15:15:00.000Z'), true, true, true);
+
+    const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({
+      real_name: 'Adriana',
+      phone: '+17039406305',
+    });
+  });
+
   it('reconciles CarHub form facts before the Messenger profile label', async () => {
     const form = `*Headline:* El Secreto para Conseguir las MEJORES Ofertas en Autos
 *Source URL:* https://fb.me/5eo7ugHfj

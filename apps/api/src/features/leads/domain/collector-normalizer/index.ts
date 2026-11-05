@@ -60,7 +60,18 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     : firstNonEmpty(whatsappProfileName, input.contact_name, input.contactName, input.name);
   const invalidWhatsappFallback = /^(?:estoy|estoy trabajando luego chat|trabajando luego chat|mes|usad[ao]s?|disculpe son un dealer|para aprobar|precio|nose depende cu[aá]nto pidan|no s[eé] depende cu[aá]nto pidan)$/i.test(clean(whatsappContactFallback));
   const extractedNames = [realNameFromQualificationMemory(memory), extractRealNameFromText(rawMessage), extractRealNameFromText(rawHistory)];
-  const whatsappNames = [formContext?.full_name ?? EMPTY, extractDeclaredRealNameFromText(rawMessage), extractDeclaredRealNameFromText(rawHistory), extractRealNameFromText(rawMessage), extractRealNameFromText(rawHistory), normalizeRealName(whatsappProfileName), profileName, realNameFromQualificationMemory(memory)];
+  const whatsappNames = [
+    formContext?.full_name ?? EMPTY,
+    extractDeclaredRealNameFromText(rawMessage),
+    extractDeclaredRealNameFromText(rawHistory),
+    extractRealNameFromText(rawMessage, { onlyAfterNameQuestion: true }),
+    extractRealNameFromText(rawHistory, { onlyAfterNameQuestion: true }),
+    normalizeRealName(whatsappProfileName),
+    extractRealNameFromText(rawMessage),
+    extractRealNameFromText(rawHistory),
+    realNameFromQualificationMemory(memory),
+    profileName,
+  ];
   const messengerDeclaredName = [extractDeclaredRealNameFromText(rawMessage), extractDeclaredRealNameFromText(rawHistory)].map(normalizeRealName).find(Boolean) ?? EMPTY;
   const realName = isMessengerChannel(channel)
     ? formContext?.full_name || messengerDeclaredName || profileDisplayName || suppliedName
