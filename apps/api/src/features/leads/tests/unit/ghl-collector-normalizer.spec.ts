@@ -41,6 +41,42 @@ describe('HighLevel collector custom-code normalizer', () => {
     }).real_name).toBe('Ramón');
   });
 
+  it('replays the Lucki transcript when the name prompt comes after qualification answers', () => {
+    const result = execute({
+      source: 'lucki',
+      channel: 'whatsapp',
+      contact_name: 'Usada',
+      real_name: 'Nose Depende Cuánto Pidan',
+      message: 'Ramón',
+      chat_history_log: [
+        'Usada',
+        'BUSCO UNA TROCA',
+        'Una taho o suburban 2010',
+        'Nose depende cuánto pidan',
+        'Excelente ¡Por cierto, ¿cómo te llamas?',
+        'Si me puedes mandar los modelos y yabeo',
+        'Si me puedes mandar los modelos y yabeo',
+        'Ramón',
+      ].join('\n'),
+      qualification_memory: 'real_name: Nose Depende Cuánto Pidan; vehicle: Ram Suburban 2010',
+      phone: '+13367563298',
+    });
+
+    expect(result).toMatchObject({ real_name: 'Ramón', vehicle_type: 'Ram Suburban 2010' });
+  });
+
+  it.each(['Para Aprobar', 'Precio', 'Nose Depende Cuánto Pidan'])('rejects Lucki qualification text as a WhatsApp name: %s', (value) => {
+    expect(execute({
+      source: 'lucki',
+      channel: 'whatsapp',
+      contact_name: value,
+      real_name: value,
+      message: value,
+      chat_history_log: value,
+      phone: '+15402569357',
+    }).real_name).toBe('');
+  });
+
   it('keeps the Mazda numeric model without trailing conversational wording', () => {
     expect(execute({
       source: 'lucki',

@@ -51,7 +51,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     || /^lead$/i.test(firstNonEmpty(input.contact_name, input.contactName, input.profile?.name, input.name))
     ? EMPTY
     : firstNonEmpty(input.contact_name, input.contactName, input.profile?.name, input.name);
-  const invalidWhatsappFallback = /^(?:estoy|estoy trabajando luego chat|trabajando luego chat|mes|usad[ao]s?|disculpe son un dealer)$/i.test(clean(whatsappContactFallback));
+  const invalidWhatsappFallback = /^(?:estoy|estoy trabajando luego chat|trabajando luego chat|mes|usad[ao]s?|disculpe son un dealer|para aprobar|precio|nose depende cu[aá]nto pidan|no s[eé] depende cu[aá]nto pidan)$/i.test(clean(whatsappContactFallback));
   const extractedNames = [realNameFromQualificationMemory(memory), extractRealNameFromText(rawMessage), extractRealNameFromText(rawHistory)];
   const whatsappNames = [extractDeclaredRealNameFromText(rawMessage), extractDeclaredRealNameFromText(rawHistory), extractRealNameFromText(rawMessage), extractRealNameFromText(rawHistory), profileName, realNameFromQualificationMemory(memory)];
   const messengerDeclaredName = [extractDeclaredRealNameFromText(rawMessage), extractDeclaredRealNameFromText(rawHistory)].map(normalizeRealName).find(Boolean) ?? EMPTY;

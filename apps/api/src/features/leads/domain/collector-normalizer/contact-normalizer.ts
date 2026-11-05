@@ -100,6 +100,12 @@ INVALID_REAL_NAMES.add('usado');
 INVALID_REAL_NAMES.add('usadas');
 INVALID_REAL_NAMES.add('usados');
 INVALID_REAL_NAMES.add('disculpe son un dealer');
+INVALID_REAL_NAMES.add('para aprobar');
+INVALID_REAL_NAMES.add('precio');
+INVALID_REAL_NAMES.add('nose depende cuánto pidan');
+INVALID_REAL_NAMES.add('nose depende cuanto pidan');
+INVALID_REAL_NAMES.add('no sé depende cuánto pidan');
+INVALID_REAL_NAMES.add('no se depende cuanto pidan');
 const BUSINESS_NAME_MARKERS = /\b(?:auto\s*sales|motors?|dealership|dealer|llc|inc(?:orporated)?|corp(?:oration)?|company|tatuajes?|tattoos?|operaciones?|operations?|transport(?:ation)?|logistics|construction|remodeling|roofing|realty|consulting|services?|servicios?|shop|tienda|salon|barbershop|restaurant)\b/i;
 const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|baltimore|baltimor|baltmore|baltimroe|balitmore|baltimre|baltimorre|baltimoro|balitmor|baltimo|bomltimo|maryland|where are you located|where are you|what|which|how|como\s+as[ií]|how\s+so|what\s+do\s+you\s+mean|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|qué|que|ubicaci[oó]n|ubicados?|cu[aá]l(?:\s+ser[ií]a)?|ser[ií]a|gracias|thank you|thank|vehicle|car|auto|carro|coche|veh[ií]culo|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|sim|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|cheques?|checks?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
 const PROFILE_DISPLAY_LABEL_MARKERS = /\b(?:me\s+puede(?:s)?\s+(?:mandar|enviar)|(?:mandar|enviar)\s+(?:fotos?|informaci[oó]n)|fotos?\s+de|copiar)\b/i;
@@ -197,15 +203,19 @@ export function extractRealNameFromText(value: string): string {
   const segments = lines.flatMap((line) => line.split(/[.!?;]+/).map(clean).filter(Boolean));
   let firstCandidate = EMPTY;
   let nameAfterQuestion = EMPTY;
-  let sawNameQuestion = false;
+  let nameQuestionWindow = 0;
   for (const [index, segment] of segments.entries()) {
     const explicit = segment.match(NAME_DECLARATION);
     const named = normalizeRealName(explicit?.[1]);
     if (named) return named;
     if (NAME_QUESTION.test(segment)) {
-      sawNameQuestion = true;
+      // The answer can arrive after several inbound messages (or after the
+      // same message is repeated by GHL). Keep a bounded window so a later
+      // qualification answer is not mistaken for the buyer's name.
+      nameQuestionWindow = 8;
       continue;
     }
+    if (nameQuestionWindow > 0) nameQuestionWindow -= 1;
     const candidate = segment.replace(/[.!?,;:]+$/g, '');
     const isTitleCasedToken = candidate[0] === candidate[0].toLocaleUpperCase() || candidate === candidate.toLocaleUpperCase();
     const isOneWordName = /^[a-záéíóúüñ][a-záéíóúüñ'-]{1,39}$/i.test(candidate) && isTitleCasedToken && !SINGLE_WORD_NAME_BLOCKLIST.test(candidate);
@@ -217,9 +227,9 @@ export function extractRealNameFromText(value: string): string {
     if (GENERIC_VEHICLE_INTENT.test(candidate) || /\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) continue;
     const name = normalizeRealName(candidate);
     if (!name) continue;
-    if (sawNameQuestion) {
+    if (nameQuestionWindow > 0) {
       nameAfterQuestion = name;
-      continue;
+      return nameAfterQuestion;
     }
     if (!firstCandidate) {
       firstCandidate = name;
@@ -239,7 +249,7 @@ export function extractDeclaredRealNameFromText(value: string): string {
     const explicit = normalizeRealName(line.match(NAME_DECLARATION)?.[1]);
     if (explicit) return explicit;
     if (!NAME_QUESTION.test(line)) continue;
-    for (let offset = 1; offset <= 4 && index + offset < lines.length; offset += 1) {
+    for (let offset = 1; offset <= 8 && index + offset < lines.length; offset += 1) {
       const answer = normalizeRealName(lines[index + offset]);
       if (answer) return answer;
     }

@@ -79,14 +79,18 @@ const nameFromText = (value) => {
   const segments = lines.flatMap((line) => line.split(/[.!?;]+/).map(clean).filter(Boolean));
   let firstCandidate = '';
   let nameAfterQuestion = '';
-  let sawNameQuestion = false;
+  let nameQuestionWindow = 0;
   for (const segment of segments) {
     const named = normalizeRealName(segment.match(nameDeclaration)?.[1]);
     if (named) return named;
     if (nameQuestion.test(segment)) {
-      sawNameQuestion = true;
+      // GHL may repeat inbound messages before the buyer answers. Keep a
+      // bounded answer window so a later qualification reply is not treated
+      // as the buyer's name.
+      nameQuestionWindow = 8;
       continue;
     }
+    if (nameQuestionWindow > 0) nameQuestionWindow -= 1;
     const candidate = segment.replace(/[.!?,;:]+$/g, '');
     const isTitleCasedToken = candidate[0] === candidate[0].toLocaleUpperCase() || candidate === candidate.toLocaleUpperCase();
     const isOneWordName = /^[a-záéíóúüñ][a-záéíóúüñ'-]{1,39}$/i.test(candidate)
@@ -97,9 +101,9 @@ const nameFromText = (value) => {
     if (genericVehicleIntent.test(candidate) || /\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) continue;
     const name = normalizeRealName(candidate);
     if (!name) continue;
-    if (sawNameQuestion) {
+    if (nameQuestionWindow > 0) {
       nameAfterQuestion = name;
-      continue;
+      return nameAfterQuestion;
     }
     if (!firstCandidate) {
       firstCandidate = name;
@@ -118,7 +122,7 @@ const declaredNameFromText = (value) => {
     const explicit = normalizeRealName(line.match(nameDeclaration)?.[1]);
     if (explicit) return explicit;
     if (!nameQuestion.test(line)) continue;
-    for (let offset = 1; offset <= 4 && index + offset < lines.length; offset += 1) {
+    for (let offset = 1; offset <= 8 && index + offset < lines.length; offset += 1) {
       const answer = normalizeRealName(lines[index + offset]);
       if (answer) return answer;
     }
@@ -150,7 +154,7 @@ const contactName = isMessengerChannel(channel)
   ? normalizeProfileDisplayName(rawContactName)
   : (isProfileDisplayName(rawContactName) ? '' : normalizeRealName(rawContactName));
 const whatsappContactFallback = hasSuppliedRealName || /^lead$/i.test(rawContactName) ? '' : rawContactName;
-const invalidWhatsappFallback = /^(?:estoy|estoy trabajando luego chat|trabajando luego chat|mes|usad[ao]s?|disculpe son un dealer)$/i.test(clean(whatsappContactFallback));
+const invalidWhatsappFallback = /^(?:estoy|estoy trabajando luego chat|trabajando luego chat|mes|usad[ao]s?|disculpe son un dealer|para aprobar|precio|nose depende cu[aá]nto pidan|no s[eé] depende cu[aá]nto pidan)$/i.test(clean(whatsappContactFallback));
 // Messenger/Instagram contact labels are display metadata, not proof of a
 // buyer's real name. Only an explicit name answer may populate qualification;
 // an already persisted explicit name can be retained during replay.
