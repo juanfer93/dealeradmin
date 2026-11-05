@@ -103,6 +103,10 @@ INVALID_REAL_NAMES.add('usados');
 INVALID_REAL_NAMES.add('disculpe son un dealer');
 INVALID_REAL_NAMES.add('para aprobar');
 INVALID_REAL_NAMES.add('precio');
+INVALID_REAL_NAMES.add('español');
+INVALID_REAL_NAMES.add('espanol');
+INVALID_REAL_NAMES.add('inglés');
+INVALID_REAL_NAMES.add('ingles');
 INVALID_REAL_NAMES.add('nose depende cuánto pidan');
 INVALID_REAL_NAMES.add('nose depende cuanto pidan');
 INVALID_REAL_NAMES.add('no sé depende cuánto pidan');
@@ -173,6 +177,8 @@ export function normalizeRealName(value: string | null | undefined): string {
   if (!isValidRealName(candidate)) return EMPTY;
   if (TECHNICAL_NAME_LABEL.test(candidate) || LOCATION_RESPONSE.test(candidate) || ENGLISH_LOCATION_RESPONSE.test(candidate)) return EMPTY;
   if (PROFILE_DISPLAY_LABEL_MARKERS.test(candidate)) return EMPTY;
+  // Language-selection replies are conversation metadata, not buyer names.
+  if (/^(?:espa[nñ]ol|english|ingl[eé]s)$/i.test(candidate)) return EMPTY;
   if (SINGLE_WORD_NAME_BLOCKLIST.test(candidate) || isBaltimoreVariant(candidate)) return EMPTY;
   if (QUALIFICATION_RESPONSE_MARKERS.test(candidate) || GENERIC_VEHICLE_INTENT.test(candidate) || INVENTORY_INTENT.test(candidate) || GREETING_ONLY.test(candidate) || isVehicleStatement(candidate)) return EMPTY;
   if (candidate.length > 100 || candidate.split(/\s+/).length > 5) return EMPTY;

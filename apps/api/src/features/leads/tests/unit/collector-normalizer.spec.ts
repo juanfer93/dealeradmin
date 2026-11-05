@@ -2040,6 +2040,17 @@ describe('normalizeCollectorInput', () => {
     }).real_name).toBe('Josue Ramirez');
   });
 
+  it('skips a WhatsApp language-selection reply before a later declared name', () => {
+    expect(normalizeCollectorInput({
+      source: 'country-club',
+      channel: 'whatsapp',
+      contact_name: 'Disponible',
+      message: 'Josue ramirez',
+      chat_history_log: 'Español\nJosue ramirez',
+    }).real_name).toBe('Josue Ramirez');
+    expect(normalizeCollectorInput({ source: 'country-club', channel: 'whatsapp', message: 'Español' }).real_name).toBe('');
+  });
+
   it('uses the CarHub form name and facts without changing the normal Messenger flow', () => {
     const form = `*Headline:* El Secreto para Conseguir las MEJORES Ofertas en Autos
 *Source URL:* https://fb.me/5eo7ugHfj
