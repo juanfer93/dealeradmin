@@ -91,6 +91,15 @@ const INVALID_REAL_NAMES = new Set([
   'more information', 'more info', 'details', 'detalles', 'como asi', 'como así', 'cómo asi', 'cómo así', 'how so',
   'what do you mean', 'me lo puede explicar', 'me puede explicar', 'me lo puedes explicar', 'me puedes explicar',
 ]);
+INVALID_REAL_NAMES.add('mes');
+INVALID_REAL_NAMES.add('estoy');
+INVALID_REAL_NAMES.add('estoy trabajando luego chat');
+INVALID_REAL_NAMES.add('trabajando luego chat');
+INVALID_REAL_NAMES.add('usada');
+INVALID_REAL_NAMES.add('usado');
+INVALID_REAL_NAMES.add('usadas');
+INVALID_REAL_NAMES.add('usados');
+INVALID_REAL_NAMES.add('disculpe son un dealer');
 const BUSINESS_NAME_MARKERS = /\b(?:auto\s*sales|motors?|dealership|dealer|llc|inc(?:orporated)?|corp(?:oration)?|company|tatuajes?|tattoos?|operaciones?|operations?|transport(?:ation)?|logistics|construction|remodeling|roofing|realty|consulting|services?|servicios?|shop|tienda|salon|barbershop|restaurant)\b/i;
 const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|baltimore|baltimor|baltmore|baltimroe|balitmore|baltimre|baltimorre|baltimoro|balitmor|baltimo|bomltimo|maryland|where are you located|where are you|what|which|how|como\s+as[ií]|how\s+so|what\s+do\s+you\s+mean|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|qué|que|ubicaci[oó]n|ubicados?|cu[aá]l(?:\s+ser[ií]a)?|ser[ií]a|gracias|thank you|thank|vehicle|car|auto|carro|coche|veh[ií]culo|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|sim|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|cheques?|checks?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
 const PROFILE_DISPLAY_LABEL_MARKERS = /\b(?:me\s+puede(?:s)?\s+(?:mandar|enviar)|(?:mandar|enviar)\s+(?:fotos?|informaci[oó]n)|fotos?\s+de|copiar)\b/i;
@@ -99,6 +108,7 @@ const INVENTORY_INTENT = /\b(?:inventory|inventario|see\s+(?:the\s+)?inventory|c
 const GREETING_ONLY = /^(?:(?:hola|ola)[,.!?\s]+)?(?:buen\s+d[ií]a|buenos\s+d[ií]as|buenas\s+tardes|buenas\s+noches|saludos|hello|hi|hey|hola|ola|greetings)(?:[,.!?\s]+bendiciones)?[,.!?\s]*$/i;
 const SINGLE_WORD_NAME_BLOCKLIST = /^(?:ok(?:ay|ey)?|si|s[ií]|sim|yes|no|yeah|yep|correct|cash|today|hoy|now|ahora|asap|inmediato|need|vehicle|car|auto|carro|coche|veh[ií]culo|requirements?|requisitos?|information|informaci[oó]n|details?|detalles?|location|baltimore|baltimor|baltmore|baltimroe|balitmore|baltimre|baltimorre|baltimoro|balitmor|baltimo|bomltimo|maryland|virginia|laurel|rosedale|sterling|elkton|manda|nada|bale|vale|ubicaci[oó]n|ubicasion|tacoma|toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion|mustang|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|maverick|ranger|bronco|explorer|expedition|escape|edge|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|range rover|defender|rlx|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|financiar|finance|financing|down|payment|enganche|documents?|documentos?|identificaci[oó]n|income|ingresos|proof|prueba|phone|tel[eé]fono|number|n[uú]mero)$/i;
 const NAME_DECLARATION = /(?:me llamo|mi nombre es|soy|yo soy|my name is|my name['’]s|i am|i['’]m|this is|call me(?!\s+at\b)|ll[aá]mame)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i;
+const NAME_QUESTION = /(?:what(?:'s| is)?\s+(?:your|the)\s+name|full\s+name|what\s+should\s+i\s+call|how\s+do\s+you\s+(?:call|go by)|c[oó]mo\s+te\s+llamas|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i;
 export const PHONE_LIKE_TEXT = /\b(?:mi|my)\s+(?:n[uú]mero|number|phone|tel[eé]fono|telephone|contact)\b/i;
 const REAL_NAME_TOKEN = "[\\p{L}\\p{M}]+(?:[-'][\\p{L}\\p{M}]+)*";
 const REAL_NAME_PATTERN = new RegExp(`^${REAL_NAME_TOKEN}(?:\\s+${REAL_NAME_TOKEN})*$`, 'u');
@@ -186,10 +196,16 @@ export function extractRealNameFromText(value: string): string {
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter((line) => line && !NON_CONVERSATIONAL_METADATA_LINE.test(line));
   const segments = lines.flatMap((line) => line.split(/[.!?;]+/).map(clean).filter(Boolean));
   let firstCandidate = EMPTY;
+  let nameAfterQuestion = EMPTY;
+  let sawNameQuestion = false;
   for (const [index, segment] of segments.entries()) {
     const explicit = segment.match(NAME_DECLARATION);
     const named = normalizeRealName(explicit?.[1]);
     if (named) return named;
+    if (NAME_QUESTION.test(segment)) {
+      sawNameQuestion = true;
+      continue;
+    }
     const candidate = segment.replace(/[.!?,;:]+$/g, '');
     const isTitleCasedToken = candidate[0] === candidate[0].toLocaleUpperCase() || candidate === candidate.toLocaleUpperCase();
     const isOneWordName = /^[a-záéíóúüñ][a-záéíóúüñ'-]{1,39}$/i.test(candidate) && isTitleCasedToken && !SINGLE_WORD_NAME_BLOCKLIST.test(candidate);
@@ -201,6 +217,10 @@ export function extractRealNameFromText(value: string): string {
     if (GENERIC_VEHICLE_INTENT.test(candidate) || /\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) continue;
     const name = normalizeRealName(candidate);
     if (!name) continue;
+    if (sawNameQuestion) {
+      nameAfterQuestion = name;
+      continue;
+    }
     if (!firstCandidate) {
       firstCandidate = name;
       continue;
@@ -209,7 +229,7 @@ export function extractRealNameFromText(value: string): string {
     const current = name.toLocaleLowerCase();
     if (current.length > previous.length && current.startsWith(previous)) firstCandidate = name;
   }
-  return firstCandidate;
+  return nameAfterQuestion || firstCandidate;
 }
 
 export function extractDeclaredRealNameFromText(value: string): string {
@@ -218,9 +238,11 @@ export function extractDeclaredRealNameFromText(value: string): string {
     const line = lines[index];
     const explicit = normalizeRealName(line.match(NAME_DECLARATION)?.[1]);
     if (explicit) return explicit;
-    if (!/(?:what(?:'s| is)?\s+(?:your|the)\s+name|full\s+name|what\s+should\s+i\s+call|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i.test(line)) continue;
-    const answer = normalizeRealName(lines[index + 1]);
-    if (answer) return answer;
+    if (!NAME_QUESTION.test(line)) continue;
+    for (let offset = 1; offset <= 4 && index + offset < lines.length; offset += 1) {
+      const answer = normalizeRealName(lines[index + offset]);
+      if (answer) return answer;
+    }
   }
   return EMPTY;
 }

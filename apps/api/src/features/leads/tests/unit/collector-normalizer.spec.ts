@@ -2,6 +2,65 @@ import { describe, expect, it } from 'vitest';
 import { ADVISOR_HANDOFF_VEHICLE, detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isAdvisorHandoffVehicle, isQualificationComplete, isValidRealName, normalizeCollectorInput, normalizeRealName } from '../../domain/collector-normalizer';
 
 describe('normalizeCollectorInput', () => {
+  it('prefers a later WhatsApp name answer over an earlier qualification response', () => {
+    const transcript = [
+      'Usada',
+      'BUSCO UNA TROCA',
+      'Una taho o suburban 2010',
+      'Excelente ¿cómo te llamas?',
+      'Si me puedes mandar los modelos',
+      'Si me puedes mandar los modelos',
+      'Ramón',
+      'Ramón',
+    ].join('\n');
+
+    expect(normalizeCollectorInput({
+      source: 'lucki',
+      channel: 'whatsapp',
+      contact_name: 'Usada',
+      message: 'Ramón',
+      chat_history_log: transcript,
+      phone: '+13367563298',
+    }).real_name).toBe('Ramón');
+  });
+
+  it('keeps the Mazda numeric model without trailing conversational wording', () => {
+    const result = normalizeCollectorInput({
+      source: 'lucki',
+      channel: 'messenger',
+      contact_name: 'Disculpe son un dealer',
+      message: 'Mazda 300 estaria bien que cuante con Android auto nada mas',
+      chat_history_log: 'Mazda 300 estaria bien que cuante con Android auto nada mas',
+      phone: '+14433192084',
+    });
+
+    expect(result).toMatchObject({ real_name: '', vehicle_type: 'Mazda 300' });
+  });
+
+  it('does not treat Estoy as a Stafford WhatsApp name', () => {
+    expect(normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Estoy',
+      message: 'Estoy',
+      chat_history_log: 'Estoy',
+      phone: '+1571673468',
+    }).real_name).toBe('');
+  });
+
+  it('prefers the later Stafford WhatsApp name over a conversational profile label', () => {
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Estoy',
+      message: 'Me puedes marcar con un asesor directo',
+      chat_history_log: ['Estoy trabajando luego chat', '¿Cómo te llamas?', 'Alfredo Linares Pérez', 'Honda Civic 2013'].join('\n'),
+      phone: '+15716734684',
+    });
+
+    expect(result).toMatchObject({ real_name: 'Alfredo Linares Pérez', vehicle_type: 'Honda Civic 2013' });
+  });
+
   it('normalizes accented Spanish sedan wording during reconciliation', () => {
     expect(normalizeCollectorInput({
       source: 'fredericksburg-2',

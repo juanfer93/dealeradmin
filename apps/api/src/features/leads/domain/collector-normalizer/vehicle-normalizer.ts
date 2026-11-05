@@ -160,7 +160,7 @@ export function extractVehicleLabel(value: string | null | undefined): string {
       return canonicalVehicleLabel(`${brand} ${model}${trim ? ` ${trim}` : EMPTY}${category ? ` ${category}` : EMPTY}`);
     }
     const suffixTokens = afterBrand.split(/\s+/).filter(Boolean);
-    const stopWords = new Set(['this', 'next', 'today', 'hoy', 'week', 'month', 'for', 'and', 'y', 'that', 'que', 'if', 'you', 'have', 'has', 'one', 'in', 'stock', 'available', 'at', 'me', 'do', 'offer']);
+    const stopWords = new Set(['this', 'next', 'today', 'hoy', 'week', 'month', 'for', 'and', 'y', 'that', 'que', 'if', 'you', 'have', 'has', 'one', 'in', 'stock', 'available', 'at', 'me', 'do', 'offer', 'estaria', 'estaría', 'bien', 'cuente', 'cuanta', 'cuenta', 'con', 'android', 'auto', 'nada', 'mas', 'más']);
     const suffix = suffixTokens.slice(0, 2).filter((token) => !stopWords.has(token.toLocaleLowerCase())).join(' ');
     return canonicalVehicleLabel(`${brand} ${suffix}`);
   }

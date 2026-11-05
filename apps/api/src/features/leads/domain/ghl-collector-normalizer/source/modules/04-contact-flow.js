@@ -28,6 +28,7 @@ const isBaltimoreVariant = (value) => {
     .some((token) => editDistanceAtMost(token, 'baltimore', 3));
 };
 const nameDeclaration = /(?:me llamo|mi nombre es|soy|yo soy|my name is|my name['’]s|i am|i['’]m|this is|call me(?!\s+at\b)|ll[aá]mame)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i;
+const nameQuestion = /(?:what(?:'s| is)?\s+(?:your|the)\s+name|full\s+name|what\s+should\s+i\s+call|how\s+do\s+you\s+(?:call|go by)|c[oó]mo\s+te\s+llamas|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i;
 const realNameToken = "[\\p{L}\\p{M}]+(?:[-'][\\p{L}\\p{M}]+)*";
 const realNamePattern = new RegExp(`^${realNameToken}(?:\\s+${realNameToken})*$`, 'u');
 const technicalNameLabel = /^(?:precio|price)\s+(?:de|of)\b/i;
@@ -77,9 +78,15 @@ const nameFromText = (value) => {
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter((line) => line && !nonConversationalMetadataLine.test(line));
   const segments = lines.flatMap((line) => line.split(/[.!?;]+/).map(clean).filter(Boolean));
   let firstCandidate = '';
+  let nameAfterQuestion = '';
+  let sawNameQuestion = false;
   for (const segment of segments) {
     const named = normalizeRealName(segment.match(nameDeclaration)?.[1]);
     if (named) return named;
+    if (nameQuestion.test(segment)) {
+      sawNameQuestion = true;
+      continue;
+    }
     const candidate = segment.replace(/[.!?,;:]+$/g, '');
     const isTitleCasedToken = candidate[0] === candidate[0].toLocaleUpperCase() || candidate === candidate.toLocaleUpperCase();
     const isOneWordName = /^[a-záéíóúüñ][a-záéíóúüñ'-]{1,39}$/i.test(candidate)
@@ -90,6 +97,10 @@ const nameFromText = (value) => {
     if (genericVehicleIntent.test(candidate) || /\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) continue;
     const name = normalizeRealName(candidate);
     if (!name) continue;
+    if (sawNameQuestion) {
+      nameAfterQuestion = name;
+      continue;
+    }
     if (!firstCandidate) {
       firstCandidate = name;
       continue;
@@ -98,7 +109,7 @@ const nameFromText = (value) => {
     const current = name.toLocaleLowerCase();
     if (current.length > previous.length && current.startsWith(previous)) firstCandidate = name;
   }
-  return firstCandidate;
+  return nameAfterQuestion || firstCandidate;
 };
 const declaredNameFromText = (value) => {
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter((line) => line && !nonConversationalMetadataLine.test(line));
@@ -106,9 +117,11 @@ const declaredNameFromText = (value) => {
     const line = lines[index];
     const explicit = normalizeRealName(line.match(nameDeclaration)?.[1]);
     if (explicit) return explicit;
-    if (!/(?:what(?:'s| is)?\s+(?:your|the)\s+name|full\s+name|what\s+should\s+i\s+call|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i.test(line)) continue;
-    const answer = normalizeRealName(lines[index + 1]);
-    if (answer) return answer;
+    if (!nameQuestion.test(line)) continue;
+    for (let offset = 1; offset <= 4 && index + offset < lines.length; offset += 1) {
+      const answer = normalizeRealName(lines[index + offset]);
+      if (answer) return answer;
+    }
   }
   return '';
 };
@@ -137,6 +150,7 @@ const contactName = isMessengerChannel(channel)
   ? normalizeProfileDisplayName(rawContactName)
   : (isProfileDisplayName(rawContactName) ? '' : normalizeRealName(rawContactName));
 const whatsappContactFallback = hasSuppliedRealName || /^lead$/i.test(rawContactName) ? '' : rawContactName;
+const invalidWhatsappFallback = /^(?:estoy|estoy trabajando luego chat|trabajando luego chat|mes|usad[ao]s?|disculpe son un dealer)$/i.test(clean(whatsappContactFallback));
 // Messenger/Instagram contact labels are display metadata, not proof of a
 // buyer's real name. Only an explicit name answer may populate qualification;
 // an already persisted explicit name can be retained during replay.
@@ -170,7 +184,7 @@ const realName = isMessengerChannel(channel)
   : isWhatsAppChannel(channel)
     ? whatsappNames.map(normalizeWhatsAppCandidate).find(Boolean)
       || (staffordWhatsApp
-        ? (/^(?:un|una|a|an|my|mi|the)\s+/i.test(whatsappContactFallback) && (vehicleBrands.test(whatsappContactFallback) || vehicleModels.test(whatsappContactFallback) || vehicleCategories.test(whatsappContactFallback)) ? '' : whatsappContactFallback)
+        ? (/^(?:un|una|a|an|my|mi|the)\s+/i.test(whatsappContactFallback) && (vehicleBrands.test(whatsappContactFallback) || vehicleModels.test(whatsappContactFallback) || vehicleCategories.test(whatsappContactFallback)) || invalidWhatsappFallback ? '' : whatsappContactFallback)
         : '')
     : ((isBusinessName(suppliedName) || isProfileDisplayName(suppliedName)) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) || '';
 const isCampaignButton = (value) => /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today|quiero financiar un auto(?: con ustedes)?|me gustaria financiar un auto(?: con ustedes)?|financiar un auto(?: con ustedes)?|(?:quiero )?financiar con easterns?)$/.test(normalizeMatch(String(value ?? '').replace(/([!?])\s*\d{1,3}$/, '$1').replace(/[!?.,]/g, '')));
