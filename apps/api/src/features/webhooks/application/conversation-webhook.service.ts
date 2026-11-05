@@ -96,7 +96,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
        LIMIT 25`,
       [ids],
     ) as Array<{ id: string }>;
-    for (const row of rows) await this.reconciliation.reconcileConversation(row.id, now);
+    for (const row of rows) await this.reconciliation.reconcileConversation(row.id, now, false, false, true);
     return rows.length;
   }
 
