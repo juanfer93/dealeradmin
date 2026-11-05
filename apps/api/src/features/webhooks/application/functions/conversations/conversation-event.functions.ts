@@ -13,6 +13,7 @@ import {
   extractNativeWhatsappPhone,
   hash,
   isAttachmentEvidenceMessage,
+  isActionCarsSpanishNameFlow,
   isStaffordWhatsApp,
   normalizeWebhookInput,
   parseOccurredAt,
@@ -180,6 +181,7 @@ export class ConversationEventFunctions {
       }
       const location = await this.qualification.resolveLocation(runner, transcript);
       const language = this.sourceConfig[source].splitByLanguage ? detectLeadLanguage(transcript) : undefined;
+      const actionCarsSpanishNameFlow = isActionCarsSpanishNameFlow(source, event.channel, language);
       const additiveField = (incoming: unknown, existing: unknown): string => clean(incoming) || clean(existing);
       const contactRealName = isSocialProfileChannel
         ? profileName
@@ -198,10 +200,15 @@ export class ConversationEventFunctions {
       // Preserve the first meaningful name; later cycles may add fields but
       // must not replace it with conversational text.
       const previousRealName = isSocialProfileChannel ? '' : normalizeRealName(clean(previousSnapshot.real_name));
-      const realName = additiveField(transcriptRealName, previousRealName)
-        || contactRealName
-        || clean(normalized.real_name)
-        || '';
+      const realName = actionCarsSpanishNameFlow
+        ? additiveField(transcriptRealName, clean(normalized.real_name))
+          || previousRealName
+          || contactRealName
+          || ''
+        : additiveField(transcriptRealName, previousRealName)
+          || contactRealName
+          || clean(normalized.real_name)
+          || '';
       const vehicleType = additiveField(normalized.vehicle_type, previousSnapshot.vehicle_type);
       const downPayment = normalizeDownPayment(additiveField(normalized.down_payment, previousSnapshot.down_payment));
       const purchaseTimeline = additiveField(normalized.purchase_timeline, previousSnapshot.purchase_timeline);

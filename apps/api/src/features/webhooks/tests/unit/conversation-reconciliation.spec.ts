@@ -75,6 +75,64 @@ describe('ConversationReconciliationFunctions', () => {
     expect(conversationUpdate?.[1]?.[6]).toBe(0);
   });
 
+  it('uses the Action Cars Spanish Messenger answer after the outbound name prompt', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('SELECT c.id, c.channel')) return [{
+        id: 'conversation-action-spanish-name',
+        channel: 'messenger',
+        ghl_location_id: GHL_SOURCE_CONFIG['action-cars'].locationId,
+        ghl_contact_id: 'action-spanish-name-contact',
+        ghl_conversation_id: 'ghl-action-spanish-name',
+        status: 'partial',
+        qualification_snapshot: {
+          real_name: '',
+          profile_name: 'Nombre de perfil',
+          phone: '',
+          vehicle_type: '',
+          qualification_complete: false,
+          language: 'es',
+        },
+        location_snapshot: { city: null, state: null, zip_code: null, easterns_zone: null },
+        ready_at: null,
+        next_attempt_at: null,
+        last_message_at: '2026-11-05T15:00:00.000Z',
+        waiting_window_attempts: 0,
+        lead_id: 'lead-action-spanish-name',
+        canonical_phone: null,
+        first_name: '',
+        last_name: '',
+      }];
+      if (sql.includes('SELECT cm.body')) return [
+        { body: '¿Cuál es tu nombre completo?', direction: 'outbound', occurred_at: '2026-11-05T14:58:00.000Z' },
+        { body: 'Me llamo Juan Pérez', direction: 'inbound', occurred_at: '2026-11-05T14:59:00.000Z' },
+        { body: 'Busco una Mazda 300', direction: 'inbound', occurred_at: '2026-11-05T15:00:00.000Z' },
+        { body: '3015550123', direction: 'inbound', occurred_at: '2026-11-05T15:00:01.000Z' },
+      ];
+      return [];
+    });
+    const runner = { connect: vi.fn(), startTransaction: vi.fn(), commitTransaction: vi.fn(), rollbackTransaction: vi.fn(), release: vi.fn(), isTransactionActive: true, query };
+    const qualification = {
+      resolveLocation: vi.fn().mockResolvedValue({ city: null, state: null, zip_code: null, easterns_zone: null }),
+      findSourceDealer: vi.fn().mockResolvedValue({ id: 'dealer-action-es', timezone: 'America/New_York', routing_config: {} }),
+      statusForConversation: vi.fn().mockReturnValue({ status: 'waiting_window', nextAttemptAt: '2026-11-05T15:05:00.000Z' }),
+      syncLeadDealer: vi.fn(),
+    };
+    const reconciliation = new ConversationReconciliationFunctions(
+      { createQueryRunner: () => runner } as never,
+      qualification as never,
+      { createQueuedPauseEvent: vi.fn(), dispatchQueuedPauseEvent: vi.fn() } as never,
+    );
+
+    await reconciliation.reconcileConversation('conversation-action-spanish-name', new Date('2026-11-05T15:01:00.000Z'), true);
+
+    const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({
+      real_name: 'Juan Pérez',
+      profile_name: 'Nombre de perfil',
+      vehicle_type: 'Mazda 300',
+    });
+  });
+
   it('preserves the lead canonical phone when Messenger history has no phone candidate', async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('SELECT c.id, c.channel')) {

@@ -6,7 +6,7 @@ import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-d
 import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
 import { ConversationQualificationFunctions } from './conversation-qualification.functions';
 import { ACTIVE_RECONCILIATION_BATCH_SIZE, GHL_SOURCE_CONFIG, PARTIAL_RECOVERY_INTERVAL_MS, PARTIAL_RECOVERY_MAX_ATTEMPTS, RECONCILIATION_LOCATION_IDS, CONVERSATION_STABILIZATION_MS, WAITING_WINDOW_MAX_ATTEMPTS, WAITING_WINDOW_RETRY_INTERVAL_MS } from './conversation-webhook.config';
-import { addProcessedImageEvidence, clean, extractNativeProfileName, extractNativeWhatsappPhone, inputIndicatesWhatsApp, isAttachmentEvidenceMessage, safePhone, splitName } from './conversation-webhook.helpers';
+import { addProcessedImageEvidence, clean, extractNativeProfileName, extractNativeWhatsappPhone, inputIndicatesWhatsApp, isActionCarsSpanishNameFlow, isAttachmentEvidenceMessage, safePhone, splitName } from './conversation-webhook.helpers';
 import type { ConversationMessageRow, ConversationSnapshot, LocationSnapshot, MediaReconciliationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
 import { configureWebhookTransactionSafety } from '../../transaction-safety';
 import { isEmptyMarker } from '../../../../leads/domain/collector-normalizer/text-cleaner';
@@ -180,6 +180,10 @@ export class ConversationReconciliationFunctions {
       const profileName = isSocialProfileChannel
         ? profileDisplayNameFromInput({ channel: row.channel, contact_name: profileCandidate })
         : '';
+      const language = additiveOnly
+        ? current.language || (this.sourceConfig[source].splitByLanguage ? detectLeadLanguage(transcript) : undefined)
+        : this.sourceConfig[source].splitByLanguage ? detectLeadLanguage(transcript) : current.language;
+      const actionCarsSpanishNameFlow = isActionCarsSpanishNameFlow(source, row.channel, language);
       const recentPhone = safePhone(extractRecentMessagePhone(evidenceMessages.map((message) => ({ ...message, is_attachment_evidence: isAttachmentEvidenceMessage(message) })), now));
       const nativeWhatsappPhone = this.isStaffordWhatsApp(source, row.channel)
         ? safePhone(row.canonical_phone) || extractNativeWhatsappPhone(messages)
@@ -228,8 +232,12 @@ export class ConversationReconciliationFunctions {
         : isSocialProfileChannel ? profileName : profileDisplayNameFromInput({ channel: row.channel, contact_name: contactName }) || normalizeRealName(contactName);
       const normalizedSocialProfileName = isSocialProfileChannel ? normalizeRealName(profileName) : '';
       const realName = targeted
-        ? normalizedSocialProfileName || clean(normalized.real_name) || contactRealName
-        : normalizedSocialProfileName || preserveOrNormalize(currentRealName, normalized.real_name) || contactRealName;
+        ? actionCarsSpanishNameFlow
+          ? clean(normalized.real_name) || normalizedSocialProfileName || contactRealName
+          : normalizedSocialProfileName || clean(normalized.real_name) || contactRealName
+        : actionCarsSpanishNameFlow
+          ? clean(normalized.real_name) || normalizedSocialProfileName || preserveOrNormalize(currentRealName, normalized.real_name) || contactRealName
+          : normalizedSocialProfileName || preserveOrNormalize(currentRealName, normalized.real_name) || contactRealName;
       const vehicle = targeted ? clean(normalized.vehicle_type) : preserveOrNormalize(current.vehicle_type, normalized.vehicle_type);
       const vehicleYear = targeted
         ? normalized.vehicle_year
@@ -274,9 +282,6 @@ export class ConversationReconciliationFunctions {
           easterns_zone: existingLocation.easterns_zone || resolvedLocation.easterns_zone || null,
         }
         : hasResolvedLocation ? resolvedLocation : existingLocation;
-      const language = additiveOnly
-        ? current.language || (this.sourceConfig[source].splitByLanguage ? detectLeadLanguage(transcript) : undefined)
-        : this.sourceConfig[source].splitByLanguage ? detectLeadLanguage(transcript) : current.language;
       const qualificationProgress = additiveOnly
         ? { ...normalized.qualification_progress, ...current.qualification_progress }
         : normalized.qualification_progress;

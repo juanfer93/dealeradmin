@@ -18,6 +18,18 @@ export function normalizedChannel(value: unknown): string {
   return channel;
 }
 
+/**
+ * Action Cars Spanish asks for a typed real name on both supported channels.
+ * The native channel name remains the safe fallback when that answer is not
+ * present, but it must not override a declared name from the transcript.
+ */
+export function isActionCarsSpanishNameFlow(source: string, channel: string, language: string | undefined): boolean {
+  const normalized = normalizedChannel(channel);
+  return source === 'action-cars'
+    && language === 'es'
+    && (normalized === 'messenger' || normalized === 'whatsapp');
+}
+
 export function nativeAttributionChannel(input: unknown): string {
   const value = asRecord(input);
   const contact = asRecord(value.contact);

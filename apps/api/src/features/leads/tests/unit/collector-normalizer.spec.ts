@@ -1968,6 +1968,23 @@ describe('normalizeCollectorInput', () => {
     });
   });
 
+  it('keeps a declared Action Cars Spanish name ahead of the native channel fallback', () => {
+    expect(normalizeCollectorInput({
+      source: 'action-cars',
+      channel: 'messenger',
+      contact_name: 'Perfil de Messenger',
+      message: 'Me llamo Juan Pérez',
+      chat_history_log: '__NAME_PROMPT__\nMe llamo Juan Pérez',
+    }).real_name).toBe('Juan Pérez');
+    expect(normalizeCollectorInput({
+      source: 'action-cars',
+      channel: 'messenger',
+      contact_name: 'Perfil de Messenger',
+      message: 'Busco una Mazda 300',
+      chat_history_log: '__NAME_PROMPT__\nBusco una Mazda 300',
+    }).real_name).toBe('Perfil de Messenger');
+  });
+
   it('keeps CarHub Stafford on the Messenger phone-required flow', () => {
     expect(normalizeCollectorInput({ source: 'carhub', channel: 'messenger', phone: '', contact_name: 'CarHub Buyer', message: 'I am looking for an SUV' })).toMatchObject({
       real_name: 'CarHub Buyer',
