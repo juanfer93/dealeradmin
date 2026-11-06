@@ -6,8 +6,12 @@ describe('normalizeCollectorInput', () => {
   it('keeps invalid real-name values in a centralized, extensible catalog', () => {
     expect(INVALID_REAL_NAMES.size).toBeGreaterThan(0);
     expect(isInvalidRealName('  Excelente Señorita ')).toBe(true);
+    expect(isInvalidRealName('Puedo Llamar')).toBe(true);
+    expect(isInvalidRealName('Por Donde Está El Local')).toBe(true);
     expect(isInvalidRealName('María López')).toBe(false);
     expect(normalizeRealName('Licencia y Tax ID')).toBe('');
+    expect(normalizeRealName('Puedo Llamar')).toBe('');
+    expect(normalizeRealName('Por Donde Esta El Local')).toBe('');
   });
 
   it('prefers a later WhatsApp name answer over an earlier qualification response', () => {
