@@ -104,6 +104,63 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeRealName(value)).toBe('');
   });
 
+  it.each([
+    ['Exacto', 'Exacto'],
+    ['Stop', 'Stop'],
+    ['Licencia y Social', 'Licencia y social'],
+    ['Pero Madame Fotos', 'Pero Madame Fotos'],
+  ])('rejects qualification text as a WhatsApp name: %s', (value, expectedInvalidValue) => {
+    expect(normalizeCollectorInput({
+      source: 'lucki',
+      channel: 'whatsapp',
+      contact_name: value,
+      real_name: value,
+      message: value,
+      chat_history_log: value,
+      phone: '+13013059391',
+    }).real_name).toBe('');
+    expect(normalizeRealName(expectedInvalidValue)).toBe('');
+  });
+
+  it('strips the conversational Abla prefix from a WhatsApp name', () => {
+    expect(normalizeCollectorInput({
+      source: 'country',
+      channel: 'whatsapp',
+      contact_name: 'Abla Jose Angel',
+      message: 'Abla Jose Angel',
+      chat_history_log: 'Troca\nAbla Jose Angel',
+      phone: '+15714665383',
+    }).real_name).toBe('Jose Angel');
+  });
+
+  it('does not treat a vehicle sentence as a WhatsApp name', () => {
+    const result = normalizeCollectorInput({
+      source: 'lucki',
+      channel: 'whatsapp',
+      contact_name: 'Es Un Subaru',
+      message: 'Es un Subaru',
+      chat_history_log: 'BUSCO UN SEDAN\nEs un Subaru',
+      phone: '+18188446986',
+    });
+
+    expect(result).toMatchObject({ real_name: '', vehicle_type: 'Subaru' });
+  });
+
+  it('removes bot filler from the Mazda vehicle label while preserving the year', () => {
+    const result = normalizeCollectorInput({
+      source: 'lucki',
+      channel: 'whatsapp',
+      contact_name: 'Licencia y Social',
+      real_name: 'Migue',
+      vehicle_type: 'Mazda ¡Claro 2018',
+      message: 'Miguel',
+      chat_history_log: 'BUSCO UNA SUV\nUna año 2018 a 2020\nLicencia y social\nMiguel',
+      phone: '+14072363806',
+    });
+
+    expect(result).toMatchObject({ real_name: 'Miguel', vehicle_type: 'SUV 2018', vehicle_year: 2018 });
+  });
+
   it('keeps the Mazda numeric model without trailing conversational wording', () => {
     const result = normalizeCollectorInput({
       source: 'lucki',

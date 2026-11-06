@@ -37,7 +37,7 @@ const englishLocationResponse = /^(?:i(?:'m| am)\s+)?(?:in|from|near|around|loca
 const profileDisplayLabelMarkers = /\b(?:me\s+puede(?:s)?\s+(?:mandar|enviar)|(?:mandar|enviar)\s+(?:fotos?|informaci[oó]n)|fotos?\s+de|copiar)\b/i;
 const nameSuffixPunctuation = /\b(jr|sr|ii|iii|iv|v)\.(?=\s|,|$)/gi;
 const normalizeNameSuffixPunctuation = (value) => clean(value).replace(nameSuffixPunctuation, '$1').replace(/,\s*$/, '').trim();
-const conversationalNamePrefix = /^(?:hola|hello|hi|hey)[,!\s]+(?:(?:(?:le|les|te)\s+saluda(?:n)?|saludos?\s+de)[,!\s]+)?/i;
+const conversationalNamePrefix = /^(?:(?:hola|hello|hi|hey)[,!\s]+(?:(?:(?:le|les|te)\s+saluda(?:n)?|saludos?\s+de)[,!\s]+)?|(?:habla|abla)\s+)/i;
 const stripConversationalNamePrefix = (value) => clean(value).replace(conversationalNamePrefix, '').trim();
 for (const technicalName of ['location', 'in pa', 'in messenger', 'for sure', 'tienes tacomas', 'sorry', 'hola le saluda', 'le saluda', 'les saluda', 'mañana', 'manana', 'mkt', 'solo whatsapp', 'solo whasap', 'información', 'informacion', 'más información', 'mas informacion', 'más info', 'mas info', 'more information', 'more info', 'details', 'detalles']) invalidRealNames.add(technicalName);
 const isValidRealName = (value) => {
@@ -155,7 +155,8 @@ const contactName = isMessengerChannel(channel)
   : (isProfileDisplayName(rawContactName) ? '' : normalizeRealName(rawContactName));
 const whatsappProfileName = clean(profile.name);
 const whatsappContactFallback = /^lead$/i.test(rawContactName) ? '' : (whatsappProfileName || rawContactName);
-const invalidWhatsappFallback = /^(?:estoy|estoy trabajando luego chat|trabajando luego chat|mes|usad[ao]s?|disculpe son un dealer|para aprobar|precio|nose depende cu[aá]nto pidan|no s[eé] depende cu[aá]nto pidan)$/i.test(clean(whatsappContactFallback));
+const invalidWhatsappFallback = /^(?:estoy|estoy trabajando luego chat|trabajando luego chat|mes|usad[ao]s?|disculpe son un dealer|para aprobar|precio|nose depende cu[aá]nto pidan|no s[eé] depende cu[aá]nto pidan|exacto|exactamente|stop|licencia y social|pero madame fotos|madame fotos)$/i.test(clean(whatsappContactFallback))
+  || isVehicleStatement(whatsappContactFallback);
 // Messenger/Instagram contact labels are display metadata, not proof of a
 // buyer's real name. Only an explicit name answer may populate qualification;
 // an already persisted explicit name can be retained during replay.
@@ -190,7 +191,7 @@ const realName = isMessengerChannel(channel)
   : isWhatsAppChannel(channel)
     ? whatsappNames.map(normalizeWhatsAppCandidate).find(Boolean)
       || (staffordWhatsApp
-        ? (/^(?:un|una|a|an|my|mi|the)\s+/i.test(whatsappContactFallback) && (vehicleBrands.test(whatsappContactFallback) || vehicleModels.test(whatsappContactFallback) || vehicleCategories.test(whatsappContactFallback)) || (!whatsappProfileName && invalidWhatsappFallback) ? '' : whatsappContactFallback)
+        ? (/^(?:un|una|a|an|my|mi|the)\s+/i.test(whatsappContactFallback) && (vehicleBrands.test(whatsappContactFallback) || vehicleModels.test(whatsappContactFallback) || vehicleCategories.test(whatsappContactFallback)) || (!whatsappProfileName && invalidWhatsappFallback) ? '' : normalizeRealName(whatsappContactFallback) || whatsappContactFallback)
         : '')
     : ((isBusinessName(suppliedName) || isProfileDisplayName(suppliedName)) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) || '';
 const isCampaignButton = (value) => /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today|quiero financiar un auto(?: con ustedes)?|me gustaria financiar un auto(?: con ustedes)?|financiar un auto(?: con ustedes)?|(?:quiero )?financiar con easterns?)$/.test(normalizeMatch(String(value ?? '').replace(/([!?])\s*\d{1,3}$/, '$1').replace(/[!?.,]/g, '')));

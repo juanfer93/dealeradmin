@@ -125,7 +125,7 @@ export function extractVehicleLabel(value: string | null | undefined): string {
     .replace(/\b(?:19|20)\d{2}\b/g, ' ')
     .replace(/\b(?:tengo|tiene|tienen|have|has|need|needs|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|love|like|prefer|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/gi, ' ')
     .replace(/\b(?:a|an|un|una|my|mi|the|carro|auto|car|vehicle|veh[ií]culo)\b/gi, ' ')
-    .replace(/[!?.,:;]+/g, ' ')
+    .replace(/[¡¿!?.,:;]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   if (!source) return EMPTY;
@@ -160,7 +160,7 @@ export function extractVehicleLabel(value: string | null | undefined): string {
       return canonicalVehicleLabel(`${brand} ${model}${trim ? ` ${trim}` : EMPTY}${category ? ` ${category}` : EMPTY}`);
     }
     const suffixTokens = afterBrand.split(/\s+/).filter(Boolean);
-    const stopWords = new Set(['this', 'next', 'today', 'hoy', 'week', 'month', 'for', 'and', 'y', 'that', 'que', 'if', 'you', 'have', 'has', 'one', 'in', 'stock', 'available', 'at', 'me', 'do', 'offer', 'estaria', 'estaría', 'bien', 'cuente', 'cuanta', 'cuenta', 'con', 'android', 'auto', 'nada', 'mas', 'más']);
+    const stopWords = new Set(['this', 'next', 'today', 'hoy', 'week', 'month', 'for', 'and', 'y', 'that', 'que', 'if', 'you', 'have', 'has', 'one', 'in', 'stock', 'available', 'at', 'me', 'do', 'offer', 'estaria', 'estaría', 'bien', 'cuente', 'cuanta', 'cuenta', 'con', 'android', 'auto', 'nada', 'mas', 'más', 'claro', 'si', 'sí']);
     const suffix = suffixTokens.slice(0, 2).filter((token) => !stopWords.has(token.toLocaleLowerCase())).join(' ');
     return canonicalVehicleLabel(`${brand} ${suffix}`);
   }
@@ -188,10 +188,12 @@ export function isVehicleStatement(value: string | null | undefined): boolean {
   const withoutContext = candidate
     .replace(/\b(?:tengo|tiene|tienen|have|has|need|needs|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|interested in|interesado en)\b/gi, ' ')
     .replace(/\b(?:a|an|un|una|my|mi|the|carro|auto|car|vehicle|veh[ií]culo)\b/gi, ' ')
-    .replace(/[!?.,:;]+/g, ' ')
+    .replace(/[¡¿!?.,:;]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  return VEHICLE_CONTEXT.test(candidate) || withoutContext.toLocaleLowerCase() === label.toLocaleLowerCase();
+  return VEHICLE_CONTEXT.test(candidate)
+    || /\b(?:es|era|ser[aá])\s+(?:un|una|a|an)?\s*/i.test(candidate)
+    || withoutContext.toLocaleLowerCase() === label.toLocaleLowerCase();
 }
 
 export function extractVehicleYear(value: string | null | undefined): number | null {

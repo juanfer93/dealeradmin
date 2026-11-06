@@ -128,6 +128,51 @@ describe('HighLevel collector custom-code normalizer', () => {
     }).real_name).toBe('');
   });
 
+  it.each(['Exacto', 'Stop', 'Licencia y Social', 'Pero Madame Fotos'])('rejects qualification text as a WhatsApp name in Custom Code: %s', (value) => {
+    expect(execute({
+      source: 'lucki',
+      channel: 'whatsapp',
+      contact_name: value,
+      real_name: value,
+      message: value,
+      chat_history_log: value,
+      phone: '+13013059391',
+    }).real_name).toBe('');
+  });
+
+  it('strips the conversational Abla prefix and rejects a vehicle sentence as a name in Custom Code', () => {
+    expect(execute({
+      source: 'country',
+      channel: 'whatsapp',
+      contact_name: 'Abla Jose Angel',
+      message: 'Abla Jose Angel',
+      chat_history_log: 'Troca\nAbla Jose Angel',
+      phone: '+15714665383',
+    }).real_name).toBe('Jose Angel');
+
+    expect(execute({
+      source: 'lucki',
+      channel: 'whatsapp',
+      contact_name: 'Es Un Subaru',
+      message: 'Es un Subaru',
+      chat_history_log: 'BUSCO UN SEDAN\nEs un Subaru',
+      phone: '+18188446986',
+    })).toMatchObject({ real_name: '', vehicle_type: 'Subaru' });
+  });
+
+  it('removes bot filler from the Mazda vehicle label while preserving the year in Custom Code', () => {
+    expect(execute({
+      source: 'lucki',
+      channel: 'whatsapp',
+      contact_name: 'Licencia y Social',
+      real_name: 'Migue',
+      vehicle_type: 'Mazda ¡Claro 2018',
+      message: 'Miguel',
+      chat_history_log: 'BUSCO UNA SUV\nUna año 2018 a 2020\nLicencia y social\nMiguel',
+      phone: '+14072363806',
+    })).toMatchObject({ real_name: 'Miguel', vehicle_type: 'SUV 2018', vehicle_year: 2018 });
+  });
+
   it('keeps the Mazda numeric model without trailing conversational wording', () => {
     expect(execute({
       source: 'lucki',
