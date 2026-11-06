@@ -91,7 +91,7 @@ const INVALID_REAL_NAMES = new Set([
   'información', 'informacion', 'más información', 'mas informacion', 'más info', 'mas info',
   'more information', 'more info', 'details', 'detalles', 'como asi', 'como así', 'cómo asi', 'cómo así', 'how so',
   'what do you mean', 'me lo puede explicar', 'me puede explicar', 'me lo puedes explicar', 'me puedes explicar',
-  'exacto', 'exactamente', 'stop', 'licencia y social', 'pero madame fotos', 'madame fotos',
+  'exacto', 'exactamente', 'stop', 'licencia y social', 'licencia y tax id', 'licencia y taxid', 'pero madame fotos', 'madame fotos', 'estaré pendiente', 'estare pendiente',
 ]);
 INVALID_REAL_NAMES.add('mes');
 INVALID_REAL_NAMES.add('estoy');

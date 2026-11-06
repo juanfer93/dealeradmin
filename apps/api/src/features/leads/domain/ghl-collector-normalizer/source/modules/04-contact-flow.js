@@ -155,7 +155,7 @@ const contactName = isMessengerChannel(channel)
   : (isProfileDisplayName(rawContactName) ? '' : normalizeRealName(rawContactName));
 const whatsappProfileName = clean(profile.name);
 const whatsappContactFallback = /^lead$/i.test(rawContactName) ? '' : (whatsappProfileName || rawContactName);
-const invalidWhatsappFallback = /^(?:estoy|estoy trabajando luego chat|trabajando luego chat|mes|usad[ao]s?|disculpe son un dealer|para aprobar|precio|nose depende cu[aá]nto pidan|no s[eé] depende cu[aá]nto pidan|exacto|exactamente|stop|licencia y social|pero madame fotos|madame fotos)$/i.test(clean(whatsappContactFallback))
+const invalidWhatsappFallback = /^(?:estoy|estoy trabajando luego chat|trabajando luego chat|mes|usad[ao]s?|disculpe son un dealer|para aprobar|precio|nose depende cu[aá]nto pidan|no s[eé] depende cu[aá]nto pidan|exacto|exactamente|stop|licencia y social|licencia y tax id|licencia y taxid|pero madame fotos|madame fotos|estar[eé] pendiente)$/i.test(clean(whatsappContactFallback))
   || isVehicleStatement(whatsappContactFallback);
 // Messenger/Instagram contact labels are display metadata, not proof of a
 // buyer's real name. Only an explicit name answer may populate qualification;

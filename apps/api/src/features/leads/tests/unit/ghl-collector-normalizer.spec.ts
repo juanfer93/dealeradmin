@@ -128,7 +128,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     }).real_name).toBe('');
   });
 
-  it.each(['Exacto', 'Stop', 'Licencia y Social', 'Pero Madame Fotos'])('rejects qualification text as a WhatsApp name in Custom Code: %s', (value) => {
+  it.each(['Exacto', 'Stop', 'Licencia y Social', 'Licencia y Tax Id', 'Estaré Pendiente', 'Pero Madame Fotos'])('rejects qualification text as a WhatsApp name in Custom Code: %s', (value) => {
     expect(execute({
       source: 'lucki',
       channel: 'whatsapp',

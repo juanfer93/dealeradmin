@@ -57,7 +57,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     || /^lead$/i.test(firstNonEmpty(input.contact_name, input.contactName, input.profile?.name, input.name))
     ? EMPTY
     : firstNonEmpty(whatsappProfileName, input.contact_name, input.contactName, input.name);
-  const invalidWhatsappFallback = /^(?:estoy|estoy trabajando luego chat|trabajando luego chat|mes|usad[ao]s?|disculpe son un dealer|para aprobar|precio|nose depende cu[aá]nto pidan|no s[eé] depende cu[aá]nto pidan|exacto|exactamente|stop|licencia y social|pero madame fotos|madame fotos)$/i.test(clean(whatsappContactFallback))
+  const invalidWhatsappFallback = /^(?:estoy|estoy trabajando luego chat|trabajando luego chat|mes|usad[ao]s?|disculpe son un dealer|para aprobar|precio|nose depende cu[aá]nto pidan|no s[eé] depende cu[aá]nto pidan|exacto|exactamente|stop|licencia y social|licencia y tax id|licencia y taxid|pero madame fotos|madame fotos|estar[eé] pendiente)$/i.test(clean(whatsappContactFallback))
     || isVehicleStatement(whatsappContactFallback);
   const extractedNames = [realNameFromQualificationMemory(memory), extractRealNameFromText(rawMessage), extractRealNameFromText(rawHistory)];
   const nativeWhatsappName = isStaffordWhatsAppVehicleLabel(whatsappContactFallback, input.source, channel)

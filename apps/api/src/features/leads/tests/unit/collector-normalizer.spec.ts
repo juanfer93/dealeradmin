@@ -108,6 +108,8 @@ describe('normalizeCollectorInput', () => {
     ['Exacto', 'Exacto'],
     ['Stop', 'Stop'],
     ['Licencia y Social', 'Licencia y social'],
+    ['Licencia y Tax Id', 'Licencia y Tax Id'],
+    ['Estaré Pendiente', 'Estaré Pendiente'],
     ['Pero Madame Fotos', 'Pero Madame Fotos'],
   ])('rejects qualification text as a WhatsApp name: %s', (value, expectedInvalidValue) => {
     expect(normalizeCollectorInput({
