@@ -9,6 +9,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "strict": true,
+    "noEmit": true,
     "baseUrl": ".",
     "paths": {
       "@dealeradmin/config": ["packages/config/src"],
