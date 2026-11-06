@@ -2166,6 +2166,18 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ source: 'country-club', channel: 'whatsapp', message: 'Español' }).real_name).toBe('');
   });
 
+  it('does not treat an English language reply as the buyer name', () => {
+    expect(normalizeRealName('I speak english')).toBe('');
+    expect(normalizeCollectorInput({
+      source: 'carhub',
+      channel: 'whatsapp',
+      contact_name: 'Brian',
+      profile: { name: 'Brian' },
+      message: 'Brian',
+      chat_history_log: '¿Cuál es tu nombre?\nI speak english\nWhat\'s your name?\nBrian',
+    }).real_name).toBe('Brian');
+  });
+
   it('ignores Lucki Employee Action Log metadata and falls back to the native WhatsApp name', () => {
     const transcript = [
       'BUSCO UNA SUV',

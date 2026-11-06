@@ -184,7 +184,7 @@ export function normalizeRealName(value: string | null | undefined): string {
   if (TECHNICAL_NAME_LABEL.test(candidate) || LOCATION_RESPONSE.test(candidate) || ENGLISH_LOCATION_RESPONSE.test(candidate)) return EMPTY;
   if (PROFILE_DISPLAY_LABEL_MARKERS.test(candidate)) return EMPTY;
   // Language-selection replies are conversation metadata, not buyer names.
-  if (/^(?:espa[nñ]ol|english|ingl[eé]s)$/i.test(candidate)) return EMPTY;
+  if (/^(?:espa[nñ]ol|english|ingl[eé]s|i\s+speak\s+(?:english|spanish|espa[nñ]ol)|speak\s+english|hablo\s+(?:ingl[eé]s|espa[nñ]ol))$/i.test(candidate)) return EMPTY;
   if (SINGLE_WORD_NAME_BLOCKLIST.test(candidate) || isBaltimoreVariant(candidate)) return EMPTY;
   if (QUALIFICATION_RESPONSE_MARKERS.test(candidate) || GENERIC_VEHICLE_INTENT.test(candidate) || INVENTORY_INTENT.test(candidate) || GREETING_ONLY.test(candidate) || isVehicleStatement(candidate)) return EMPTY;
   if (candidate.length > 100 || candidate.split(/\s+/).length > 5) return EMPTY;
