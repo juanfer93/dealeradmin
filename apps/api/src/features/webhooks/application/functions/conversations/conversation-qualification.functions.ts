@@ -282,6 +282,17 @@ export class ConversationQualificationFunctions {
     return inserted[0];
   }
 
+  async isLeadSent(runner: QueryRunner, leadId: string): Promise<boolean> {
+    const rows = await runner.query(
+      `SELECT 1
+       FROM lead_dealers
+       WHERE lead_id = $1 AND status = 'sent'
+       LIMIT 1`,
+      [leadId],
+    ) as Array<Record<string, unknown>>;
+    return rows.length > 0;
+  }
+
   async upsertConversation(runner: QueryRunner, input: { leadId: string; locationId: string; contactId: string; conversationId: string; channel: string; occurredAt: string; dealerId?: string }): Promise<ConversationRow> {
     const existing = await runner.query(
       `SELECT id, status, ghl_conversation_id, qualification_snapshot, location_snapshot, ready_at,

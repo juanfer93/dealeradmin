@@ -83,7 +83,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     return this.reconciliation.reconcileMediaConversation(id, now);
   }
 
-  async reconcileContactIds(contactIds: string[], now = currentLocalNow()): Promise<number> {
+  async reconcileContactIds(contactIds: string[], now = currentLocalNow(), allowSentRepair = false): Promise<number> {
     if (!this.dataSource || contactIds.length === 0) return 0;
     const ids = [...new Set(contactIds.map((value) => value.trim()).filter(Boolean))];
     if (ids.length === 0) return 0;
@@ -92,11 +92,15 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
        FROM conversations
        WHERE ghl_contact_id = ANY($1::text[])
          AND status IN ('partial', 'waiting_window', 'stale_phone_ignored', 'queued', 'duplicate_ignored')
+         AND ($2::boolean OR NOT EXISTS (
+           SELECT 1 FROM lead_dealers sent_ld
+           WHERE sent_ld.lead_id = conversations.lead_id AND sent_ld.status = 'sent'
+         ))
        ORDER BY updated_at DESC
        LIMIT 25`,
-      [ids],
+      [ids, allowSentRepair],
     ) as Array<{ id: string }>;
-    for (const row of rows) await this.reconciliation.reconcileConversation(row.id, now, false, false, true);
+    for (const row of rows) await this.reconciliation.reconcileConversation(row.id, now, false, false, true, false, allowSentRepair);
     return rows.length;
   }
 
@@ -184,7 +188,9 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       ghl_conversation_id: conversationId,
       event_id: eventId,
     }, source, raw, headers.testNow);
-    await this.triggerTargetedGuardIfSplit(locationId, contactId, event.channel, headers.testNow, message, conversationId);
+    if (response.status !== 'sent_locked') {
+      await this.triggerTargetedGuardIfSplit(locationId, contactId, event.channel, headers.testNow, message, conversationId);
+    }
     return response;
   }
 
@@ -239,7 +245,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
     return this.dueFunctions.getDueConversationHealth(options);
   }
 
-  async runGhlGuard(now = currentLocalNow(), options: { contactIds?: string[]; force?: boolean; queuedOnly?: boolean; recentOnly?: boolean } = {}) {
+  async runGhlGuard(now = currentLocalNow(), options: { contactIds?: string[]; force?: boolean; queuedOnly?: boolean; recentOnly?: boolean; allowSentRepair?: boolean } = {}) {
     return this.guard.run(now, options);
   }
 

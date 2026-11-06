@@ -50,7 +50,8 @@ export class ConversationReconciliationFunctions {
     const rows = await this.dataSource.query(
       `SELECT id
        FROM conversations
-       WHERE status IN ('partial', 'waiting_window', 'stale_phone_ignored')
+       WHERE (
+         status IN ('partial', 'waiting_window', 'stale_phone_ignored')
           OR (
             status <> 'queued'
             AND (
@@ -58,6 +59,11 @@ export class ConversationReconciliationFunctions {
               AND NOT EXISTS (SELECT 1 FROM lead_dealers orphan_ld WHERE orphan_ld.lead_id = conversations.lead_id)
             )
           )
+       )
+         AND NOT EXISTS (
+           SELECT 1 FROM lead_dealers sent_ld
+           WHERE sent_ld.lead_id = conversations.lead_id AND sent_ld.status = 'sent'
+         )
        ${queuedSiblingExclusionSql()}
        ORDER BY updated_at DESC
        LIMIT $1`,
@@ -66,7 +72,7 @@ export class ConversationReconciliationFunctions {
     for (const row of rows) await this.reconcileConversation(row.id, now);
   }
 
-  async reconcileConversation(id: string, now: Date, propagateErrors = false, additiveOnly = false, targeted = false, countWaitingWindowAttempt = false): Promise<void> {
+  async reconcileConversation(id: string, now: Date, propagateErrors = false, additiveOnly = false, targeted = false, countWaitingWindowAttempt = false, allowSentRepair = false): Promise<void> {
     const runner = this.dataSource!.createQueryRunner();
     let queuedPauseEvent: QueuedPauseDispatch | null = null;
     await runner.connect();
@@ -81,13 +87,18 @@ export class ConversationReconciliationFunctions {
                 l.id AS lead_id, l.canonical_phone, l.first_name, l.last_name
          FROM conversations c
          JOIN leads l ON l.id = c.lead_id
-         WHERE c.id = $1 AND (c.status IN ('partial', 'waiting_window', 'stale_phone_ignored')
+         WHERE c.id = $1
+           AND ($4::boolean OR NOT EXISTS (
+             SELECT 1 FROM lead_dealers sent_ld
+             WHERE sent_ld.lead_id = c.lead_id AND sent_ld.status = 'sent'
+           ))
+           AND (c.status IN ('partial', 'waiting_window', 'stale_phone_ignored')
            OR ($3::boolean AND c.status IN ('queued', 'duplicate_ignored'))
            OR (c.status <> 'queued' AND c.ghl_location_id = ANY($2::text[])
                AND NOT EXISTS (SELECT 1 FROM lead_dealers orphan_ld WHERE orphan_ld.lead_id = c.lead_id)))
            ${queuedSiblingExclusionSql('c')}
          FOR UPDATE`,
-        [id, RECONCILIATION_LOCATION_IDS, targeted],
+        [id, RECONCILIATION_LOCATION_IDS, targeted, allowSentRepair],
       ) as Array<{
         id: string;
         channel: string;

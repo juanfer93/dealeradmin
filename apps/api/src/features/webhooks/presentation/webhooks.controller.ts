@@ -228,8 +228,11 @@ export class WebhooksController {
     const contactIds = this.queryContactIds(request);
     const queuedOnly = request.query.queued_backup === 'true';
     const reconcileBeforeGuard = request.query.reconcile === 'true' && contactIds.length > 0;
+    const allowSentRepair = request.query.allow_sent_repair === 'true' && contactIds.length > 0 && !queuedOnly;
     const reconciledContactCount = reconcileBeforeGuard
-      ? await this.conversationWebhookService.reconcileContactIds(contactIds)
+      ? allowSentRepair
+        ? await this.conversationWebhookService.reconcileContactIds(contactIds, undefined, true)
+        : await this.conversationWebhookService.reconcileContactIds(contactIds)
       : 0;
     const guard = await this.conversationWebhookService.runGhlGuard(undefined, {
       contactIds,
@@ -238,6 +241,7 @@ export class WebhooksController {
       // and avoid unnecessary lease contention.
       force: contactIds.length > 0 || queuedOnly,
       recentOnly: queuedOnly,
+      ...(allowSentRepair ? { allowSentRepair: true } : {}),
     });
     const queuedReplaySelected = guard.queuedReplaySelected ?? 0;
     const queuedReplayCompleted = guard.queuedReplayCompleted ?? 0;

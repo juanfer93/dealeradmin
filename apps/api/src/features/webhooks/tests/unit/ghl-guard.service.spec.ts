@@ -116,6 +116,34 @@ describe('GhlGuardService', () => {
     expect(selection).toContain('partial_recovery_next_attempt_at <= CURRENT_TIMESTAMP');
   });
 
+  it('blocks sent contacts in automatic Guard but allows an explicit manual repair', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.GHL_GUARD_ENABLED = 'true';
+    const lockRunner = {
+      connect: vi.fn(),
+      query: vi.fn(async (sql: string) => sql.includes('INSERT INTO ghl_guard_leases') ? [{ owner_id: 'lease-owner' }] : []),
+      release: vi.fn(),
+    };
+    const dataSource = {
+      createQueryRunner: vi.fn().mockReturnValue(lockRunner),
+      query: vi.fn().mockResolvedValue([]),
+    };
+    const service = new GhlGuardService(dataSource as never, { reconcileConversation: vi.fn() } as never);
+
+    await service.run(new Date('2026-11-06T18:00:00.000Z'), { force: true });
+    const automaticSelection = lockRunner.query.mock.calls.find(([sql]) => String(sql).includes('FROM conversations'))?.[0] as string;
+    expect(automaticSelection).toContain("sent_ld.status = 'sent'");
+
+    await service.run(new Date('2026-11-06T18:01:00.000Z'), {
+      force: true,
+      contactIds: ['contact-sent'],
+      allowSentRepair: true,
+    });
+    const selections = lockRunner.query.mock.calls.filter(([sql]) => String(sql).includes('FROM conversations'));
+    const manualSelection = String(selections.at(-1)?.[0] ?? '');
+    expect(manualSelection).not.toContain("sent_ld.status = 'sent'");
+  });
+
   it('reports when the advisory lock prevents a guard cycle', async () => {
     process.env.NODE_ENV = 'production';
     process.env.GHL_GUARD_ENABLED = 'true';

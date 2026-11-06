@@ -95,7 +95,7 @@ export type ConversationWebhookResponse = {
   eventId: string;
   conversationId: string;
   source: SourceKey;
-  status: 'processed' | 'duplicate_ignored' | 'suppressed' | 'stale_phone_ignored' | 'ignored_channel';
+  status: 'processed' | 'duplicate_ignored' | 'suppressed' | 'stale_phone_ignored' | 'ignored_channel' | 'sent_locked';
 };
 
 export type DueConversationResponse = {

@@ -118,6 +118,27 @@ export class ConversationEventFunctions {
         [conversation.id, dedupeKey],
       ) as Array<{ id: string }>)[0]?.id;
       await this.persistAttachments(runner, conversation.id, conversationMessageId, event, source, messageId);
+      // A sent dealer relation is an identity lock. Keep the inbound message
+      // for a future explicit repair, but never let a normal customer reply
+      // re-open the lead or overwrite its normalized name/qualification.
+      // Manual targeted Guard repairs opt into the bypass separately.
+      if (await this.qualification.isLeadSent(runner, lead.id)) {
+        await runner.query(
+          `UPDATE conversations
+           SET last_message_at = GREATEST(COALESCE(last_message_at, $2::timestamptz), $2::timestamptz),
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [conversation.id, event.occurred_at],
+        );
+        await runner.query(
+          `UPDATE webhook_events
+           SET status = 'processed', processed_at = CURRENT_TIMESTAMP, error_code = 'SENT_LOCKED'
+           WHERE event_id = $1`,
+          [event.event_id],
+        );
+        await runner.commitTransaction();
+        return { accepted: true, eventId: event.event_id, conversationId: conversation.id, source, status: 'sent_locked' };
+      }
       const messages = await runner.query(
         `SELECT cm.body, cm.direction, cm.occurred_at, cm.raw_payload,
                 ca.extracted_text AS attachment_extracted_text

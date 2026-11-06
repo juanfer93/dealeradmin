@@ -67,7 +67,7 @@ export class GhlGuardService {
     await this.persistence.recoverStaleQueuedReplayClaims(now);
   }
 
-  async run(now = new Date(), options: { contactIds?: string[]; force?: boolean; queuedOnly?: boolean; recentOnly?: boolean } = {}): Promise<GhlGuardRunResult> {
+  async run(now = new Date(), options: { contactIds?: string[]; force?: boolean; queuedOnly?: boolean; recentOnly?: boolean; allowSentRepair?: boolean } = {}): Promise<GhlGuardRunResult> {
     const empty: GhlGuardRunResult = { enabled: ghlGuardEnabled(), skipped: true, selected: 0, fetched: 0, inserted: 0, repaired: 0, failed: 0 };
     const runId = randomUUID();
     const contactIds = [...new Set((options.contactIds ?? []).map((value) => value.trim()).filter(Boolean))];
@@ -86,6 +86,9 @@ export class GhlGuardService {
     if (!empty.enabled) return skip('disabled');
     if (!this.dataSource) return skip('no_database');
     const targeted = contactIds.length > 0;
+    // An automatic due cycle may also target contact IDs. Only the explicit
+    // manual repair flag may bypass the sent identity lock.
+    const allowSentRepair = options.allowSentRepair === true && targeted && !queuedOnly;
     if (this.running) {
       this.enqueuePendingContactIds(contactIds);
       return skip('already_running');
@@ -158,6 +161,10 @@ export class GhlGuardService {
            AND ghl_location_id = ANY($2::text[])
            AND ghl_contact_id = ANY($3::text[])
            ${targeted ? "AND status <> 'duplicate_ignored'" : ''}
+           ${allowSentRepair ? '' : `AND NOT EXISTS (
+             SELECT 1 FROM lead_dealers sent_ld
+             WHERE sent_ld.lead_id = c.lead_id AND sent_ld.status = 'sent'
+           )`}
            ${recentPredicate}
            ${queuedOnly ? "AND status = 'queued' AND queued_guard_replay_count = 0" : ''}
            ${targeted ? '' : queuedSiblingExclusionSql('c')}
@@ -198,6 +205,10 @@ export class GhlGuardService {
            LIMIT 1
          ) due_retry ON TRUE
          WHERE status = 'queued' AND queued_guard_replay_count = 0
+           ${allowSentRepair ? '' : `AND NOT EXISTS (
+             SELECT 1 FROM lead_dealers sent_ld
+             WHERE sent_ld.lead_id = c.lead_id AND sent_ld.status = 'sent'
+           )`}
            AND (queued_guard_replay_claimed_at IS NULL
              OR queued_guard_replay_claimed_at <= CURRENT_TIMESTAMP - ($3::integer * INTERVAL '1 millisecond'))
            AND ghl_location_id = ANY($2::text[])
@@ -254,6 +265,10 @@ export class GhlGuardService {
             OR (status = 'queued' AND queued_guard_replay_count = 0
               AND (queued_guard_replay_claimed_at IS NULL
                 OR queued_guard_replay_claimed_at <= CURRENT_TIMESTAMP - ($3::integer * INTERVAL '1 millisecond'))))
+           ${allowSentRepair ? '' : `AND NOT EXISTS (
+             SELECT 1 FROM lead_dealers sent_ld
+             WHERE sent_ld.lead_id = c.lead_id AND sent_ld.status = 'sent'
+           )`}
            AND ghl_location_id = ANY($2::text[])
            ${recentPredicate}
            ${queuedSiblingExclusionSql('c')}
@@ -300,7 +315,7 @@ export class GhlGuardService {
       const concurrency = targeted ? 1 : Math.min(ghlGuardConcurrency(), rows.length);
       for (let offset = 0; offset < rows.length; offset += concurrency) {
         const batch = rows.slice(offset, offset + concurrency);
-        await Promise.all(batch.map((row) => this.processRow(row, runId, now, result, targeted, queuedOnly)));
+        await Promise.all(batch.map((row) => this.processRow(row, runId, now, result, targeted, queuedOnly, allowSentRepair)));
       }
       if (queuedOnly) result.pendingQueuedReplayCount = await this.countPendingQueuedReplays();
       return result;
@@ -394,7 +409,14 @@ export class GhlGuardService {
     return canonical?.ghl_conversation_id ? canonical : null;
   }
 
-  private async processRow(row: GuardConversationRow, runId: string, now: Date, result: GhlGuardRunResult, targeted = false, queuedOnly = false): Promise<void> {
+  private reconcileGuardConversation(id: string, allowSentRepair: boolean, targeted: boolean): Promise<void> {
+    if (allowSentRepair) {
+      return this.reconciliation.reconcileConversation(id, new Date(), true, true, targeted, false, true);
+    }
+    return this.reconciliation.reconcileConversation(id, new Date(), true, true, targeted, false);
+  }
+
+  private async processRow(row: GuardConversationRow, runId: string, now: Date, result: GhlGuardRunResult, targeted = false, queuedOnly = false, allowSentRepair = false): Promise<void> {
     let logId: string | null = null;
     let source: SourceKey | undefined;
     let queuedReplayClaimed = false;
@@ -583,7 +605,7 @@ export class GhlGuardService {
         // still carrying native profile/name evidence that repairs a stale
         // qualification snapshot.
         if (queuedReplayClaimed) {
-          await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true, true, false);
+          await this.reconcileGuardConversation(effectiveRow.id, allowSentRepair, true);
           if (syntheticConversationId && syntheticConversationId !== effectiveRow.id) {
             await this.dataSource!.query(
               `UPDATE conversations synthetic
@@ -594,7 +616,7 @@ export class GhlGuardService {
                WHERE synthetic.id = $1 AND canonical.id = $2`,
               [syntheticConversationId, effectiveRow.id],
             );
-            await this.reconciliation.reconcileConversation(syntheticConversationId, new Date(), true, true, true, false);
+            await this.reconcileGuardConversation(syntheticConversationId, allowSentRepair, true);
           }
           for (const replayId of claimedQueuedReplayIds) {
             const completed = await this.persistence.completeQueuedReplay(replayId);
@@ -614,6 +636,7 @@ export class GhlGuardService {
             pages: fetched.data.pages,
             truncated: fetched.data.truncated,
             reconciled: true,
+            manualSentRepair: allowSentRepair,
             finishedAt: new Date(),
             durationMs: Date.now() - startedAt.getTime(),
             ...lookupMetadata,
@@ -641,7 +664,7 @@ export class GhlGuardService {
         : 0;
       const leadMetadataBefore = await this.persistence.readLeadMetadata(effectiveRow.id);
       if (targeted || queuedOnly) {
-        await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true, true, false);
+        await this.reconcileGuardConversation(effectiveRow.id, allowSentRepair, true);
       } else {
         await this.reconciliation.reconcileConversation(effectiveRow.id, new Date(), true, true, false, false);
       }
@@ -659,7 +682,7 @@ export class GhlGuardService {
            WHERE synthetic.id = $1 AND canonical.id = $2`,
           [syntheticConversationId, effectiveRow.id],
         );
-        await this.reconciliation.reconcileConversation(syntheticConversationId, new Date(), true, true, true, false);
+        await this.reconcileGuardConversation(syntheticConversationId, allowSentRepair, true);
       }
       const leadMetadataAfter = await this.persistence.readLeadMetadata(effectiveRow.id);
       const completedFields = completedFieldsBetween(leadMetadataBefore, leadMetadataAfter);
@@ -698,6 +721,7 @@ export class GhlGuardService {
         pages: fetched.data.pages,
         truncated: fetched.data.truncated,
         reconciled: true,
+        manualSentRepair: allowSentRepair,
         leadMetadata: leadMetadataAfter,
         completedFields,
         finishedAt: new Date(),
