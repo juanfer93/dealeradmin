@@ -58,6 +58,18 @@ class LocalVisionContractTests(unittest.TestCase):
         self.assertEqual(worker.derived_message_source("image", {"vision_status": "processed"}), "image_interpretation")
         self.assertEqual(worker.derived_message_source("image", {"vision_status": "unavailable"}), "image_ocr")
 
+    def test_pending_claim_can_be_scoped_to_one_conversation(self):
+        with patch.object(worker, "MEDIA_CONVERSATION_ID", "conversation-1"):
+            query, params = worker.pending_attachment_query()
+        self.assertIn("AND conversation_id = %s", query)
+        self.assertEqual(params, (worker.MAX_ATTEMPTS, "conversation-1"))
+
+    def test_pending_claim_is_global_without_a_scope(self):
+        with patch.object(worker, "MEDIA_CONVERSATION_ID", ""):
+            query, params = worker.pending_attachment_query()
+        self.assertNotIn("AND conversation_id = %s", query)
+        self.assertEqual(params, (worker.MAX_ATTEMPTS,))
+
 
 class ReconciliationCallbackTests(unittest.TestCase):
     def test_callback_requires_an_accepted_api_payload(self):

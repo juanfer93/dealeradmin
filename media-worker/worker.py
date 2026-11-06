@@ -35,6 +35,7 @@ DEALERADMIN_API_URL = os.getenv("DEALERADMIN_API_URL", "").strip().rstrip("/")
 GHL_WEBHOOK_SECRET = os.getenv("GHL_WEBHOOK_SECRET", os.getenv("DEALERADMIN_WEBHOOK_SECRET", "")).strip()
 RECONCILIATION_TIMEOUT = int(os.getenv("DEALERADMIN_RECONCILIATION_TIMEOUT_SECONDS", "15"))
 MEDIA_RUN_ONCE = os.getenv("MEDIA_RUN_ONCE", "false").strip().lower() in {"1", "true", "yes", "on"}
+MEDIA_CONVERSATION_ID = os.getenv("MEDIA_CONVERSATION_ID", "").strip()
 LOCAL_VISION_MODEL_NAME = os.getenv(
     "MEDIA_LOCAL_VISION_MODEL", "HuggingFaceTB/SmolVLM-500M-Instruct"
 ).strip()
@@ -449,11 +450,10 @@ def process_image(path: Path, content_type: str, filename: str | None) -> tuple[
     return "\n".join(dict.fromkeys(parts)), {"ocr": ocr_metadata, "vision": vision_metadata, "vision_status": vision_metadata.get("vision_status")}
 
 
-def claim_attachment(connection: psycopg.Connection[Any]) -> dict[str, Any] | None:
-    with connection.transaction():
-        with connection.cursor(row_factory=psycopg.rows.dict_row) as cursor:
-            cursor.execute(
-                """
+def pending_attachment_query() -> tuple[str, tuple[Any, ...]]:
+    conversation_filter = "\n                  AND conversation_id = %s" if MEDIA_CONVERSATION_ID else ""
+    params: tuple[Any, ...] = (MAX_ATTEMPTS, MEDIA_CONVERSATION_ID) if MEDIA_CONVERSATION_ID else (MAX_ATTEMPTS,)
+    query = f"""
                 SELECT id, conversation_id, conversation_message_id, ghl_message_id,
                        source_url, content_type, media_kind, original_filename,
                        attempt_count
@@ -461,12 +461,19 @@ def claim_attachment(connection: psycopg.Connection[Any]) -> dict[str, Any] | No
                 WHERE (processing_status = 'pending'
                        OR (processing_status = 'failed' AND attempt_count < %s))
                   AND (next_attempt_at IS NULL OR next_attempt_at <= CURRENT_TIMESTAMP)
+                  {conversation_filter}
                 ORDER BY created_at ASC
                 FOR UPDATE SKIP LOCKED
                 LIMIT 1
-                """,
-                (MAX_ATTEMPTS,),
-            )
+                """
+    return query, params
+
+
+def claim_attachment(connection: psycopg.Connection[Any]) -> dict[str, Any] | None:
+    with connection.transaction():
+        with connection.cursor(row_factory=psycopg.rows.dict_row) as cursor:
+            query, params = pending_attachment_query()
+            cursor.execute(query, params)
             row = cursor.fetchone()
             if not row:
                 return None

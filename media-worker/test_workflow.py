@@ -9,6 +9,8 @@ class MediaWorkflowContractTests(unittest.TestCase):
         self.assertIn("timeout-minutes: 45", text)
         self.assertIn("command -v ffmpeg", text)
         self.assertIn("MEDIA_RUN_ONCE: 'true'", text)
+        self.assertIn("MEDIA_CONVERSATION_ID: ${{ inputs.conversation_id }}", text)
+        self.assertIn("conversation_id:", text)
         self.assertNotIn("Preload local vision model", text)
 
     def test_workflow_keeps_runs_from_cancelling_each_other(self):
