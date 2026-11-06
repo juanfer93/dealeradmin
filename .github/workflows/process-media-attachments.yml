@@ -5,10 +5,17 @@ on:
     - cron: '*/5 * * * *'
   workflow_dispatch:
 
+concurrency:
+  group: process-media-attachments
+  cancel-in-progress: false
+
 jobs:
   process-media:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # The hosted runner can spend several minutes resolving the Ubuntu media
+    # packages on a cold image. Keep the worker alive long enough to reach the
+    # actual queue instead of cancelling it during setup.
+    timeout-minutes: 45
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       DEALERADMIN_API_URL: https://dealeradmin.onrender.com/api
@@ -29,8 +36,22 @@ jobs:
           cache: pip
           cache-dependency-path: media-worker/requirements.txt
 
-      - name: Install ffmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg tesseract-ocr tesseract-ocr-spa
+      - name: Ensure media binaries
+        shell: bash
+        run: |
+          missing=()
+          command -v ffmpeg >/dev/null 2>&1 || missing+=(ffmpeg)
+          if ! command -v tesseract >/dev/null 2>&1; then
+            missing+=(tesseract-ocr tesseract-ocr-spa)
+          elif ! tesseract --list-langs 2>/dev/null | grep -qx 'spa'; then
+            missing+=(tesseract-ocr-spa)
+          fi
+          if [ "${#missing[@]}" -gt 0 ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends "${missing[@]}"
+          fi
+          ffmpeg -version | head -n 1
+          tesseract --version | head -n 1
 
       - name: Cache Whisper model
         uses: actions/cache@v4
@@ -41,8 +62,8 @@ jobs:
       - name: Install media worker dependencies
         run: python -m pip install --upgrade pip && python -m pip install --extra-index-url https://download.pytorch.org/whl/cpu -r media-worker/requirements.txt
 
-      - name: Preload local vision model
-        run: python -c "from transformers import AutoProcessor, AutoModelForImageTextToText; n='HuggingFaceTB/SmolVLM-500M-Instruct'; AutoProcessor.from_pretrained(n); AutoModelForImageTextToText.from_pretrained(n)"
+      - name: Run media worker tests
+        run: python -m unittest discover -s media-worker -p 'test_*.py'
 
       - name: Process pending attachments
         run: python media-worker/worker.py
