@@ -8,10 +8,14 @@ describe('normalizeCollectorInput', () => {
     expect(isInvalidRealName('  Excelente Señorita ')).toBe(true);
     expect(isInvalidRealName('Puedo Llamar')).toBe(true);
     expect(isInvalidRealName('Por Donde Está El Local')).toBe(true);
+    expect(isInvalidRealName('Una Ven Talvez')).toBe(true);
+    expect(isInvalidRealName('Esa Era la Pregunta')).toBe(true);
     expect(isInvalidRealName('María López')).toBe(false);
     expect(normalizeRealName('Licencia y Tax ID')).toBe('');
     expect(normalizeRealName('Puedo Llamar')).toBe('');
     expect(normalizeRealName('Por Donde Esta El Local')).toBe('');
+    expect(normalizeRealName('Una Ven Tal Vez')).toBe('');
+    expect(normalizeRealName('Esa Era la Pregunta')).toBe('');
   });
 
   it('prefers a later WhatsApp name answer over an earlier qualification response', () => {
