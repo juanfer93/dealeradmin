@@ -75,6 +75,57 @@ describe('ConversationReconciliationFunctions', () => {
     expect(conversationUpdate?.[1]?.[6]).toBe(0);
   });
 
+  it('repairs a stale Messenger channel from the native GHL WhatsApp message type', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('SELECT c.id, c.channel')) return [{
+        id: 'conversation-carhub-whatsapp-repair',
+        channel: 'messenger',
+        ghl_location_id: GHL_SOURCE_CONFIG.carhub.locationId,
+        ghl_contact_id: 'carhub-whatsapp-repair-contact',
+        ghl_conversation_id: 'carhub-whatsapp-repair-conversation',
+        status: 'partial',
+        qualification_snapshot: { real_name: '', phone: '', vehicle_type: '', qualification_complete: false, language: 'es' },
+        location_snapshot: { city: null, state: null, zip_code: null, easterns_zone: null },
+        ready_at: null,
+        next_attempt_at: null,
+        last_message_at: '2026-11-06T15:00:00.000Z',
+        waiting_window_attempts: 0,
+        lead_id: 'lead-carhub-whatsapp-repair',
+        canonical_phone: null,
+        first_name: 'Nolberto',
+        last_name: 'Ballestero',
+      }];
+      if (sql.includes('SELECT cm.body')) return [{
+        body: 'Busco una SUV',
+        direction: 'inbound',
+        occurred_at: '2026-11-06T15:00:00.000Z',
+        raw_payload: { message: { type: 19 }, customData: { channel: 'messenger', contact_phone: '(571) 733-3939' } },
+      }];
+      return [];
+    });
+    const runner = { connect: vi.fn(), startTransaction: vi.fn(), commitTransaction: vi.fn(), rollbackTransaction: vi.fn(), release: vi.fn(), isTransactionActive: true, query };
+    const qualification = {
+      resolveLocation: vi.fn().mockResolvedValue({ city: null, state: null, zip_code: null, easterns_zone: null }),
+      findSourceDealer: vi.fn().mockResolvedValue({ id: 'dealer-carhub', timezone: 'America/New_York', routing_config: {} }),
+      statusForConversation: vi.fn().mockReturnValue({ status: 'waiting_window', nextAttemptAt: '2026-11-06T15:05:00.000Z' }),
+      syncLeadDealer: vi.fn(),
+    };
+    const reconciliation = new ConversationReconciliationFunctions(
+      { createQueryRunner: () => runner } as never,
+      qualification as never,
+      { createQueuedPauseEvent: vi.fn(), dispatchQueuedPauseEvent: vi.fn() } as never,
+    );
+
+    await reconciliation.reconcileConversation('conversation-carhub-whatsapp-repair', new Date('2026-11-06T15:01:00.000Z'), true);
+
+    expect(query.mock.calls.some((call) => {
+      const [sql, params] = call as unknown as [string, unknown[]];
+      return sql.includes('UPDATE conversations SET channel = $2') && params?.[1] === 'whatsapp';
+    })).toBe(true);
+    const qualificationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(qualificationUpdate?.[1]?.[2]))).toMatchObject({ phone: '+15717333939', vehicle_type: 'SUV' });
+  });
+
   it('uses the Action Cars Spanish Messenger answer after the outbound name prompt', async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('SELECT c.id, c.channel')) return [{

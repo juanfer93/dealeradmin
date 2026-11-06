@@ -6,7 +6,7 @@ import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-d
 import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
 import { ConversationQualificationFunctions } from './conversation-qualification.functions';
 import { ACTIVE_RECONCILIATION_BATCH_SIZE, GHL_SOURCE_CONFIG, PARTIAL_RECOVERY_INTERVAL_MS, PARTIAL_RECOVERY_MAX_ATTEMPTS, RECONCILIATION_LOCATION_IDS, CONVERSATION_STABILIZATION_MS, WAITING_WINDOW_MAX_ATTEMPTS, WAITING_WINDOW_RETRY_INTERVAL_MS } from './conversation-webhook.config';
-import { addProcessedImageEvidence, clean, extractNativeProfileName, extractNativeWhatsappPhone, inputIndicatesWhatsApp, isActionCarsSpanishNameFlow, isAttachmentEvidenceMessage, safePhone, splitName } from './conversation-webhook.helpers';
+import { addProcessedImageEvidence, asRecord, clean, extractNativeProfileName, extractNativeWhatsappPhone, inputIndicatesWhatsApp, isActionCarsSpanishNameFlow, isAttachmentEvidenceMessage, nativeMessageChannel, safePhone, splitName } from './conversation-webhook.helpers';
 import type { ConversationMessageRow, ConversationSnapshot, LocationSnapshot, MediaReconciliationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
 import { configureWebhookTransactionSafety } from '../../transaction-safety';
 import { isEmptyMarker } from '../../../../leads/domain/collector-normalizer/text-cleaner';
@@ -19,6 +19,11 @@ const NAME_PROMPT = /(?:what(?:'s| is)?\s+(?:your|the)\s+name|full\s+name|what\s
 function isDownPaymentPrompt(value: unknown): boolean {
   const prompt = clean(value);
   return Boolean(prompt && DOWN_PAYMENT_PROMPT.test(prompt) && DOWN_PAYMENT_QUESTION.test(prompt));
+}
+
+function nativeChannelFromPayload(rawPayload: unknown): string {
+  const payload = asRecord(rawPayload);
+  return nativeMessageChannel(asRecord(payload.message)) || nativeMessageChannel(payload);
 }
 
 export class ConversationReconciliationFunctions {
@@ -146,7 +151,24 @@ export class ConversationReconciliationFunctions {
           ? [row.ghl_location_id, row.ghl_contact_id, row.channel, assignedDealerId]
           : [row.ghl_location_id, row.ghl_contact_id, row.channel],
       ) as ConversationMessageRow[];
-      if (source === 'fredericksburg-2' && messages.some((message) => inputIndicatesWhatsApp(message.raw_payload, row.channel))) {
+      const nativeChannel = [...messages]
+        .reverse()
+        .map((message) => nativeChannelFromPayload(message.raw_payload))
+        .find(Boolean) || '';
+      const configuredChannels = this.sourceConfig[source].supportedChannels ?? [this.sourceConfig[source].defaultChannel];
+      const supportedNativeChannel = nativeChannel === 'whatsapp' || nativeChannel === 'messenger' ? nativeChannel : '';
+      const channel = supportedNativeChannel && configuredChannels.includes(supportedNativeChannel)
+        ? supportedNativeChannel
+        : configuredChannels.length === 1
+        ? this.sourceConfig[source].defaultChannel
+        : row.channel;
+      if (channel !== row.channel) {
+        await runner.query(
+          `UPDATE conversations SET channel = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+          [id, channel],
+        );
+      }
+      if (source === 'fredericksburg-2' && messages.some((message) => inputIndicatesWhatsApp(message.raw_payload, channel))) {
         await runner.query(`UPDATE conversations SET status = 'ignored_channel', next_attempt_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
         await runner.commitTransaction();
         return;
@@ -174,18 +196,18 @@ export class ConversationReconciliationFunctions {
         await runner.rollbackTransaction();
         return;
       }
-      const isSocialProfileChannel = /(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(row.channel);
+      const isSocialProfileChannel = /(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(channel);
       const contactName = clean(`${row.first_name || ''} ${row.last_name || ''}`) || 'Lead';
-      const profileCandidate = clean(current.profile_name) || extractNativeProfileName(messages, row.channel);
+      const profileCandidate = clean(current.profile_name) || extractNativeProfileName(messages, channel);
       const profileName = isSocialProfileChannel
-        ? profileDisplayNameFromInput({ channel: row.channel, contact_name: profileCandidate })
+        ? profileDisplayNameFromInput({ channel, contact_name: profileCandidate })
         : '';
       const language = additiveOnly
         ? current.language || (this.sourceConfig[source].splitByLanguage ? detectLeadLanguage(transcript) : undefined)
         : this.sourceConfig[source].splitByLanguage ? detectLeadLanguage(transcript) : current.language;
-      const actionCarsSpanishNameFlow = isActionCarsSpanishNameFlow(source, row.channel, language);
+      const actionCarsSpanishNameFlow = isActionCarsSpanishNameFlow(source, channel, language);
       const recentPhone = safePhone(extractRecentMessagePhone(evidenceMessages.map((message) => ({ ...message, is_attachment_evidence: isAttachmentEvidenceMessage(message) })), now));
-      const nativeWhatsapp = this.isStaffordWhatsApp(source, row.channel);
+      const nativeWhatsapp = this.isStaffordWhatsApp(source, channel);
       const nativeWhatsappPhone = nativeWhatsapp
         ? safePhone(row.canonical_phone) || extractNativeWhatsappPhone(messages)
         : null;
@@ -197,7 +219,7 @@ export class ConversationReconciliationFunctions {
       const effectivePhone = candidatePhone || existingPhone || '';
       const normalized = normalizeCollectorInput({
         source,
-        channel: row.channel,
+        channel,
         message: transcript,
         chat_history_log: transcript,
         phone: effectivePhone,
@@ -228,12 +250,12 @@ export class ConversationReconciliationFunctions {
       // periodic watchdog uses a non-targeted reconciliation, so sanitize the
       // existing snapshot before applying the additive merge as well.
       const currentRealName = isSocialProfileChannel ? '' : normalizeRealName(clean(current.real_name));
-      const authoritativeCurrentRealName = nativeWhatsapp && currentRealName && !isStaffordWhatsAppVehicleLabel(currentRealName, source, row.channel)
+      const authoritativeCurrentRealName = nativeWhatsapp && currentRealName && !isStaffordWhatsAppVehicleLabel(currentRealName, source, channel)
         ? currentRealName
         : '';
-      const contactRealName = isStaffordWhatsAppVehicleLabel(contactName, source, row.channel)
+      const contactRealName = isStaffordWhatsAppVehicleLabel(contactName, source, channel)
         ? ''
-        : isSocialProfileChannel ? profileName : profileDisplayNameFromInput({ channel: row.channel, contact_name: contactName }) || normalizeRealName(contactName);
+        : isSocialProfileChannel ? profileName : profileDisplayNameFromInput({ channel, contact_name: contactName }) || normalizeRealName(contactName);
       const normalizedSocialProfileName = isSocialProfileChannel ? normalizeRealName(profileName) : '';
       const realName = nativeWhatsapp
         ? authoritativeCurrentRealName || clean(normalized.real_name) || contactRealName
@@ -328,7 +350,7 @@ export class ConversationReconciliationFunctions {
       if (snapshot.real_name) {
         const { firstName, lastName } = splitName(snapshot.real_name);
         await runner.query(`UPDATE leads SET first_name = $2, last_name = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [row.lead_id, firstName, lastName]);
-      } else if (isStaffordWhatsAppVehicleLabel(contactName, source, row.channel)) {
+      } else if (isStaffordWhatsAppVehicleLabel(contactName, source, channel)) {
         // A Stafford WhatsApp vehicle/offer label can be stored in the lead
         // name before the transcript replay. Clear that operational label,
         // while preserving Messenger/Instagram profile labels for display;
