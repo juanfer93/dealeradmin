@@ -9,6 +9,14 @@ on:
         description: 'Optional conversation UUID to process without touching the global media queue'
         required: false
         type: string
+      media_kind:
+        description: 'Optional media mode for a targeted recovery'
+        required: false
+        default: all
+        type: choice
+        options:
+          - all
+          - audio
 
 concurrency:
   group: process-media-attachments
@@ -31,6 +39,7 @@ jobs:
       MEDIA_RUN_ONCE: 'true'
       MEDIA_POLL_SECONDS: '1'
       MEDIA_CONVERSATION_ID: ${{ inputs.conversation_id }}
+      MEDIA_AUDIO_ONLY: ${{ inputs.media_kind == 'audio' && 'true' || 'false' }}
     steps:
       - name: Check out worker
         uses: actions/checkout@v4
@@ -47,17 +56,19 @@ jobs:
         run: |
           missing=()
           command -v ffmpeg >/dev/null 2>&1 || missing+=(ffmpeg)
-          if ! command -v tesseract >/dev/null 2>&1; then
-            missing+=(tesseract-ocr tesseract-ocr-spa)
-          elif ! tesseract --list-langs 2>/dev/null | grep -qx 'spa'; then
-            missing+=(tesseract-ocr-spa)
+          if [ "$MEDIA_AUDIO_ONLY" != "true" ]; then
+            if ! command -v tesseract >/dev/null 2>&1; then
+              missing+=(tesseract-ocr tesseract-ocr-spa)
+            elif ! tesseract --list-langs 2>/dev/null | grep -qx 'spa'; then
+              missing+=(tesseract-ocr-spa)
+            fi
           fi
           if [ "${#missing[@]}" -gt 0 ]; then
             sudo apt-get update -qq
             sudo apt-get install -y --no-install-recommends "${missing[@]}"
           fi
           ffmpeg -version | head -n 1
-          tesseract --version | head -n 1
+          if [ "$MEDIA_AUDIO_ONLY" != "true" ]; then tesseract --version | head -n 1; fi
 
       - name: Cache Whisper model
         uses: actions/cache@v4
@@ -67,6 +78,26 @@ jobs:
 
       - name: Install media worker dependencies
         run: python -m pip install --upgrade pip && python -m pip install --extra-index-url https://download.pytorch.org/whl/cpu -r media-worker/requirements.txt
+
+      - name: Verify database target
+        run: |
+          python - <<'PY'
+          import os
+          import psycopg
+
+          with psycopg.connect(os.environ["DATABASE_URL"]) as connection:
+              with connection.cursor() as cursor:
+                  cursor.execute("SELECT current_database(), current_schema()")
+                  database, schema = cursor.fetchone()
+                  print(f"database={database} schema={schema}")
+                  conversation_id = os.environ.get("MEDIA_CONVERSATION_ID", "").strip()
+                  if conversation_id:
+                      cursor.execute(
+                          "SELECT count(*) FROM conversation_attachments WHERE conversation_id = %s",
+                          (conversation_id,),
+                      )
+                      print(f"target_attachment_count={cursor.fetchone()[0]}")
+          PY
 
       - name: Run media worker tests
         run: python -m unittest discover -s media-worker -p 'test_*.py'
