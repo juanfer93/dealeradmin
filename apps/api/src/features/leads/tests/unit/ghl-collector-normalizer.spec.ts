@@ -116,6 +116,30 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result).toMatchObject({ real_name: 'Luis Maquin', vehicle_type: 'Honda CR-V' });
   });
 
+  it('does not fall back to rejected WhatsApp reply text', () => {
+    for (const contactName of ['Exacto', 'Excelente Señorita', 'Me Interesa Un Sedán', 'Dnd Enabled By Customer']) {
+      expect(execute({
+        source: 'alpha',
+        channel: 'whatsapp',
+        contact_name: contactName,
+        profile: { name: contactName },
+        message: contactName,
+        chat_history_log: contactName,
+      }).real_name).toBe('');
+    }
+  });
+
+  it('keeps the declared WhatsApp name when the contact label is a rejected reply', () => {
+    expect(execute({
+      source: 'alpha',
+      channel: 'whatsapp',
+      contact_name: 'Exacto',
+      profile: { name: 'Exacto' },
+      message: 'Mi nombre es Carlos Mendoza',
+      chat_history_log: 'Exacto\nMi nombre es Carlos Mendoza',
+    }).real_name).toBe('Carlos Mendoza');
+  });
+
   it.each(['Para Aprobar', 'Precio', 'Nose Depende Cuánto Pidan'])('rejects Lucki qualification text as a WhatsApp name: %s', (value) => {
     expect(execute({
       source: 'lucki',
@@ -1346,7 +1370,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       phone: '+16862055349',
       message: 'Buen día',
       chat_history_log: 'Buen día',
-    }).real_name).toBe('Buen Dis');
+    }).real_name).toBe('');
 
     expect(execute({
       source: 'stafford',

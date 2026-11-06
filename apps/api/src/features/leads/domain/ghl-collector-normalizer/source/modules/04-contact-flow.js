@@ -155,8 +155,6 @@ const contactName = isMessengerChannel(channel)
   : (isProfileDisplayName(rawContactName) ? '' : normalizeRealName(rawContactName));
 const whatsappProfileName = clean(profile.name);
 const whatsappContactFallback = /^lead$/i.test(rawContactName) ? '' : (whatsappProfileName || rawContactName);
-const invalidWhatsappFallback = /^(?:estoy|estoy trabajando luego chat|trabajando luego chat|mes|usad[ao]s?|disculpe son un dealer|para aprobar|precio|nose depende cu[aá]nto pidan|no s[eé] depende cu[aá]nto pidan|exacto|exactamente|stop|licencia y social|licencia y tax id|licencia y taxid|pero madame fotos|madame fotos|estar[eé] pendiente)$/i.test(clean(whatsappContactFallback))
-  || isVehicleStatement(whatsappContactFallback);
 // Messenger/Instagram contact labels are display metadata, not proof of a
 // buyer's real name. Only an explicit name answer may populate qualification;
 // an already persisted explicit name can be retained during replay.
@@ -189,10 +187,7 @@ const normalizeWhatsAppCandidate = (value) => {
 const realName = isMessengerChannel(channel)
   ? (declaredNameFromText(rawMessage) || declaredNameFromText(rawHistory) || messengerProfileName || '')
   : isWhatsAppChannel(channel)
-    ? whatsappNames.map(normalizeWhatsAppCandidate).find(Boolean)
-      || (staffordWhatsApp
-        ? (/^(?:un|una|a|an|my|mi|the)\s+/i.test(whatsappContactFallback) && (vehicleBrands.test(whatsappContactFallback) || vehicleModels.test(whatsappContactFallback) || vehicleCategories.test(whatsappContactFallback)) || (!whatsappProfileName && invalidWhatsappFallback) ? '' : normalizeRealName(whatsappContactFallback) || whatsappContactFallback)
-        : '')
+    ? whatsappNames.map(normalizeWhatsAppCandidate).find(Boolean) || ''
     : ((isBusinessName(suppliedName) || isProfileDisplayName(suppliedName)) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) || '';
 const isCampaignButton = (value) => /^(?:quiero mi auto con eastern|quiero (?:un )?auto hoy|i want (?:a )?car today|quiero financiar un auto(?: con ustedes)?|me gustaria financiar un auto(?: con ustedes)?|financiar un auto(?: con ustedes)?|(?:quiero )?financiar con easterns?)$/.test(normalizeMatch(String(value ?? '').replace(/([!?])\s*\d{1,3}$/, '$1').replace(/[!?.,]/g, '')));
 const isNonVehicleIntent = (value) => nonVehicleIntentValues.test(clean(value).replace(/[!?.,]/g, '').trim());

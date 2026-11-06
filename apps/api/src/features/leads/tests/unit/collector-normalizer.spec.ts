@@ -2045,6 +2045,32 @@ describe('normalizeCollectorInput', () => {
     });
   });
 
+  it('never restores rejected WhatsApp reply text as the contact name', () => {
+    for (const contactName of ['Exacto', 'Excelente Señorita', 'Me Interesa Un Sedán', 'Dnd Enabled By Customer']) {
+      expect(normalizeCollectorInput({
+        source: 'alpha',
+        channel: 'whatsapp',
+        phone: '+18045550123',
+        contact_name: contactName,
+        profile: { name: contactName },
+        message: contactName,
+        chat_history_log: contactName,
+      }).real_name).toBe('');
+    }
+  });
+
+  it('keeps the declared WhatsApp name when the contact label is a rejected reply', () => {
+    expect(normalizeCollectorInput({
+      source: 'alpha',
+      channel: 'whatsapp',
+      phone: '+18045550123',
+      contact_name: 'Exacto',
+      profile: { name: 'Exacto' },
+      message: 'Mi nombre es Carlos Mendoza',
+      chat_history_log: 'Exacto\nMi nombre es Carlos Mendoza',
+    }).real_name).toBe('Carlos Mendoza');
+  });
+
   it('uses the native WhatsApp contact name and phone for Action Cars while retaining Messenger fallback', () => {
     expect(normalizeCollectorInput({ source: 'action-cars', channel: 'whatsapp', phone: '+18045550123', contact_name: 'Action Buyer', message: 'I am looking for an SUV' })).toMatchObject({
       real_name: 'Action Buyer',
@@ -2820,7 +2846,7 @@ Full name: Jose Eduardo Martins Cabral
       chat_history_log: 'Buen día',
     });
 
-    expect(result.real_name).toBe('Buen Dis');
+    expect(result.real_name).toBe('');
   });
 
   it('prefers a real Stafford WhatsApp name declared after a greeting', () => {

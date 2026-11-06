@@ -5,7 +5,7 @@ import { detectLeadLanguage } from './language-normalizer';
 import { collectorFlowPolicy, effectiveChannel, extractCustomerLocation, isAdvisorHandoffVehicle, isMessengerChannel, isWhatsAppChannel } from './flow-policy';
 import { clean, conversationalEvidence, firstNonEmpty, lastMeaningfulLine, memoryText, memoryValue } from './text-cleaner';
 import type { CollectorInput, CollectorLanguage, CollectorOutput, QualificationProgress, QualificationStep } from './types';
-import { extractVehicleYear, isVehicleStatement, normalizeVehicle } from './vehicle-normalizer';
+import { extractVehicleYear, normalizeVehicle } from './vehicle-normalizer';
 import { extractTimeline, mergeDocuments, normalizeTimeline, yesNo } from './qualification-normalizer';
 import { mergeMemory, normalizeMemoryDownPayment } from './qualification-memory';
 import { isQualificationComplete, missingQualification as getMissingQualification, qualificationStep } from './reconciliation';
@@ -57,8 +57,6 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     || /^lead$/i.test(firstNonEmpty(input.contact_name, input.contactName, input.profile?.name, input.name))
     ? EMPTY
     : firstNonEmpty(whatsappProfileName, input.contact_name, input.contactName, input.name);
-  const invalidWhatsappFallback = /^(?:estoy|estoy trabajando luego chat|trabajando luego chat|mes|usad[ao]s?|disculpe son un dealer|para aprobar|precio|nose depende cu[aá]nto pidan|no s[eé] depende cu[aá]nto pidan|exacto|exactamente|stop|licencia y social|licencia y tax id|licencia y taxid|pero madame fotos|madame fotos|estar[eé] pendiente)$/i.test(clean(whatsappContactFallback))
-    || isVehicleStatement(whatsappContactFallback);
   const extractedNames = [realNameFromQualificationMemory(memory), extractRealNameFromText(rawMessage), extractRealNameFromText(rawHistory)];
   const nativeWhatsappName = isStaffordWhatsAppVehicleLabel(whatsappContactFallback, input.source, channel)
     ? EMPTY
@@ -79,8 +77,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const realName = isMessengerChannel(channel)
     ? formContext?.full_name || messengerDeclaredName || profileDisplayName || suppliedName
     : isWhatsAppChannel(channel)
-      ? whatsappNames.map((candidate) => isStaffordWhatsAppVehicleLabel(candidate, input.source, channel) ? EMPTY : normalizeRealName(candidate)).find(Boolean)
-        || (isStaffordWhatsAppVehicleLabel(whatsappContactFallback, input.source, channel) || (!whatsappProfileName && invalidWhatsappFallback) ? EMPTY : normalizeRealName(whatsappContactFallback) || whatsappContactFallback)
+      ? whatsappNames.map((candidate) => isStaffordWhatsAppVehicleLabel(candidate, input.source, channel) ? EMPTY : normalizeRealName(candidate)).find(Boolean) ?? EMPTY
       : (isLikelyBusinessName(suppliedName) || isLikelyProfileDisplayName(suppliedName) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) ?? EMPTY;
 
   const chatPhone = extractPhone(input.chat_history_log) || extractPhone(input.message) || extractPhone(input.phone);
