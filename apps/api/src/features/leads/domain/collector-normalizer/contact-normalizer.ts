@@ -1,5 +1,6 @@
 import { EMPTY, RECENT_PHONE_EVIDENCE_DAYS } from './constants';
 import { isBaltimoreVariant } from './flow-policy';
+import { isInvalidRealName } from './invalid-real-names';
 import { clean } from './text-cleaner';
 import { firstNonEmpty, memoryValue } from './text-cleaner';
 import { isVehicleStatement } from './vehicle-normalizer';
@@ -79,44 +80,6 @@ export function isPhoneAreaCodeAmount(value: string, phone: string): boolean {
   return Boolean(areaCode && clean(value).replace(/\D/g, '') === areaCode);
 }
 
-const INVALID_REAL_NAMES = new Set([
-  '.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'location', 'whatsapp', 'facebook',
-  'opportunity created',
-  'in pa', 'in messenger', 'for sure', 'tienes tacomas', 'sorry',
-  'hola le saluda', 'le saluda', 'les saluda', 'mañana', 'manana', 'mkt',
-  'saludos', 'hello', 'hi', 'hey', 'hola', 'ola', 'greetings', 'buen dia', 'buen día', 'buen dis', 'buenos dias', 'buenos días', 'buenas tardes',
-  'buenas noches', 'bendiciones', 'buenos dias bendiciones', 'buenas tardes bendiciones', 'buenas noches bendiciones',
-  'solo whatsapp', 'solo whasap',
-  'thu chikitha linda',
-  'información', 'informacion', 'más información', 'mas informacion', 'más info', 'mas info',
-  'more information', 'more info', 'details', 'detalles', 'como asi', 'como así', 'cómo asi', 'cómo así', 'how so',
-  'what do you mean', 'me lo puede explicar', 'me puede explicar', 'me lo puedes explicar', 'me puedes explicar',
-  'exacto', 'exactamente', 'stop', 'licencia y social', 'licencia y tax id', 'licencia y taxid', 'pero madame fotos', 'madame fotos', 'estaré pendiente', 'estare pendiente',
-]);
-INVALID_REAL_NAMES.add('mes');
-INVALID_REAL_NAMES.add('estoy');
-INVALID_REAL_NAMES.add('estoy trabajando luego chat');
-INVALID_REAL_NAMES.add('trabajando luego chat');
-INVALID_REAL_NAMES.add('usada');
-INVALID_REAL_NAMES.add('usado');
-INVALID_REAL_NAMES.add('usadas');
-INVALID_REAL_NAMES.add('usados');
-INVALID_REAL_NAMES.add('disculpe son un dealer');
-INVALID_REAL_NAMES.add('para aprobar');
-INVALID_REAL_NAMES.add('precio');
-INVALID_REAL_NAMES.add('español');
-INVALID_REAL_NAMES.add('espanol');
-INVALID_REAL_NAMES.add('inglés');
-INVALID_REAL_NAMES.add('ingles');
-INVALID_REAL_NAMES.add('nose depende cuánto pidan');
-INVALID_REAL_NAMES.add('nose depende cuanto pidan');
-INVALID_REAL_NAMES.add('no sé depende cuánto pidan');
-INVALID_REAL_NAMES.add('no se depende cuanto pidan');
-INVALID_REAL_NAMES.add('employee action log created');
-INVALID_REAL_NAMES.add('primera vez');
-INVALID_REAL_NAMES.add('itin');
-INVALID_REAL_NAMES.add('excelente señorita');
-INVALID_REAL_NAMES.add('dnd enabled by customer');
 const BUSINESS_NAME_MARKERS = /\b(?:auto\s*sales|motors?|dealership|dealer|llc|inc(?:orporated)?|corp(?:oration)?|company|tatuajes?|tattoos?|operaciones?|operations?|transport(?:ation)?|logistics|construction|remodeling|roofing|realty|consulting|services?|servicios?|shop|tienda|salon|barbershop|restaurant)\b/i;
 const QUALIFICATION_RESPONSE_MARKERS = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|baltimore|baltimor|baltmore|baltimroe|balitmore|baltimre|baltimorre|baltimoro|balitmor|baltimo|bomltimo|maryland|where are you located|where are you|what|which|how|como\s+as[ií]|how\s+so|what\s+do\s+you\s+mean|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|qué|que|ubicaci[oó]n|ubicados?|cu[aá]l(?:\s+ser[ií]a)?|ser[ií]a|gracias|thank you|thank|vehicle|car|auto|carro|coche|veh[ií]culo|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|sim|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|cheques?|checks?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
 const PROFILE_DISPLAY_LABEL_MARKERS = /\b(?:me\s+puede(?:s)?\s+(?:mandar|enviar)|(?:mandar|enviar)\s+(?:fotos?|informaci[oó]n)|fotos?\s+de|copiar)\b/i;
@@ -178,7 +141,7 @@ export function normalizeRealName(value: string | null | undefined): string {
   const decoratedCandidate = clean(value).normalize('NFC').replace(/[\p{So}\p{Sk}\p{Cf}\uFE0F]/gu, '').replace(/\s+/g, ' ').trim();
   const declaredCandidate = decoratedCandidate.match(NAME_DECLARATION)?.[1] || decoratedCandidate;
   const candidate = normalizeNameSuffixPunctuation(stripConversationalNamePrefix(declaredCandidate));
-  if (!candidate || INVALID_REAL_NAMES.has(candidate.toLowerCase())) return EMPTY;
+  if (!candidate || isInvalidRealName(candidate)) return EMPTY;
   if (PHONE_LIKE_TEXT.test(candidate) || candidate.replace(/\D/g, '').length >= 7) return EMPTY;
   if (!isValidRealName(candidate)) return EMPTY;
   if (TECHNICAL_NAME_LABEL.test(candidate) || LOCATION_RESPONSE.test(candidate) || ENGLISH_LOCATION_RESPONSE.test(candidate)) return EMPTY;
@@ -205,7 +168,7 @@ export function profileDisplayNameFromInput(input: CollectorInput): string {
     || ENGLISH_LOCATION_RESPONSE.test(candidate)
     || LOCATION_RESPONSE.test(candidate)
     || !/\p{L}/u.test(candidate)) return EMPTY;
-  if (INVALID_REAL_NAMES.has(candidate.toLowerCase())) return EMPTY;
+  if (isInvalidRealName(candidate)) return EMPTY;
   return candidate;
 }
 

@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { ADVISOR_HANDOFF_VEHICLE, detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isAdvisorHandoffVehicle, isQualificationComplete, isValidRealName, normalizeCollectorInput, normalizeRealName } from '../../domain/collector-normalizer';
+import { INVALID_REAL_NAMES, isInvalidRealName } from '../../domain/collector-normalizer/invalid-real-names';
 
 describe('normalizeCollectorInput', () => {
+  it('keeps invalid real-name values in a centralized, extensible catalog', () => {
+    expect(INVALID_REAL_NAMES.size).toBeGreaterThan(0);
+    expect(isInvalidRealName('  Excelente Señorita ')).toBe(true);
+    expect(isInvalidRealName('María López')).toBe(false);
+    expect(normalizeRealName('Licencia y Tax ID')).toBe('');
+  });
+
   it('prefers a later WhatsApp name answer over an earlier qualification response', () => {
     const transcript = [
       'Usada',
