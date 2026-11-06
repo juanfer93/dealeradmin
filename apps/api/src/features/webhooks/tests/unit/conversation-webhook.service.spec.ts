@@ -57,6 +57,21 @@ describe('ConversationWebhookService', () => {
       channel: 'messenger',
     });
   });
+
+  it('uses the native GHL WhatsApp message type over a stale Messenger custom field', () => {
+    expect(normalizeWebhookInput({
+      customData: {
+        channel: 'messenger',
+        contact_phone: '(571) 466-7847',
+        message_body: 'Amilcar',
+      },
+      message: { type: 19, body: 'Amilcar' },
+    }, 'whatsapp', {})).toMatchObject({
+      contact_phone: '(571) 466-7847',
+      message_body: 'Amilcar',
+      channel: 'whatsapp',
+    });
+  });
   const easternsDealer = { timezone: 'America/New_York', routing_config: { group: 'Easterns' } };
 
   it('captures one inbound message using the native contact id header', async () => {

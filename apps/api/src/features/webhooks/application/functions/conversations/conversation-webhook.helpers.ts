@@ -18,6 +18,16 @@ export function normalizedChannel(value: unknown): string {
   return channel;
 }
 
+/** GHL's native message type is more reliable than the workflow custom field. */
+export function nativeMessageChannel(message: Record<string, unknown>): string {
+  const explicit = normalizedChannel(message.channel);
+  if (explicit === 'whatsapp' || explicit === 'messenger') return explicit;
+  const type = clean(message.type).toLowerCase();
+  if (type === '19' || type.includes('whatsapp')) return 'whatsapp';
+  if (type === '11' || type.includes('messenger') || type.includes('facebook') || type.includes('instagram')) return 'messenger';
+  return '';
+}
+
 /**
  * Action Cars Spanish asks for a typed real name on both supported channels.
  * The native channel name remains the safe fallback when that answer is not
@@ -189,7 +199,8 @@ export function normalizeWebhookInput(input: unknown, defaultChannel: string, he
   const triggerData = asRecord(value.triggerData);
   const triggerMessage = asRecord(triggerData.message);
   const nativeMessage = Object.keys(nestedMessage).length > 0 ? nestedMessage : triggerMessage;
-  const rawChannel = clean(value.channel ?? customData.channel ?? nativeMessage.channel ?? defaultChannel).toLowerCase();
+  const nativeChannel = nativeMessageChannel(nativeMessage);
+  const rawChannel = clean(value.channel ?? nativeChannel ?? customData.channel ?? defaultChannel).toLowerCase();
   const isSocialProfileChannel = /(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(rawChannel);
   const nativeProfileName = nestedContact.name
     ?? nestedProfile.name
@@ -251,8 +262,8 @@ export function normalizeWebhookInput(input: unknown, defaultChannel: string, he
     // metadata and may describe an older WhatsApp interaction even when the
     // current message arrived through Messenger.
     channel: normalizedChannel(value.channel)
+      || nativeChannel
       || normalizedChannel(customData.channel)
-      || normalizedChannel(nativeMessage.channel)
       || nativeAttributionChannel(input)
       || defaultChannel,
     occurred_at: value.occurred_at ?? value.occurredAt ?? value.date_updated ?? value.dateUpdated,
