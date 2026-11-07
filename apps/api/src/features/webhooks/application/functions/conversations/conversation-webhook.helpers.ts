@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
+import { extractDeclaredRealNameFromText, extractRealNameFromText, normalizeRealName } from '../../../../leads/domain/collector-normalizer';
 import { normalizePhone } from '../../../../leads/domain/phone-normalizer';
 import type { ConversationMessageRow, SourceKey, SourceConfigMap } from './conversation-webhook.types';
 
@@ -114,6 +115,20 @@ export function parseOccurredAt(value: string | undefined): string {
 export function splitName(value: string): { firstName: string; lastName: string } {
   const parts = value.trim().split(/\s+/).filter(Boolean);
   return { firstName: parts[0] || 'Lead', lastName: parts.slice(1).join(' ') };
+}
+
+/**
+ * Extract only identity evidence from inbound text. Native WhatsApp profile
+ * names are supplied separately by the caller and must remain a fallback.
+ */
+export function declaredNameFromInboundTranscript(value: string, predictedBotQuestion = ''): string {
+  const transcript = /(?:name|nombre)/i.test(predictedBotQuestion)
+    ? `__NAME_PROMPT__\n${value}`
+    : value;
+  return [
+    extractDeclaredRealNameFromText(transcript),
+    extractRealNameFromText(transcript, { onlyAfterNameQuestion: true }),
+  ].map(normalizeRealName).find(Boolean) ?? '';
 }
 
 export function withinDispatchWindow(timezone: string, now: Date): boolean {

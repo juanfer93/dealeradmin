@@ -444,6 +444,41 @@ test('acepta la conversación completa de WhatsApp con teléfono ya registrado',
   }
 });
 
+test('prioriza el nombre declarado sobre el nombre nativo de WhatsApp', async ({ request }) => {
+  const suffix = `ghl-e2e-whatsapp-declared-name-${Date.now()}`;
+  const messages = [
+    { body: 'Estoy buscando una Honda Civic', contactName: 'Alejandro' },
+    { body: 'Hola, mi nombre es Edwin', contactName: 'Alejandro' },
+  ];
+
+  for (const [index, message] of messages.entries()) {
+    const eventId = `${suffix}-${index + 1}`;
+    const response = await request.post('http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/stafford', {
+      data: JSON.stringify({
+        message_body: message.body,
+        contact_phone: '+13015550123',
+        contact_name: message.contactName,
+        channel: 'whatsapp',
+        event_id: eventId,
+      }),
+      headers: {
+        'content-type': 'application/json',
+        'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
+        'X-DealerADMIN-Contact-ID': `${suffix}-contact`,
+        'X-DealerADMIN-Conversation-ID': `${suffix}-conversation`,
+        'X-DealerADMIN-Message-ID': `${eventId}-message`,
+      },
+    });
+
+    expect(response.status(), `declared-name message ${index + 1}`).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      accepted: true,
+      source: 'stafford',
+      status: 'processed',
+    });
+  }
+});
+
 test('cubre down regular y promoción Offlease en rutas positivas y negativas', async ({ request }) => {
   const suffix = `ghl-e2e-down-${Date.now()}`;
   const question = 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?';

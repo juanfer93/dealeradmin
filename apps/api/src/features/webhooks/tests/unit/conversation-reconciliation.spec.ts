@@ -724,6 +724,58 @@ Full name: Jose Eduardo Martins Cabral
     );
   });
 
+  it('lets a declared WhatsApp name replace the native fallback name', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('SELECT c.id, c.channel')) return [{
+        id: 'conversation-whatsapp-declared-name',
+        channel: 'whatsapp',
+        ghl_location_id: GHL_SOURCE_CONFIG.stafford.locationId,
+        ghl_contact_id: 'whatsapp-declared-name-contact',
+        ghl_conversation_id: 'whatsapp-declared-name-conversation',
+        status: 'partial',
+        qualification_snapshot: {
+          real_name: 'Alejandro',
+          phone: '+13015550123',
+          vehicle_type: 'Honda Civic',
+          qualification_complete: false,
+          language: 'es',
+        },
+        location_snapshot: { city: null, state: null, zip_code: null, easterns_zone: null },
+        ready_at: null,
+        next_attempt_at: null,
+        last_message_at: '2026-11-07T13:41:19.885Z',
+        lead_id: 'lead-whatsapp-declared-name',
+        canonical_phone: '+13015550123',
+        first_name: 'Alejandro',
+        last_name: '',
+      }];
+      if (sql.includes('SELECT cm.body')) return [
+        { body: 'Estoy buscando una Honda Civic', direction: 'inbound', occurred_at: '2026-11-07T13:40:00.000Z', raw_payload: { customData: { channel: 'whatsapp', contact_name: 'Alejandro' } } },
+        { body: 'Hola buen día, mi nombre es Edwin', direction: 'inbound', occurred_at: '2026-11-07T13:41:19.885Z', raw_payload: { customData: { channel: 'whatsapp', contact_name: 'Alejandro' } } },
+      ];
+      return [];
+    });
+    const runner = { connect: vi.fn(), startTransaction: vi.fn(), commitTransaction: vi.fn(), rollbackTransaction: vi.fn(), release: vi.fn(), isTransactionActive: true, query };
+    const qualification = {
+      resolveLocation: vi.fn().mockResolvedValue({ city: null, state: null, zip_code: null, easterns_zone: null }),
+      findSourceDealer: vi.fn().mockResolvedValue({ id: 'dealer-stafford', timezone: 'America/New_York', routing_config: {} }),
+      statusForConversation: vi.fn().mockReturnValue({ status: 'waiting_window', nextAttemptAt: '2026-11-07T13:46:19.885Z' }),
+      syncLeadDealer: vi.fn(),
+    };
+    const reconciliation = new ConversationReconciliationFunctions(
+      { createQueryRunner: () => runner } as never,
+      qualification as never,
+      { createQueuedPauseEvent: vi.fn(), dispatchQueuedPauseEvent: vi.fn() } as never,
+    );
+
+    await reconciliation.reconcileConversation('conversation-whatsapp-declared-name', new Date('2026-11-07T13:42:00.000Z'), true);
+
+    const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ real_name: 'Edwin' });
+    const leadUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE leads SET first_name')) as [string, unknown[]] | undefined;
+    expect(leadUpdate?.[1]).toEqual(['lead-whatsapp-declared-name', 'Edwin', '']);
+  });
+
   it('keeps the terminal waiting-window cycle count when ready is promoted to queued', async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('SELECT c.id, c.channel')) {

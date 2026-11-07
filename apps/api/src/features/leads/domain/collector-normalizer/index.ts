@@ -19,7 +19,7 @@ export { hasMinimumRoutingQualification, isQualificationComplete } from './recon
 export type { CollectorInput, CollectorLanguage, CollectorOutput, QualificationProgress, QualificationStep } from './types';
 export { ADVISOR_HANDOFF_VEHICLE } from './constants';
 export { RECENT_PHONE_EVIDENCE_DAYS } from './constants';
-export { extractRecentMessagePhone, isValidRealName, normalizeRealName, realNameFromQualificationMemory, profileDisplayNameFromInput } from './contact-normalizer';
+export { extractDeclaredRealNameFromText, extractRealNameFromText, extractRecentMessagePhone, isValidRealName, normalizeRealName, realNameFromQualificationMemory, profileDisplayNameFromInput } from './contact-normalizer';
 export { detectLeadLanguage } from './language-normalizer';
 export { isAdvisorHandoffVehicle } from './flow-policy';
 export { isStaffordWhatsAppVehicleLabel } from './vehicle-extractor';

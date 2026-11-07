@@ -10,6 +10,7 @@ import {
   addProcessedImageEvidence,
   clean,
   currentLocalNow,
+  declaredNameFromInboundTranscript,
   extractNativeWhatsappPhone,
   hash,
   isAttachmentEvidenceMessage,
@@ -118,23 +119,45 @@ export class ConversationEventFunctions {
         [conversation.id, dedupeKey],
       ) as Array<{ id: string }>)[0]?.id;
       await this.persistAttachments(runner, conversation.id, conversationMessageId, event, source, messageId);
-      // A sent dealer relation is an identity lock. Keep the inbound message
-      // for a future explicit repair, but never let a normal customer reply
-      // re-open the lead or overwrite its normalized name/qualification.
-      // Manual targeted Guard repairs opt into the bypass separately.
+      // A sent dealer relation locks routing and qualification. Keep the
+      // inbound message from re-opening the lead, but still accept an
+      // explicitly declared customer name because identity has a higher
+      // priority than the native WhatsApp fallback.
       if (await this.qualification.isLeadSent(runner, lead.id)) {
-        await runner.query(
-          `UPDATE conversations
-           SET last_message_at = GREATEST(COALESCE(last_message_at, $2::timestamptz), $2::timestamptz),
-               updated_at = CURRENT_TIMESTAMP
-           WHERE id = $1`,
-          [conversation.id, event.occurred_at],
-        );
+        const previousSnapshot = conversation.qualification_snapshot ?? {};
+        const predictedBotQuestion = clean((previousSnapshot.qualification_progress as { predicted_bot_question?: unknown } | undefined)?.predicted_bot_question);
+        const declaredName = isStaffordWhatsApp(source, event.channel)
+          ? declaredNameFromInboundTranscript(clean(event.message_body), predictedBotQuestion)
+          : '';
+        if (declaredName) {
+          const snapshot = { ...previousSnapshot, real_name: declaredName };
+          const { firstName, lastName } = splitName(declaredName);
+          await runner.query(
+            `UPDATE conversations
+             SET qualification_snapshot = $2::jsonb,
+                 last_message_at = GREATEST(COALESCE(last_message_at, $3::timestamptz), $3::timestamptz),
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $1`,
+            [conversation.id, JSON.stringify(snapshot), event.occurred_at],
+          );
+          await runner.query(
+            `UPDATE leads SET first_name = $2, last_name = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+            [lead.id, firstName, lastName],
+          );
+        } else {
+          await runner.query(
+            `UPDATE conversations
+             SET last_message_at = GREATEST(COALESCE(last_message_at, $2::timestamptz), $2::timestamptz),
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $1`,
+            [conversation.id, event.occurred_at],
+          );
+        }
         await runner.query(
           `UPDATE webhook_events
-           SET status = 'processed', processed_at = CURRENT_TIMESTAMP, error_code = 'SENT_LOCKED'
+           SET status = 'processed', processed_at = CURRENT_TIMESTAMP, error_code = $2
            WHERE event_id = $1`,
-          [event.event_id],
+          [event.event_id, declaredName ? 'SENT_LOCKED_IDENTITY_UPDATED' : 'SENT_LOCKED'],
         );
         await runner.commitTransaction();
         return { accepted: true, eventId: event.event_id, conversationId: conversation.id, source, status: 'sent_locked' };
@@ -225,8 +248,12 @@ export class ConversationEventFunctions {
       const authoritativePreviousRealName = nativeWhatsapp && previousRealName && !isStaffordWhatsAppVehicleLabel(previousRealName, source, event.channel)
         ? previousRealName
         : '';
+      const transcriptDeclaredRealName = nativeWhatsapp
+        ? declaredNameFromInboundTranscript(transcript, clean((previousSnapshot.qualification_progress as { predicted_bot_question?: unknown } | undefined)?.predicted_bot_question))
+        : '';
       const realName = nativeWhatsapp
-        ? authoritativePreviousRealName
+        ? transcriptDeclaredRealName
+          || authoritativePreviousRealName
           || clean(normalized.real_name)
           || contactRealName
           || ''
