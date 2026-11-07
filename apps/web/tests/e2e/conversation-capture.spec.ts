@@ -479,6 +479,42 @@ test('prioriza el nombre declarado sobre el nombre nativo de WhatsApp', async ({
   }
 });
 
+test('prioriza Livan sobre una respuesta de disponibilidad en WhatsApp', async ({ request }) => {
+  const suffix = `ghl-e2e-livan-real-name-${Date.now()}`;
+  const messages = [
+    '¿Cuál es tu nombre?',
+    'mi nombre es Livan y me podría hacer el favor de ayudarme a calificar para un financiamiento, ando buscando una camioneta Mitsubishi outlander sport 2019 me podría ayudar',
+    'ahorita estoy trabajando',
+  ];
+
+  for (const [index, message] of messages.entries()) {
+    const eventId = `${suffix}-${index + 1}`;
+    const response = await request.post('http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/stafford', {
+      data: JSON.stringify({
+        message_body: message,
+        contact_phone: '+17579434663',
+        contact_name: 'libansandoval313',
+        channel: 'whatsapp',
+        event_id: eventId,
+      }),
+      headers: {
+        'content-type': 'application/json',
+        'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
+        'X-DealerADMIN-Contact-ID': `${suffix}-contact`,
+        'X-DealerADMIN-Conversation-ID': `${suffix}-conversation`,
+        'X-DealerADMIN-Message-ID': `${eventId}-message`,
+      },
+    });
+
+    expect(response.status(), `Livan message ${index + 1}`).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      accepted: true,
+      source: 'stafford',
+      status: 'processed',
+    });
+  }
+});
+
 test('cubre down regular y promoción Offlease en rutas positivas y negativas', async ({ request }) => {
   const suffix = `ghl-e2e-down-${Date.now()}`;
   const question = 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?';

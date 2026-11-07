@@ -90,6 +90,7 @@ invalidRealNames.add('excelente señorita');
 invalidRealNames.add('dnd enabled by customer');
 invalidRealNames.add('mes');
 invalidRealNames.add('estoy');
+invalidRealNames.add('ahorita estoy trabajando');
 invalidRealNames.add('estoy trabajando luego chat');
 invalidRealNames.add('trabajando luego chat');
 invalidRealNames.add('usada');
@@ -297,6 +298,7 @@ const isBaltimoreVariant = (value) => {
     .some((token) => editDistanceAtMost(token, 'baltimore', 3));
 };
 const nameDeclaration = /(?:me llamo|mi nombre es|soy|yo soy|my name is|my name['’]s|i am|i['’]m|this is|call me(?!\s+at\b)|ll[aá]mame)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i;
+const declaredNameContinuation = /\s+(?:y|and|pero)\s+(?=(?:me|yo|estoy|ando|busco|buscando|quiero|necesito|tengo|puedo|podr[ií]a|looking|i|my|the|a|un|una)\b)/i;
 const nameQuestion = /(?:__NAME_PROMPT__|what(?:'s| is)?\s+(?:your|the)\s+name|full\s+name|what\s+should\s+i\s+call|how\s+do\s+you\s+(?:call|go by)|c[oó]mo\s+te\s+llamas|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i;
 const realNameToken = "[\\p{L}\\p{M}]+(?:[-'][\\p{L}\\p{M}]+)*";
 const realNamePattern = new RegExp(`^${realNameToken}(?:\\s+${realNameToken})*$`, 'u');
@@ -308,6 +310,10 @@ const nameSuffixPunctuation = /\b(jr|sr|ii|iii|iv|v)\.(?=\s|,|$)/gi;
 const normalizeNameSuffixPunctuation = (value) => clean(value).replace(nameSuffixPunctuation, '$1').replace(/,\s*$/, '').trim();
 const conversationalNamePrefix = /^(?:(?:hola|hello|hi|hey)[,!\s]+(?:(?:(?:le|les|te)\s+saluda(?:n)?|saludos?\s+de)[,!\s]+)?|(?:habla|abla)\s+)/i;
 const stripConversationalNamePrefix = (value) => clean(value).replace(conversationalNamePrefix, '').trim();
+const declaredNameCandidate = (value) => {
+  const match = clean(value).match(nameDeclaration);
+  return match ? match[1].split(declaredNameContinuation)[0].trim() : '';
+};
 for (const technicalName of ['location', 'in pa', 'in messenger', 'for sure', 'tienes tacomas', 'sorry', 'hola le saluda', 'le saluda', 'les saluda', 'mañana', 'manana', 'mkt', 'solo whatsapp', 'solo whasap', 'información', 'informacion', 'más información', 'mas informacion', 'más info', 'mas info', 'more information', 'more info', 'details', 'detalles']) invalidRealNames.add(technicalName);
 const isValidRealName = (value) => {
   const candidate = normalizeNameSuffixPunctuation(value);
@@ -350,7 +356,7 @@ const nameFromText = (value) => {
   let nameAfterQuestion = '';
   let nameQuestionWindow = 0;
   for (const segment of segments) {
-    const named = normalizeRealName(segment.match(nameDeclaration)?.[1]);
+    const named = normalizeRealName(declaredNameCandidate(segment));
     if (named) return named;
     if (nameQuestion.test(segment)) {
       // GHL may repeat inbound messages before the buyer answers. Keep a
@@ -388,7 +394,7 @@ const declaredNameFromText = (value) => {
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter((line) => line && !nonConversationalMetadataLine.test(line));
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
-    const explicit = normalizeRealName(line.match(nameDeclaration)?.[1]);
+    const explicit = normalizeRealName(declaredNameCandidate(line));
     if (explicit) return explicit;
     if (!nameQuestion.test(line)) continue;
     for (let offset = 1; offset <= 8 && index + offset < lines.length; offset += 1) {
@@ -424,6 +430,12 @@ const contactName = isMessengerChannel(channel)
   : (isProfileDisplayName(rawContactName) ? '' : normalizeRealName(rawContactName));
 const whatsappProfileName = clean(profile.name);
 const whatsappContactFallback = /^lead$/i.test(rawContactName) ? '' : (whatsappProfileName || rawContactName);
+const nativeWhatsappName = (() => {
+  const rawCandidate = clean(whatsappContactFallback).normalize('NFC').replace(/\s+/g, ' ').trim();
+  const candidate = normalizeNameSuffixPunctuation(stripConversationalNamePrefix(rawCandidate));
+  if (!candidate || /^lead$/i.test(candidate) || /^\(lead\s+(?:sin\s+nombre|without\s+name)\)$/i.test(candidate) || !/\p{L}/u.test(candidate) || /[\p{So}\p{Sk}\p{Cf}\uFE0F]/u.test(rawCandidate) || !/^[\p{L}\p{M}\d]+(?:[-'][\p{L}\p{M}\d]+)*(?:\s+[\p{L}\p{M}\d]+(?:[-'][\p{L}\p{M}\d]+)*)*$/u.test(candidate) || invalidRealNames.has(candidate.toLowerCase()) || phoneLikeText(candidate) || locationResponse.test(candidate) || englishLocationResponse.test(candidate) || singleWordNameBlocklist.test(candidate) || qualificationResponseMarkers.test(candidate) || genericVehicleIntent.test(candidate) || profileDisplayLabelMarkers.test(candidate) || isVehicleStatement(candidate) || candidate.split(/\s+/).length > 5) return '';
+  return realNamePattern.test(candidate) ? formatPersonalName(candidate) : candidate;
+})();
 // Messenger/Instagram contact labels are display metadata, not proof of a
 // buyer's real name. Only an explicit name answer may populate qualification;
 // an already persisted explicit name can be retained during replay.
@@ -438,7 +450,7 @@ const whatsappNames = [
   declaredNameFromText(rawHistory),
   nameFromText(rawMessage),
   nameFromText(rawHistory),
-  staffordWhatsApp && /^(?:un|una|a|an|my|mi|the|como|quiero|busco|buscando|tengo|tienes|hay|have|do you have|looking for)\b/i.test(whatsappContactFallback) && (vehicleBrands.test(whatsappContactFallback) || vehicleModels.test(whatsappContactFallback) || vehicleCategories.test(whatsappContactFallback)) ? '' : normalizeRealName(whatsappContactFallback),
+  staffordWhatsApp && /^(?:un|una|a|an|my|mi|the|como|quiero|busco|buscando|tengo|tienes|hay|have|do you have|looking for)\b/i.test(whatsappContactFallback) && (vehicleBrands.test(whatsappContactFallback) || vehicleModels.test(whatsappContactFallback) || vehicleCategories.test(whatsappContactFallback)) ? '' : nativeWhatsappName,
   memoryValue(['real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name', 'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre']),
   contactName,
 ];
@@ -451,6 +463,7 @@ const normalizeWhatsAppCandidate = (value) => {
   const startsWithVehicleArticle = /^(?:un|una|a|an|my|mi|the|como|quiero|busco|buscando|tengo|tienes|hay|have|do you have|looking for)\b/i.test(candidate);
   const containsVehicleToken = vehicleBrands.test(candidate) || vehicleModels.test(candidate) || vehicleCategories.test(candidate);
   if (staffordWhatsApp && candidate && startsWithVehicleArticle && containsVehicleToken) return '';
+  if (candidate && candidate === nativeWhatsappName) return nativeWhatsappName;
   return normalizeRealName(candidate);
 };
 const realName = isMessengerChannel(channel)

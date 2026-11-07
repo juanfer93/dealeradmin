@@ -3302,6 +3302,30 @@ Full name: Jose Eduardo Martins Cabral
     expect(normalizeCollectorInput({ channel: 'whatsapp', message: 'Quiero ver si puedo con 1000' }).down_payment).toBe('1000');
   });
 
+  it('prefers the declared WhatsApp name over an availability reply and falls back to the native profile name', () => {
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      real_name: 'Ahorita Estoy Trabajando',
+      contact_name: 'libansandoval313',
+      profile: { name: 'libansandoval313' },
+      phone: '+17579434663',
+      message: 'muchas gracias',
+      chat_history_log: [
+        'hola buenas tardes',
+        '¿Cuál es tu nombre?',
+        'mi nombre es Livan y me podría hacer el favor de ayudarme a calificar para un financiamiento, ando buscando una camioneta Mitsubishi outlander sport 2019 me podría ayudar',
+        'este es mi número 757 943 4663',
+        'ahorita estoy trabajando',
+        'muchas gracias',
+      ].join('\\n'),
+    });
+
+    expect(normalizeRealName('Ahorita Estoy Trabajando')).toBe('');
+    expect(result.real_name).toBe('Livan');
+    expect(normalizeCollectorInput({ source: 'stafford', channel: 'whatsapp', contact_name: 'libansandoval313', message: 'ahorita estoy trabajando' }).real_name).toBe('libansandoval313');
+  });
+
   it.each([
     ['elias alvarado', 'Elias Alvarado'],
     ['JUAN de la cruz', 'Juan de la Cruz'],

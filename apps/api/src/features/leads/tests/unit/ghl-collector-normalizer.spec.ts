@@ -2246,6 +2246,18 @@ describe('HighLevel collector custom-code normalizer', () => {
     }).real_name).toBe('Manuel');
   });
 
+  it('extracts a declared name from a sentence before the qualification answer', () => {
+    expect(execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      real_name: 'Ahorita Estoy Trabajando',
+      contact_name: 'libansandoval313',
+      profile: { name: 'libansandoval313' },
+      message: 'muchas gracias',
+      chat_history_log: '¿Cuál es tu nombre?\nmi nombre es Livan y me podría ayudar a calificar para un financiamiento\nahorita estoy trabajando',
+    }).real_name).toBe('Livan');
+  });
+
   it.each([
     'Can I See Inventory',
     'Buenos Días Bendiciones',

@@ -88,16 +88,24 @@ const INVENTORY_INTENT = /\b(?:inventory|inventario|see\s+(?:the\s+)?inventory|c
 const GREETING_ONLY = /^(?:(?:hola|ola)[,.!?\s]+)?(?:buen\s+d[ií]a|buenos\s+d[ií]as|buenas\s+tardes|buenas\s+noches|saludos|hello|hi|hey|hola|ola|greetings)(?:[,.!?\s]+bendiciones)?[,.!?\s]*$/i;
 const SINGLE_WORD_NAME_BLOCKLIST = /^(?:ok(?:ay|ey)?|si|s[ií]|sim|yes|no|yeah|yep|correct|cash|today|hoy|now|ahora|asap|inmediato|exacto|exactamente|stop|need|vehicle|car|auto|carro|coche|veh[ií]culo|requirements?|requisitos?|information|informaci[oó]n|details?|detalles?|location|baltimore|baltimor|baltmore|baltimroe|balitmore|baltimre|baltimorre|baltimoro|balitmor|baltimo|bomltimo|maryland|virginia|laurel|rosedale|sterling|elkton|manda|nada|bale|vale|ubicaci[oó]n|ubicasion|tacoma|toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion|mustang|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|maverick|ranger|bronco|explorer|expedition|escape|edge|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|range rover|defender|rlx|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|financiar|finance|financing|down|payment|enganche|documents?|documentos?|identificaci[oó]n|income|ingresos|proof|prueba|phone|tel[eé]fono|number|n[uú]mero)$/i;
 const NAME_DECLARATION = /(?:me llamo|mi nombre es|soy|yo soy|my name is|my name['’]s|i am|i['’]m|this is|call me(?!\s+at\b)|ll[aá]mame)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i;
+const DECLARED_NAME_CONTINUATION = /\s+(?:y|and|pero)\s+(?=(?:me|yo|estoy|ando|busco|buscando|quiero|necesito|tengo|puedo|podr[ií]a|looking|i|my|the|a|un|una)\b)/i;
 const NAME_QUESTION = /(?:__NAME_PROMPT__|what(?:'s| is)?\s+(?:your|the)\s+name|full\s+name|what\s+should\s+i\s+call|how\s+do\s+you\s+(?:call|go by)|c[oó]mo\s+te\s+llamas|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i;
 export const PHONE_LIKE_TEXT = /\b(?:mi|my)\s+(?:n[uú]mero|number|phone|tel[eé]fono|telephone|contact)\b/i;
 const REAL_NAME_TOKEN = "[\\p{L}\\p{M}]+(?:[-'][\\p{L}\\p{M}]+)*";
 const REAL_NAME_PATTERN = new RegExp(`^${REAL_NAME_TOKEN}(?:\\s+${REAL_NAME_TOKEN})*$`, 'u');
+const NATIVE_WHATSAPP_NAME_PATTERN = /^[\p{L}\p{M}\d]+(?:[-'][\p{L}\p{M}\d]+)*(?:\s+[\p{L}\p{M}\d]+(?:[-'][\p{L}\p{M}\d]+)*)*$/u;
 const NAME_SUFFIX_PUNCTUATION = /\b(jr|sr|ii|iii|iv|v)\.(?=\s|,|$)/gi;
 const CONVERSATIONAL_NAME_PREFIX = /^(?:(?:hola|hello|hi|hey)[,!\s]+(?:(?:(?:le|les|te)\s+saluda(?:n)?|saludos?\s+de)[,!\s]+)?|(?:habla|abla)\s+)/i;
 const TECHNICAL_NAME_LABEL = /^(?:precio|price)\s+(?:de|of)\b/i;
 const LOCATION_RESPONSE = /^(?:estoy|vivo)\s+en\b/i;
 const ENGLISH_LOCATION_RESPONSE = /^(?:i(?:'m| am)\s+)?(?:in|from|near|around|located\s+in)\s+(?:maryland|md|virginia|va|pennsylvania|pa|delaware|de|new\s+york|ny|new\s+jersey|nj|district\s+of\s+columbia|washington\s+dc|dc)$/i;
 const NAME_PARTICLES = new Set(['da', 'de', 'del', 'der', 'di', 'la', 'las', 'los', 'van', 'von', 'y']);
+
+function declaredNameCandidate(value: string): string {
+  const match = clean(value).match(NAME_DECLARATION);
+  if (!match) return EMPTY;
+  return match[1].split(DECLARED_NAME_CONTINUATION)[0].trim();
+}
 
 function formatPersonalName(value: string): string {
   if (isLikelyBusinessName(value) || !REAL_NAME_PATTERN.test(value)) return value;
@@ -139,7 +147,7 @@ export function normalizeRealName(value: string | null | undefined): string {
   // only those decorations before validation so a valid name such as
   // `Andrea⚘️` is retained instead of being persisted as an empty value.
   const decoratedCandidate = clean(value).normalize('NFC').replace(/[\p{So}\p{Sk}\p{Cf}\uFE0F]/gu, '').replace(/\s+/g, ' ').trim();
-  const declaredCandidate = decoratedCandidate.match(NAME_DECLARATION)?.[1] || decoratedCandidate;
+  const declaredCandidate = declaredNameCandidate(decoratedCandidate) || decoratedCandidate;
   const candidate = normalizeNameSuffixPunctuation(stripConversationalNamePrefix(declaredCandidate));
   if (!candidate || isInvalidRealName(candidate)) return EMPTY;
   if (PHONE_LIKE_TEXT.test(candidate) || candidate.replace(/\D/g, '').length >= 7) return EMPTY;
@@ -181,8 +189,7 @@ export function extractRealNameFromText(value: string, options: { onlyAfterNameQ
   let nameAfterQuestion = EMPTY;
   let nameQuestionWindow = 0;
   for (const [index, segment] of segments.entries()) {
-    const explicit = segment.match(NAME_DECLARATION);
-    const named = normalizeRealName(explicit?.[1]);
+    const named = normalizeRealName(declaredNameCandidate(segment));
     if (named) return named;
     if (NAME_QUESTION.test(segment)) {
       // The answer can arrive after several inbound messages (or after the
@@ -222,7 +229,7 @@ export function extractDeclaredRealNameFromText(value: string): string {
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter((line) => line && !NON_CONVERSATIONAL_METADATA_LINE.test(line));
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
-    const explicit = normalizeRealName(line.match(NAME_DECLARATION)?.[1]);
+    const explicit = normalizeRealName(declaredNameCandidate(line));
     if (explicit) return explicit;
     if (!NAME_QUESTION.test(line)) continue;
     for (let offset = 1; offset <= 8 && index + offset < lines.length; offset += 1) {
@@ -239,6 +246,28 @@ export function profileNameFromInput(input: CollectorInput, allowDecoratedProfil
   if (!candidate || /[\p{N}]/u.test(candidate)) return EMPTY;
   const withoutDecoration = candidate.normalize('NFC').replace(/[\p{So}\p{Sk}\p{Cf}\uFE0F]/gu, '').replace(/\s+/g, ' ').trim();
   return isLikelyProfileDisplayName(withoutDecoration) ? EMPTY : normalizeRealName(withoutDecoration);
+}
+
+export function normalizeNativeWhatsappName(value: string | null | undefined): string {
+  const rawCandidate = clean(value).normalize('NFC').replace(/\s+/g, ' ').trim();
+  const candidate = normalizeNameSuffixPunctuation(stripConversationalNamePrefix(rawCandidate));
+  if (!candidate
+    || /^lead$/i.test(candidate)
+    || /^\(lead\s+(?:sin\s+nombre|without\s+name)\)$/i.test(candidate)
+    || !/\p{L}/u.test(candidate)
+    || /[\p{So}\p{Sk}\p{Cf}\uFE0F]/u.test(rawCandidate)
+    || !NATIVE_WHATSAPP_NAME_PATTERN.test(candidate)
+    || isInvalidRealName(candidate)
+    || PHONE_LIKE_TEXT.test(candidate)
+    || LOCATION_RESPONSE.test(candidate)
+    || ENGLISH_LOCATION_RESPONSE.test(candidate)
+    || SINGLE_WORD_NAME_BLOCKLIST.test(candidate)
+    || QUALIFICATION_RESPONSE_MARKERS.test(candidate)
+    || GENERIC_VEHICLE_INTENT.test(candidate)
+    || PROFILE_DISPLAY_LABEL_MARKERS.test(candidate)
+    || isVehicleStatement(candidate)
+    || candidate.split(/\s+/).length > 5) return EMPTY;
+  return REAL_NAME_PATTERN.test(candidate) ? formatPersonalName(candidate) : candidate;
 }
 
 export function realNameFromQualificationMemory(memory: string | null | undefined): string {

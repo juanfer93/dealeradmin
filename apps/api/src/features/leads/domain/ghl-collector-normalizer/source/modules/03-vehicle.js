@@ -4,6 +4,7 @@ invalidRealNames.add('excelente señorita');
 invalidRealNames.add('dnd enabled by customer');
 invalidRealNames.add('mes');
 invalidRealNames.add('estoy');
+invalidRealNames.add('ahorita estoy trabajando');
 invalidRealNames.add('estoy trabajando luego chat');
 invalidRealNames.add('trabajando luego chat');
 invalidRealNames.add('usada');

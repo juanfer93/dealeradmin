@@ -22,7 +22,7 @@ const INVALID_REAL_NAME_VALUES = [
   'mas informacion', 'más info', 'mas info', 'more information', 'more info', 'details',
   'detalles', 'como asi', 'como así', 'cómo asi', 'cómo así', 'how so',
   'what do you mean', 'me lo puede explicar', 'me puede explicar', 'me lo puedes explicar',
-  'me puedes explicar', 'mes', 'estoy', 'estoy trabajando luego chat', 'trabajando luego chat',
+  'me puedes explicar', 'mes', 'estoy', 'ahorita estoy trabajando', 'estoy trabajando luego chat', 'trabajando luego chat',
   'esa era la pregunta', 'una ven talvez', 'una ven tal vez',
   'puedo llamar', 'por donde está el local', 'por donde esta el local',
   'usada', 'usado', 'usadas', 'usados', 'disculpe son un dealer', 'para aprobar', 'precio',
