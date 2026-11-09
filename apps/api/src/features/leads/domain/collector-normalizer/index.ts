@@ -1,6 +1,6 @@
 import { evaluateDownPayment, visibleDownPayment } from '../down-payment';
 import { ADVISOR_HANDOFF_VEHICLE, EMPTY } from './constants';
-import { extractPhone, extractRealNameFromText, extractDeclaredRealNameFromText, isInvalidRealName, isLikelyBusinessName, isLikelyProfileDisplayName, isPhoneAreaCodeAmount, normalizeNativeWhatsappName, normalizeRealName, profileDisplayNameFromInput, profileNameFromInput, realNameFromQualificationMemory, whatsappProfileNameFallback } from './contact-normalizer';
+import { extractPhone, extractRealNameFromText, extractDeclaredRealNameFromText, isLikelyBusinessName, isLikelyProfileDisplayName, isPhoneAreaCodeAmount, normalizeNativeWhatsappName, normalizeRealName, profileDisplayNameFromInput, profileNameFromInput, realNameFromQualificationMemory, whatsappProfileNameFallback } from './contact-normalizer';
 import { detectLeadLanguage } from './language-normalizer';
 import { collectorFlowPolicy, effectiveChannel, extractCustomerLocation, isAdvisorHandoffVehicle, isMessengerChannel, isWhatsAppChannel } from './flow-policy';
 import { clean, conversationalEvidence, firstNonEmpty, lastMeaningfulLine, memoryText, memoryValue } from './text-cleaner';
