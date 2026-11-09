@@ -1,6 +1,5 @@
 import { EMPTY, RECENT_PHONE_EVIDENCE_DAYS } from './constants';
 import { isBaltimoreVariant } from './flow-policy';
-import { isInvalidRealName } from './invalid-real-names';
 import { clean } from './text-cleaner';
 import { firstNonEmpty, memoryValue } from './text-cleaner';
 import { isVehicleStatement } from './vehicle-normalizer';
@@ -120,6 +119,11 @@ function normalizeNameSuffixPunctuation(value: string): string {
   return value.replace(NAME_SUFFIX_PUNCTUATION, '$1').replace(/,\s*$/, '').trim();
 }
 
+export function isInvalidRealName(value: string | null | undefined, catalogValues: readonly string[] = []): boolean {
+  const normalized = clean(value).replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+  return Boolean(normalized && catalogValues.some((candidate) => candidate.trim().replace(/\s+/g, ' ').toLocaleLowerCase() === normalized));
+}
+
 function stripConversationalNamePrefix(value: string): string {
   return value.replace(CONVERSATIONAL_NAME_PREFIX, '').trim();
 }
@@ -142,14 +146,14 @@ export function isLikelyProfileDisplayName(value: string | null | undefined): bo
   return PROFILE_DISPLAY_LABEL_MARKERS.test(clean(value)) || NAME_DECLARATION.test(clean(value)) || !isValidRealName(value);
 }
 
-export function normalizeRealName(value: string | null | undefined): string {
+export function normalizeRealName(value: string | null | undefined, additionalInvalidValues: readonly string[] = []): string {
   // GHL Messenger profile labels can contain decorative emoji/symbols. Strip
   // only those decorations before validation so a valid name such as
   // `Andrea⚘️` is retained instead of being persisted as an empty value.
   const decoratedCandidate = clean(value).normalize('NFC').replace(/[\p{So}\p{Sk}\p{Cf}\uFE0F]/gu, '').replace(/\s+/g, ' ').trim();
   const declaredCandidate = declaredNameCandidate(decoratedCandidate) || decoratedCandidate;
   const candidate = normalizeNameSuffixPunctuation(stripConversationalNamePrefix(declaredCandidate));
-  if (!candidate || isInvalidRealName(candidate)) return EMPTY;
+  if (!candidate || isInvalidRealName(candidate, additionalInvalidValues)) return EMPTY;
   if (PHONE_LIKE_TEXT.test(candidate) || candidate.replace(/\D/g, '').length >= 7) return EMPTY;
   if (!isValidRealName(candidate)) return EMPTY;
   if (TECHNICAL_NAME_LABEL.test(candidate) || LOCATION_RESPONSE.test(candidate) || ENGLISH_LOCATION_RESPONSE.test(candidate)) return EMPTY;
@@ -168,7 +172,7 @@ export function normalizeRealName(value: string | null | undefined): string {
  * `Lead`. Conversational location replies are excluded because they can be
  * present in the same payload when GHL has no native profile name.
  */
-export function profileDisplayNameFromInput(input: CollectorInput): string {
+export function profileDisplayNameFromInput(input: CollectorInput, invalidRealNames: readonly string[] = []): string {
   const candidate = firstNonEmpty(input.contact_name, input.contactName, input.profile?.name, input.name);
   if (!candidate
     || /^lead$/i.test(candidate)
@@ -176,21 +180,19 @@ export function profileDisplayNameFromInput(input: CollectorInput): string {
     || ENGLISH_LOCATION_RESPONSE.test(candidate)
     || LOCATION_RESPONSE.test(candidate)
     || !/\p{L}/u.test(candidate)) return EMPTY;
-  if (isInvalidRealName(candidate)) return EMPTY;
+  if (isInvalidRealName(candidate, invalidRealNames)) return EMPTY;
   return candidate;
 }
 
 const NON_CONVERSATIONAL_METADATA_LINE = /(?:\b(?:headline|source\s+url|attribution|ad\s*(?:id|name)|opportunity\s+(?:created|updated|changed)|employee\s+action\s+log\s+(?:created|updated|changed))\b|https?:\/\/|fb\.me\/|\.post\b)/i;
 
-export function extractRealNameFromText(value: string, options: { onlyAfterNameQuestion?: boolean } = {}): string {
+export function extractRealNameFromText(value: string, options: { onlyAfterNameQuestion?: boolean; invalidRealNames?: readonly string[] } = {}): string {
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter((line) => line && !NON_CONVERSATIONAL_METADATA_LINE.test(line));
   const segments = lines.flatMap((line) => line.split(/[.!?;]+/).map(clean).filter(Boolean));
   let firstCandidate = EMPTY;
   let nameAfterQuestion = EMPTY;
   let nameQuestionWindow = 0;
   for (const [index, segment] of segments.entries()) {
-    const named = normalizeRealName(declaredNameCandidate(segment));
-    if (named) return named;
     if (NAME_QUESTION.test(segment)) {
       // The answer can arrive after several inbound messages (or after the
       // same message is repeated by GHL). Keep a bounded window so a later
@@ -198,8 +200,22 @@ export function extractRealNameFromText(value: string, options: { onlyAfterNameQ
       nameQuestionWindow = 8;
       continue;
     }
+    const isAfterNameQuestion = nameQuestionWindow > 0;
     if (nameQuestionWindow > 0) nameQuestionWindow -= 1;
+    const declared = normalizeRealName(declaredNameCandidate(segment), options.invalidRealNames);
+    if (declared && (!options.onlyAfterNameQuestion || isAfterNameQuestion)) return declared;
+    if (options.onlyAfterNameQuestion && !isAfterNameQuestion) continue;
     const candidate = segment.replace(/[.!?,;:]+$/g, '');
+    if (options.onlyAfterNameQuestion) {
+      const intentStart = candidate.search(/\b(?:busco|buscando|quiero|necesito|ando|estoy|tengo|looking|interested|need|want|can|could|send|please|i\s+am|i'm)\b/i);
+      if (intentStart > 0) {
+        const prefix = candidate.slice(0, intentStart).replace(/\b(?:y|and)\s*$/i, '').trim();
+        const namePrefix = prefix.split(/\s+/).length >= 2
+          ? normalizeRealName(prefix, options.invalidRealNames)
+          : EMPTY;
+        if (namePrefix) return namePrefix;
+      }
+    }
     const isTitleCasedToken = candidate[0] === candidate[0].toLocaleUpperCase() || candidate === candidate.toLocaleUpperCase();
     const isOneWordName = /^[a-záéíóúüñ][a-záéíóúüñ'-]{1,39}$/i.test(candidate) && isTitleCasedToken && !SINGLE_WORD_NAME_BLOCKLIST.test(candidate);
     const isFullName = /^[a-záéíóúüñ][a-záéíóúüñ'-]*(?:\s+[a-záéíóúüñ][a-záéíóúüñ'-]*){1,3}$/i.test(candidate);
@@ -208,7 +224,7 @@ export function extractRealNameFromText(value: string, options: { onlyAfterNameQ
     const nextSegment = segments[index + 1] ?? EMPTY;
     if (isOneWordName && (/(?:^|\s)(?:no|not|manda|send|give)\s*$/i.test(previousSegment) || /^(?:una?|nada|vale|bale|ubicaci[oó]n)$/i.test(nextSegment))) continue;
     if (GENERIC_VEHICLE_INTENT.test(candidate) || /\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) continue;
-    const name = normalizeRealName(candidate);
+    const name = normalizeRealName(candidate, options.invalidRealNames);
     if (!name) continue;
     if (nameQuestionWindow > 0) {
       nameAfterQuestion = name;
@@ -225,30 +241,30 @@ export function extractRealNameFromText(value: string, options: { onlyAfterNameQ
   return nameAfterQuestion || (options.onlyAfterNameQuestion ? EMPTY : firstCandidate);
 }
 
-export function extractDeclaredRealNameFromText(value: string): string {
+export function extractDeclaredRealNameFromText(value: string, invalidRealNames: readonly string[] = []): string {
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter((line) => line && !NON_CONVERSATIONAL_METADATA_LINE.test(line));
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
-    const explicit = normalizeRealName(declaredNameCandidate(line));
+    const explicit = normalizeRealName(declaredNameCandidate(line), invalidRealNames);
     if (explicit) return explicit;
     if (!NAME_QUESTION.test(line)) continue;
     for (let offset = 1; offset <= 8 && index + offset < lines.length; offset += 1) {
-      const answer = normalizeRealName(lines[index + offset]);
+      const answer = normalizeRealName(lines[index + offset], invalidRealNames);
       if (answer) return answer;
     }
   }
   return EMPTY;
 }
 
-export function profileNameFromInput(input: CollectorInput, allowDecoratedProfileName = false): string {
+export function profileNameFromInput(input: CollectorInput, allowDecoratedProfileName = false, invalidRealNames: readonly string[] = []): string {
   const candidate = firstNonEmpty(input.contact_name, input.contactName, input.profile?.name, input.name);
-  if (!allowDecoratedProfileName) return isLikelyProfileDisplayName(candidate) ? EMPTY : normalizeRealName(candidate);
+  if (!allowDecoratedProfileName) return isLikelyProfileDisplayName(candidate) ? EMPTY : normalizeRealName(candidate, invalidRealNames);
   if (!candidate || /[\p{N}]/u.test(candidate)) return EMPTY;
   const withoutDecoration = candidate.normalize('NFC').replace(/[\p{So}\p{Sk}\p{Cf}\uFE0F]/gu, '').replace(/\s+/g, ' ').trim();
-  return isLikelyProfileDisplayName(withoutDecoration) ? EMPTY : normalizeRealName(withoutDecoration);
+  return isLikelyProfileDisplayName(withoutDecoration) ? EMPTY : normalizeRealName(withoutDecoration, invalidRealNames);
 }
 
-export function normalizeNativeWhatsappName(value: string | null | undefined): string {
+export function normalizeNativeWhatsappName(value: string | null | undefined, invalidRealNames: readonly string[] = []): string {
   const rawCandidate = clean(value).normalize('NFC').replace(/\s+/g, ' ').trim();
   const candidate = normalizeNameSuffixPunctuation(stripConversationalNamePrefix(rawCandidate));
   if (!candidate
@@ -257,7 +273,7 @@ export function normalizeNativeWhatsappName(value: string | null | undefined): s
     || !/\p{L}/u.test(candidate)
     || /[\p{So}\p{Sk}\p{Cf}\uFE0F]/u.test(rawCandidate)
     || !NATIVE_WHATSAPP_NAME_PATTERN.test(candidate)
-    || isInvalidRealName(candidate)
+    || isInvalidRealName(candidate, invalidRealNames)
     || PHONE_LIKE_TEXT.test(candidate)
     || LOCATION_RESPONSE.test(candidate)
     || ENGLISH_LOCATION_RESPONSE.test(candidate)
@@ -270,6 +286,20 @@ export function normalizeNativeWhatsappName(value: string | null | undefined): s
   return REAL_NAME_PATTERN.test(candidate) ? formatPersonalName(candidate) : candidate;
 }
 
-export function realNameFromQualificationMemory(memory: string | null | undefined): string {
-  return normalizeRealName(memoryValue(memory ?? EMPTY, ['real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name', 'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre']));
+/**
+ * WhatsApp profile names are the identity fallback when the transcript does
+ * not contain a reliably declared name. Preserve the platform display value;
+ * it may be a handle (for example, `libansandoval313`) rather than a legal name.
+ */
+export function whatsappProfileNameFallback(value: string | null | undefined, invalidRealNames: readonly string[] = []): string {
+  const candidate = clean(value).normalize('NFC').replace(/\s+/g, ' ').trim();
+  if (!candidate
+    || /^lead$/i.test(candidate)
+    || /^\(lead\s+(?:sin\s+nombre|without\s+name)\)$/i.test(candidate)
+    || isInvalidRealName(candidate, invalidRealNames)) return EMPTY;
+  return candidate;
+}
+
+export function realNameFromQualificationMemory(memory: string | null | undefined, invalidRealNames: readonly string[] = []): string {
+  return normalizeRealName(memoryValue(memory ?? EMPTY, ['real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name', 'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre']), invalidRealNames);
 }

@@ -1,18 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { ADVISOR_HANDOFF_VEHICLE, detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isAdvisorHandoffVehicle, isQualificationComplete, isValidRealName, normalizeCollectorInput, normalizeRealName } from '../../domain/collector-normalizer';
-import { INVALID_REAL_NAMES, isInvalidRealName } from '../../domain/collector-normalizer/invalid-real-names';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { ADVISOR_HANDOFF_VEHICLE, detectLeadLanguage, extractRecentMessagePhone, hasMinimumRoutingQualification, isAdvisorHandoffVehicle, isQualificationComplete, isValidRealName, normalizeCollectorInput as normalizeCollectorInputWithCatalog, normalizeRealName as normalizeRealNameWithCatalog } from '../../domain/collector-normalizer';
+import { isInvalidRealName } from '../../domain/collector-normalizer';
+
+const nameCatalogMigration = readFileSync(resolve(__dirname, '../../../../database/migrations/1710000055000-InvalidRealNames.ts'), 'utf8');
+const databaseInvalidRealNames = [...nameCatalogMigration.matchAll(/\('((?:[^']|'')*)'\)/g)]
+  .map((match) => match[1].replace(/''/g, "'").trim().replace(/\s+/g, ' ').toLocaleLowerCase());
+const normalizeRealName = (value: string | null | undefined) => normalizeRealNameWithCatalog(value, databaseInvalidRealNames);
+const normalizeCollectorInput = (input: Parameters<typeof normalizeCollectorInputWithCatalog>[0]) => normalizeCollectorInputWithCatalog({
+  ...input,
+  invalid_real_names: [...databaseInvalidRealNames, ...(input.invalid_real_names ?? [])],
+});
 
 describe('normalizeCollectorInput', () => {
-  it('keeps invalid real-name values in a centralized, extensible catalog', () => {
-    expect(INVALID_REAL_NAMES.size).toBeGreaterThan(0);
-    expect(isInvalidRealName('  Excelente Señorita ')).toBe(true);
-    expect(isInvalidRealName('Puedo Llamar')).toBe(true);
-    expect(isInvalidRealName('Por Donde Está El Local')).toBe(true);
-    expect(isInvalidRealName('Una Ven Talvez')).toBe(true);
-    expect(isInvalidRealName('Esa Era la Pregunta')).toBe(true);
-    expect(isInvalidRealName('Estoy Entre Ambos')).toBe(true);
-    expect(isInvalidRealName('Samantha ede Easterns Motors')).toBe(true);
-    expect(isInvalidRealName('María López')).toBe(false);
+  it('rejects database-catalogued false names and keeps ordinary names', () => {
+    const databaseCatalog = ['excelente señorita', 'puedo llamar', 'por donde está el local', 'una ven talvez', 'esa era la pregunta', 'estoy entre ambos'];
+    expect(isInvalidRealName('  Excelente Señorita ', databaseCatalog)).toBe(true);
+    expect(isInvalidRealName('Puedo Llamar', databaseCatalog)).toBe(true);
+    expect(isInvalidRealName('Por Donde Está El Local', databaseCatalog)).toBe(true);
+    expect(isInvalidRealName('Una Ven Talvez', databaseCatalog)).toBe(true);
+    expect(isInvalidRealName('Esa Era la Pregunta', databaseCatalog)).toBe(true);
+    expect(isInvalidRealName('Estoy Entre Ambos', databaseCatalog)).toBe(true);
+    expect(isInvalidRealName('Samantha ede Easterns Motors', ['samantha ede easterns motors'])).toBe(true);
+    expect(isInvalidRealName('María López', databaseCatalog)).toBe(false);
     expect(normalizeRealName('Licencia y Tax ID')).toBe('');
     expect(normalizeRealName('Puedo Llamar')).toBe('');
     expect(normalizeRealName('Por Donde Esta El Local')).toBe('');
@@ -151,6 +162,56 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeRealName(value)).toBe('');
   });
 
+  it('uses the configured WhatsApp profile name verbatim when transcript candidates cannot be trusted', () => {
+    expect(normalizeCollectorInput({
+      channel: 'whatsapp',
+      real_name: 'Buscando Honda Civic',
+      contact_name: 'Buscando Honda Civic',
+      profile: { name: 'wpp_handle313' },
+      message: 'Buscando Honda Civic',
+      chat_history_log: '__NAME_PROMPT__\nBuscando Honda Civic',
+      invalid_real_names: ['buscando honda civic'],
+    }).real_name).toBe('wpp_handle313');
+    expect(normalizeCollectorInput({
+      channel: 'whatsapp',
+      real_name: 'Exacto',
+      contact_name: 'Exacto',
+      profile: { name: 'Exacto' },
+      message: 'Exacto',
+      invalid_real_names: ['exacto'],
+    }).real_name).toBe('');
+  });
+
+  it('does not mine a WhatsApp name from chat unless the bot asked for it first', () => {
+    expect(normalizeCollectorInput({
+      channel: 'whatsapp',
+      profile: { name: 'wa_handle_312' },
+      message: 'Me llamo Juan Perez',
+      chat_history_log: 'Me llamo Juan Perez',
+    }).real_name).toBe('wa_handle_312');
+  });
+
+  it('keeps the name before extra buying details after the bot name prompt', () => {
+    expect(normalizeCollectorInput({
+      channel: 'whatsapp',
+      profile: { name: 'wa_handle_312' },
+      message: 'Juan Inzunza busco una Honda Civic',
+      chat_history_log: '__NAME_PROMPT__\nJuan Inzunza busco una Honda Civic',
+    }).real_name).toBe('Juan Inzunza');
+  });
+
+  it('rejects a learned phrase as a WhatsApp name while retaining the profile fallback', () => {
+    expect(normalizeCollectorInput({
+      channel: 'whatsapp',
+      real_name: 'Ahorita Estoy Trabajando',
+      contact_name: 'Ahorita Estoy Trabajando',
+      profile: { name: 'libansandoval313' },
+      message: 'ahorita estoy trabajando',
+      chat_history_log: '__NAME_PROMPT__\nahorita estoy trabajando',
+      invalid_real_names: ['ahorita estoy trabajando'],
+    }).real_name).toBe('libansandoval313');
+  });
+
   it.each([
     ['Exacto', 'Exacto'],
     ['Stop', 'Stop'],
@@ -203,7 +264,7 @@ describe('normalizeCollectorInput', () => {
       real_name: 'Migue',
       vehicle_type: 'Mazda ¡Claro 2018',
       message: 'Miguel',
-      chat_history_log: 'BUSCO UNA SUV\nUna año 2018 a 2020\nLicencia y social\nMiguel',
+      chat_history_log: 'BUSCO UNA SUV\nUna año 2018 a 2020\nLicencia y social\n__NAME_PROMPT__\nMiguel',
       phone: '+14072363806',
     });
 
@@ -476,6 +537,7 @@ describe('normalizeCollectorInput', () => {
   it('keeps Toi/Moisés Stafford WhatsApp qualification memory across the inbound transcript', () => {
     const transcript = [
       'Quiero financiar un auto!',
+      '__NAME_PROMPT__',
       'Moisés',
       'Buenos días. Quería ver los modelos que tiene Andas Yvis SI, si me puedo montar por favor, algunas fotos para lograr verlos.',
       '1500',
@@ -538,6 +600,7 @@ describe('normalizeCollectorInput', () => {
     const transcript = [
       '*Headline:* Financiamiento interno! Source URL: x Quiero financiar un auto!',
       'Si',
+      '__NAME_PROMPT__',
       'Manuel',
       'Camionetq',
       'E financiado en otro lugar',
@@ -635,7 +698,7 @@ describe('normalizeCollectorInput', () => {
       real_name: 'Manda',
       phone: '+12404427364',
       message: 'Mi troca. No. Bale. Nada',
-      chat_history_log: '¡Hola! Quiero más información\nManda. Una. Ubicasion\nBenigno\nNo Agara. Ban. Por. Una. Silverado q. Qro. 2020\nMándame. Foto. De. Las. Troca. Y. En. Cuánto. Sale. Afinaciada\nY. No. Me. Agara. Mi. Ban\nYo. Cuento. Con. Mi. Ban. Y. 2000dolare\nMi troca. No. Bale. Nada',
+      chat_history_log: '¡Hola! Quiero más información\nManda. Una. Ubicasion\n__NAME_PROMPT__\nBenigno\nNo Agara. Ban. Por. Una. Silverado q. Qro. 2020\nMándame. Foto. De. Las. Troca. Y. En. Cuánto. Sale. Afinaciada\nY. No. Me. Agara. Mi. Ban\nYo. Cuento. Con. Mi. Ban. Y. 2000dolare\nMi troca. No. Bale. Nada',
     });
 
     expect(result).toMatchObject({
@@ -651,7 +714,7 @@ describe('normalizeCollectorInput', () => {
       source: 'stafford',
       channel: 'whatsapp',
       message: 'Quiero cambiar mi van y poner 2000 de down',
-      chat_history_log: 'Benigno\nQuiero cambiar mi van y poner 2000 de down',
+      chat_history_log: '__NAME_PROMPT__\nBenigno\nQuiero cambiar mi van y poner 2000 de down',
     })).toMatchObject({
       real_name: 'Benigno',
       vehicle_type: 'van',
@@ -2042,6 +2105,7 @@ describe('normalizeCollectorInput', () => {
       '¡Hola! Quiero más información',
       'Cómo puedo ver los autos',
       'Okey',
+      '__NAME_PROMPT__',
       'Melquin Morales',
       'Un camaro',
       'O un Honda',
@@ -2110,7 +2174,7 @@ describe('normalizeCollectorInput', () => {
   });
 
   it('uses the same native WhatsApp name and phone flow for Country Club Cars', () => {
-    expect(normalizeCollectorInput({ source: 'country', channel: 'whatsapp', phone: '+18045550123', message: 'Carlos' })).toMatchObject({
+    expect(normalizeCollectorInput({ source: 'country', channel: 'whatsapp', phone: '+18045550123', contact_name: 'Carlos', message: 'Carlos' })).toMatchObject({
       real_name: 'Carlos',
       phone: '+18045550123',
       qualification_step: 'vehicle_type',
@@ -2118,7 +2182,7 @@ describe('normalizeCollectorInput', () => {
   });
 
   it('uses the same native WhatsApp name and phone flow for Lucki Mazda', () => {
-    expect(normalizeCollectorInput({ source: 'lucki', channel: 'whatsapp', phone: '+18045550123', message: 'Carlos' })).toMatchObject({
+    expect(normalizeCollectorInput({ source: 'lucki', channel: 'whatsapp', phone: '+18045550123', contact_name: 'Carlos', message: 'Carlos' })).toMatchObject({
       real_name: 'Carlos',
       phone: '+18045550123',
       qualification_step: 'vehicle_type',
@@ -2140,9 +2204,9 @@ describe('normalizeCollectorInput', () => {
         channel: 'whatsapp',
         phone: '+18045550123',
         contact_name: contactName,
-        profile: { name: contactName },
         message: contactName,
         chat_history_log: contactName,
+        invalid_real_names: [contactName.toLowerCase()],
       }).real_name).toBe('');
     }
   });
@@ -2155,7 +2219,7 @@ describe('normalizeCollectorInput', () => {
       contact_name: 'Exacto',
       profile: { name: 'Exacto' },
       message: 'Mi nombre es Carlos Mendoza',
-      chat_history_log: 'Exacto\nMi nombre es Carlos Mendoza',
+      chat_history_log: '__NAME_PROMPT__\nExacto\nMi nombre es Carlos Mendoza',
     }).real_name).toBe('Carlos Mendoza');
   });
 
@@ -2224,7 +2288,7 @@ describe('normalizeCollectorInput', () => {
       contact_name: 'Opportunity Created',
       profile: { name: 'Opportunity Created' },
       message: 'Josue ramirez',
-      chat_history_log: 'Opportunity created\nEspañol\nEn donde estan ubicados\nUna toyota hilander 2019\nJosue ramirez',
+      chat_history_log: 'Opportunity created\nEspañol\nEn donde estan ubicados\nUna toyota hilander 2019\n__NAME_PROMPT__\nJosue ramirez',
     });
 
     expect(result).toMatchObject({
@@ -2249,7 +2313,7 @@ describe('normalizeCollectorInput', () => {
       channel: 'whatsapp',
       contact_name: 'Disponible',
       message: 'Josue ramirez',
-      chat_history_log: 'Español\nJosue ramirez',
+      chat_history_log: 'Español\n¿Cuál es tu nombre?\nJosue ramirez',
     }).real_name).toBe('Josue Ramirez');
     expect(normalizeCollectorInput({ source: 'country-club', channel: 'whatsapp', message: 'Español' }).real_name).toBe('');
   });
@@ -2630,8 +2694,8 @@ Full name: Jose Eduardo Martins Cabral
     const result = normalizeCollectorInput({
       channel: 'whatsapp',
       phone: '+19297563553',
-      message: 'Saludos\nAmin\nBusco carro del 2019 en adelante\nSedan\n500$',
-      chat_history_log: 'Saludos\nAmin\nBusco carro del 2019 en adelante\nSedan\n500$',
+      message: 'Saludos\n__NAME_PROMPT__\nAmin\nBusco carro del 2019 en adelante\nSedan\n500$',
+      chat_history_log: 'Saludos\n__NAME_PROMPT__\nAmin\nBusco carro del 2019 en adelante\nSedan\n500$',
     });
 
     expect(result.real_name).toBe('Amin');
@@ -2644,6 +2708,7 @@ Full name: Jose Eduardo Martins Cabral
   it('does not promote a location question and combines a colloquial truck with its Ford make', () => {
     const transcript = [
       'Donde estan hubicados',
+      '__NAME_PROMPT__',
       'Javier ayala',
       'Tendras una tropical ford',
       'Trokita',
@@ -2828,6 +2893,7 @@ Full name: Jose Eduardo Martins Cabral
       channel: 'whatsapp',
       real_name: 'EliasJosue 🕊Mnegra',
       message: 'Me llamo Elias Alvarado',
+      chat_history_log: '__NAME_PROMPT__\nMe llamo Elias Alvarado',
     }).real_name).toBe('Elias Alvarado');
     expect(normalizeCollectorInput({
       channel: 'whatsapp',
@@ -2859,7 +2925,7 @@ Full name: Jose Eduardo Martins Cabral
       channel: 'whatsapp',
       real_name: 'EliasJosue 🕊Mnegra',
       phone: '+18049701205',
-      chat_history_log: 'I am looking for a Honda Civic\nI can put 2000 down\nI will buy this month\nI have my driver license and bank statements, and I have a bank account\nMy name is Elias Alvarado\nThank you',
+      chat_history_log: 'I am looking for a Honda Civic\nI can put 2000 down\nI will buy this month\nI have my driver license and bank statements, and I have a bank account\n__NAME_PROMPT__\nMy name is Elias Alvarado\nThank you',
     });
 
     expect(result).toMatchObject({
@@ -2876,6 +2942,7 @@ Full name: Jose Eduardo Martins Cabral
     const transcript = [
       '*Headline:* Financiamiento interno! *Source URL:* https://fb.me/cUWAq5MPm Me interrwa lo del.post',
       'Ando buscando algo familiar para 7 pasajeros',
+      '__NAME_PROMPT__',
       'Francisco medina',
       'Puedo conseguir 2000',
       'Tengo 2000',
@@ -2956,7 +3023,7 @@ Full name: Jose Eduardo Martins Cabral
       contact_name: 'Buen Dis',
       phone: '+16862055349',
       message: 'Jessica',
-      chat_history_log: 'Buen día\nJessica',
+      chat_history_log: 'Buen día\n__NAME_PROMPT__\nJessica',
     });
 
     expect(result.real_name).toBe('Jessica');
@@ -2994,7 +3061,7 @@ Full name: Jose Eduardo Martins Cabral
       contact_name: 'Buen Dis',
       phone: '+16862055349',
       message: 'Buen dis\nJessica',
-      chat_history_log: 'Buen dis\nJessica',
+      chat_history_log: 'Buen dis\n__NAME_PROMPT__\nJessica',
     });
 
     expect(result.real_name).toBe('Jessica');
@@ -3021,6 +3088,7 @@ Full name: Jose Eduardo Martins Cabral
       real_name: 'Juan Jose Castillo',
       phone: '+19107093650',
       chat_history_log: [
+        '__NAME_PROMPT__',
         'Juan Jose Castillo',
         'Estoy interesado en un Honda CRV 2014',
         'O un Honda Civic 2012',
@@ -3290,7 +3358,7 @@ Full name: Jose Eduardo Martins Cabral
     ['My name\'s María López', 'María López'],
     ['Llámame Carlos', 'Carlos'],
   ])('recognizes declared names in Spanish and English: %s', (message, expected) => {
-    expect(normalizeCollectorInput({ channel: 'whatsapp', message }).real_name).toBe(expected);
+    expect(normalizeCollectorInput({ channel: 'whatsapp', message, chat_history_log: `__NAME_PROMPT__\n${message}` }).real_name).toBe(expected);
   });
 
   it('rejects a qualification prompt fragment as the real name', () => {
@@ -3358,8 +3426,8 @@ Full name: Jose Eduardo Martins Cabral
     expect(result.vehicle_type).toBe('SUV');
   });
 
-  it('captures a one-word name explicitly sent in a WhatsApp conversation without promoting qualification replies', () => {
-    const transcript = '*Headline:* Financiamiento inmediato\nYahir\nQuiero ver si puedo con 1000\nLo más pronto posible\nQue y qué papeles ocupo para aplicar\nSedan\nSi sin problema\nSi está bien no hay problema\nHoy si gusta\nA las 5 si se puede por favor';
+  it('captures a one-word name explicitly sent after the WhatsApp bot asks without promoting qualification replies', () => {
+    const transcript = '*Headline:* Financiamiento inmediato\n__NAME_PROMPT__\nYahir\nQuiero ver si puedo con 1000\nLo más pronto posible\nQue y qué papeles ocupo para aplicar\nSedan\nSi sin problema\nSi está bien no hay problema\nHoy si gusta\nA las 5 si se puede por favor';
     const result = normalizeCollectorInput({
       channel: 'whatsapp',
       message: 'A las 5 si se puede por favor',
@@ -3369,8 +3437,8 @@ Full name: Jose Eduardo Martins Cabral
     expect(result.real_name).toBe('Yahir');
     expect(normalizeCollectorInput({ channel: 'whatsapp', message: 'Sedan' }).real_name).toBe('');
     expect(normalizeCollectorInput({ channel: 'whatsapp', message: 'Lo más pronto posible' }).real_name).toBe('');
-    expect(normalizeCollectorInput({ channel: 'whatsapp', message: 'me llamo yahir' }).real_name).toBe('Yahir');
-    expect(normalizeCollectorInput({ channel: 'whatsapp', message: 'Mi nombre es Yahir Pérez' }).real_name).toBe('Yahir Pérez');
+    expect(normalizeCollectorInput({ channel: 'whatsapp', message: 'me llamo yahir', chat_history_log: '__NAME_PROMPT__\nme llamo yahir' }).real_name).toBe('Yahir');
+    expect(normalizeCollectorInput({ channel: 'whatsapp', message: 'Mi nombre es Yahir Pérez', chat_history_log: '__NAME_PROMPT__\nMi nombre es Yahir Pérez' }).real_name).toBe('Yahir Pérez');
     expect(normalizeCollectorInput({ channel: 'whatsapp', message: 'Quiero ver si puedo con 1000' }).down_payment).toBe('1000');
   });
 
@@ -3497,7 +3565,7 @@ Full name: Jose Eduardo Martins Cabral
       source: 'whatsapp',
       real_name: 'EliasJosue 🕊Mnegra',
       message: 'A las 5 si se puede',
-      chat_history_log: 'Me llamo Carlos Mendoza\nSUV',
+      chat_history_log: '__NAME_PROMPT__\nMe llamo Carlos Mendoza\nSUV',
     }).real_name).toBe('Carlos Mendoza');
   });
 
@@ -3506,6 +3574,7 @@ Full name: Jose Eduardo Martins Cabral
       '*Headline:* Off Lease Motors Of Stafford *Source URL:* https://fb.me/46LvP8ksN ¡Hola! Quiero más información',
       'Hailander 2014',
       'Precio de hailader',
+      '__NAME_PROMPT__',
       'Andres',
       'Yo no e financiado ante',
       'Ha civic 2014',
@@ -3584,7 +3653,7 @@ Full name: Jose Eduardo Martins Cabral
       contact_name: 'Me Puede Mandar Fotos',
       phone: '+15713169760',
       message: 'Soy Jaime !',
-      chat_history_log: 'Tienes hondas civic 2014/15\nSoy Jaime !',
+      chat_history_log: 'Tienes hondas civic 2014/15\n__NAME_PROMPT__\nSoy Jaime !',
     });
 
     expect(result).toMatchObject({
@@ -3635,7 +3704,7 @@ Full name: Jose Eduardo Martins Cabral
       contact_name: 'Me Puede Mandar Fotos',
       phone: '+14103016969',
       message: 'Ando buscando un Honda civic',
-      chat_history_log: 'Hola cómo está mi nombre es Manuel\nAndo buscando un Honda civic',
+      chat_history_log: '¿Cuál es tu nombre?\nHola cómo está mi nombre es Manuel\nAndo buscando un Honda civic',
       qualification_memory: 'real_name: Me Puede Mandar Fotos; vehicle: Honda Civic',
     });
 

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { isInvalidRealName } from '../../leads/domain/collector-normalizer/invalid-real-names';
+import { isInvalidRealName } from '../../leads/domain/collector-normalizer';
 
 export type GhlContextChannel = 'whatsapp' | 'messenger';
 export type GhlConversationContextRequest = {
@@ -177,6 +177,12 @@ export class GhlConversationContextService {
     ]);
 
     const rows = conversations;
+    const invalidRealNames = input.channel === 'whatsapp'
+      ? (await this.read<Array<{ normalized_value: string }>>(
+        `SELECT normalized_value FROM invalid_real_names WHERE channel IN ('all', 'whatsapp') ORDER BY normalized_value`,
+        [],
+      )).map((row) => row.normalized_value)
+      : [];
 
     const candidates = rows
       .map((row) => ({ row, snapshot: snapshotObject(row.qualification_snapshot) }))
@@ -199,14 +205,17 @@ export class GhlConversationContextService {
     };
     for (const candidate of candidates) {
       const name = clean(candidate.snapshot.real_name);
-      if (name && !isInvalidRealName(name)) {
+      if (name && !isInvalidRealName(name, invalidRealNames)) {
         known.customer_name = name;
         break;
       }
     }
+    if (!known.customer_name && input.channel === 'whatsapp') {
+      known.customer_name = candidates.map((candidate) => clean(candidate.snapshot.profile_name)).find(Boolean) || null;
+    }
     if (!known.customer_name) {
       const leadName = clean(`${lead.first_name ?? ''} ${lead.last_name ?? ''}`);
-      if (leadName && !isInvalidRealName(leadName)) known.customer_name = leadName;
+      if (leadName && !isInvalidRealName(leadName, invalidRealNames)) known.customer_name = leadName;
     }
 
     const fallback = (dealerFacts as Array<{
@@ -220,7 +229,7 @@ export class GhlConversationContextService {
       for (const candidate of candidates) {
         const value = clean(candidate.snapshot[FIELD_TO_SNAPSHOT_KEY[field]]);
         if (!value) continue;
-        if (field === 'customer_name' && isInvalidRealName(value)) continue;
+        if (field === 'customer_name' && isInvalidRealName(value, invalidRealNames)) continue;
         known[field] = value;
         break;
       }

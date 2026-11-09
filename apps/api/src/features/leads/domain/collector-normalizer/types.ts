@@ -9,6 +9,7 @@ export type CollectorInput = {
   contactName?: string | null;
   name?: string | null;
   profile?: { name?: string | null } | null;
+  invalid_real_names?: readonly string[];
   message?: string | null;
   phone?: string | null;
   vehicle_type?: string | null;

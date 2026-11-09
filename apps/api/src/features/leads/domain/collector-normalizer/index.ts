@@ -1,6 +1,6 @@
 import { evaluateDownPayment, visibleDownPayment } from '../down-payment';
 import { ADVISOR_HANDOFF_VEHICLE, EMPTY } from './constants';
-import { extractPhone, extractRealNameFromText, extractDeclaredRealNameFromText, isLikelyBusinessName, isLikelyProfileDisplayName, isPhoneAreaCodeAmount, normalizeNativeWhatsappName, normalizeRealName, profileDisplayNameFromInput, profileNameFromInput, realNameFromQualificationMemory } from './contact-normalizer';
+import { extractPhone, extractRealNameFromText, extractDeclaredRealNameFromText, isInvalidRealName, isLikelyBusinessName, isLikelyProfileDisplayName, isPhoneAreaCodeAmount, normalizeNativeWhatsappName, normalizeRealName, profileDisplayNameFromInput, profileNameFromInput, realNameFromQualificationMemory, whatsappProfileNameFallback } from './contact-normalizer';
 import { detectLeadLanguage } from './language-normalizer';
 import { collectorFlowPolicy, effectiveChannel, extractCustomerLocation, isAdvisorHandoffVehicle, isMessengerChannel, isWhatsAppChannel } from './flow-policy';
 import { clean, conversationalEvidence, firstNonEmpty, lastMeaningfulLine, memoryText, memoryValue } from './text-cleaner';
@@ -20,7 +20,7 @@ export { hasMinimumRoutingQualification, isQualificationComplete } from './recon
 export type { CollectorInput, CollectorLanguage, CollectorOutput, QualificationProgress, QualificationStep } from './types';
 export { ADVISOR_HANDOFF_VEHICLE } from './constants';
 export { RECENT_PHONE_EVIDENCE_DAYS } from './constants';
-export { extractDeclaredRealNameFromText, extractRealNameFromText, extractRecentMessagePhone, isValidRealName, normalizeRealName, realNameFromQualificationMemory, profileDisplayNameFromInput } from './contact-normalizer';
+export { extractDeclaredRealNameFromText, extractRealNameFromText, extractRecentMessagePhone, isInvalidRealName, isValidRealName, normalizeRealName, realNameFromQualificationMemory, profileDisplayNameFromInput, whatsappProfileNameFallback } from './contact-normalizer';
 export { detectLeadLanguage } from './language-normalizer';
 export { isAdvisorHandoffVehicle } from './flow-policy';
 export { isStaffordWhatsAppVehicleLabel } from './vehicle-extractor';
@@ -49,39 +49,37 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     ? extractLeadFormContext([rawHistory, rawMessage].filter(Boolean).join('\n'))
     : null;
 
-  const suppliedName = normalizeRealName(input.real_name);
-  const profileDisplayName = profileDisplayNameFromInput(input);
-  const profileName = profileNameFromInput(input, isMessengerChannel(channel));
+  const invalidRealNames = input.invalid_real_names ?? [];
+  const suppliedName = normalizeRealName(input.real_name, invalidRealNames);
+  const profileDisplayName = profileDisplayNameFromInput(input, invalidRealNames);
+  const profileName = profileNameFromInput(input, isMessengerChannel(channel), invalidRealNames);
   const whatsappProfileName = firstNonEmpty(input.profile?.name);
-  const whatsappContactFallback = !policy.nativeWhatsapp
-    || !isWhatsAppChannel(channel)
+  const whatsappProfileFallback = isWhatsAppChannel(channel) ? whatsappProfileNameFallback(whatsappProfileName, invalidRealNames) : EMPTY;
+  const whatsappContactFallback = !isWhatsAppChannel(channel)
     || /^lead$/i.test(firstNonEmpty(input.contact_name, input.contactName, input.profile?.name, input.name))
     ? EMPTY
     : firstNonEmpty(whatsappProfileName, input.contact_name, input.contactName, input.name);
-  const extractedNames = [realNameFromQualificationMemory(memory), extractRealNameFromText(rawMessage), extractRealNameFromText(rawHistory)];
+  const extractedNames = [realNameFromQualificationMemory(memory, invalidRealNames), extractRealNameFromText(rawMessage, { invalidRealNames }), extractRealNameFromText(rawHistory, { invalidRealNames })];
   const nativeWhatsappName = isStaffordWhatsAppVehicleLabel(whatsappContactFallback, input.source, channel)
     ? EMPTY
-    : normalizeNativeWhatsappName(whatsappContactFallback);
+    : normalizeNativeWhatsappName(whatsappContactFallback, invalidRealNames);
   const whatsappNames = [
-    formContext?.full_name ?? EMPTY,
-    extractDeclaredRealNameFromText(rawMessage),
-    extractDeclaredRealNameFromText(rawHistory),
-    extractRealNameFromText(rawMessage, { onlyAfterNameQuestion: true }),
-    extractRealNameFromText(rawHistory, { onlyAfterNameQuestion: true }),
-    extractRealNameFromText(rawMessage),
-    extractRealNameFromText(rawHistory),
+    extractRealNameFromText(rawMessage, { onlyAfterNameQuestion: true, invalidRealNames }),
+    extractRealNameFromText(rawHistory, { onlyAfterNameQuestion: true, invalidRealNames }),
     nativeWhatsappName,
-    realNameFromQualificationMemory(memory),
+    whatsappProfileFallback,
     profileName,
   ];
-  const messengerDeclaredName = [extractDeclaredRealNameFromText(rawMessage), extractDeclaredRealNameFromText(rawHistory)].map(normalizeRealName).find(Boolean) ?? EMPTY;
+  const messengerDeclaredName = [extractDeclaredRealNameFromText(rawMessage), extractDeclaredRealNameFromText(rawHistory)].map((candidate) => normalizeRealName(candidate)).find(Boolean) ?? EMPTY;
   const realName = isMessengerChannel(channel)
     ? formContext?.full_name || messengerDeclaredName || profileDisplayName || suppliedName
     : isWhatsAppChannel(channel)
-      ? whatsappNames.map((candidate) => candidate === nativeWhatsappName && nativeWhatsappName
+      ? whatsappNames.map((candidate) => candidate === whatsappProfileFallback && whatsappProfileFallback
+        ? whatsappProfileFallback
+        : candidate === nativeWhatsappName && nativeWhatsappName
         ? nativeWhatsappName
-        : isStaffordWhatsAppVehicleLabel(candidate, input.source, channel) ? EMPTY : normalizeRealName(candidate)).find(Boolean) ?? EMPTY
-      : (isLikelyBusinessName(suppliedName) || isLikelyProfileDisplayName(suppliedName) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map(normalizeRealName).find(Boolean) ?? EMPTY;
+        : isStaffordWhatsAppVehicleLabel(candidate, input.source, channel) ? EMPTY : normalizeRealName(candidate, invalidRealNames)).find(Boolean) ?? EMPTY
+      : (isLikelyBusinessName(suppliedName) || isLikelyProfileDisplayName(suppliedName) ? [...extractedNames, suppliedName] : [suppliedName, ...extractedNames]).map((candidate) => normalizeRealName(candidate)).find(Boolean) ?? EMPTY;
 
   const chatPhone = extractPhone(input.chat_history_log) || extractPhone(input.message) || extractPhone(input.phone);
   const phoneFromConversation = extractPhone(input.chat_history_log) || extractPhone(input.message);

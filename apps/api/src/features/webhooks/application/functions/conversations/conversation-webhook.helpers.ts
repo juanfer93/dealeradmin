@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { extractDeclaredRealNameFromText, extractRealNameFromText, normalizeRealName } from '../../../../leads/domain/collector-normalizer';
+import { extractRealNameFromText } from '../../../../leads/domain/collector-normalizer';
 import { normalizePhone } from '../../../../leads/domain/phone-normalizer';
 import type { ConversationMessageRow, SourceKey, SourceConfigMap } from './conversation-webhook.types';
 
@@ -121,14 +121,11 @@ export function splitName(value: string): { firstName: string; lastName: string 
  * Extract only identity evidence from inbound text. Native WhatsApp profile
  * names are supplied separately by the caller and must remain a fallback.
  */
-export function declaredNameFromInboundTranscript(value: string, predictedBotQuestion = ''): string {
+export function declaredNameFromInboundTranscript(value: string, predictedBotQuestion = '', invalidRealNames: readonly string[] = []): string {
   const transcript = /(?:name|nombre)/i.test(predictedBotQuestion)
     ? `__NAME_PROMPT__\n${value}`
     : value;
-  return [
-    extractDeclaredRealNameFromText(transcript),
-    extractRealNameFromText(transcript, { onlyAfterNameQuestion: true }),
-  ].map(normalizeRealName).find(Boolean) ?? '';
+  return extractRealNameFromText(transcript, { onlyAfterNameQuestion: true, invalidRealNames });
 }
 
 export function withinDispatchWindow(timezone: string, now: Date): boolean {
@@ -183,18 +180,12 @@ export function extractNativeProfileName(messages: ConversationMessageRow[], cha
     const contact = asRecord(payload.contact);
     const profile = asRecord(payload.profile);
     const whatsappProfile = asRecord(asRecord(payload.whatsapp).profile);
-    const candidate = [
-      contact.name,
-      profile.name,
-      whatsappProfile.name,
-      payload.profile_name,
-      payload.contact_name,
-      payload.contactName,
-      customData.contact_name,
-      customData.contactName,
-      customData.profile_name,
-      customData.profileName,
-    ]
+    const whatsappCandidates = /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(clean(channel))
+      ? [whatsappProfile.name, profile.name, payload.profile_name, customData.profile_name, customData.profileName,
+        contact.name, payload.contact_name, payload.contactName, customData.contact_name, customData.contactName]
+      : [contact.name, profile.name, whatsappProfile.name, payload.profile_name, payload.contact_name, payload.contactName,
+        customData.contact_name, customData.contactName, customData.profile_name, customData.profileName];
+    const candidate = whatsappCandidates
       .map(clean)
       .find(Boolean);
     if (candidate) return candidate;

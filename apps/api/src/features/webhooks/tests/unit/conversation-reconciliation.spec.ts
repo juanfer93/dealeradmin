@@ -186,6 +186,7 @@ describe('ConversationReconciliationFunctions', () => {
 
   it('uses the native WhatsApp name nested in custom_data during a targeted queued replay', async () => {
     const query = vi.fn(async (sql: string) => {
+      if (sql.includes('FROM invalid_real_names')) return [{ normalized_value: 'itin' }];
       if (sql.includes('SELECT c.id, c.channel')) return [{
         id: 'conversation-lucki-adriana',
         channel: 'whatsapp',
@@ -586,6 +587,7 @@ Full name: Jose Eduardo Martins Cabral
 
   it('clears a conversational reply during the ordinary watchdog cycle', async () => {
     const query = vi.fn(async (sql: string) => {
+      if (sql.includes('FROM invalid_real_names')) return [{ normalized_value: 'como así' }];
       if (sql.includes('SELECT c.id, c.channel')) return [{
         id: 'conversation-como-asi-cycle',
         channel: 'instagram',
@@ -669,6 +671,7 @@ Full name: Jose Eduardo Martins Cabral
       }
       if (sql.includes('SELECT cm.body')) {
         return [
+          { body: '¿Cuál es tu nombre?', direction: 'outbound', occurred_at: '2026-10-18T17:58:30.000Z' },
           { body: 'Hola cómo está mi nombre es Manuel', direction: 'inbound', occurred_at: '2026-10-18T17:59:00.000Z' },
           { body: 'Ando buscando un Honda civic 2014/15', direction: 'inbound', occurred_at: '2026-10-18T18:00:00.000Z' },
           { body: 'I have my ID and proof of income. I have a bank account. I want to buy this week.', direction: 'inbound', occurred_at: '2026-10-18T18:01:00.000Z' },
@@ -751,6 +754,7 @@ Full name: Jose Eduardo Martins Cabral
       }];
       if (sql.includes('SELECT cm.body')) return [
         { body: 'Estoy buscando una Honda Civic', direction: 'inbound', occurred_at: '2026-11-07T13:40:00.000Z', raw_payload: { customData: { channel: 'whatsapp', contact_name: 'Alejandro' } } },
+        { body: '¿Cuál es tu nombre?', direction: 'outbound', occurred_at: '2026-11-07T13:41:00.000Z', raw_payload: {} },
         { body: 'Hola buen día, mi nombre es Edwin', direction: 'inbound', occurred_at: '2026-11-07T13:41:19.885Z', raw_payload: { customData: { channel: 'whatsapp', contact_name: 'Alejandro' } } },
       ];
       return [];

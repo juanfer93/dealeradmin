@@ -17,9 +17,10 @@ import { normalizeDownPayment } from '../../leads/domain/down-payment';
 import { applyTestWebhookLead } from '../../leads/application/test-lead-store';
 import { acquireLeadSuppressionLock, canonicalSuppressionPhone, isLeadDeletionSuppressed } from '../../leads/application/lead-deletion';
 import { GeoroutingService } from '../../routing/domain/services/georouting.service';
-import { hasMinimumRoutingQualification, normalizeCollectorInput, normalizeRealName } from '../../leads/domain/collector-normalizer';
+import { hasMinimumRoutingQualification, normalizeCollectorInput, normalizeRealName, whatsappProfileNameFallback } from '../../leads/domain/collector-normalizer';
 import { buildDealeradminCaptureContract } from '../../leads/domain/dealeradmin-capture';
 import { configureWebhookTransactionSafety } from './transaction-safety';
+import { loadInvalidRealNames } from './functions/conversations/whatsapp-invalid-name-memory';
 
 type PersistedWebhookResponse = {
   accepted: true;
@@ -90,6 +91,8 @@ export class WebhookService {
       await configureWebhookTransactionSafety(queryRunner);
       const payloadHash = createHash('sha256').update(rawBody).digest('hex');
       const isMessengerChannel = /(?:^|[^a-z])(?:messenger|facebook)(?:$|[^a-z])/i.test(payload.lead.channel ?? '');
+      const isWhatsAppChannel = /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(payload.lead.channel ?? '');
+      const invalidRealNames = await loadInvalidRealNames(queryRunner, isWhatsAppChannel ? 'whatsapp' : 'all');
       // Messenger's contact/profile name is the identity source. WhatsApp's
       // contact label is not a claimed name; that must come from the chat.
       const collectorRealName = isMessengerChannel ? payload.lead.name : payload.lead.real_name;
@@ -115,6 +118,9 @@ export class WebhookService {
       }, normalizeCollectorInput({
         channel: payload.lead.channel,
         real_name: collectorRealName,
+        contact_name: isWhatsAppChannel ? payload.lead.name : undefined,
+        profile: isWhatsAppChannel ? { name: whatsappProfileNameFallback(payload.lead.name, invalidRealNames) } : undefined,
+        invalid_real_names: invalidRealNames,
         message: payload.lead.message ?? payload.lead.chat_history_log,
         phone: payload.lead.phone,
         vehicle_type: payload.lead.vehicle_type,
@@ -227,6 +233,9 @@ export class WebhookService {
         // evidence; phone plus vehicle are the routing facts required here.
         channel: payload.lead.channel,
         real_name: collectorRealName,
+        contact_name: isWhatsAppChannel ? payload.lead.name : undefined,
+        profile: isWhatsAppChannel ? { name: whatsappProfileNameFallback(payload.lead.name, invalidRealNames) } : undefined,
+        invalid_real_names: invalidRealNames,
         message: payload.lead.message ?? payload.lead.chat_history_log,
         phone: canonicalPhone,
         chat_history_log: payload.lead.chat_history_log,
@@ -240,7 +249,7 @@ export class WebhookService {
       });
       // A Messenger profile can contain a campaign/button label such as
       // "Más Información". Never persist that technical label as identity.
-      const leadName = normalized.real_name || normalizeRealName(payload.lead.name) || 'Lead';
+      const leadName = normalized.real_name || normalizeRealName(payload.lead.name, invalidRealNames) || (isWhatsAppChannel ? whatsappProfileNameFallback(payload.lead.name, invalidRealNames) : '') || 'Lead';
       if (!hasMinimumRoutingQualification({
         real_name: normalized.real_name || payload.lead.name,
         phone: canonicalPhone,

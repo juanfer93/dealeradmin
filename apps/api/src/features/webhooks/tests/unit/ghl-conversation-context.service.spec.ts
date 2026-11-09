@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { GhlConversationContextService } from '../../application/ghl-conversation-context.service';
 
 function createService(results: unknown[][]) {
-  const query = vi.fn<(sql: string, parameters: unknown[]) => Promise<unknown[]>>(async () => results.shift() ?? []);
+  const query = vi.fn<(sql: string, parameters: unknown[]) => Promise<unknown[]>>(async (sql) =>
+    sql.includes('FROM invalid_real_names') ? [{ normalized_value: 'estoy entre ambos' }] : results.shift() ?? []);
   return { service: new GhlConversationContextService({ query } as never), query };
 }
 
@@ -58,6 +59,21 @@ describe('GhlConversationContextService', () => {
       contextStatus: 'unknown',
       contextUpdatedAt: null,
     });
+  });
+
+  it('uses the WhatsApp profile display name as fallback when the real-name phrase is invalid', async () => {
+    const { service } = createService([
+      [{ id: 'dealer-stafford' }],
+      [{ id: 'lead-a', first_name: 'Estoy', last_name: 'Entre Ambos' }],
+      [{ vehicle_type: null, down_payment: null, purchase_timeline: null, documents: null }],
+      [{
+        id: 'lead-a', ghl_conversation_id: 'conversation-new', conversation_match: true,
+        qualification_snapshot: { real_name: 'Estoy Entre Ambos', profile_name: 'wa_handle_312', assigned_dealer_id: 'dealer-stafford' },
+        last_message_at: '2026-11-09T12:00:00.000Z', latest_inbound_at: '2026-11-09T12:00:00.000Z',
+      }],
+    ]);
+
+    await expect(service.getContext(input)).resolves.toMatchObject({ known: { customer_name: 'wa_handle_312' } });
   });
 
   it('keeps known answers available while marking an old inbound snapshot stale', async () => {

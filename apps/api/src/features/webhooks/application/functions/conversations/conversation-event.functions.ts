@@ -1,5 +1,5 @@
 import type { DataSource, QueryRunner } from 'typeorm';
-import { detectLeadLanguage, extractRecentMessagePhone, isAdvisorHandoffVehicle, isQualificationComplete, isStaffordWhatsAppVehicleLabel, normalizeCollectorInput, normalizeRealName, profileDisplayNameFromInput } from '../../../../leads/domain/collector-normalizer';
+import { detectLeadLanguage, extractRecentMessagePhone, isAdvisorHandoffVehicle, isInvalidRealName, isQualificationComplete, isStaffordWhatsAppVehicleLabel, normalizeCollectorInput, normalizeRealName, profileDisplayNameFromInput, whatsappProfileNameFallback } from '../../../../leads/domain/collector-normalizer';
 import { evaluateDownPayment, normalizeDownPayment } from '../../../../leads/domain/down-payment';
 import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-duplicate';
 import { normalizeGhlAttachments } from '../../../domain/ghl-attachment-normalizer';
@@ -31,6 +31,7 @@ import type {
 } from './conversation-webhook.types';
 import { configureWebhookTransactionSafety } from '../../transaction-safety';
 import { acquireLeadSuppressionLock, isLeadDeletionSuppressed } from '../../../../leads/application/lead-deletion';
+import { loadInvalidRealNames } from './whatsapp-invalid-name-memory';
 
 export class ConversationEventFunctions {
   constructor(
@@ -83,11 +84,13 @@ export class ConversationEventFunctions {
         ? undefined
         : await this.qualification.findSourceDealer(runner, locationId, source);
       const displayName = clean(event.contact_name) || 'Lead';
+      const whatsappChannel = /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(event.channel);
+      const invalidRealNames = await loadInvalidRealNames(runner, whatsappChannel ? 'whatsapp' : 'all');
       const isSocialProfileChannel = /(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(event.channel);
       const profileName = isSocialProfileChannel
         ? profileDisplayNameFromInput({ channel: event.channel, contact_name: displayName })
         : '';
-      const normalizedName = profileDisplayNameFromInput({ channel: event.channel, contact_name: displayName }) || normalizeRealName(displayName) || 'Lead';
+      const normalizedName = profileDisplayNameFromInput({ channel: event.channel, contact_name: displayName }, invalidRealNames) || normalizeRealName(displayName, invalidRealNames) || (whatsappChannel ? whatsappProfileNameFallback(displayName, invalidRealNames) : '') || 'Lead';
       const { firstName, lastName } = splitName(normalizedName);
       let lead = await this.qualification.upsertLead(runner, {
         locationId,
@@ -126,9 +129,10 @@ export class ConversationEventFunctions {
       if (await this.qualification.isLeadSent(runner, lead.id)) {
         const previousSnapshot = conversation.qualification_snapshot ?? {};
         const predictedBotQuestion = clean((previousSnapshot.qualification_progress as { predicted_bot_question?: unknown } | undefined)?.predicted_bot_question);
-        const declaredName = isStaffordWhatsApp(source, event.channel)
-          ? declaredNameFromInboundTranscript(clean(event.message_body), predictedBotQuestion)
+        const declaredCandidate = isStaffordWhatsApp(source, event.channel)
+          ? declaredNameFromInboundTranscript(clean(event.message_body), predictedBotQuestion, invalidRealNames)
           : '';
+        const declaredName = isInvalidRealName(declaredCandidate, invalidRealNames) ? '' : declaredCandidate;
         if (declaredName) {
           const snapshot = { ...previousSnapshot, real_name: declaredName };
           const { firstName, lastName } = splitName(declaredName);
@@ -198,6 +202,8 @@ export class ConversationEventFunctions {
         channel: event.channel,
         real_name: clean(previousSnapshot.real_name) || undefined,
         contact_name: displayName,
+        profile: whatsappChannel ? { name: displayName } : undefined,
+        invalid_real_names: invalidRealNames,
         message: transcript,
         chat_history_log: transcript,
         phone: eligiblePhone,
@@ -230,11 +236,11 @@ export class ConversationEventFunctions {
       const additiveField = (incoming: unknown, existing: unknown): string => clean(incoming) || clean(existing);
       const contactRealName = isSocialProfileChannel
         ? profileName
-        : normalizeRealName(displayName);
+        : isInvalidRealName(displayName, invalidRealNames) ? '' : normalizeRealName(displayName, invalidRealNames);
       const transcriptRealName = event.channel.toLowerCase() === 'whatsapp' && !nativeWhatsapp
         ? transcript
           .split(/\n+/)
-          .map((line) => normalizeRealName(line))
+          .map((line) => normalizeRealName(line, invalidRealNames))
           .find((candidate) => Boolean(candidate)
             && candidate !== contactRealName
             && candidate.split(/\s+/).length <= 3
@@ -244,13 +250,14 @@ export class ConversationEventFunctions {
       // single-word extraction from a later message (for example "Sorry").
       // Preserve the first meaningful name; later cycles may add fields but
       // must not replace it with conversational text.
-      const previousRealName = isSocialProfileChannel ? '' : normalizeRealName(clean(previousSnapshot.real_name));
+      const previousRealName = isSocialProfileChannel ? '' : normalizeRealName(clean(previousSnapshot.real_name), invalidRealNames);
       const authoritativePreviousRealName = nativeWhatsapp && previousRealName && !isStaffordWhatsAppVehicleLabel(previousRealName, source, event.channel)
         ? previousRealName
         : '';
-      const transcriptDeclaredRealName = nativeWhatsapp
-        ? declaredNameFromInboundTranscript(transcript, clean((previousSnapshot.qualification_progress as { predicted_bot_question?: unknown } | undefined)?.predicted_bot_question))
+      const transcriptDeclaredCandidate = nativeWhatsapp
+        ? declaredNameFromInboundTranscript(transcript, clean((previousSnapshot.qualification_progress as { predicted_bot_question?: unknown } | undefined)?.predicted_bot_question), invalidRealNames)
         : '';
+      const transcriptDeclaredRealName = isInvalidRealName(transcriptDeclaredCandidate, invalidRealNames) ? '' : transcriptDeclaredCandidate;
       const realName = nativeWhatsapp
         ? transcriptDeclaredRealName
           || authoritativePreviousRealName
@@ -290,7 +297,9 @@ export class ConversationEventFunctions {
       const downPaymentRule = evaluateDownPayment(vehicleType, downPayment);
       const snapshot: ConversationSnapshot = {
         real_name: realName,
-        profile_name: profileName || clean(previousSnapshot.profile_name),
+        profile_name: whatsappChannel
+          ? whatsappProfileNameFallback(displayName, invalidRealNames) || whatsappProfileNameFallback(clean(previousSnapshot.profile_name), invalidRealNames)
+          : profileName || clean(previousSnapshot.profile_name),
         phone: effectivePhone || '',
         vehicle_type: vehicleType,
         vehicle_intent: vehicleIntent,

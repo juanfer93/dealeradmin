@@ -20,7 +20,7 @@ describe('normalizeGhlOutboundPayload', () => {
     });
   });
 
-  it('uses a declared WhatsApp name instead of the contact label', () => {
+  it('uses the WhatsApp profile when the bot did not ask for the name', () => {
     const result = normalizeGhlOutboundPayload({
       id: 'contact-whatsapp-name',
       locationId: 'location-whatsapp',
@@ -34,7 +34,8 @@ describe('normalizeGhlOutboundPayload', () => {
 
     expect(result.lead).toMatchObject({
       channel: 'whatsapp',
-      real_name: 'Elias Alvarado',
+      name: 'EliasJosue 🕊Mnegra',
+      real_name: 'EliasJosue 🕊Mnegra',
     });
   });
 
@@ -325,7 +326,7 @@ describe('normalizeGhlOutboundPayload', () => {
     });
   });
 
-  it('rejects known WhatsApp placeholder names instead of persisting them', () => {
+  it('retains the WhatsApp profile name for database-backed validation and fallback', () => {
     const result = normalizeGhlOutboundPayload({
       id: 'contact-placeholder-name',
       locationId: 'location-stafford',
@@ -334,8 +335,8 @@ describe('normalizeGhlOutboundPayload', () => {
       customData: { qualification_memory: 'vehicle: Sedan' },
     }) as Record<string, any>;
 
-    expect(result.lead.name).toBe('Lead');
-    expect(result.lead.real_name).toBeNull();
+    expect(result.lead.name).toBe('Thu Chikitha Linda');
+    expect(result.lead.real_name).toBe('Thu Chikitha Linda');
   });
 
   it('reads nested custom fields and normalizes a partial GHL payload from memory', () => {

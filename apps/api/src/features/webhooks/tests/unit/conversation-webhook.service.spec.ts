@@ -940,6 +940,7 @@ describe('ConversationWebhookService', () => {
       release: vi.fn(),
       isTransactionActive: true,
       query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM invalid_real_names')) return [{ normalized_value: 'lead' }];
         if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [{ event_id: 'evt-existing-name' }];
         if (sql.includes('FROM dealers')) return [{ id: 'dealer-stafford', code: 'STAFFORD', name: 'Offlease Motors Stafford', timezone: 'America/New_York', routing_config: {} }];
         if (sql.includes('FROM leads WHERE ghl_location_id')) return [{ id: 'lead-existing', canonical_phone: '+13015550123', first_name: 'Ana', last_name: 'Torres' }];

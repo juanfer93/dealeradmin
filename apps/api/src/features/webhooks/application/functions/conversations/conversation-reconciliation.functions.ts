@@ -1,6 +1,6 @@
 import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import type { DataSource } from 'typeorm';
-import { detectLeadLanguage, extractRecentMessagePhone, isAdvisorHandoffVehicle, isQualificationComplete, isStaffordWhatsAppVehicleLabel, normalizeCollectorInput, normalizeRealName, profileDisplayNameFromInput } from '../../../../leads/domain/collector-normalizer';
+import { detectLeadLanguage, extractRecentMessagePhone, isAdvisorHandoffVehicle, isInvalidRealName, isQualificationComplete, isStaffordWhatsAppVehicleLabel, normalizeCollectorInput, normalizeRealName, profileDisplayNameFromInput, whatsappProfileNameFallback } from '../../../../leads/domain/collector-normalizer';
 import { evaluateDownPayment, normalizeDownPayment } from '../../../../leads/domain/down-payment';
 import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-duplicate';
 import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
@@ -11,6 +11,7 @@ import type { ConversationMessageRow, ConversationSnapshot, LocationSnapshot, Me
 import { configureWebhookTransactionSafety } from '../../transaction-safety';
 import { isEmptyMarker } from '../../../../leads/domain/collector-normalizer/text-cleaner';
 import { queuedSiblingExclusionSql } from './queued-sibling.sql';
+import { learnInvalidWhatsAppNames, loadInvalidRealNames } from './whatsapp-invalid-name-memory';
 
 const DOWN_PAYMENT_PROMPT = /\b(?:down|payment|enganche|pago\s+inicial|pago\s+de\s+entrada|inicial)\b/i;
 const DOWN_PAYMENT_QUESTION = /\b(?:cu[aá]nto|con\s+cu[aá]nto|how\s+much|approximately|aproximadamente|disponible|available|contar[ií]as|tendr[ií]as)\b/i;
@@ -207,6 +208,15 @@ export class ConversationReconciliationFunctions {
         await runner.rollbackTransaction();
         return;
       }
+      const whatsappChannel = /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(channel);
+      const whatsappNameMemoryEnabled = row.status === 'waiting_window' && whatsappChannel && !targeted;
+      const storedInvalidRealNames = await loadInvalidRealNames(runner, whatsappChannel ? 'whatsapp' : 'all');
+      const learnedInvalidRealNames = whatsappNameMemoryEnabled
+        ? await learnInvalidWhatsAppNames(runner, transcript, storedInvalidRealNames)
+        : [];
+      const invalidRealNames = whatsappNameMemoryEnabled
+        ? [...new Set([...storedInvalidRealNames, ...learnedInvalidRealNames])]
+        : storedInvalidRealNames;
       const isSocialProfileChannel = /(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(channel);
       const contactName = clean(`${row.first_name || ''} ${row.last_name || ''}`) || 'Lead';
       const profileCandidate = clean(current.profile_name) || extractNativeProfileName(messages, channel);
@@ -240,6 +250,7 @@ export class ConversationReconciliationFunctions {
         real_name: targeted ? '' : clean(current.real_name),
         contact_name: isSocialProfileChannel ? profileName : contactName,
         profile: { name: isSocialProfileChannel ? profileName : profileCandidate },
+        invalid_real_names: invalidRealNames,
         vehicle_type: targeted ? '' : clean(current.vehicle_type),
         down_payment: targeted ? '' : clean(current.down_payment),
         purchase_timeline: targeted ? '' : clean(current.purchase_timeline),
@@ -260,17 +271,19 @@ export class ConversationReconciliationFunctions {
       // Never preserve a stale conversational reply as a real name. The
       // periodic watchdog uses a non-targeted reconciliation, so sanitize the
       // existing snapshot before applying the additive merge as well.
-      const currentRealName = isSocialProfileChannel ? '' : normalizeRealName(clean(current.real_name));
+      const currentRealName = isSocialProfileChannel ? '' : normalizeRealName(clean(current.real_name), invalidRealNames);
       const authoritativeCurrentRealName = nativeWhatsapp && currentRealName && !isStaffordWhatsAppVehicleLabel(currentRealName, source, channel)
         ? currentRealName
         : '';
       const contactRealName = isStaffordWhatsAppVehicleLabel(contactName, source, channel)
+        || isInvalidRealName(contactName, invalidRealNames)
         ? ''
-        : isSocialProfileChannel ? profileName : profileDisplayNameFromInput({ channel, contact_name: contactName }) || normalizeRealName(contactName);
+        : isSocialProfileChannel ? profileName : profileDisplayNameFromInput({ channel, contact_name: contactName }, invalidRealNames) || normalizeRealName(contactName, invalidRealNames);
       const normalizedSocialProfileName = isSocialProfileChannel ? normalizeRealName(profileName) : '';
-      const transcriptDeclaredRealName = nativeWhatsapp
-        ? declaredNameFromInboundTranscript(transcript, clean(current.qualification_progress?.predicted_bot_question))
+      const transcriptDeclaredCandidate = nativeWhatsapp
+        ? declaredNameFromInboundTranscript(transcript, clean(current.qualification_progress?.predicted_bot_question), invalidRealNames)
         : '';
+      const transcriptDeclaredRealName = isInvalidRealName(transcriptDeclaredCandidate, invalidRealNames) ? '' : transcriptDeclaredCandidate;
       const realName = nativeWhatsapp
         ? transcriptDeclaredRealName || authoritativeCurrentRealName || clean(normalized.real_name) || contactRealName
         : targeted
@@ -334,7 +347,9 @@ export class ConversationReconciliationFunctions {
         : normalized.qualification_progress;
       const snapshot: ConversationSnapshot = {
         real_name: realName,
-        profile_name: profileName || current.profile_name,
+        profile_name: /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(channel)
+          ? whatsappProfileNameFallback(profileCandidate, invalidRealNames) || whatsappProfileNameFallback(current.profile_name, invalidRealNames)
+          : profileName || current.profile_name,
         phone: effectivePhone,
         vehicle_type: vehicle,
         vehicle_intent: vehicleIntent,

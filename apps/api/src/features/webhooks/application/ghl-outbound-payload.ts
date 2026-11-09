@@ -1,5 +1,5 @@
 import type { LeadWebhookDto } from '@dealeradmin/contracts';
-import { normalizeCollectorInput, normalizeRealName } from '../../leads/domain/collector-normalizer';
+import { normalizeCollectorInput, normalizeRealName, whatsappProfileNameFallback } from '../../leads/domain/collector-normalizer';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -131,9 +131,11 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
     const lead = asRecord(payload.lead);
     const channel = text(lead.channel) || '';
     const isMessengerChannel = /(?:^|[^a-z])(?:messenger|facebook)(?:$|[^a-z])/i.test(channel);
+    const isWhatsAppChannel = /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(channel);
     const normalizedLead = normalizeCollectorInput({
       channel,
       contact_name: text(lead.name),
+      profile: isWhatsAppChannel ? { name: text(lead.name) } : undefined,
       real_name: isMessengerChannel ? text(lead.name) : text(lead.real_name),
       qualification_memory: text(lead.qualification_memory),
       message: text(lead.message),
@@ -144,7 +146,7 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
       { conversation_text: conversationText(lead.conversation) },
     ]) || phoneFromValue(lead.phone) || findContactPhone(payload, contact, customData) || '';
     const desiredRealName = normalizedLead.real_name || (isMessengerChannel ? normalizeRealName(text(lead.name)) : null);
-    const normalizedName = desiredRealName || normalizeRealName(text(lead.name)) || 'Lead';
+    const normalizedName = desiredRealName || (isWhatsAppChannel ? whatsappProfileNameFallback(text(lead.name)) : normalizeRealName(text(lead.name))) || 'Lead';
     const currentRealName = text(lead.real_name);
     if (phone === text(lead.phone) && normalizedName === text(lead.name) && currentRealName === desiredRealName) return input;
     return { ...payload, lead: { ...lead, name: normalizedName, real_name: desiredRealName, phone } };
@@ -199,15 +201,17 @@ export function normalizeGhlOutboundPayload(input: unknown): LeadWebhookDto | un
     zip_code: text(firstValue(records, ['zip_code', 'postal_code', 'postalCode'])),
   };
 
+  const isWhatsAppChannel = /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(channel);
   const normalized = normalizeCollectorInput({
     ...lead,
     contact_name: displayName,
+    profile: isWhatsAppChannel ? { name: displayName } : undefined,
     // Keep profile metadata separate from the message body for both channels;
     // retain the display name as a custom-field signal for non-WhatsApp GHL
     // payloads that do not carry a dedicated real_name field.
-    real_name: /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(channel) ? lead.real_name : displayName,
+    real_name: isWhatsAppChannel ? lead.real_name : displayName,
   });
-  const realName = normalized.real_name || normalizeRealName(lead.name) || 'Lead';
+  const realName = normalized.real_name || (isWhatsAppChannel ? whatsappProfileNameFallback(lead.name) : normalizeRealName(lead.name)) || 'Lead';
 
   return {
     event_id: text(firstValue(records, ['event_id', 'eventId', 'webhook_id', 'webhookId'])) ||
