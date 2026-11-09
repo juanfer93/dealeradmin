@@ -54,7 +54,7 @@ const isValidRealName = (value) => {
 };
 const normalizeRealName = (value) => {
   const candidate = normalizeNameSuffixPunctuation(stripConversationalNamePrefix(value));
-  if (!candidate || invalidRealNames.has(candidate.toLowerCase()) || phoneLikeText(candidate) || !isValidRealName(candidate) || technicalNameLabel.test(candidate) || locationResponse.test(candidate) || englishLocationResponse.test(candidate) || profileDisplayLabelMarkers.test(candidate) || singleWordNameBlocklist.test(candidate) || isBaltimoreVariant(candidate) || qualificationResponseMarkers.test(candidate) || genericVehicleIntent.test(candidate) || inventoryIntent.test(candidate) || greetingOnly.test(candidate) || isVehicleStatement(candidate)) return '';
+  if (!candidate || isInvalidRealName(candidate) || phoneLikeText(candidate) || !isValidRealName(candidate) || technicalNameLabel.test(candidate) || locationResponse.test(candidate) || englishLocationResponse.test(candidate) || profileDisplayLabelMarkers.test(candidate) || singleWordNameBlocklist.test(candidate) || isBaltimoreVariant(candidate) || qualificationResponseMarkers.test(candidate) || genericVehicleIntent.test(candidate) || inventoryIntent.test(candidate) || greetingOnly.test(candidate) || isVehicleStatement(candidate)) return '';
   if (candidate.length > 100 || candidate.split(/\s+/).length > 5) return '';
   return formatPersonalName(candidate);
 };
@@ -163,7 +163,7 @@ const whatsappContactFallback = /^lead$/i.test(rawContactName) ? '' : (whatsappP
 const nativeWhatsappName = (() => {
   const rawCandidate = clean(whatsappContactFallback).normalize('NFC').replace(/\s+/g, ' ').trim();
   const candidate = normalizeNameSuffixPunctuation(stripConversationalNamePrefix(rawCandidate));
-  if (!candidate || /^lead$/i.test(candidate) || /^\(lead\s+(?:sin\s+nombre|without\s+name)\)$/i.test(candidate) || !/\p{L}/u.test(candidate) || /[\p{So}\p{Sk}\p{Cf}\uFE0F]/u.test(rawCandidate) || !/^[\p{L}\p{M}\d]+(?:[-'][\p{L}\p{M}\d]+)*(?:\s+[\p{L}\p{M}\d]+(?:[-'][\p{L}\p{M}\d]+)*)*$/u.test(candidate) || invalidRealNames.has(candidate.toLowerCase()) || phoneLikeText(candidate) || locationResponse.test(candidate) || englishLocationResponse.test(candidate) || singleWordNameBlocklist.test(candidate) || qualificationResponseMarkers.test(candidate) || genericVehicleIntent.test(candidate) || profileDisplayLabelMarkers.test(candidate) || isVehicleStatement(candidate) || candidate.split(/\s+/).length > 5) return '';
+  if (!candidate || /^lead$/i.test(candidate) || /^\(lead\s+(?:sin\s+nombre|without\s+name)\)$/i.test(candidate) || !/\p{L}/u.test(candidate) || /[\p{So}\p{Sk}\p{Cf}\uFE0F]/u.test(rawCandidate) || !/^[\p{L}\p{M}\d]+(?:[-'][\p{L}\p{M}\d]+)*(?:\s+[\p{L}\p{M}\d]+(?:[-'][\p{L}\p{M}\d]+)*)*$/u.test(candidate) || isInvalidRealName(candidate) || phoneLikeText(candidate) || locationResponse.test(candidate) || englishLocationResponse.test(candidate) || singleWordNameBlocklist.test(candidate) || qualificationResponseMarkers.test(candidate) || genericVehicleIntent.test(candidate) || profileDisplayLabelMarkers.test(candidate) || isVehicleStatement(candidate) || candidate.split(/\s+/).length > 5) return '';
   return realNamePattern.test(candidate) ? formatPersonalName(candidate) : candidate;
 })();
 // Messenger/Instagram contact labels are display metadata, not proof of a

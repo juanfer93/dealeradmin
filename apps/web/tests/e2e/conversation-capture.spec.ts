@@ -515,6 +515,37 @@ test('prioriza Livan sobre una respuesta de disponibilidad en WhatsApp', async (
   }
 });
 
+test('captura pickop como truck sin inventar nombre o vehículo cuando no hay evidencia', async ({ request }) => {
+  const suffix = `ghl-e2e-pickop-unresolved-${Date.now()}`;
+  const scenarios = [
+    { contact: 'Alfonso Saltos', body: 'pickop' },
+    { contact: 'Estoy Entre Ambos', body: 'Estoy entre ambos, todavía no sé cuál.' },
+    { contact: 'Samantha ede Easterns Motors', body: 'No tengo claro todavía.' },
+  ];
+
+  for (const [index, scenario] of scenarios.entries()) {
+    const eventId = `${suffix}-${index + 1}`;
+    const response = await request.post('http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/easterns', {
+      data: JSON.stringify({
+        message_body: scenario.body,
+        contact_name: scenario.contact,
+        channel: 'messenger',
+        event_id: eventId,
+      }),
+      headers: {
+        'content-type': 'application/json',
+        'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
+        'X-DealerADMIN-Contact-ID': `${suffix}-contact-${index + 1}`,
+        'X-DealerADMIN-Conversation-ID': `${suffix}-conversation-${index + 1}`,
+        'X-DealerADMIN-Message-ID': `${eventId}-message`,
+      },
+    });
+
+    expect(response.status(), `scenario ${index + 1}`).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ accepted: true, source: 'easterns', status: 'processed' });
+  }
+});
+
 test('cubre down regular y promoción Offlease en rutas positivas y negativas', async ({ request }) => {
   const suffix = `ghl-e2e-down-${Date.now()}`;
   const question = 'Para aplicar a la promoción de $1000 de enganche, ¿anteriormente ya has financiado algún vehículo?';

@@ -30,10 +30,14 @@ const INVALID_REAL_NAME_VALUES = [
   'no se depende cuanto pidan', 'español', 'espanol', 'inglés', 'ingles', 'itin',
   'excelente señorita', 'licencia y social', 'licencia y tax id', 'licencia y taxid',
   'pero madame fotos', 'madame fotos',
+  // Conversational answer indicating indecision between offered vehicles.
+  'estoy entre ambos', 'estoy entre los dos', 'estoy entre las dos', 'between both', 'between the two',
 ] as const;
 
 export const INVALID_REAL_NAMES = new Set<string>(INVALID_REAL_NAME_VALUES);
 
 export function isInvalidRealName(value: string | null | undefined): boolean {
-  return INVALID_REAL_NAMES.has(value?.trim().toLowerCase() ?? '');
+  const normalized = value?.trim().toLowerCase() ?? '';
+  return INVALID_REAL_NAMES.has(normalized)
+    || /\s+e?de\s+easterns\s+motors$/i.test(normalized);
 }

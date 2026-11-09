@@ -10,12 +10,43 @@ describe('normalizeCollectorInput', () => {
     expect(isInvalidRealName('Por Donde Está El Local')).toBe(true);
     expect(isInvalidRealName('Una Ven Talvez')).toBe(true);
     expect(isInvalidRealName('Esa Era la Pregunta')).toBe(true);
+    expect(isInvalidRealName('Estoy Entre Ambos')).toBe(true);
+    expect(isInvalidRealName('Samantha ede Easterns Motors')).toBe(true);
     expect(isInvalidRealName('María López')).toBe(false);
     expect(normalizeRealName('Licencia y Tax ID')).toBe('');
     expect(normalizeRealName('Puedo Llamar')).toBe('');
     expect(normalizeRealName('Por Donde Esta El Local')).toBe('');
     expect(normalizeRealName('Una Ven Tal Vez')).toBe('');
     expect(normalizeRealName('Esa Era la Pregunta')).toBe('');
+    expect(normalizeRealName('Estoy Entre Ambos')).toBe('');
+    expect(normalizeRealName('Samantha ede Easterns Motors')).toBe('');
+  });
+
+  it('leaves name and vehicle unresolved when the available text cannot establish either', () => {
+    const result = normalizeCollectorInput({
+      source: 'easterns',
+      channel: 'messenger',
+      contact_name: 'Samantha ede Easterns Motors',
+      real_name: 'Samantha ede Easterns Motors',
+      message: 'Estoy entre ambos, todavía no sé cuál.',
+      chat_history_log: 'Estoy entre ambos, todavía no sé cuál.',
+    });
+
+    expect(result.real_name).toBe('');
+    expect(result.vehicle_type).toBe('');
+    expect(result.missing_qualification).toContain('vehicle_type');
+  });
+
+  it('normalizes the GHL transcription pickop as a truck', () => {
+    const result = normalizeCollectorInput({
+      source: 'easterns',
+      channel: 'messenger',
+      real_name: 'Alfonso Saltos',
+      message: 'pickop',
+      chat_history_log: 'pickop',
+    });
+
+    expect(result).toMatchObject({ real_name: 'Alfonso Saltos', vehicle_type: 'truck', vehicle_category: 'truck' });
   });
 
   it('prefers a later WhatsApp name answer over an earlier qualification response', () => {

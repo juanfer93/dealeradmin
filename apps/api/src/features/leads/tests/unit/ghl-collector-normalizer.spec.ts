@@ -19,6 +19,24 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(body).not.toMatch(/(^|\n)\s*import\s|\brequire\s*\(/);
   });
 
+  it('does not turn a conversational answer or dealer suffix into a buyer name', () => {
+    for (const name of ['Estoy Entre Ambos', 'Samantha ede Easterns Motors', 'Samantha de Easterns Motors']) {
+      expect(execute({ source: 'easterns', channel: 'messenger', contact_name: name, real_name: name, message: name }).real_name).toBe('');
+    }
+  });
+
+  it('normalizes pickop to truck and leaves unrelated text unclassified', () => {
+    expect(execute({ source: 'easterns', channel: 'messenger', real_name: 'Alfonso Saltos', message: 'pickop' })).toMatchObject({
+      real_name: 'Alfonso Saltos',
+      vehicle_type: 'truck',
+      vehicle_category: 'truck',
+    });
+    expect(execute({ source: 'easterns', channel: 'messenger', message: 'Estoy entre ambos, no sé cuál.' })).toMatchObject({
+      real_name: '',
+      vehicle_type: '',
+    });
+  });
+
   it('prefers a later WhatsApp name answer over an earlier qualification response', () => {
     const transcript = [
       'Usada',
