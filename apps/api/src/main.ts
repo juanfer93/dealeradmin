@@ -18,7 +18,7 @@ async function bootstrap(): Promise<void> {
     origin: configuredOrigins.length > 0 ? configuredOrigins : false,
     credentials: true,
     methods: ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-GHL-Signature', 'X-DealerADMIN-Webhook-Secret'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-GHL-Signature', 'X-DealerADMIN-Webhook-Secret', 'X-DealerADMIN-Context-Secret'],
   });
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,

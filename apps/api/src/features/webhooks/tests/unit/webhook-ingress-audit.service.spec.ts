@@ -8,6 +8,7 @@ function request(overrides: Record<string, unknown> = {}) {
     'X-GHL-Signature': 'sha256=redacted',
     'X-GHL-Timestamp': '1720000000',
     'X-DealerADMIN-Webhook-Secret': 'do-not-store-this-secret',
+    'X-DealerADMIN-Context-Secret': 'do-not-store-the-context-secret',
     'X-DealerADMIN-Contact-ID': 'header-contact',
     'X-DealerADMIN-Conversation-ID': 'header-conversation',
     'X-DealerADMIN-Message-ID': 'header-message',
@@ -75,6 +76,27 @@ describe('WebhookIngressAuditService', () => {
     await expect(service.begin(request() as never, undefined)).resolves.toBeUndefined();
     await expect(service.markAuth({} as never, 'rejected', 'invalid_signature')).resolves.toBeUndefined();
     await expect(service.complete(undefined, { statusCode: 500 })).resolves.toBeUndefined();
+  });
+
+  it('keeps context lookups auditable without storing contact identifiers or request payload', async () => {
+    const query = vi.fn().mockResolvedValue([]);
+    const service = new WebhookIngressAuditService({ query } as never);
+    const auditRequest = request({
+      originalUrl: '/api/webhooks/ghl/conversation-context?debug=unused',
+      rawBody: Buffer.from(JSON.stringify({ locationId: 'private-location', contactId: 'private-contact', conversationId: 'private-conversation' })),
+    });
+
+    const requestId = await service.begin(auditRequest as never, undefined);
+
+    expect(requestId).toMatch(/^[0-9a-f-]{36}$/);
+    const [sql, values] = query.mock.calls[0] as [string, unknown[]];
+    expect(sql).toContain('INSERT INTO webhook_ingress_logs');
+    expect(values.join('|')).toContain('/api/webhooks/ghl/conversation-context');
+    expect(values.join('|')).not.toContain('private-location');
+    expect(values.join('|')).not.toContain('private-contact');
+    expect(values.join('|')).not.toContain('private-conversation');
+    expect(values.join('|')).not.toContain('do-not-store-the-context-secret');
+    expect(values).toContain('{}');
   });
 
   it('closes abandoned received rows without replaying their payloads', async () => {

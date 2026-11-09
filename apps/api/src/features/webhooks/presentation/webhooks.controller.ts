@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Inject, Optional, Param, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { WebhookService } from '../application/webhook.service';
 import { normalizeGhlOutboundPayload } from '../application/ghl-outbound-payload';
@@ -6,17 +6,48 @@ import { HmacSignatureGuard } from './hmac-signature.guard';
 import { ConversationWebhookService } from '../application/conversation-webhook.service';
 import { WebhookIngressAuditService } from '../application/webhook-ingress-audit.service';
 import { WebhookProcessingAuditService } from '../application/webhook-processing-audit.service';
+import { GhlConversationContextService, type GhlContextChannel, type GhlConversationContextRequest } from '../application/ghl-conversation-context.service';
+import { GhlContextSecretGuard } from './ghl-context-secret.guard';
 
 type WebhookRequest = Request & { rawBody?: Buffer; webhookIngressRequestId?: string };
+
+function parseGhlContextRequest(body: unknown): GhlConversationContextRequest {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw new BadRequestException('Invalid request payload');
+  const value = body as Record<string, unknown>;
+  const allowed = new Set(['locationId', 'contactId', 'conversationId', 'channel']);
+  if (Object.keys(value).some((key) => !allowed.has(key))) throw new BadRequestException('Invalid request payload');
+
+  const locationId = typeof value.locationId === 'string' ? value.locationId.trim() : '';
+  const contactId = typeof value.contactId === 'string' ? value.contactId.trim() : '';
+  const conversationId = typeof value.conversationId === 'string' ? value.conversationId.trim() : undefined;
+  const channel = value.channel === undefined ? 'whatsapp' : value.channel;
+  const safeId = /^[A-Za-z0-9:_-]+$/;
+  if (!locationId || locationId.length > 120 || !safeId.test(locationId)) throw new BadRequestException('Invalid request payload');
+  if (!contactId || contactId.length > 120 || !safeId.test(contactId)) throw new BadRequestException('Invalid request payload');
+  if (value.conversationId !== undefined && (!conversationId || conversationId.length > 200 || !safeId.test(conversationId))) {
+    throw new BadRequestException('Invalid request payload');
+  }
+  if (channel !== 'whatsapp' && channel !== 'messenger') throw new BadRequestException('Invalid request payload');
+  return { locationId, contactId, ...(conversationId ? { conversationId } : {}), channel: channel as GhlContextChannel };
+}
 
 @Controller('webhooks')
 export class WebhooksController {
   constructor(
-    private readonly webhookService: WebhookService,
-    private readonly conversationWebhookService: ConversationWebhookService,
-    private readonly ingressAudit: WebhookIngressAuditService,
-    private readonly processingAudit: WebhookProcessingAuditService,
+    @Inject(WebhookService) private readonly webhookService: WebhookService,
+    @Inject(ConversationWebhookService) private readonly conversationWebhookService: ConversationWebhookService,
+    @Inject(WebhookIngressAuditService) private readonly ingressAudit: WebhookIngressAuditService,
+    @Inject(WebhookProcessingAuditService) private readonly processingAudit: WebhookProcessingAuditService,
+    @Optional() @Inject(GhlConversationContextService) private readonly ghlConversationContext?: GhlConversationContextService,
   ) {}
+
+  @Post('ghl/conversation-context')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(GhlContextSecretGuard)
+  async getGhlConversationContext(@Body() body: unknown) {
+    if (!this.ghlConversationContext) throw new Error('Context service is not configured');
+    return this.ghlConversationContext.getContext(parseGhlContextRequest(body));
+  }
 
   @Post()
   @UseGuards(HmacSignatureGuard)

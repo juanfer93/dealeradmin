@@ -5,6 +5,7 @@ export const EnvironmentSchema = z.object({
   DATABASE_URL: z.string().url().startsWith('postgres'),
   JWT_SECRET: z.string().min(32),
   GHL_WEBHOOK_SECRET: z.string().min(16),
+  GHL_CONTEXT_API_SECRET: z.string().min(32).optional(),
   ADMIN_USERNAME: z.string().min(1),
   ADMIN_PASSWORD_HASH: z.string().startsWith('$argon2id$'),
   CORS_ORIGINS: z.string().default(''),

@@ -76,6 +76,7 @@ function safeHeaders(request: RawBodyRequest): Record<string, string | null> {
     x_ghl_signature_present: request.header('X-GHL-Signature') ? 'true' : 'false',
     x_ghl_timestamp: request.header('X-GHL-Timestamp') ?? null,
     x_dealeradmin_secret_present: request.header('X-DealerADMIN-Webhook-Secret') ? 'true' : 'false',
+    x_dealeradmin_context_secret_present: request.header('X-DealerADMIN-Context-Secret') ? 'true' : 'false',
     x_dealeradmin_contact_id: request.header('X-DealerADMIN-Contact-ID') ?? null,
     x_dealeradmin_conversation_id: request.header('X-DealerADMIN-Conversation-ID') ?? null,
     x_dealeradmin_message_id: request.header('X-DealerADMIN-Message-ID') ?? null,
@@ -101,11 +102,24 @@ export class WebhookIngressAuditService {
 
   async begin(request: RawBodyRequest, body: unknown): Promise<string | undefined> {
     if (!this.dataSource) return undefined;
-    const path = request.originalUrl || request.url || '';
+    const requestPath = request.originalUrl || request.url || '';
+    const routePath = requestPath.split(/[?#]/, 1)[0];
+    const contextOnly = routePath.endsWith('/webhooks/ghl/conversation-context');
+    const path = contextOnly ? routePath : requestPath;
     if (!path.toLowerCase().includes('/webhooks')) return undefined;
 
     const { rawBody, payload } = jsonBody(request, body);
-    const metadata = extractMetadata(path, payload);
+    const metadata = contextOnly
+      ? { source: null, eventId: null, eventType: null, locationId: null, contactId: null, conversationId: null }
+      : extractMetadata(path, payload);
+    const persistedBody = contextOnly ? '' : rawBody;
+    const persistedPayload = contextOnly ? {} : payload;
+    const headers = safeHeaders(request);
+    if (contextOnly) {
+      headers.x_dealeradmin_contact_id = null;
+      headers.x_dealeradmin_conversation_id = null;
+      headers.x_dealeradmin_message_id = null;
+    }
     const requestId = randomUUID();
     try {
       await this.dataSource.query(
@@ -121,12 +135,12 @@ export class WebhookIngressAuditService {
           metadata.eventId,
           metadata.eventType,
           metadata.locationId,
-          metadata.contactId ?? request.header('X-DealerADMIN-Contact-ID') ?? null,
-          metadata.conversationId ?? request.header('X-DealerADMIN-Conversation-ID') ?? null,
-          createHash('sha256').update(rawBody).digest('hex'),
-          rawBody,
-          JSON.stringify(payload),
-          JSON.stringify(safeHeaders(request)),
+          metadata.contactId ?? (contextOnly ? null : request.header('X-DealerADMIN-Contact-ID') ?? null),
+          metadata.conversationId ?? (contextOnly ? null : request.header('X-DealerADMIN-Conversation-ID') ?? null),
+          createHash('sha256').update(persistedBody).digest('hex'),
+          persistedBody,
+          JSON.stringify(persistedPayload),
+          JSON.stringify(headers),
         ],
       );
       request.webhookIngressRequestId = requestId;
