@@ -139,4 +139,26 @@ describe('qualification message normalization', () => {
     expect(message).not.toMatch(/trade[- ]?in/i);
     expect(message).not.toContain('trade-in down');
   });
+
+  it('labels a seller in Spanish and does not describe the vehicle as a purchase interest', () => {
+    const message = buildWhatsAppMessage('Carlos Inzunza', '+15550001111', {
+      language: 'es',
+      vehicle_type: 'Tacoma 2021',
+      vehicle_intent: 'sell',
+      down_payment: '5000',
+      purchase_timeline: 'hoy',
+    });
+
+    expect(message).toBe('Carlos Inzunza +15550001111 Quiere vender su vehículo Tacoma 2021.');
+    expect(message).not.toContain('quiere comprar');
+    expect(message).not.toContain('5000 de down');
+  });
+
+  it('labels an English seller in the same language as their conversation', () => {
+    expect(buildWhatsAppMessage('Carlos Inzunza', '+15550001111', {
+      language: 'en',
+      vehicle_type: 'Tacoma 2021',
+      vehicle_intent: 'sell',
+    })).toBe('Carlos Inzunza +15550001111 Wants to sell their vehicle Tacoma 2021.');
+  });
 });

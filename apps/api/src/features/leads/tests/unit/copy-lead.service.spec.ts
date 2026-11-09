@@ -140,4 +140,33 @@ describe('CopyLeadService', () => {
       'yes', 'yes', null, 'Copied from Offlease Motors Stafford', sourceRow.message_text.replace('2000', '1200'),
     ]);
   });
+
+  it('rebuilds the copied seller message from conversation intent instead of stale buyer text', async () => {
+    const sellerRow = {
+      ...sourceRow,
+      vehicle_type: 'Tacoma 2021',
+      down_payment: '2000',
+      vehicle_intent: 'sell' as const,
+      language: 'en' as const,
+      message_text: 'Jose Lopez +15551234567 Tacoma 2021, wants to buy this month.',
+    };
+    const runner = createRunner([
+      [sellerRow],
+      [{ id: 'dealer-target', name: 'Dealer Target' }],
+      [],
+      [],
+      [],
+    ]);
+    const dataSource = { createQueryRunner: vi.fn(() => runner) };
+    const service = new CopyLeadService(dataSource as never);
+
+    await expect(service.execute('lead-1', { sourceDealerId: 'dealer-source', targetDealerId: 'dealer-target' }))
+      .resolves.toMatchObject({ success: true });
+
+    const calls = runner.query.mock.calls as unknown[][];
+    expect(String(calls[0]?.[0])).toContain("qualification_snapshot->>'vehicle_intent'");
+    const insertParams = calls[5]?.[1] as unknown[];
+    expect(insertParams?.[10]).toBe('Jose Lopez +15551234567 Wants to sell their vehicle Tacoma 2021.');
+    expect(String(insertParams?.[10])).not.toContain('wants to buy');
+  });
 });

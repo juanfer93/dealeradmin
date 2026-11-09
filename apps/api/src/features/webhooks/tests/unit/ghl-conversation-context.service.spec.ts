@@ -32,7 +32,7 @@ describe('GhlConversationContextService', () => {
     await expect(service.getContext(input, new Date('2026-11-09T12:01:00.000Z'))).resolves.toEqual({
       ok: true,
       source: 'dealeradmin',
-      known: { customer_name: 'Ana Lopez', vehicle_type: 'Sedan', down_payment: '4500', purchase_timeline: 'this month', documents: 'yes' },
+      known: { customer_name: 'Ana Lopez', vehicle_type: 'Sedan', vehicle_intent: null, down_payment: '4500', purchase_timeline: 'this month', documents: 'yes' },
       missing: [],
       nextQuestion: null,
       contextStatus: 'fresh',
@@ -52,7 +52,7 @@ describe('GhlConversationContextService', () => {
     ]);
 
     await expect(service.getContext(input)).resolves.toMatchObject({
-      known: { customer_name: null, vehicle_type: null, down_payment: null, purchase_timeline: null, documents: null },
+      known: { customer_name: null, vehicle_type: null, vehicle_intent: null, down_payment: null, purchase_timeline: null, documents: null },
       missing: ['customer_name', 'vehicle_type', 'down_payment', 'purchase_timeline', 'documents'],
       nextQuestion: 'customer_name',
       contextStatus: 'unknown',
@@ -69,9 +69,28 @@ describe('GhlConversationContextService', () => {
     ]);
 
     await expect(service.getContext(input, new Date('2026-11-09T11:00:00.000Z'))).resolves.toMatchObject({
-      known: { customer_name: 'Ana Lopez', vehicle_type: 'SUV' },
+      known: { customer_name: 'Ana Lopez', vehicle_type: 'SUV', vehicle_intent: null },
       missing: ['down_payment', 'purchase_timeline', 'documents'],
       contextStatus: 'stale',
+    });
+  });
+
+  it('returns seller intent to the bot without adding a new missing-field question', async () => {
+    const { service } = createService([
+      [{ id: 'dealer-arlington' }],
+      [{ id: 'lead-a', first_name: 'Carlos', last_name: 'Inzunza' }],
+      [{ vehicle_type: 'Tacoma 2021', down_payment: null, purchase_timeline: null, documents: null }],
+      [{
+        id: 'lead-a', ghl_conversation_id: 'conversation-new', conversation_match: true,
+        qualification_snapshot: { real_name: 'Carlos Inzunza', vehicle_type: 'Tacoma 2021', vehicle_intent: 'sell', assigned_dealer_id: 'dealer-arlington' },
+        last_message_at: '2026-11-09T12:00:00.000Z', latest_inbound_at: '2026-11-09T12:00:00.000Z',
+      }],
+    ]);
+
+    await expect(service.getContext(input, new Date('2026-11-09T12:01:00.000Z'))).resolves.toMatchObject({
+      known: { vehicle_type: 'Tacoma 2021', vehicle_intent: 'sell' },
+      missing: ['down_payment', 'purchase_timeline', 'documents'],
+      nextQuestion: 'down_payment',
     });
   });
 

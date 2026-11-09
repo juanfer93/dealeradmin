@@ -25,6 +25,7 @@ describeDatabase('Arlington real GHL transcript replay', () => {
       phoneMetadataIndex: 2,
       expectedVehicle: 'Tacoma',
       expectedPhone: '+12402740544',
+      expectedIntent: '',
       shouldQueue: true,
     },
     {
@@ -41,6 +42,7 @@ describeDatabase('Arlington real GHL transcript replay', () => {
       phoneMetadataIndex: 2,
       expectedVehicle: 'truck',
       expectedPhone: '',
+      expectedIntent: '',
       shouldQueue: false,
     },
     {
@@ -59,6 +61,7 @@ describeDatabase('Arlington real GHL transcript replay', () => {
       phoneMetadataIndex: 0,
       expectedVehicle: '',
       expectedPhone: '',
+      expectedIntent: '',
       shouldQueue: false,
     },
     {
@@ -80,6 +83,7 @@ describeDatabase('Arlington real GHL transcript replay', () => {
       phoneMetadataIndex: 0,
       expectedVehicle: 'Honda Pilot 2023',
       expectedPhone: '+15406766165',
+      expectedIntent: '',
       shouldQueue: true,
     },
     {
@@ -97,6 +101,7 @@ describeDatabase('Arlington real GHL transcript replay', () => {
       phoneMetadataIndex: 2,
       expectedVehicle: 'truck',
       expectedPhone: '+15716161220',
+      expectedIntent: '',
       shouldQueue: true,
     },
     {
@@ -118,6 +123,25 @@ describeDatabase('Arlington real GHL transcript replay', () => {
       expectedRealName: 'Andrea',
       expectedVehicle: 'Sedan',
       expectedPhone: '+15715162438',
+      expectedIntent: '',
+      shouldQueue: true,
+    },
+    {
+      label: 'Carlos Inzunza / explicit Arlington vehicle seller',
+      expectedRealName: 'Carlos Inzunza QA',
+      contactName: 'Carlos Inzunza QA',
+      phone: '+15550100999',
+      messages: [
+        'I am selling a tacoma 2021 trd sport 4 doors 2 axles',
+        'selling',
+        'just sell it',
+        '+15550100999',
+      ],
+      phoneMessageIndex: 3,
+      phoneMetadataIndex: 0,
+      expectedVehicle: 'Tacoma 2021',
+      expectedPhone: '+15550100999',
+      expectedIntent: 'sell',
       shouldQueue: true,
     },
   ] as const;
@@ -150,7 +174,7 @@ describeDatabase('Arlington real GHL transcript replay', () => {
     await dataSource.destroy();
   });
 
-  it.each(cases.map((testCase, index) => ({ ...testCase, index })))('$label', async ({ contactName, phone, messages, phoneMessageIndex, phoneMetadataIndex, expectedRealName, expectedVehicle, expectedPhone, shouldQueue, index }) => {
+  it.each(cases.map((testCase, index) => ({ ...testCase, index })))('$label', async ({ contactName, phone, messages, phoneMessageIndex, phoneMetadataIndex, expectedRealName, expectedVehicle, expectedPhone, expectedIntent, shouldQueue, index }) => {
     const { contactId, conversationId } = ids[index];
     const replayNow = new Date('2026-09-25T14:50:00.000Z');
     const service = new ConversationWebhookService(dataSource);
@@ -191,6 +215,7 @@ describeDatabase('Arlington real GHL transcript replay', () => {
       ...(expectedRealName ? { real_name: expectedRealName } : {}),
       phone: expectedPhone,
       vehicle_type: expectedVehicle,
+      vehicle_intent: expectedIntent,
       qualification_complete: shouldQueue,
     });
     if (!shouldQueue) {
@@ -220,5 +245,15 @@ describeDatabase('Arlington real GHL transcript replay', () => {
     expect(rows[0].canonical_phone).toBe(phone);
     expect(Number(rows[0].dealer_relations)).toBe(1);
     expect(['queued', 'sent']).toContain(rows[0].status);
+    if (expectedIntent === 'sell') {
+      const copyRows = await dataSource.query(
+        `SELECT ld.message_text
+         FROM lead_dealers ld
+         INNER JOIN leads l ON l.id = ld.lead_id
+         WHERE l.ghl_contact_id = $1`,
+        [contactId],
+      ) as Array<{ message_text: string }>;
+      expect(copyRows[0]?.message_text).toContain('Wants to sell their vehicle Tacoma 2021');
+    }
   }, 30_000);
 });

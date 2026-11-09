@@ -12,7 +12,7 @@ export type GhlConversationContextRequest = {
 
 const CONTEXT_FIELDS = ['customer_name', 'vehicle_type', 'down_payment', 'purchase_timeline', 'documents'] as const;
 type ContextField = typeof CONTEXT_FIELDS[number];
-type ContextValues = Record<ContextField, string | null>;
+type ContextValues = Record<ContextField, string | null> & { vehicle_intent: 'buy' | 'sell' | null };
 type ContextRow = {
   id: string;
   first_name: string | null;
@@ -192,6 +192,7 @@ export class GhlConversationContextService {
     const known: ContextValues = {
       customer_name: null,
       vehicle_type: null,
+      vehicle_intent: null,
       down_payment: null,
       purchase_timeline: null,
       documents: null,
@@ -232,6 +233,13 @@ export class GhlConversationContextService {
               ? fallback.purchase_timeline
               : fallback.documents;
         known[field] = clean(dealerValue);
+      }
+    }
+    for (const candidate of candidates) {
+      const intent = clean(candidate.snapshot.vehicle_intent)?.toLowerCase();
+      if (intent === 'buy' || intent === 'sell') {
+        known.vehicle_intent = intent;
+        break;
       }
     }
 

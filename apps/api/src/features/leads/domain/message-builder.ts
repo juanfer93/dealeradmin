@@ -2,6 +2,7 @@ export type MessageLeadData = {
   real_name?: string | null;
   language?: 'es' | 'en' | null;
   vehicle_type?: string | null;
+  vehicle_intent?: 'buy' | 'sell' | '' | null;
   down_payment?: string | null;
   previous_financing?: 'yes' | 'no' | '' | null;
   required_down_payment?: number | null;
@@ -142,6 +143,12 @@ export function normalizePurchaseTimeline(value: string | null | undefined): str
 export function buildWhatsAppMessage(name: string, phone: string, data: MessageLeadData): string {
   const language = detectMessageLanguage(data);
   const vehicle = clean(data.vehicle_type) ?? '';
+  if (data.vehicle_intent === 'sell') {
+    const saleCopy = language === 'es'
+      ? `Quiere vender su vehículo${vehicle ? ` ${vehicle}` : ''}`
+      : `Wants to sell their vehicle${vehicle ? ` ${vehicle}` : ''}`;
+    return [name.trim(), phone, saleCopy].filter(Boolean).join(' ') + '.';
+  }
   const downValue = visibleDownPayment(data.down_payment, data.dealer_name);
   const down = downValue && !isNoDownPayment(downValue) ? (isCashDownPayment(downValue) ? CASH_DOWN_PAYMENT : `${downValue}${language === 'es' ? ' de down' : ' down'}`) : '';
   const hasPromotionalFinancingEvidence = data.previous_financing === 'yes'

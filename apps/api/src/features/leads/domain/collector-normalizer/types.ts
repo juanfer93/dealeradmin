@@ -48,6 +48,7 @@ export type QualificationProgress = {
 export type CollectorOutput = {
   real_name: string;
   vehicle_type: string;
+  vehicle_intent: 'buy' | 'sell' | '';
   vehicle_year: number | null;
   customer_location: string;
   vehicle_category: VehicleCategory | null;

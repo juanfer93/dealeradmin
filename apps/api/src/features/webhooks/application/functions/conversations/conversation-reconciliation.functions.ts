@@ -285,6 +285,7 @@ export class ConversationReconciliationFunctions {
             ? clean(normalized.real_name) || normalizedSocialProfileName || preserveOrNormalize(currentRealName, normalized.real_name) || contactRealName
           : normalizedSocialProfileName || preserveOrNormalize(currentRealName, normalized.real_name) || contactRealName;
       const vehicle = targeted ? clean(normalized.vehicle_type) : preserveOrNormalize(current.vehicle_type, normalized.vehicle_type);
+      const vehicleIntent = normalized.vehicle_intent || current.vehicle_intent || '';
       const vehicleYear = targeted
         ? normalized.vehicle_year
         : additiveOnly && typeof current.vehicle_year === 'number'
@@ -336,6 +337,7 @@ export class ConversationReconciliationFunctions {
         profile_name: profileName || current.profile_name,
         phone: effectivePhone,
         vehicle_type: vehicle,
+        vehicle_intent: vehicleIntent,
         vehicle_year: vehicleYear,
         customer_location: preserveOrNormalize(current.customer_location, normalized.customer_location),
         vehicle_category: downPaymentRule.category,

@@ -29,6 +29,8 @@ type SourceRow = {
   bank_account: string | null;
   easterns_zone: string | null;
   message_text: string | null;
+  vehicle_intent?: 'buy' | 'sell' | '' | null;
+  language?: 'es' | 'en' | null;
 };
 
 @Injectable()
@@ -71,7 +73,21 @@ export class CopyLeadService {
            ld.identification,
            ld.bank_account,
            ld.easterns_zone,
-           ld.message_text
+           ld.message_text,
+           COALESCE((
+             SELECT c_copy.qualification_snapshot->>'vehicle_intent'
+             FROM conversations c_copy
+             WHERE c_copy.lead_id = l.id
+             ORDER BY c_copy.last_message_at DESC NULLS LAST, c_copy.created_at DESC
+             LIMIT 1
+           ), '') AS vehicle_intent,
+           COALESCE((
+             SELECT c_copy.qualification_snapshot->'qualification_progress'->>'language'
+             FROM conversations c_copy
+             WHERE c_copy.lead_id = l.id
+             ORDER BY c_copy.last_message_at DESC NULLS LAST, c_copy.created_at DESC
+             LIMIT 1
+           ), 'es') AS language
          FROM lead_dealers ld
          INNER JOIN leads l ON l.id = ld.lead_id
          INNER JOIN dealers d ON d.id = COALESCE(ld.assigned_dealer_id, ld.dealer_id)
@@ -128,7 +144,14 @@ export class CopyLeadService {
 
       const sourceDownPayment = visibleDownPayment(source.down_payment, source.source_dealer_name);
       const copiedDownPayment = visibleDownPayment(sourceDownPayment, targetRows[0].name);
-      const copiedMessage = copiedDownPayment
+      const copiedMessage = source.vehicle_intent === 'sell'
+        ? buildWhatsAppMessage(sourceName || 'Lead', source.canonical_phone ?? '', {
+          language: source.language ?? 'es',
+          vehicle_type: source.vehicle_type,
+          vehicle_intent: source.vehicle_intent,
+          dealer_name: targetRows[0].name,
+        })
+        : copiedDownPayment
         ? source.message_text
         : buildWhatsAppMessage(sourceName || 'Lead', source.canonical_phone ?? '', {
           vehicle_type: source.vehicle_type,

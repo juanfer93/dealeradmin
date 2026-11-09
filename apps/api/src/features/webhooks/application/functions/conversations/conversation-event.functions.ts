@@ -272,6 +272,10 @@ export class ConversationEventFunctions {
           || clean(normalized.real_name)
           || '';
       const vehicleType = additiveField(normalized.vehicle_type, previousSnapshot.vehicle_type);
+      const previousVehicleIntent = previousSnapshot.vehicle_intent === 'buy' || previousSnapshot.vehicle_intent === 'sell'
+        ? previousSnapshot.vehicle_intent
+        : '';
+      const vehicleIntent = normalized.vehicle_intent || previousVehicleIntent;
       const downPayment = normalizeDownPayment(additiveField(normalized.down_payment, previousSnapshot.down_payment));
       const purchaseTimeline = additiveField(normalized.purchase_timeline, previousSnapshot.purchase_timeline);
       const documents = additiveField(normalized.documents, previousSnapshot.documents);
@@ -289,6 +293,7 @@ export class ConversationEventFunctions {
         profile_name: profileName || clean(previousSnapshot.profile_name),
         phone: effectivePhone || '',
         vehicle_type: vehicleType,
+        vehicle_intent: vehicleIntent,
         vehicle_year: vehicleYear,
         customer_location: additiveField(normalized.customer_location, previousSnapshot.customer_location),
         vehicle_category: downPaymentRule.category,

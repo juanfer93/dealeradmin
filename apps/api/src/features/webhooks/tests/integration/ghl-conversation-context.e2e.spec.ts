@@ -26,7 +26,7 @@ describe('POST /api/webhooks/ghl/conversation-context (HTTP E2E, no Docker)', ()
     getContext.mockResolvedValue({
       ok: true,
       source: 'dealeradmin',
-      known: { customer_name: 'Ana Lopez', vehicle_type: 'SUV', down_payment: null, purchase_timeline: null, documents: null },
+      known: { customer_name: 'Ana Lopez', vehicle_type: 'SUV', vehicle_intent: 'sell', down_payment: null, purchase_timeline: null, documents: null },
       missing: ['down_payment', 'purchase_timeline', 'documents'],
       nextQuestion: 'down_payment',
       contextStatus: 'fresh',
@@ -67,7 +67,7 @@ describe('POST /api/webhooks/ghl/conversation-context (HTTP E2E, no Docker)', ()
     });
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({ source: 'dealeradmin', nextQuestion: 'down_payment', contextStatus: 'fresh' });
+    await expect(response.json()).resolves.toMatchObject({ source: 'dealeradmin', known: { vehicle_intent: 'sell' }, nextQuestion: 'down_payment', contextStatus: 'fresh' });
     expect(getContext).toHaveBeenCalledWith({ locationId: 'stafford-location', contactId: 'contact-a', conversationId: 'conversation-a', channel: 'whatsapp' });
   });
 

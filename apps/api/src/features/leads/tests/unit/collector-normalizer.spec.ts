@@ -1506,6 +1506,47 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message }).purchase_timeline).toBe(expected);
   });
 
+  it('distinguishes a seller from a buyer using the Carlos Inzunza Arlington transcript', () => {
+    const transcript = [
+      'Hi Carlos! We wanted to follow up. Do you have any questions?',
+      'I am selling a tacoma 2021 trd sport 4 doors 2 axles',
+      'Are you looking to sell your Tacoma to Arlington Motors, or are you looking for another vehicle?',
+      'selling',
+      'Got it—your 2021 Tacoma. Are you looking to buy another vehicle as well, or just sell it?',
+      'just sell it',
+    ].join('\n');
+
+    expect(normalizeCollectorInput({
+      source: 'arlington',
+      channel: 'messenger',
+      real_name: 'Carlos Inzunza',
+      message: 'just sell it',
+      chat_history_log: transcript,
+    })).toMatchObject({
+      real_name: 'Carlos Inzunza',
+      vehicle_type: 'Tacoma 2021',
+      vehicle_intent: 'sell',
+    });
+  });
+
+  it.each([
+    ['arlington', 'messenger', 'I want to sell my Tacoma 2021'],
+    ['carhub', 'whatsapp', 'Quiero vender mi Ford F-150'],
+    ['fredericksburg', 'messenger', 'Estoy vendiendo mi Toyota Corolla'],
+    ['stafford', 'whatsapp', 'I am selling my 2018 Toyota Camry'],
+  ])('recognizes sale intent for any dealer source: %s / %s / %s', (source, channel, message) => {
+    expect(normalizeCollectorInput({ source, channel, message }).vehicle_intent).toBe('sell');
+  });
+
+  it('does not infer selling from a bot question and follows a later explicit buyer correction', () => {
+    expect(normalizeCollectorInput({
+      message: [
+        'Are you looking to sell your Tacoma, or are you looking for another vehicle?',
+        'No, I am looking for an Explorer.',
+      ].join('\n'),
+    }).vehicle_intent).toBe('buy');
+  });
+
   it('does not lose earlier qualification facts when a later poll only contains vehicle and phone', () => {
     const result = normalizeCollectorInput({
       channel: 'messenger',

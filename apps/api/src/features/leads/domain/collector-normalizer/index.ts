@@ -14,6 +14,7 @@ import { recoverPreviousFinancing } from './financing-normalizer';
 import { extractVehicle, inferVehicleIntent, isStaffordWhatsAppVehicleLabel } from './vehicle-extractor';
 import { affirmativeDownConfirmation, extractDownPayment, extractLatestDownPayment, extractQuestionedDownPayment, extractStandaloneDownPayment, extractTradeInDownPayment, firstValidAmount, isConcatenatedVehicleYearAmount, normalizeAmount } from './down-payment-extractor';
 import { extractLeadFormContext } from './form-normalizer';
+import { inferVehicleIntent as inferConversationVehicleIntent } from './vehicle-intent';
 
 export { hasMinimumRoutingQualification, isQualificationComplete } from './reconciliation';
 export type { CollectorInput, CollectorLanguage, CollectorOutput, QualificationProgress, QualificationStep } from './types';
@@ -87,6 +88,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const memoryDown = normalizeMemoryDownPayment(memoryValue(memory, ['down payment', 'down_payment', 'downpayment']), normalizeAmount, TRADE_IN_INTENT);
   const inputDown = clean(input.down_payment ?? EMPTY);
   const vehicleSource = [historyForExtraction, messageForExtraction].filter(Boolean).join('\n');
+  const vehicleIntent = inferConversationVehicleIntent(historyForExtraction, messageForExtraction);
   const transcriptVehicle = extractVehicle(vehicleSource);
   const explicitVehicle = normalizeVehicle(firstNonEmpty(
     formContext?.vehicle,
@@ -154,7 +156,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const qualificationComplete = isQualificationComplete({ real_name: realName, phone: chatPhone || (policy.phoneSatisfiedByNative ? 'native-whatsapp' : EMPTY), vehicle_type: vehicle, down_payment: down, purchase_timeline: timeline, has_identification: docs.id, has_income_proof: docs.income, bank_account: bankAccount }) && (!policy.requiresLocation || Boolean(customerLocation));
   const missingQualification = getMissingQualification(policy.phoneSatisfiedByNative || Boolean(chatPhone) ? 'provided' : EMPTY, hasRealVehicle, policy.requiresLocation, customerLocation);
   return {
-    real_name: realName, vehicle_type: vehicle, vehicle_year: vehicleYear, customer_location: customerLocation,
+    real_name: realName, vehicle_type: vehicle, vehicle_intent: vehicleIntent, vehicle_year: vehicleYear, customer_location: customerLocation,
     vehicle_category: downPaymentRule.category, required_down_payment: downPaymentRule.minimum, down_payment_amount: downPaymentRule.amount, down_payment_sufficient: downPaymentRule.meetsMinimum,
     down_payment: down, previous_financing: previousFinancing, purchase_timeline: timeline, documents: docs.value, identification, bank_account: bankAccount,
     qualification_memory: mergedMemory, has_identification: docs.id, has_income_proof: docs.income, next_question: nextQuestion, qualification_step: step,
