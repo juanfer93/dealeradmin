@@ -83,7 +83,7 @@ describe('WebhookIngressAuditService', () => {
     const service = new WebhookIngressAuditService({ query } as never);
     const auditRequest = request({
       originalUrl: '/api/webhooks/ghl/conversation-context?debug=unused',
-      rawBody: Buffer.from(JSON.stringify({ locationId: 'private-location', contactId: 'private-contact', conversationId: 'private-conversation' })),
+      rawBody: Buffer.from(JSON.stringify({ locationId: 'private-location', contactId: 'private-contact', conversationId: 'private-conversation', channel: 'messenger' })),
     });
 
     const requestId = await service.begin(auditRequest as never, undefined);
@@ -97,6 +97,12 @@ describe('WebhookIngressAuditService', () => {
     expect(values.join('|')).not.toContain('private-conversation');
     expect(values.join('|')).not.toContain('do-not-store-the-context-secret');
     expect(values).toContain('{}');
+    const headers = JSON.parse(String(values[12])) as Record<string, string | null>;
+    expect(headers.context_channel).toBe('messenger');
+    expect(headers.context_identity_sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(JSON.stringify(headers)).not.toContain('private-location');
+    expect(JSON.stringify(headers)).not.toContain('private-contact');
+    expect(JSON.stringify(headers)).not.toContain('private-conversation');
   });
 
   it('closes abandoned received rows without replaying their payloads', async () => {

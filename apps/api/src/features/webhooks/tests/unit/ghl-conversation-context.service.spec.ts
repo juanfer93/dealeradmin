@@ -1,6 +1,6 @@
 import { NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
-import { GhlConversationContextService } from '../../application/ghl-conversation-context.service';
+import { GhlContextNotFoundException, GhlConversationContextService } from '../../application/ghl-conversation-context.service';
 
 function createService(results: unknown[][]) {
   const query = vi.fn<(sql: string, parameters: unknown[]) => Promise<unknown[]>>(async (sql) =>
@@ -113,15 +113,30 @@ describe('GhlConversationContextService', () => {
   it('returns no context for an unknown contact and does not read another dealer record', async () => {
     const { service, query } = createService([[{ id: 'dealer-stafford' }], []]);
 
-    await expect(service.getContext(input)).rejects.toBeInstanceOf(NotFoundException);
+    const lookup = service.getContext(input);
+    await expect(lookup).rejects.toBeInstanceOf(NotFoundException);
+    await expect(lookup).rejects.toMatchObject({ reason: 'lead_unmatched' });
     expect(query).toHaveBeenCalledTimes(2);
   });
 
   it('returns no context for an unauthorized GHL location', async () => {
     const { service, query } = createService([[]]);
 
-    await expect(service.getContext(input)).rejects.toBeInstanceOf(NotFoundException);
+    const lookup = service.getContext(input);
+    await expect(lookup).rejects.toBeInstanceOf(NotFoundException);
+    await expect(lookup).rejects.toMatchObject({ reason: 'dealer_unmapped' });
     expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it('identifies duplicate scoped leads as ambiguous instead of returning arbitrary context', async () => {
+    const { service } = createService([
+      [{ id: 'dealer-stafford' }],
+      [{ id: 'lead-a', first_name: 'Ana', last_name: 'Lopez' }, { id: 'lead-b', first_name: 'Ana', last_name: 'Lopez' }],
+    ]);
+
+    const lookup = service.getContext(input);
+    await expect(lookup).rejects.toBeInstanceOf(GhlContextNotFoundException);
+    await expect(lookup).rejects.toMatchObject({ reason: 'lead_ambiguous' });
   });
 
   it('fails closed without leaking database details when storage is unavailable', async () => {

@@ -119,6 +119,15 @@ export class WebhookIngressAuditService {
       headers.x_dealeradmin_contact_id = null;
       headers.x_dealeradmin_conversation_id = null;
       headers.x_dealeradmin_message_id = null;
+      headers.context_channel = payload.channel === 'whatsapp' || payload.channel === 'messenger' ? payload.channel : null;
+      headers.context_identity_sha256 = createHash('sha256')
+        .update(JSON.stringify([
+          typeof payload.locationId === 'string' ? payload.locationId.trim().slice(0, 120) : null,
+          typeof payload.contactId === 'string' ? payload.contactId.trim().slice(0, 120) : null,
+          typeof payload.conversationId === 'string' ? payload.conversationId.trim().slice(0, 200) : null,
+          headers.context_channel,
+        ]))
+        .digest('hex');
     }
     const requestId = randomUUID();
     try {

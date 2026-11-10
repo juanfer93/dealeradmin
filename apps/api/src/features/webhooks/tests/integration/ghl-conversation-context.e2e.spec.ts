@@ -3,6 +3,7 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GhlConversationContextService } from '../../application/ghl-conversation-context.service';
+import { GhlContextNotFoundException } from '../../application/ghl-conversation-context.service';
 import { ConversationWebhookService } from '../../application/conversation-webhook.service';
 import { WebhookIngressAuditService } from '../../application/webhook-ingress-audit.service';
 import { WebhookProcessingAuditService } from '../../application/webhook-processing-audit.service';
@@ -14,11 +15,17 @@ const contextSecret = 'local-context-secret-for-e2e-only';
 
 describe('POST /api/webhooks/ghl/conversation-context (HTTP E2E, no Docker)', () => {
   const getContext = vi.fn();
+  const markHandlerStarted = vi.fn();
+  const markError = vi.fn();
   let app: INestApplication | undefined;
   let baseUrl = '';
   const previousSecret = process.env.GHL_CONTEXT_API_SECRET;
 
-  beforeEach(() => getContext.mockClear());
+  beforeEach(() => {
+    getContext.mockClear();
+    markHandlerStarted.mockClear();
+    markError.mockClear();
+  });
 
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
@@ -37,7 +44,7 @@ describe('POST /api/webhooks/ghl/conversation-context (HTTP E2E, no Docker)', ()
       providers: [
         { provide: WebhookService, useValue: {} },
         { provide: ConversationWebhookService, useValue: {} },
-        { provide: WebhookIngressAuditService, useValue: { markAuth: vi.fn() } },
+        { provide: WebhookIngressAuditService, useValue: { markAuth: vi.fn(), markHandlerStarted, markError } },
         { provide: WebhookProcessingAuditService, useValue: {} },
         { provide: GhlConversationContextService, useValue: { getContext } },
         GhlContextSecretGuard,
@@ -86,6 +93,7 @@ describe('POST /api/webhooks/ghl/conversation-context (HTTP E2E, no Docker)', ()
       { locationId: 'stafford-location', contactId: 'contact-a', phone: '+15550000000' },
       { locationId: 'stafford-location', contactId: 'contact-a', channel: 'sms' },
       { locationId: 'stafford-location', contactId: 'contact a' },
+      { locationId: 'stafford-location', contactId: 'contact-a' },
     ]) {
       const response = await fetch(`${baseUrl}/api/webhooks/ghl/conversation-context`, {
         method: 'POST',
@@ -95,5 +103,31 @@ describe('POST /api/webhooks/ghl/conversation-context (HTTP E2E, no Docker)', ()
       expect(response.status).toBe(400);
     }
     expect(getContext).not.toHaveBeenCalled();
+  });
+
+  it('requires and forwards Messenger explicitly so a missing channel cannot silently query WhatsApp', async () => {
+    const response = await fetch(`${baseUrl}/api/webhooks/ghl/conversation-context`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-DealerADMIN-Context-Secret': contextSecret },
+      body: JSON.stringify({ locationId: 'stafford-location', contactId: 'contact-a', channel: 'messenger' }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(getContext).toHaveBeenCalledWith({ locationId: 'stafford-location', contactId: 'contact-a', channel: 'messenger' });
+  });
+
+  it('records a safe reason code for 404s without logging request identifiers', async () => {
+    getContext.mockRejectedValueOnce(new GhlContextNotFoundException('lead_unmatched'));
+    const response = await fetch(`${baseUrl}/api/webhooks/ghl/conversation-context`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-DealerADMIN-Context-Secret': contextSecret },
+      body: JSON.stringify({ locationId: 'private-location', contactId: 'private-contact', channel: 'whatsapp' }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(markHandlerStarted).toHaveBeenCalledOnce();
+    expect(markError).toHaveBeenCalledOnce();
+    expect(markError.mock.calls[0]?.[1]?.message).toBe('GHL_CONTEXT_LEAD_UNMATCHED');
+    expect(markError.mock.calls[0]?.[1]?.message).not.toContain('private-contact');
   });
 });

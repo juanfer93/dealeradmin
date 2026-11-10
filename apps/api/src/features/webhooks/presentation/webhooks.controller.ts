@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Inject, Optional, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Inject, Optional, Param, Post, Req, ServiceUnavailableException, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { WebhookService } from '../application/webhook.service';
 import { normalizeGhlOutboundPayload } from '../application/ghl-outbound-payload';
@@ -6,7 +6,7 @@ import { HmacSignatureGuard } from './hmac-signature.guard';
 import { ConversationWebhookService } from '../application/conversation-webhook.service';
 import { WebhookIngressAuditService } from '../application/webhook-ingress-audit.service';
 import { WebhookProcessingAuditService } from '../application/webhook-processing-audit.service';
-import { GhlConversationContextService, type GhlContextChannel, type GhlConversationContextRequest } from '../application/ghl-conversation-context.service';
+import { GhlContextNotFoundException, GhlConversationContextService, type GhlContextChannel, type GhlConversationContextRequest } from '../application/ghl-conversation-context.service';
 import { GhlContextSecretGuard } from './ghl-context-secret.guard';
 
 type WebhookRequest = Request & { rawBody?: Buffer; webhookIngressRequestId?: string };
@@ -20,7 +20,7 @@ function parseGhlContextRequest(body: unknown): GhlConversationContextRequest {
   const locationId = typeof value.locationId === 'string' ? value.locationId.trim() : '';
   const contactId = typeof value.contactId === 'string' ? value.contactId.trim() : '';
   const conversationId = typeof value.conversationId === 'string' ? value.conversationId.trim() : undefined;
-  const channel = value.channel === undefined ? 'whatsapp' : value.channel;
+  const channel = value.channel;
   const safeId = /^[A-Za-z0-9:_-]+$/;
   if (!locationId || locationId.length > 120 || !safeId.test(locationId)) throw new BadRequestException('Invalid request payload');
   if (!contactId || contactId.length > 120 || !safeId.test(contactId)) throw new BadRequestException('Invalid request payload');
@@ -44,9 +44,22 @@ export class WebhooksController {
   @Post('ghl/conversation-context')
   @HttpCode(HttpStatus.OK)
   @UseGuards(GhlContextSecretGuard)
-  async getGhlConversationContext(@Body() body: unknown) {
-    if (!this.ghlConversationContext) throw new Error('Context service is not configured');
-    return this.ghlConversationContext.getContext(parseGhlContextRequest(body));
+  async getGhlConversationContext(@Req() request: WebhookRequest, @Body() body: unknown) {
+    await this.ingressAudit.markHandlerStarted(request);
+    try {
+      if (!this.ghlConversationContext) throw new Error('Context service is not configured');
+      return await this.ghlConversationContext.getContext(parseGhlContextRequest(body));
+    } catch (error) {
+      const auditCode = error instanceof GhlContextNotFoundException
+        ? `GHL_CONTEXT_${error.reason.toUpperCase()}`
+        : error instanceof BadRequestException
+          ? 'GHL_CONTEXT_INVALID_REQUEST'
+          : error instanceof ServiceUnavailableException
+            ? 'GHL_CONTEXT_STORAGE_UNAVAILABLE'
+          : 'GHL_CONTEXT_LOOKUP_FAILED';
+      await this.ingressAudit.markError(request, new Error(auditCode));
+      throw error;
+    }
   }
 
   @Post()

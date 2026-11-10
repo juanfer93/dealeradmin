@@ -11,6 +11,14 @@ export type GhlConversationContextRequest = {
   channel: GhlContextChannel;
 };
 
+export type GhlContextNotFoundReason = 'dealer_unmapped' | 'lead_unmatched' | 'lead_ambiguous';
+
+export class GhlContextNotFoundException extends NotFoundException {
+  constructor(readonly reason: GhlContextNotFoundReason) {
+    super('Context not found');
+  }
+}
+
 const CONTEXT_FIELDS = ['customer_name', 'vehicle_type', 'down_payment', 'purchase_timeline', 'documents'] as const;
 type ContextField = typeof CONTEXT_FIELDS[number];
 type ContextValues = Record<ContextField, string | null> & { vehicle_intent: 'buy' | 'sell' | null };
@@ -93,7 +101,7 @@ export class GhlConversationContextService {
       [input.locationId],
     );
     const authorizedDealerIds = dealerIds.map((row) => row.id).filter(Boolean);
-    if (authorizedDealerIds.length === 0) throw new NotFoundException('Context not found');
+    if (authorizedDealerIds.length === 0) throw new GhlContextNotFoundException('dealer_unmapped');
 
     const leads = await this.read<Array<{ id: string; first_name: string | null; last_name: string | null }>>(
       `SELECT l.id, l.first_name, l.last_name
@@ -129,7 +137,8 @@ export class GhlConversationContextService {
       [input.locationId, input.contactId, authorizedDealerIds, input.channel],
     );
     const lead = leads[0];
-    if (!lead || leads.length > 1) throw new NotFoundException('Context not found');
+    if (leads.length > 1) throw new GhlContextNotFoundException('lead_ambiguous');
+    if (!lead) throw new GhlContextNotFoundException('lead_unmatched');
 
     const [dealerFacts, conversations] = await Promise.all([
       this.read<Array<{
