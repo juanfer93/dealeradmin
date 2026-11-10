@@ -121,7 +121,8 @@ function normalizeNameSuffixPunctuation(value: string): string {
 
 export function isInvalidRealName(value: string | null | undefined, catalogValues: readonly string[] = []): boolean {
   const normalized = clean(value).replace(/\s+/g, ' ').trim().toLocaleLowerCase();
-  return Boolean(normalized && catalogValues.some((candidate) => candidate.trim().replace(/\s+/g, ' ').toLocaleLowerCase() === normalized));
+  const repeatedEasternsDealerSuffix = /\s+e?de\s+easterns\s+motors(?:\s+e?de\s+easterns\s+motors)*$/i.test(normalized);
+  return Boolean(normalized && (repeatedEasternsDealerSuffix || catalogValues.some((candidate) => candidate.trim().replace(/\s+/g, ' ').toLocaleLowerCase() === normalized)));
 }
 
 function stripConversationalNamePrefix(value: string): string {

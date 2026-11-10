@@ -20,7 +20,13 @@ describe('HighLevel collector custom-code normalizer', () => {
   });
 
   it('does not turn a conversational answer or dealer suffix into a buyer name', () => {
-    for (const name of ['Estoy Entre Ambos', 'Samantha ede Easterns Motors', 'Samantha de Easterns Motors']) {
+    for (const name of [
+      'Estoy Entre Ambos',
+      'Samantha ede Easterns Motors',
+      'Samantha de Easterns Motors',
+      'Samantha de Easterns Motors de Easterns Motors',
+      'Samantha ede Easterns Motors de Easterns Motors',
+    ]) {
       expect(execute({ source: 'easterns', channel: 'messenger', contact_name: name, real_name: name, message: name }).real_name).toBe('');
     }
   });

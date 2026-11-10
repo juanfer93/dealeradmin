@@ -1,5 +1,5 @@
 import type { DataSource, QueryRunner } from 'typeorm';
-import { detectLeadLanguage, extractRecentMessagePhone, isAdvisorHandoffVehicle, isInvalidRealName, isQualificationComplete, isStaffordWhatsAppVehicleLabel, normalizeCollectorInput, normalizeRealName, profileDisplayNameFromInput, whatsappProfileNameFallback } from '../../../../leads/domain/collector-normalizer';
+import { detectLeadLanguage, extractDeclaredRealNameFromText, extractRecentMessagePhone, isAdvisorHandoffVehicle, isInvalidRealName, isQualificationComplete, isStaffordWhatsAppVehicleLabel, normalizeCollectorInput, normalizeRealName, profileDisplayNameFromInput, whatsappProfileNameFallback } from '../../../../leads/domain/collector-normalizer';
 import { evaluateDownPayment, normalizeDownPayment } from '../../../../leads/domain/down-payment';
 import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-duplicate';
 import { normalizeGhlAttachments } from '../../../domain/ghl-attachment-normalizer';
@@ -31,7 +31,7 @@ import type {
 } from './conversation-webhook.types';
 import { configureWebhookTransactionSafety } from '../../transaction-safety';
 import { acquireLeadSuppressionLock, isLeadDeletionSuppressed } from '../../../../leads/application/lead-deletion';
-import { loadInvalidRealNames } from './whatsapp-invalid-name-memory';
+import { learnInvalidWhatsAppNames, loadInvalidRealNames } from './whatsapp-invalid-name-memory';
 
 export class ConversationEventFunctions {
   constructor(
@@ -184,6 +184,18 @@ export class ConversationEventFunctions {
         .map((item) => String(item.body ?? '').replace(/\r\n?/g, '\n').trim())
         .filter(Boolean)
         .join('\n');
+      const nameMemoryTranscript = evidenceMessages
+        .flatMap((item) => {
+          const body = String(item.body ?? '').replace(/\r\n?/g, '\n').trim();
+          if (!body) return [];
+          if (item.direction === 'outbound') {
+            return /(?:what(?:'s| is)?\s+(?:your|the)\s+name|full\s+name|what\s+should\s+i\s+call|how\s+do\s+you\s+(?:call|go by)|c[oó]mo\s+te\s+llamas|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i.test(body)
+              ? ['__NAME_PROMPT__']
+              : [];
+          }
+          return [body];
+        })
+        .join('\n');
       const now = controlledNow ?? currentLocalNow();
       const recentPhone = safePhone(extractRecentMessagePhone(evidenceMessages.map((message) => ({
         ...message,
@@ -254,8 +266,11 @@ export class ConversationEventFunctions {
       const authoritativePreviousRealName = nativeWhatsapp && previousRealName && !isStaffordWhatsAppVehicleLabel(previousRealName, source, event.channel)
         ? previousRealName
         : '';
+      const explicitTranscriptName = nativeWhatsapp
+        ? extractDeclaredRealNameFromText(transcript, invalidRealNames)
+        : '';
       const transcriptDeclaredCandidate = nativeWhatsapp
-        ? declaredNameFromInboundTranscript(transcript, clean((previousSnapshot.qualification_progress as { predicted_bot_question?: unknown } | undefined)?.predicted_bot_question), invalidRealNames)
+        ? explicitTranscriptName || declaredNameFromInboundTranscript(transcript, clean((previousSnapshot.qualification_progress as { predicted_bot_question?: unknown } | undefined)?.predicted_bot_question), invalidRealNames)
         : '';
       const transcriptDeclaredRealName = isInvalidRealName(transcriptDeclaredCandidate, invalidRealNames) ? '' : transcriptDeclaredCandidate;
       const realName = nativeWhatsapp
@@ -278,6 +293,9 @@ export class ConversationEventFunctions {
           || contactRealName
           || clean(normalized.real_name)
           || '';
+      if (nativeWhatsapp) {
+        await learnInvalidWhatsAppNames(runner, nameMemoryTranscript, invalidRealNames, realName);
+      }
       const vehicleType = additiveField(normalized.vehicle_type, previousSnapshot.vehicle_type);
       const previousVehicleIntent = previousSnapshot.vehicle_intent === 'buy' || previousSnapshot.vehicle_intent === 'sell'
         ? previousSnapshot.vehicle_intent

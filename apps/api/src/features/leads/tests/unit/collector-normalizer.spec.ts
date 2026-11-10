@@ -23,6 +23,8 @@ describe('normalizeCollectorInput', () => {
     expect(isInvalidRealName('Esa Era la Pregunta', databaseCatalog)).toBe(true);
     expect(isInvalidRealName('Estoy Entre Ambos', databaseCatalog)).toBe(true);
     expect(isInvalidRealName('Samantha ede Easterns Motors', ['samantha ede easterns motors'])).toBe(true);
+    expect(isInvalidRealName('Samantha de Easterns Motors de Easterns Motors')).toBe(true);
+    expect(isInvalidRealName('Samantha ede Easterns Motors de Easterns Motors')).toBe(true);
     expect(isInvalidRealName('María López', databaseCatalog)).toBe(false);
     expect(normalizeRealName('Licencia y Tax ID')).toBe('');
     expect(normalizeRealName('Puedo Llamar')).toBe('');
@@ -31,6 +33,49 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeRealName('Esa Era la Pregunta')).toBe('');
     expect(normalizeRealName('Estoy Entre Ambos')).toBe('');
     expect(normalizeRealName('Samantha ede Easterns Motors')).toBe('');
+    expect(normalizeRealName('Samantha de Easterns Motors de Easterns Motors')).toBe('');
+    expect(normalizeRealName('Samantha de la Cruz')).toBe('Samantha de la Cruz');
+    expect(normalizeRealNameWithCatalog('Cuenta de Banco', ['cuenta de banco'])).toBe('');
+    expect(normalizeRealNameWithCatalog('Cuenta Bancaria', ['cuenta bancaria'])).toBe('');
+    expect(normalizeRealNameWithCatalog('Bank Account', ['bank account'])).toBe('');
+  });
+
+  it('rejects a repeated Easterns Motors suffix from a Messenger profile label', () => {
+    const invalidProfile = 'Samantha de Easterns Motors de Easterns Motors';
+    const result = normalizeCollectorInput({
+      source: 'easterns',
+      channel: 'messenger',
+      contact_name: invalidProfile,
+      real_name: invalidProfile,
+      message: 'Hola, busco una SUV.',
+      chat_history_log: 'Hola, busco una SUV.',
+    });
+
+    expect(result.real_name).toBe('');
+  });
+
+  it('rejects a bank-account answer as a WhatsApp name and accepts the later stated name', () => {
+    const transcript = [
+      '__NAME_PROMPT__',
+      'Una pregunta esto que viene en el Facebook es cierto que se puede sacar un carro y se puede estar pagando esa cantidad mensual',
+      'Yo tengo social y todos mis papeles en regla',
+      'Cuenta de banco y quiero sacar un carro financiado pero yo vivo acá en Carolina del Norte',
+      '¿Me podrías decir tu nombre para continuar con tu registro?',
+      '__NAME_PROMPT__',
+      'Me llamo José Velázquez',
+      'Una troca',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      profile: { name: 'stafford_test_profile' },
+      real_name: 'Cuenta de Banco',
+      message: 'Me llamo José Velázquez',
+      chat_history_log: transcript,
+      invalid_real_names: ['cuenta de banco'],
+    });
+
+    expect(result.real_name).toBe('José Velázquez');
   });
 
   it('leaves name and vehicle unresolved when the available text cannot establish either', () => {

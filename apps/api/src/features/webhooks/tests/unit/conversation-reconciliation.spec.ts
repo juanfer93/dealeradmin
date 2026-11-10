@@ -780,6 +780,67 @@ Full name: Jose Eduardo Martins Cabral
     expect(leadUpdate?.[1]).toEqual(['lead-whatsapp-declared-name', 'Edwin', '']);
   });
 
+  it('keeps a later declared name over an earlier bank-account answer and learns only the label', async () => {
+    const messages = [
+      { body: '¿Cuál es tu nombre?', direction: 'outbound', occurred_at: '2026-11-09T20:58:30.193Z' },
+      { body: 'Yo tengo social y todos mis papeles en regla', direction: 'inbound', occurred_at: '2026-11-09T21:00:15.847Z' },
+      { body: 'Cuenta de banco y quiero sacar un carro financiado pero vivo en Carolina del Norte', direction: 'inbound', occurred_at: '2026-11-09T21:00:26.420Z' },
+      { body: '¿Me podrías decir tu nombre para continuar con tu registro?', direction: 'outbound', occurred_at: '2026-11-09T21:00:50.062Z' },
+      { body: '¿Cómo te llamas?', direction: 'outbound', occurred_at: '2026-11-10T01:12:44.522Z' },
+      { body: 'Me llamo José Velázquez', direction: 'inbound', occurred_at: '2026-11-10T01:33:18.423Z' },
+      { body: 'Una troca', direction: 'inbound', occurred_at: '2026-11-10T01:43:45.457Z' },
+    ];
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('SELECT c.id, c.channel')) return [{
+        id: 'conversation-stafford-account-label',
+        channel: 'whatsapp',
+        ghl_location_id: GHL_SOURCE_CONFIG.stafford.locationId,
+        ghl_contact_id: 'stafford-account-label-contact',
+        ghl_conversation_id: 'stafford-account-label-conversation',
+        status: 'queued',
+        qualification_snapshot: {
+          real_name: 'Cuenta de Banco',
+          phone: '+12523039628',
+          vehicle_type: 'Truck',
+          qualification_complete: true,
+          language: 'es',
+        },
+        location_snapshot: { city: null, state: null, zip_code: null, easterns_zone: null },
+        ready_at: null,
+        next_attempt_at: null,
+        last_message_at: '2026-11-10T01:47:18.480Z',
+        waiting_window_attempts: 5,
+        lead_id: 'lead-stafford-account-label',
+        canonical_phone: '+12523039628',
+        first_name: 'Cuenta',
+        last_name: 'de Banco',
+      }];
+      if (sql.includes('FROM invalid_real_names')) return [];
+      if (sql.includes('SELECT cm.body')) return messages;
+      return [];
+    });
+    const runner = { connect: vi.fn(), startTransaction: vi.fn(), commitTransaction: vi.fn(), rollbackTransaction: vi.fn(), release: vi.fn(), isTransactionActive: true, query };
+    const qualification = {
+      resolveLocation: vi.fn().mockResolvedValue({ city: 'Wilson', state: 'NC', zip_code: null, easterns_zone: null }),
+      findSourceDealer: vi.fn().mockResolvedValue({ id: 'dealer-stafford', timezone: 'America/New_York', routing_config: {} }),
+      statusForConversation: vi.fn().mockReturnValue({ status: 'queued', nextAttemptAt: null }),
+      syncLeadDealer: vi.fn(),
+    };
+    const reconciliation = new ConversationReconciliationFunctions(
+      { createQueryRunner: () => runner } as never,
+      qualification as never,
+      { createQueuedPauseEvent: vi.fn(), dispatchQueuedPauseEvent: vi.fn() } as never,
+    );
+
+    await reconciliation.reconcileConversation('conversation-stafford-account-label', new Date('2026-11-10T02:20:00.000Z'), true, false, true);
+
+    const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({ real_name: 'José Velázquez' });
+    const leadUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE leads SET first_name')) as [string, unknown[]] | undefined;
+    expect(leadUpdate?.[1]).toEqual(['lead-stafford-account-label', 'José', 'Velázquez']);
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO invalid_real_names'), ['cuenta de banco', 'Cuenta de banco']);
+  });
+
   it('keeps the terminal waiting-window cycle count when ready is promoted to queued', async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('SELECT c.id, c.channel')) {
