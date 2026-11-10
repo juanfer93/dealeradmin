@@ -52,6 +52,7 @@ import { LuckiMazdaDealer1710000051000 } from './migrations/1710000051000-LuckiM
 import { RenameCountryClubCarsDealer1710000052000 } from './migrations/1710000052000-RenameCountryClubCarsDealer';
 import { CarHubStaffordDealer1710000053000 } from './migrations/1710000053000-CarHubStaffordDealer';
 import { InvalidRealNames1710000055000 } from './migrations/1710000055000-InvalidRealNames';
+import { InvalidApplicationPromptAsName1710000056000 } from './migrations/1710000056000-InvalidApplicationPromptAsName';
 import { POSTGRES_EXTRA } from './postgres-connection-options';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -119,6 +120,7 @@ export const AppDataSource = new DataSource({
     RenameCountryClubCarsDealer1710000052000,
     CarHubStaffordDealer1710000053000,
     InvalidRealNames1710000055000,
+    InvalidApplicationPromptAsName1710000056000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,

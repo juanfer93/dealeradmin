@@ -24,7 +24,7 @@ const CARHUB_STAFFORD_LOCATION_ID = 'fVyKDmI0Il432etqbODo';
 const ALPHA_MOTORSPORTS_LOCATION_ID = 'PoaMOa1VgcgtnqUBv3EP';
 
 export const GHL_SOURCE_CONFIG: SourceConfigMap = {
-  stafford: { locationId: 'LiaoSID3nvAhad49ZpNJ', defaultChannel: 'whatsapp', supportedChannels: ['whatsapp'] },
+  stafford: { locationId: 'LiaoSID3nvAhad49ZpNJ', defaultChannel: 'whatsapp', supportedChannels: ['whatsapp', 'messenger'] },
   country: { locationId: COUNTRY_CLUB_LOCATION_ID, defaultChannel: 'whatsapp', supportedChannels: ['whatsapp'] },
   lucki: { locationId: LUCKI_MAZDA_LOCATION_ID, defaultChannel: 'whatsapp', supportedChannels: ['whatsapp'] },
   carhub: { locationId: CARHUB_STAFFORD_LOCATION_ID, defaultChannel: 'whatsapp', supportedChannels: ['whatsapp', 'messenger'] },

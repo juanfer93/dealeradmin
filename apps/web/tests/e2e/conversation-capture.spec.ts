@@ -118,6 +118,29 @@ test('recibe cada Customer Replied con el contact id y conversation id sin depen
   await expect(response.json()).resolves.toMatchObject({ accepted: true, source: 'stafford', status: 'processed' });
 });
 
+test('acepta mensajes de Messenger en Stafford además de WhatsApp', async ({ request }) => {
+  const suffix = `ghl-e2e-stafford-messenger-${Date.now()}`;
+  const response = await request.post('http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/stafford', {
+    data: JSON.stringify({
+      message_body: 'Busco un SUV.',
+      contact_phone: '+18046834849',
+      contact_name: 'David Francisco',
+      channel: 'messenger',
+      event_id: `${suffix}-event`,
+    }),
+    headers: {
+      'content-type': 'application/json',
+      'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
+      'X-DealerADMIN-Contact-ID': `${suffix}-contact`,
+      'X-DealerADMIN-Conversation-ID': `${suffix}-conversation`,
+      'X-DealerADMIN-Message-ID': `${suffix}-message`,
+    },
+  });
+
+  expect(response.status()).toBe(200);
+  await expect(response.json()).resolves.toMatchObject({ accepted: true, source: 'stafford', status: 'processed' });
+});
+
 test('responde con rechazo auditable cuando la firma del webhook es inválida', async ({ request }) => {
   const response = await request.post('http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/stafford', {
     data: JSON.stringify({

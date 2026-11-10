@@ -5,8 +5,12 @@ import { ADVISOR_HANDOFF_VEHICLE, detectLeadLanguage, extractRecentMessagePhone,
 import { isInvalidRealName } from '../../domain/collector-normalizer';
 
 const nameCatalogMigration = readFileSync(resolve(__dirname, '../../../../database/migrations/1710000055000-InvalidRealNames.ts'), 'utf8');
-const databaseInvalidRealNames = [...nameCatalogMigration.matchAll(/\('((?:[^']|'')*)'\)/g)]
-  .map((match) => match[1].replace(/''/g, "'").trim().replace(/\s+/g, ' ').toLocaleLowerCase());
+const applicationPromptNameMigration = readFileSync(resolve(__dirname, '../../../../database/migrations/1710000056000-InvalidApplicationPromptAsName.ts'), 'utf8');
+const databaseInvalidRealNames = [
+  ...[...nameCatalogMigration.matchAll(/\('((?:[^']|'')*)'\)/g)].map((match) => match[1]),
+  ...[...applicationPromptNameMigration.matchAll(/\('whatsapp', '((?:[^']|'')*)',/g)].map((match) => match[1]),
+]
+  .map((value) => value.replace(/''/g, "'").trim().replace(/\s+/g, ' ').toLocaleLowerCase());
 const normalizeRealName = (value: string | null | undefined) => normalizeRealNameWithCatalog(value, databaseInvalidRealNames);
 const normalizeCollectorInput = (input: Parameters<typeof normalizeCollectorInputWithCatalog>[0]) => normalizeCollectorInputWithCatalog({
   ...input,
@@ -2361,6 +2365,37 @@ describe('normalizeCollectorInput', () => {
       chat_history_log: 'Español\n¿Cuál es tu nombre?\nJosue ramirez',
     }).real_name).toBe('Josue Ramirez');
     expect(normalizeCollectorInput({ source: 'country-club', channel: 'whatsapp', message: 'Español' }).real_name).toBe('');
+  });
+
+  it('skips an online application reply and captures the later Stafford WhatsApp name', () => {
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      phone: '+18046834849',
+      message: 'Me gustó el misebiche',
+      chat_history_log: [
+        '¿Cuál es tu nombre?',
+        'Llene una solicitud en línea',
+        '¿Me compartes tu nombre, por favor?',
+        'David francisco Portillo Gómez',
+      ].join('\n'),
+    });
+
+    expect(result.real_name).toBe('David Francisco Portillo Gómez');
+  });
+
+  it('does not use a greeting as the Stafford WhatsApp buyer name', () => {
+    const result = normalizeCollectorInput({
+      source: 'lucki',
+      channel: 'whatsapp',
+      real_name: 'Un Saludo',
+      contact_name: 'Un Saludo',
+      profile: { name: 'Carlos Torres' },
+      phone: '+15716292387',
+      message: 'Estoy interesado en la Mazda CX-5 modelo 2020, 1500 de down.',
+    });
+
+    expect(result.real_name).toBe('Carlos Torres');
   });
 
   it('does not treat an English language reply as the buyer name', () => {

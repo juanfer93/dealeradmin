@@ -597,15 +597,15 @@ describe('ConversationWebhookService', () => {
     await expect(service.acceptCustomerReplied({ message_body: 'SUV' }, 'stafford', {})).rejects.toThrow('Contact ID');
   });
 
-  it('ignores Stafford Messenger conversations because Stafford is WhatsApp-only', async () => {
+  it('accepts Stafford Messenger conversations beside WhatsApp', async () => {
     const service = new ConversationWebhookService();
     const result = await service.acceptCustomerReplied(
       { message_body: 'Busco un SUV.', channel: 'messenger' },
       'stafford',
       { contactId: 'ghl-stafford-messenger-contact', conversationId: 'ghl-stafford-messenger-conversation' },
     );
-    expect(result).toMatchObject({ accepted: true, source: 'stafford', status: 'ignored_channel' });
-    expect(getTestConversationEvents()).toEqual([]);
+    expect(result).toMatchObject({ accepted: true, source: 'stafford', status: 'processed' });
+    expect(getTestConversationEvents()).toHaveLength(1);
   });
 
   it('replays accepted ingress rows that never received an event id', async () => {

@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { isInvalidRealName } from '../../leads/domain/collector-normalizer';
 
@@ -69,9 +70,10 @@ function configuredStaleAfterMs(): number {
 
 @Injectable()
 export class GhlConversationContextService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(@Optional() @InjectDataSource() private readonly dataSource?: DataSource) {}
 
   private async read<T>(sql: string, parameters: unknown[]): Promise<T> {
+    if (!this.dataSource) throw new ServiceUnavailableException('Context unavailable');
     try {
       return await this.dataSource.query(sql, parameters) as T;
     } catch {
