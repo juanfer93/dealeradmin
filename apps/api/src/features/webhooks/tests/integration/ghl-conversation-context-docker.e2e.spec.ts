@@ -75,7 +75,7 @@ describeDockerDatabase('GHL conversation memory HTTP E2E backed by the Docker da
       providers: [
         { provide: WebhookService, useValue: {} },
         { provide: ConversationWebhookService, useValue: {} },
-        { provide: WebhookIngressAuditService, useValue: { markAuth: async () => undefined } },
+        { provide: WebhookIngressAuditService, useValue: { markAuth: async () => undefined, markHandlerStarted: async () => undefined, markError: async () => undefined } },
         { provide: WebhookProcessingAuditService, useValue: {} },
         { provide: GhlConversationContextService, useValue: new GhlConversationContextService(dataSource) },
         GhlContextSecretGuard,

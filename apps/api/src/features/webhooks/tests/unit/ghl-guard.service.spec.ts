@@ -967,11 +967,9 @@ describe('GhlGuardService', () => {
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([{ id: 'guard-log-1', status: 'running' }]),
     };
-    const service = new GhlGuardService(dataSource as never, { reconcileConversation: vi.fn() } as never);
+    const persistence = new GhlGuardPersistenceFunctions(dataSource as never);
 
-    await (service as unknown as {
-      updateLog: (logId: string, status: string, details: Record<string, unknown>) => Promise<void>;
-    }).updateLog('guard-log-1', 'running', {});
+    await persistence.updateLog('guard-log-1', 'running', {});
 
     expect(dataSource.query).toHaveBeenCalledTimes(2);
     expect(dataSource.query.mock.calls[1]?.[0]).toContain('SELECT id::text AS id, status');
