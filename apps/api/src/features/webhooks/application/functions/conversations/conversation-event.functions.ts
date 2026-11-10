@@ -1,6 +1,7 @@
 import type { DataSource, QueryRunner } from 'typeorm';
 import { detectLeadLanguage, extractDeclaredRealNameFromText, extractRecentMessagePhone, isAdvisorHandoffVehicle, isInvalidRealName, isQualificationComplete, isStaffordWhatsAppVehicleLabel, normalizeCollectorInput, normalizeRealName, profileDisplayNameFromInput, whatsappProfileNameFallback } from '../../../../leads/domain/collector-normalizer';
 import { evaluateDownPayment, normalizeDownPayment } from '../../../../leads/domain/down-payment';
+import { mergeMemory } from '../../../../leads/domain/collector-normalizer/qualification-memory';
 import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-duplicate';
 import { normalizeGhlAttachments } from '../../../domain/ghl-attachment-normalizer';
 import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
@@ -31,7 +32,7 @@ import type {
 } from './conversation-webhook.types';
 import { configureWebhookTransactionSafety } from '../../transaction-safety';
 import { acquireLeadSuppressionLock, isLeadDeletionSuppressed } from '../../../../leads/application/lead-deletion';
-import { learnInvalidWhatsAppNames, loadInvalidRealNames } from './whatsapp-invalid-name-memory';
+import { extractDeclaredMessengerName, learnInvalidMessengerNames, learnInvalidWhatsAppNames, loadInvalidRealNames } from './whatsapp-invalid-name-memory';
 
 export class ConversationEventFunctions {
   constructor(
@@ -85,12 +86,12 @@ export class ConversationEventFunctions {
         : await this.qualification.findSourceDealer(runner, locationId, source);
       const displayName = clean(event.contact_name) || 'Lead';
       const whatsappChannel = /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(event.channel);
-      const invalidRealNames = await loadInvalidRealNames(runner, whatsappChannel ? 'whatsapp' : 'all');
       const isSocialProfileChannel = /(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(event.channel);
+      const invalidRealNames = await loadInvalidRealNames(runner, whatsappChannel ? 'whatsapp' : isSocialProfileChannel ? 'messenger' : 'all');
       const profileName = isSocialProfileChannel
         ? profileDisplayNameFromInput({ channel: event.channel, contact_name: displayName })
         : '';
-      const normalizedName = profileDisplayNameFromInput({ channel: event.channel, contact_name: displayName }, invalidRealNames) || normalizeRealName(displayName, invalidRealNames) || (whatsappChannel ? whatsappProfileNameFallback(displayName, invalidRealNames) : '') || 'Lead';
+      const normalizedName = profileName || profileDisplayNameFromInput({ channel: event.channel, contact_name: displayName }, invalidRealNames) || normalizeRealName(displayName, invalidRealNames) || (whatsappChannel ? whatsappProfileNameFallback(displayName, invalidRealNames) : '') || 'Lead';
       const { firstName, lastName } = splitName(normalizedName);
       let lead = await this.qualification.upsertLead(runner, {
         locationId,
@@ -196,6 +197,12 @@ export class ConversationEventFunctions {
           return [body];
         })
         .join('\n');
+      const messengerNameMemoryTranscript = evidenceMessages.map((item) => {
+        const body = String(item.body ?? '').replace(/\r\n?/g, '\n').trim();
+        if (!body) return '';
+        if (item.direction === 'outbound') return /(?:what(?:'s| is)?\s+(?:your|the)\s+name|full\s+name|what\s+should\s+i\s+call|how\s+do\s+you\s+(?:call|go by)|c[oó]mo\s+te\s+llamas|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i.test(body) ? '__NAME_PROMPT__' : '__OUTBOUND__';
+        return `__INBOUND__ ${body}`;
+      }).filter(Boolean).join('\n');
       const now = controlledNow ?? currentLocalNow();
       const recentPhone = safePhone(extractRecentMessagePhone(evidenceMessages.map((message) => ({
         ...message,
@@ -273,12 +280,15 @@ export class ConversationEventFunctions {
         ? explicitTranscriptName || declaredNameFromInboundTranscript(transcript, clean((previousSnapshot.qualification_progress as { predicted_bot_question?: unknown } | undefined)?.predicted_bot_question), invalidRealNames)
         : '';
       const transcriptDeclaredRealName = isInvalidRealName(transcriptDeclaredCandidate, invalidRealNames) ? '' : transcriptDeclaredCandidate;
+      const messengerDeclaredName = isSocialProfileChannel ? extractDeclaredMessengerName(messengerNameMemoryTranscript, invalidRealNames) : '';
       const realName = nativeWhatsapp
         ? transcriptDeclaredRealName
           || authoritativePreviousRealName
           || clean(normalized.real_name)
           || contactRealName
           || ''
+        : isSocialProfileChannel
+        ? clean(normalized.form_context?.full_name) || messengerDeclaredName || contactRealName || clean(normalized.real_name) || ''
         : actionCarsSpanishNameFlow
         ? additiveField(transcriptRealName, clean(normalized.real_name))
           || previousRealName
@@ -295,6 +305,8 @@ export class ConversationEventFunctions {
           || '';
       if (nativeWhatsapp) {
         await learnInvalidWhatsAppNames(runner, nameMemoryTranscript, invalidRealNames, realName);
+      } else if (isSocialProfileChannel) {
+        await learnInvalidMessengerNames(runner, messengerNameMemoryTranscript, invalidRealNames, realName);
       }
       const vehicleType = additiveField(normalized.vehicle_type, previousSnapshot.vehicle_type);
       const previousVehicleIntent = previousSnapshot.vehicle_intent === 'buy' || previousSnapshot.vehicle_intent === 'sell'
@@ -306,7 +318,10 @@ export class ConversationEventFunctions {
       const documents = additiveField(normalized.documents, previousSnapshot.documents);
       const identification = additiveField(normalized.identification, previousSnapshot.identification);
       const bankAccount = additiveField(normalized.bank_account, previousSnapshot.bank_account);
-      const qualificationMemory = additiveField(normalized.qualification_memory, previousSnapshot.qualification_memory);
+      const qualificationMemoryBase = additiveField(normalized.qualification_memory, previousSnapshot.qualification_memory);
+      const qualificationMemory = isSocialProfileChannel
+        ? mergeMemory(qualificationMemoryBase, { real_name: realName })
+        : qualificationMemoryBase;
       const vehicleYear = typeof normalized.vehicle_year === 'number'
         ? normalized.vehicle_year
         : typeof previousSnapshot.vehicle_year === 'number' ? previousSnapshot.vehicle_year : null;
@@ -424,8 +439,8 @@ export class ConversationEventFunctions {
         await runner.commitTransaction();
         return { accepted: true, eventId: event.event_id, conversationId: conversation.id, source, status: 'stale_phone_ignored' };
       }
-      if (normalized.real_name) {
-        const { firstName: normalizedFirstName, lastName: normalizedLastName } = splitName(normalized.real_name);
+      if (realName) {
+        const { firstName: normalizedFirstName, lastName: normalizedLastName } = splitName(realName);
         await runner.query(`UPDATE leads SET first_name = $2, last_name = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [lead.id, normalizedFirstName, normalizedLastName]);
       }
       const queuedDuplicate = await findQueuedConversationDuplicate(runner, resolvedDealer.id, snapshot.real_name || normalizedName, snapshot.phone);

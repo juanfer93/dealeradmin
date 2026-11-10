@@ -411,6 +411,36 @@ describe('normalizeCollectorInput', () => {
     expect(result.real_name).toBe('Daniel Reyes');
   });
 
+  it('keeps the Messenger profile when the customer answers a vehicle question with "I am retired"', () => {
+    const result = normalizeCollectorInput({
+      channel: 'messenger',
+      contact_name: 'DeJuan Hodgins Sr.',
+      profile: { name: 'DeJuan Hodgins Sr.' },
+      message: 'I am retired',
+      chat_history_log: 'What vehicle are you looking for?\nI am retired',
+    });
+
+    expect(result.real_name).toBe('DeJuan Hodgins Sr.');
+  });
+
+  it('only replaces the Messenger profile with a name given after the bot asks for it', () => {
+    const profile = normalizeCollectorInput({
+      channel: 'messenger',
+      contact_name: 'DeJuan Hodgins Sr.',
+      message: 'I am retired',
+      chat_history_log: 'What is your full name?\nI am retired',
+    });
+    const declared = normalizeCollectorInput({
+      channel: 'messenger',
+      contact_name: 'DeJuan Hodgins Sr.',
+      message: 'My name is David Francisco Gomez',
+      chat_history_log: 'What is your full name?\nMy name is David Francisco Gomez',
+    });
+
+    expect(profile.real_name).toBe('DeJuan Hodgins Sr.');
+    expect(declared.real_name).toBe('David Francisco Gomez');
+  });
+
   it('rejects an emoji-only Instagram profile so the lead uses the no-name fallback', () => {
     expect(normalizeCollectorInput({
       channel: 'instagram',

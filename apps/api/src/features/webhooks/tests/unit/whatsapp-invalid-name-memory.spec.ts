@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { extractLearnableInvalidWhatsAppNamePhrases, learnInvalidWhatsAppNames, loadInvalidWhatsAppNames } from '../../application/functions/conversations/whatsapp-invalid-name-memory';
+import { extractDeclaredMessengerName, extractLearnableInvalidMessengerNamePhrases, extractLearnableInvalidWhatsAppNamePhrases, learnInvalidMessengerNames, learnInvalidWhatsAppNames, loadInvalidWhatsAppNames } from '../../application/functions/conversations/whatsapp-invalid-name-memory';
 
 describe('WhatsApp invalid real-name memory', () => {
   it('learns only strong non-name replies near an outbound name prompt', () => {
@@ -79,5 +79,48 @@ describe('WhatsApp invalid real-name memory', () => {
     await expect(loadInvalidWhatsAppNames({ query })).resolves.toEqual(['buscando honda civic']);
     expect(String(query.mock.calls[0][0])).toContain("WHERE channel = 'all' OR channel = $1");
     expect(query.mock.calls[0][1]).toEqual(['whatsapp']);
+  });
+});
+
+describe('Messenger invalid real-name memory', () => {
+  it('only learns inbound non-name answers after an outbound name prompt', () => {
+    const transcript = [
+      '__OUTBOUND__',
+      '__NAME_PROMPT__',
+      '__INBOUND__ I am retired',
+      '__OUTBOUND__',
+      '__INBOUND__ Truck',
+      '__OUTBOUND__',
+      '__NAME_PROMPT__',
+      '__INBOUND__ My name is DeJuan Hodgins Sr.',
+    ].join('\n');
+
+    expect(extractDeclaredMessengerName(transcript)).toBe('Dejuan Hodgins Sr');
+    expect(extractLearnableInvalidMessengerNamePhrases(transcript, [], 'DeJuan Hodgins Sr.')).toEqual(['retired']);
+    expect(extractLearnableInvalidMessengerNamePhrases('__INBOUND__ I am retired\n__INBOUND__ Truck')).toEqual(['retired']);
+  });
+
+  it('persists learned replies to the Messenger catalog without changing WhatsApp writes', async () => {
+    const query = vi.fn().mockResolvedValue([]);
+    const learned = await learnInvalidMessengerNames({ query }, '__NAME_PROMPT__\n__INBOUND__ I am retired', [], 'DeJuan Hodgins Sr.');
+
+    expect(learned).toEqual(['retired']);
+    expect(query).toHaveBeenCalledWith(expect.stringContaining("VALUES ('messenger', $1, $2, 'messenger_non_name_response')"), ['retired', 'retired']);
+    expect(extractLearnableInvalidWhatsAppNamePhrases('__NAME_PROMPT__\nI am retired')).toEqual([]);
+  });
+
+  it('survives a burst of concurrent Messenger observations without losing writes', async () => {
+    const query = vi.fn().mockResolvedValue([]);
+    const jobs = Array.from({ length: 100 }, () => learnInvalidMessengerNames(
+      { query },
+      '__NAME_PROMPT__\n__INBOUND__ I am retired',
+      [],
+      'DeJuan Hodgins Sr.',
+    ));
+
+    const results = await Promise.all(jobs);
+    expect(results.every((result) => result[0] === 'retired')).toBe(true);
+    expect(query).toHaveBeenCalledTimes(100);
+    expect(query.mock.calls.every(([sql]) => String(sql).includes("VALUES ('messenger', $1, $2, 'messenger_non_name_response')"))).toBe(true);
   });
 });

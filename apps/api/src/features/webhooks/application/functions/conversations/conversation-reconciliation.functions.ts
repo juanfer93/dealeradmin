@@ -2,6 +2,7 @@ import { BadRequestException, ServiceUnavailableException } from '@nestjs/common
 import type { DataSource } from 'typeorm';
 import { detectLeadLanguage, extractDeclaredRealNameFromText, extractRecentMessagePhone, isAdvisorHandoffVehicle, isInvalidRealName, isQualificationComplete, isStaffordWhatsAppVehicleLabel, normalizeCollectorInput, normalizeRealName, profileDisplayNameFromInput, whatsappProfileNameFallback } from '../../../../leads/domain/collector-normalizer';
 import { evaluateDownPayment, normalizeDownPayment } from '../../../../leads/domain/down-payment';
+import { mergeMemory } from '../../../../leads/domain/collector-normalizer/qualification-memory';
 import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-duplicate';
 import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
 import { ConversationQualificationFunctions } from './conversation-qualification.functions';
@@ -11,11 +12,12 @@ import type { ConversationMessageRow, ConversationSnapshot, LocationSnapshot, Me
 import { configureWebhookTransactionSafety } from '../../transaction-safety';
 import { isEmptyMarker } from '../../../../leads/domain/collector-normalizer/text-cleaner';
 import { queuedSiblingExclusionSql } from './queued-sibling.sql';
-import { learnInvalidWhatsAppNames, loadInvalidRealNames } from './whatsapp-invalid-name-memory';
+import { extractDeclaredMessengerName, learnInvalidMessengerNames, learnInvalidWhatsAppNames, loadInvalidRealNames } from './whatsapp-invalid-name-memory';
 
 const DOWN_PAYMENT_PROMPT = /\b(?:down|payment|enganche|pago\s+inicial|pago\s+de\s+entrada|inicial)\b/i;
 const DOWN_PAYMENT_QUESTION = /\b(?:cu[aá]nto|con\s+cu[aá]nto|how\s+much|approximately|aproximadamente|disponible|available|contar[ií]as|tendr[ií]as)\b/i;
-const NAME_PROMPT = /(?:what(?:'s| is)?\s+(?:your|the)\s+name|full\s+name|what\s+should\s+i\s+call|how\s+do\s+you\s+(?:call|go by)|c[oó]mo\s+te\s+llamas|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i;
+const NAME_PROMPT = /(?:what(?:'s| is)?\s+(?:your|the)\s+name|what\s+should\s+i\s+call|how\s+do\s+you\s+(?:call|go by)|c[oó]mo\s+te\s+llamas|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i;
+const MESSENGER_NAME_PROMPT = /(?:what(?:'s| is)?\s+(?:your|the)\s+name|full\s+name|what\s+should\s+i\s+call|how\s+do\s+you\s+(?:call|go by)|c[oó]mo\s+te\s+llamas|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i;
 
 function isDownPaymentPrompt(value: unknown): boolean {
   const prompt = clean(value);
@@ -204,14 +206,20 @@ export class ConversationReconciliationFunctions {
         transcriptLines.push(body);
       }
       const transcript = transcriptLines.join('\n');
+      const messengerNameMemoryTranscript = evidenceMessages.map((item) => {
+        const body = clean(item.body);
+        if (!body) return '';
+        if (item.direction === 'outbound') return MESSENGER_NAME_PROMPT.test(body) ? '__NAME_PROMPT__' : '__OUTBOUND__';
+        return `__INBOUND__ ${body}`;
+      }).filter(Boolean).join('\n');
       if (!transcript) {
         await runner.rollbackTransaction();
         return;
       }
       const whatsappChannel = /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(channel);
-      const storedInvalidRealNames = await loadInvalidRealNames(runner, whatsappChannel ? 'whatsapp' : 'all');
-      const invalidRealNames = storedInvalidRealNames;
       const isSocialProfileChannel = /(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(channel);
+      const storedInvalidRealNames = await loadInvalidRealNames(runner, whatsappChannel ? 'whatsapp' : isSocialProfileChannel ? 'messenger' : 'all');
+      const invalidRealNames = storedInvalidRealNames;
       const contactName = clean(`${row.first_name || ''} ${row.last_name || ''}`) || 'Lead';
       const profileCandidate = clean(current.profile_name) || extractNativeProfileName(messages, channel);
       const profileName = isSocialProfileChannel
@@ -281,8 +289,11 @@ export class ConversationReconciliationFunctions {
         ? explicitTranscriptName || declaredNameFromInboundTranscript(transcript, clean(current.qualification_progress?.predicted_bot_question), invalidRealNames)
         : '';
       const transcriptDeclaredRealName = isInvalidRealName(transcriptDeclaredCandidate, invalidRealNames) ? '' : transcriptDeclaredCandidate;
+      const messengerDeclaredName = isSocialProfileChannel ? extractDeclaredMessengerName(messengerNameMemoryTranscript, invalidRealNames) : '';
       const realName = nativeWhatsapp
         ? transcriptDeclaredRealName || authoritativeCurrentRealName || clean(normalized.real_name) || contactRealName
+        : isSocialProfileChannel
+        ? clean(normalized.form_context?.full_name) || messengerDeclaredName || normalizedSocialProfileName || clean(normalized.real_name) || contactRealName
         : targeted
         ? actionCarsSpanishNameFlow
           ? clean(normalized.real_name) || normalizedSocialProfileName || contactRealName
@@ -296,6 +307,8 @@ export class ConversationReconciliationFunctions {
           : normalizedSocialProfileName || preserveOrNormalize(currentRealName, normalized.real_name) || contactRealName;
       if (nativeWhatsapp) {
         await learnInvalidWhatsAppNames(runner, transcript, invalidRealNames, realName);
+      } else if (isSocialProfileChannel) {
+        await learnInvalidMessengerNames(runner, messengerNameMemoryTranscript, invalidRealNames, realName);
       }
       const vehicle = targeted ? clean(normalized.vehicle_type) : preserveOrNormalize(current.vehicle_type, normalized.vehicle_type);
       const vehicleIntent = normalized.vehicle_intent || current.vehicle_intent || '';
@@ -313,7 +326,10 @@ export class ConversationReconciliationFunctions {
       const documents = targetedOrExisting(current.documents, normalized.documents);
       const identification = targetedOrExisting(current.identification, normalized.identification);
       const bankAccount = targetedOrExisting(current.bank_account, normalized.bank_account);
-      const qualificationMemory = targetedOrExisting(current.qualification_memory, normalized.qualification_memory);
+      const qualificationMemoryBase = targetedOrExisting(current.qualification_memory, normalized.qualification_memory);
+      const qualificationMemory = isSocialProfileChannel
+        ? mergeMemory(qualificationMemoryBase, { real_name: realName })
+        : qualificationMemoryBase;
       const previousFinancing = targeted
         ? normalized.previous_financing === 'yes' || normalized.previous_financing === 'no'
           ? normalized.previous_financing

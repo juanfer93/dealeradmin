@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { InvalidRealNames1710000055000 } from '../../../../database/migrations/1710000055000-InvalidRealNames';
+import { MessengerInvalidRealNames1710000057000 } from '../../../../database/migrations/1710000057000-MessengerInvalidRealNames';
 
 describe('InvalidRealNames1710000055000', () => {
   it('seeds the previous invalid-name catalog into the WhatsApp database table', async () => {
@@ -12,5 +13,15 @@ describe('InvalidRealNames1710000055000', () => {
     expect(seed).toContain("('Samantha ede Easterns Motors')");
     expect(seed).toContain("'seeded_invalid_real_name'");
     expect(seed).toContain('ON CONFLICT (channel, normalized_value) DO NOTHING');
+  });
+});
+
+describe('MessengerInvalidRealNames1710000057000', () => {
+  it('adds Messenger as a separate invalid-name catalog channel', async () => {
+    const query = vi.fn().mockResolvedValue(undefined);
+    await new MessengerInvalidRealNames1710000057000().up({ query } as never);
+
+    expect(query).toHaveBeenNthCalledWith(1, 'ALTER TABLE invalid_real_names DROP CONSTRAINT IF EXISTS invalid_real_names_channel_valid');
+    expect(String(query.mock.calls[1][0])).toContain("CHECK (channel IN ('all', 'whatsapp', 'messenger'))");
   });
 });

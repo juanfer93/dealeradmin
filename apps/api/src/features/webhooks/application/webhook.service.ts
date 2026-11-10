@@ -90,9 +90,9 @@ export class WebhookService {
     try {
       await configureWebhookTransactionSafety(queryRunner);
       const payloadHash = createHash('sha256').update(rawBody).digest('hex');
-      const isMessengerChannel = /(?:^|[^a-z])(?:messenger|facebook)(?:$|[^a-z])/i.test(payload.lead.channel ?? '');
+      const isMessengerChannel = /(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(payload.lead.channel ?? '');
       const isWhatsAppChannel = /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(payload.lead.channel ?? '');
-      const invalidRealNames = await loadInvalidRealNames(queryRunner, isWhatsAppChannel ? 'whatsapp' : 'all');
+      const invalidRealNames = await loadInvalidRealNames(queryRunner, isWhatsAppChannel ? 'whatsapp' : isMessengerChannel ? 'messenger' : 'all');
       // Messenger's contact/profile name is the identity source. WhatsApp's
       // contact label is not a claimed name; that must come from the chat.
       const collectorRealName = isMessengerChannel ? payload.lead.name : payload.lead.real_name;
@@ -118,8 +118,8 @@ export class WebhookService {
       }, normalizeCollectorInput({
         channel: payload.lead.channel,
         real_name: collectorRealName,
-        contact_name: isWhatsAppChannel ? payload.lead.name : undefined,
-        profile: isWhatsAppChannel ? { name: whatsappProfileNameFallback(payload.lead.name, invalidRealNames) } : undefined,
+        contact_name: isMessengerChannel ? payload.lead.name : isWhatsAppChannel ? payload.lead.name : undefined,
+        profile: isWhatsAppChannel ? { name: whatsappProfileNameFallback(payload.lead.name, invalidRealNames) } : isMessengerChannel ? { name: payload.lead.name } : undefined,
         invalid_real_names: invalidRealNames,
         message: payload.lead.message ?? payload.lead.chat_history_log,
         phone: payload.lead.phone,

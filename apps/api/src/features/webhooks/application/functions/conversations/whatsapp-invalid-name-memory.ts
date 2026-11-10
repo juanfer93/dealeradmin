@@ -5,9 +5,35 @@ type Queryable = {
 };
 
 const NAME_PROMPT = /__NAME_PROMPT__|(?:what(?:'s| is)?\s+(?:your|the)\s+name|what\s+should\s+i\s+call|how\s+do\s+you\s+(?:call|go by)|c[oó]mo\s+te\s+llamas|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i;
+const MESSENGER_NAME_PROMPT = /__NAME_PROMPT__|(?:what(?:'s| is)?\s+(?:your|the)\s+name|full\s+name|what\s+should\s+i\s+call|how\s+do\s+you\s+(?:call|go by)|c[oó]mo\s+te\s+llamas|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i;
 const NAME_DECLARATION = /\b(?:me llamo|mi nombre es|soy|yo soy|my name is|my name['’]s|i am|i['’]m|this is|call me)\s+[\p{L}]/iu;
 const BANK_ACCOUNT_LABEL = /^(bank account|cuenta bancaria|cuenta de banco)\b/i;
 const CLEAR_NON_NAME_RESPONSE = /\b(?:i|i'm|i am|my|we|me|mi|quiero|necesito|busco|buscando|ando|estoy|looking|need|want|interested|interesa|tienes|tienen|can you|could you|please|send|price|precio|down payment|enganche|suv|sedan|truck|troca|pickup|pick-up|van|camioneta|carro|auto|vehicle|car|mañana|manana|today|tomorrow|hoy|exacto|exactamente|hola|hello|hi|yes|no|stop|where|when|how|what|cu[aá]ndo|d[oó]nde|c[oó]mo)\b/i;
+const NON_NAME_DECLARATION = /\b(?:i(?:'m| am)|soy|estoy)\s+(?<state>retired|working|looking|busy|interested|available|ready|fine|good|okay|ok|between|single|married|here|there)\b/i;
+
+export function extractDeclaredMessengerName(transcript: string, invalidRealNames: readonly string[] = []): string {
+  const lines = String(transcript ?? '').replace(/\r\n?/g, '\n').split('\n').map((line) => line.trim()).filter(Boolean);
+  let repliesLeft = 0;
+  for (const line of lines) {
+    if (line === '__NAME_PROMPT__' || MESSENGER_NAME_PROMPT.test(line)) {
+      repliesLeft = 8;
+      continue;
+    }
+    if (line.startsWith('__OUTBOUND__')) {
+      repliesLeft = MESSENGER_NAME_PROMPT.test(line) ? 8 : 0;
+      continue;
+    }
+    if (!line.startsWith('__INBOUND__') || repliesLeft <= 0) continue;
+    repliesLeft -= 1;
+    const candidate = line.replace(/^__INBOUND__\s*/, '');
+    if (NON_NAME_DECLARATION.test(candidate)) continue;
+    const declared = extractDeclaredRealNameFromText(candidate, invalidRealNames);
+    if (declared) return declared;
+    const standalone = normalizeRealName(candidate, invalidRealNames);
+    if (standalone && /^[\p{L}][\p{L}'’-]*(?:\s+[\p{L}][\p{L}'’-]*){1,3}$/u.test(candidate)) return standalone;
+  }
+  return '';
+}
 
 function learnableTailAfterDeclaredName(value: string): string {
   const withoutDeclaration = value.replace(/^\s*(?:me llamo|mi nombre es|my name is|my name['’]s|i am|i['’]m|this is|call me)\s+/i, '');
@@ -66,7 +92,7 @@ export function extractLearnableInvalidWhatsAppNamePhrases(transcript: string, i
   return [...found.values()];
 }
 
-export async function loadInvalidRealNames(queryable: Queryable, channel: 'whatsapp' | 'all' = 'whatsapp'): Promise<string[]> {
+export async function loadInvalidRealNames(queryable: Queryable, channel: 'whatsapp' | 'messenger' | 'all' = 'whatsapp'): Promise<string[]> {
   const rows = await queryable.query(
     `SELECT normalized_value FROM invalid_real_names WHERE channel = 'all' OR channel = $1 ORDER BY normalized_value`,
     [channel],
@@ -85,6 +111,67 @@ export async function learnInvalidWhatsAppNames(queryable: Queryable, transcript
     await queryable.query(
       `INSERT INTO invalid_real_names (channel, normalized_value, display_value, reason)
        VALUES ('whatsapp', $1, $2, 'whatsapp_non_name_response')
+       ON CONFLICT (channel, normalized_value) DO UPDATE
+       SET display_value = EXCLUDED.display_value,
+           observation_count = invalid_real_names.observation_count + 1,
+           last_seen_at = CURRENT_TIMESTAMP`,
+      [normalizedValue, displayValue],
+    );
+  }
+  return learned.map((value) => value.normalize('NFC').replace(/\s+/g, ' ').trim().toLocaleLowerCase());
+}
+
+/** Messenger/Instagram learn only inbound replies following an outbound name prompt. */
+export function extractLearnableInvalidMessengerNamePhrases(transcript: string, invalidRealNames: readonly string[] = [], confirmedRealName = ''): string[] {
+  const confirmedName = normalizeRealName(confirmedRealName, invalidRealNames);
+  const lines = String(transcript ?? '').replace(/\r\n?/g, '\n').split('\n').map((line) => line.trim()).filter(Boolean);
+  const found = new Map<string, string>();
+  let repliesLeft = 0;
+  for (const line of lines) {
+    if (NAME_PROMPT.test(line)) {
+      repliesLeft = 8;
+      continue;
+    }
+    if (line.startsWith('__OUTBOUND__')) {
+      repliesLeft = NAME_PROMPT.test(line) ? 8 : 0;
+      continue;
+    }
+    if (line.startsWith('__INBOUND__')) {
+      const candidate = line.replace(/^__INBOUND__\s*/, '').replace(/[.!?,;:]+$/g, '').trim();
+      if (candidate.length < 2 || candidate.length > 180 || /\d|@/.test(candidate)) continue;
+      const nonNameDeclaration = candidate.match(NON_NAME_DECLARATION);
+      if (nonNameDeclaration?.groups?.state) {
+        const invalidCandidate = nonNameDeclaration.groups.state;
+        const key = invalidCandidate.normalize('NFC').replace(/\s+/g, ' ').toLocaleLowerCase();
+        if (!found.has(key)) found.set(key, invalidCandidate);
+        continue;
+      }
+      if (!repliesLeft) continue;
+      repliesLeft -= 1;
+      const declared = extractDeclaredRealNameFromText(candidate, invalidRealNames);
+      const normalized = normalizeRealName(candidate, invalidRealNames);
+      // A declaration such as "I'm retired" is conversational evidence, not
+      // a name. Explicitly declared human names remain eligible.
+      if (declared && !NON_NAME_DECLARATION.test(candidate)) continue;
+      if (declared && !CLEAR_NON_NAME_RESPONSE.test(candidate)) continue;
+      if (confirmedName && normalized && normalized.toLocaleLowerCase() === confirmedName.toLocaleLowerCase()) continue;
+      const clearlyNonName = isInvalidRealName(candidate, invalidRealNames) || CLEAR_NON_NAME_RESPONSE.test(candidate);
+      if (!clearlyNonName && normalized) continue;
+      if (!clearlyNonName && !confirmedName) continue;
+      const key = candidate.normalize('NFC').replace(/\s+/g, ' ').toLocaleLowerCase();
+      if (!found.has(key)) found.set(key, candidate);
+    }
+  }
+  return [...found.values()];
+}
+
+export async function learnInvalidMessengerNames(queryable: Queryable, transcript: string, invalidRealNames: readonly string[] = [], confirmedRealName = ''): Promise<string[]> {
+  const learned = extractLearnableInvalidMessengerNamePhrases(transcript, invalidRealNames, confirmedRealName);
+  for (const displayValue of learned) {
+    const normalizedValue = displayValue.normalize('NFC').replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+    await queryable.query(
+      `INSERT INTO invalid_real_names (channel, normalized_value, display_value, reason)
+       VALUES ('messenger', $1, $2, 'messenger_non_name_response')
        ON CONFLICT (channel, normalized_value) DO UPDATE
        SET display_value = EXCLUDED.display_value,
            observation_count = invalid_real_names.observation_count + 1,

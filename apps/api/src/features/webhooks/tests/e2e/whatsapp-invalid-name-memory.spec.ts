@@ -1,8 +1,9 @@
 import { DataSource } from 'typeorm';
 import { describe, expect, it } from 'vitest';
 import { InvalidRealNames1710000055000 } from '../../../../database/migrations/1710000055000-InvalidRealNames';
+import { MessengerInvalidRealNames1710000057000 } from '../../../../database/migrations/1710000057000-MessengerInvalidRealNames';
 import { normalizeCollectorInput } from '../../../leads/domain/collector-normalizer';
-import { learnInvalidWhatsAppNames, loadInvalidRealNames } from '../../application/functions/conversations/whatsapp-invalid-name-memory';
+import { learnInvalidMessengerNames, learnInvalidWhatsAppNames, loadInvalidRealNames } from '../../application/functions/conversations/whatsapp-invalid-name-memory';
 
 const databaseUrl = process.env.WHATSAPP_NAME_MEMORY_E2E_DATABASE_URL;
 
@@ -17,6 +18,7 @@ describe.skipIf(!databaseUrl)('WhatsApp invalid-name memory (local PostgreSQL E2
     await runner.connect();
     try {
       await new InvalidRealNames1710000055000().up(runner);
+      await new MessengerInvalidRealNames1710000057000().up(runner);
       const learned = await learnInvalidWhatsAppNames(
         runner,
         `__NAME_PROMPT__\n${learnedPhrase}\n__NAME_PROMPT__\nMe llamo Ana Torres`,
@@ -71,6 +73,52 @@ describe.skipIf(!databaseUrl)('WhatsApp invalid-name memory (local PostgreSQL E2
       await runner.query('DELETE FROM invalid_real_names WHERE channel = $1 AND normalized_value = $2', [
         'whatsapp', learnedTail,
       ]);
+      await runner.release();
+      await dataSource.destroy();
+    }
+  });
+
+  it('learns Messenger invalid replies after name prompts and preserves the native profile by default', async () => {
+    await dataSource.initialize();
+    const runner = dataSource.createQueryRunner();
+    const phrase = 'retired';
+    await runner.connect();
+    try {
+      await new InvalidRealNames1710000055000().up(runner);
+      await new MessengerInvalidRealNames1710000057000().up(runner);
+      await learnInvalidMessengerNames(runner, '__NAME_PROMPT__\n__INBOUND__ I am retired', [], 'DeJuan Hodgins Sr.');
+      const catalog = await loadInvalidRealNames(runner, 'messenger');
+      expect(catalog).toContain(phrase);
+
+      const result = normalizeCollectorInput({
+        channel: 'messenger',
+        contact_name: 'DeJuan Hodgins Sr.',
+        invalid_real_names: catalog,
+        message: 'I am retired',
+        chat_history_log: 'What vehicle are you looking for?\nI am retired',
+      });
+      expect(result.real_name).toBe('DeJuan Hodgins Sr.');
+
+      const attempts = await Promise.all(Array.from({ length: 50 }, async () => {
+        const concurrentRunner = dataSource.createQueryRunner();
+        await concurrentRunner.connect();
+        try {
+          return await learnInvalidMessengerNames(concurrentRunner, '__NAME_PROMPT__\n__INBOUND__ I am retired', catalog, 'DeJuan Hodgins Sr.');
+        } finally {
+          await concurrentRunner.release();
+        }
+      }));
+      expect(attempts.every((resultSet) => resultSet[0] === phrase)).toBe(true);
+      const observation = await runner.query('SELECT observation_count FROM invalid_real_names WHERE channel = $1 AND normalized_value = $2', ['messenger', phrase]) as Array<{ observation_count: number }>;
+      expect(Number(observation[0]?.observation_count)).toBeGreaterThanOrEqual(51);
+
+      await learnInvalidWhatsAppNames(runner, '__NAME_PROMPT__\nI am retired');
+      const whatsappCatalog = await loadInvalidRealNames(runner, 'whatsapp');
+      expect(whatsappCatalog).not.toContain(phrase);
+      expect(catalog).toContain(phrase);
+    } finally {
+      await runner.query('DELETE FROM invalid_real_names WHERE channel = $1 AND normalized_value = $2', ['messenger', phrase]);
+      await runner.query('DELETE FROM invalid_real_names WHERE channel = $1 AND normalized_value = $2', ['whatsapp', phrase]);
       await runner.release();
       await dataSource.destroy();
     }

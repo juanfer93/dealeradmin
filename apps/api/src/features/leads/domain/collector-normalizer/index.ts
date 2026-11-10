@@ -70,7 +70,26 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     whatsappProfileFallback,
     profileName,
   ];
-  const messengerDeclaredName = [extractDeclaredRealNameFromText(rawMessage), extractDeclaredRealNameFromText(rawHistory)].map((candidate) => normalizeRealName(candidate)).find(Boolean) ?? EMPTY;
+  const messengerNameAnswers = [rawMessage, rawHistory].flatMap((transcript) => {
+    const lines = transcript.split(/\n+/).map((line) => line.trim());
+    const answers: string[] = [];
+    let promptWindow = 0;
+    for (const line of lines) {
+      if (/__NAME_PROMPT__|(?:what(?:'s| is)?\s+(?:your|the)\s+name|full\s+name|what\s+should\s+i\s+call|how\s+do\s+you\s+(?:call|go by)|c[oó]mo\s+te\s+llamas|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i.test(line)) {
+        promptWindow = 8;
+        continue;
+      }
+      if (promptWindow > 0) {
+        promptWindow -= 1;
+        if (/\b(?:i(?:'m| am)|soy|estoy)\s+(?:retired|working|looking|busy|interested|available|ready|fine|good|okay|ok|between|single|married)\b/i.test(line)) continue;
+        const declared = extractDeclaredRealNameFromText(line);
+        if (declared) answers.push(declared);
+        else if (/^[\p{L}][\p{L}'’-]*(?:\s+[\p{L}][\p{L}'’-]*){1,3}$/u.test(line)) answers.push(line);
+      }
+    }
+    return answers;
+  });
+  const messengerDeclaredName = messengerNameAnswers.map((candidate) => normalizeRealName(candidate)).find(Boolean) ?? EMPTY;
   const realName = isMessengerChannel(channel)
     ? formContext?.full_name || messengerDeclaredName || profileDisplayName || suppliedName
     : isWhatsAppChannel(channel)

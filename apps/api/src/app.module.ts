@@ -59,6 +59,9 @@ import { CountryClubCarsDealer1710000050000 } from './database/migrations/171000
 import { LuckiMazdaDealer1710000051000 } from './database/migrations/1710000051000-LuckiMazdaDealer';
 import { RenameCountryClubCarsDealer1710000052000 } from './database/migrations/1710000052000-RenameCountryClubCarsDealer';
 import { CarHubStaffordDealer1710000053000 } from './database/migrations/1710000053000-CarHubStaffordDealer';
+import { InvalidRealNames1710000055000 } from './database/migrations/1710000055000-InvalidRealNames';
+import { InvalidApplicationPromptAsName1710000056000 } from './database/migrations/1710000056000-InvalidApplicationPromptAsName';
+import { MessengerInvalidRealNames1710000057000 } from './database/migrations/1710000057000-MessengerInvalidRealNames';
 import { AlphaMotorsportsDealer1710000054000 } from './database/migrations/1710000054000-AlphaMotorsportsDealer';
 import { POSTGRES_EXTRA } from './database/postgres-connection-options';
 
@@ -123,6 +126,9 @@ const databaseModule = TypeOrmModule.forRootAsync({
             RenameCountryClubCarsDealer1710000052000,
             CarHubStaffordDealer1710000053000,
             AlphaMotorsportsDealer1710000054000,
+            InvalidRealNames1710000055000,
+            InvalidApplicationPromptAsName1710000056000,
+            MessengerInvalidRealNames1710000057000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,
