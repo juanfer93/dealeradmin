@@ -1,6 +1,10 @@
 import { apiFetch } from '../http/api-client';
 import type { LeadStatus } from '../../domain/leads/lead.types';
 
+export function getLeadConversation(leadId: string, dealerId: string) {
+  return apiFetch(`/api/leads/${encodeURIComponent(leadId)}/conversation?dealerId=${encodeURIComponent(dealerId)}`);
+}
+
 export function getLeads(status: LeadStatus, dealerId?: string, dealerIds?: string[]) {
   const params = new URLSearchParams({ status });
   if (dealerId) params.set('dealerId', dealerId);

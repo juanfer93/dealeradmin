@@ -172,6 +172,54 @@ export class LeadsController {
     return { dealers, leads, wroteAgainCount: Number(wroteAgainCountRows[0]?.count ?? 0) };
   }
 
+  @Get(':id/conversation')
+  async conversation(
+    @Req() request: Request,
+    @Param('id') leadId: string,
+    @Query('dealerId') dealerId?: string,
+  ) {
+    this.requireSession(request);
+    if (!dealerId) throw new BadRequestException('Dealer is required to view conversations');
+    if (!this.dataSource) throw new UnauthorizedException('Conversation data is unavailable');
+
+    const rows = await this.dataSource.query(
+      `SELECT c.id AS "conversationId", c.channel, c.status AS "conversationStatus",
+              c.first_message_at AS "firstMessageAt", c.last_message_at AS "lastMessageAt",
+              m.id AS "messageId", m.direction, m.body, m.occurred_at AS "occurredAt"
+       FROM conversations c
+       INNER JOIN lead_dealers ld ON ld.lead_id = c.lead_id
+         AND COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $2
+       LEFT JOIN conversation_messages m ON m.conversation_id = c.id
+       WHERE c.lead_id = $1
+       ORDER BY c.last_message_at DESC NULLS LAST, c.created_at DESC,
+                m.occurred_at ASC NULLS LAST, m.created_at ASC NULLS LAST`,
+      [leadId, dealerId],
+    ) as Array<Record<string, unknown>>;
+
+    const conversations = new Map<string, {
+      id: string; channel: string; status: string; firstMessageAt: string | null;
+      lastMessageAt: string | null;
+      messages: Array<{ id: string; direction: string; body: string; occurredAt: string | null }>;
+    }>();
+    for (const row of rows) {
+      const id = String(row.conversationId);
+      let conversation = conversations.get(id);
+      if (!conversation) {
+        conversation = {
+          id, channel: String(row.channel ?? 'unknown'), status: String(row.conversationStatus ?? 'unknown'),
+          firstMessageAt: row.firstMessageAt ? String(row.firstMessageAt) : null,
+          lastMessageAt: row.lastMessageAt ? String(row.lastMessageAt) : null, messages: [],
+        };
+        conversations.set(id, conversation);
+      }
+      if (row.messageId) conversation.messages.push({
+        id: String(row.messageId), direction: String(row.direction ?? 'inbound'),
+        body: String(row.body ?? ''), occurredAt: row.occurredAt ? String(row.occurredAt) : null,
+      });
+    }
+    return { conversations: [...conversations.values()] };
+  }
+
   @Patch(':id/status')
   async updateStatus(
     @Req() request: Request,

@@ -36,3 +36,9 @@ export type LeadResponse = {
   leads: Lead[];
   wroteAgainCount?: number;
 };
+
+export type ConversationMessage = { id: string; direction: string; body: string; occurredAt: string | null };
+export type LeadConversation = {
+  id: string; channel: string; status: string; firstMessageAt: string | null;
+  lastMessageAt: string | null; messages: ConversationMessage[];
+};
