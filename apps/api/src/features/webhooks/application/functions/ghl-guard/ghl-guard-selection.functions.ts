@@ -1,5 +1,5 @@
 import type { QueryRunner } from 'typeorm';
-import { ghlGuardBatchSize, ghlGuardStaleLogMs } from '../../ghl-guard.config';
+import { ghlGuardBatchSize, ghlGuardIntervalMs, ghlGuardQueuedRefreshWindowMs, ghlGuardStaleLogMs } from '../../ghl-guard.config';
 import { RECONCILIATION_LOCATION_IDS } from '../conversations/conversation-webhook.config';
 import { canonicalConversationExclusionSql, queuedSiblingExclusionSql } from '../conversations/queued-sibling.sql';
 import type { GuardConversationRow } from './ghl-guard.types';
@@ -19,7 +19,20 @@ export async function selectGuardConversations(
   { targeted, contactIds, allowSentRepair, recentOnly, recentCutoff, queuedOnly }: GuardSelectionOptions,
 ): Promise<GuardConversationRow[]> {
   const recentPredicate = recentOnly
-    ? 'AND COALESCE(c.last_message_at, c.ready_at, c.created_at) >= $4::timestamptz'
+    ? `AND COALESCE(c.last_message_at, c.ready_at, c.created_at) >= ${queuedOnly && !targeted ? '$6' : '$4'}::timestamptz`
+    : '';
+  const queuedRefreshPredicate = queuedOnly && !targeted
+    ? `AND (
+             c.queued_guard_replay_count = 0
+             OR (
+               c.last_message_at >= CURRENT_TIMESTAMP - ($4::integer * INTERVAL '1 millisecond')
+               AND (last_guard.created_at IS NULL
+                 OR last_guard.created_at <= CURRENT_TIMESTAMP - ($5::integer * INTERVAL '1 millisecond'))
+             )
+           )
+           AND (c.queued_guard_replay_count > 0
+             OR c.queued_guard_replay_claimed_at IS NULL
+             OR c.queued_guard_replay_claimed_at <= CURRENT_TIMESTAMP - ($3::integer * INTERVAL '1 millisecond'))`
     : '';
   return await lockRunner.query(
         targeted
@@ -90,13 +103,12 @@ export async function selectGuardConversations(
            ORDER BY retry_guard.next_retry_at ASC, retry_guard.created_at ASC
            LIMIT 1
          ) due_retry ON TRUE
-         WHERE status = 'queued' AND queued_guard_replay_count = 0
+         WHERE status = 'queued'
+           ${queuedRefreshPredicate}
            ${allowSentRepair ? '' : `AND NOT EXISTS (
              SELECT 1 FROM lead_dealers sent_ld
              WHERE sent_ld.lead_id = c.lead_id AND sent_ld.status = 'sent'
            )`}
-           AND (queued_guard_replay_claimed_at IS NULL
-             OR queued_guard_replay_claimed_at <= CURRENT_TIMESTAMP - ($3::integer * INTERVAL '1 millisecond'))
            AND ghl_location_id = ANY($2::text[])
            ${recentPredicate}
            ${queuedSiblingExclusionSql('c')}
@@ -122,10 +134,12 @@ export async function selectGuardConversations(
          -- Freshly queued contacts must not wait behind the historical backlog.
          -- A failed contact is temporarily skipped by the retry backoff above,
          -- allowing the same backup cycle to make progress on the next row.
-         ORDER BY updated_at DESC NULLS LAST,
+         ORDER BY CASE WHEN c.queued_guard_replay_count = 0 THEN 0 ELSE 1 END,
+                  CASE WHEN c.queued_guard_replay_count = 0 THEN c.updated_at END DESC NULLS LAST,
+                  last_guard.created_at ASC NULLS FIRST,
                   CASE WHEN due_retry.next_retry_at IS NOT NULL THEN 0 ELSE 1 END,
                   due_retry.next_retry_at ASC NULLS LAST,
-                  last_guard.created_at ASC NULLS LAST
+                  c.updated_at DESC NULLS LAST
          LIMIT $1`
           : `SELECT id, ghl_location_id, ghl_contact_id, ghl_conversation_id, status,
                     qualification_snapshot->>'assigned_dealer_id' AS assigned_dealer_id
@@ -185,8 +199,12 @@ export async function selectGuardConversations(
           ? (recentOnly
             ? [Math.max(ghlGuardBatchSize(), Math.min(contactIds.length * 3, 10)), RECONCILIATION_LOCATION_IDS, contactIds, recentCutoff]
             : [Math.max(ghlGuardBatchSize(), Math.min(contactIds.length * 3, 10)), RECONCILIATION_LOCATION_IDS, contactIds])
-          : (recentOnly
-            ? [ghlGuardBatchSize(), RECONCILIATION_LOCATION_IDS, ghlGuardStaleLogMs(), recentCutoff]
-            : [ghlGuardBatchSize(), RECONCILIATION_LOCATION_IDS, ghlGuardStaleLogMs()]),
+          : queuedOnly
+            ? (recentOnly
+              ? [ghlGuardBatchSize(), RECONCILIATION_LOCATION_IDS, ghlGuardStaleLogMs(), ghlGuardQueuedRefreshWindowMs(), ghlGuardIntervalMs(), recentCutoff]
+              : [ghlGuardBatchSize(), RECONCILIATION_LOCATION_IDS, ghlGuardStaleLogMs(), ghlGuardQueuedRefreshWindowMs(), ghlGuardIntervalMs()])
+            : (recentOnly
+              ? [ghlGuardBatchSize(), RECONCILIATION_LOCATION_IDS, ghlGuardStaleLogMs(), recentCutoff]
+              : [ghlGuardBatchSize(), RECONCILIATION_LOCATION_IDS, ghlGuardStaleLogMs()]),
   ) as GuardConversationRow[];
 }

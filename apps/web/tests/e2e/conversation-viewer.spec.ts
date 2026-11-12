@@ -34,6 +34,7 @@ test('permite abrir la conversación del lead y renderiza WhatsApp y Messenger',
   await expect(modal).toContainText('Hola, busco una camioneta.');
   await expect(modal).toContainText('En cola · calificación completa');
   await expect(modal.locator('header')).toContainText('WhatsApp');
+  await expect(modal.getByRole('navigation', { name: 'Canales de conversación' }).getByRole('button')).toHaveCount(2);
 
   mkdirSync('output/screenshots', { recursive: true });
   await page.screenshot({ path: 'output/screenshots/conversation-viewer-whatsapp.png', fullPage: true });

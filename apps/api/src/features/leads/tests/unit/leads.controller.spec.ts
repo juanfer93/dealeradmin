@@ -299,8 +299,10 @@ describe('LeadsController conversation history', () => {
     process.env.NODE_ENV = 'production';
     const dataSource = {
       query: vi.fn(async () => [
-        { conversationId: 'conversation-1', channel: 'whatsapp', conversationStatus: 'queued', firstMessageAt: '2026-11-01T10:00:00Z', lastMessageAt: '2026-11-01T10:02:00Z', messageId: 'message-1', direction: 'inbound', body: 'Hola', occurredAt: '2026-11-01T10:00:00Z' },
-        { conversationId: 'conversation-1', channel: 'whatsapp', conversationStatus: 'queued', firstMessageAt: '2026-11-01T10:00:00Z', lastMessageAt: '2026-11-01T10:02:00Z', messageId: 'message-2', direction: 'outbound', body: '¿En qué puedo ayudarte?', occurredAt: '2026-11-01T10:02:00Z' },
+        { conversationId: 'conversation-1', channel: 'whatsapp', conversationStatus: 'queued', firstMessageAt: '2026-11-01T10:00:00Z', lastMessageAt: '2026-11-01T10:02:00Z', messageId: 'message-1-guard', ghlMessageId: 'ghl-1', direction: 'inbound', body: 'Hola', occurredAt: '2026-11-01T10:00:00Z', fromGuard: true },
+        { conversationId: 'conversation-1', channel: 'whatsapp', conversationStatus: 'queued', firstMessageAt: '2026-11-01T10:00:00Z', lastMessageAt: '2026-11-01T10:02:00Z', messageId: 'message-1-event', ghlMessageId: 'event-1', direction: 'inbound', body: 'Hola', occurredAt: '2026-11-01T10:00:20Z', fromGuard: false },
+        { conversationId: 'conversation-1', channel: 'whatsapp', conversationStatus: 'queued', firstMessageAt: '2026-11-01T10:00:00Z', lastMessageAt: '2026-11-01T10:02:00Z', messageId: 'message-2', ghlMessageId: 'ghl-2', direction: 'outbound', body: '¿En qué puedo ayudarte?', occurredAt: '2026-11-01T10:02:00Z', fromGuard: true },
+        { conversationId: 'conversation-2', channel: 'whatsapp', conversationStatus: 'queued', firstMessageAt: '2026-11-01T10:03:00Z', lastMessageAt: '2026-11-01T10:03:00Z', messageId: 'message-3', ghlMessageId: 'ghl-3', direction: 'inbound', body: 'Sigo buscando', occurredAt: '2026-11-01T10:03:00Z', fromGuard: true },
       ]),
     };
     const controller = new LeadsController(
@@ -312,11 +314,12 @@ describe('LeadsController conversation history', () => {
 
     await expect(controller.conversation({ cookies: { dealeradmin_session: 'session' } } as never, 'lead-1', 'dealer-1'))
       .resolves.toEqual({ conversations: [{
-        id: 'conversation-1', channel: 'whatsapp', status: 'queued',
-        firstMessageAt: '2026-11-01T10:00:00Z', lastMessageAt: '2026-11-01T10:02:00Z',
+        id: 'whatsapp', channel: 'whatsapp', status: 'queued',
+        firstMessageAt: '2026-11-01T10:00:00Z', lastMessageAt: '2026-11-01T10:03:00Z',
         messages: [
-          { id: 'message-1', direction: 'inbound', body: 'Hola', occurredAt: '2026-11-01T10:00:00Z' },
+          { id: 'message-1-guard', direction: 'inbound', body: 'Hola', occurredAt: '2026-11-01T10:00:00Z' },
           { id: 'message-2', direction: 'outbound', body: '¿En qué puedo ayudarte?', occurredAt: '2026-11-01T10:02:00Z' },
+          { id: 'message-3', direction: 'inbound', body: 'Sigo buscando', occurredAt: '2026-11-01T10:03:00Z' },
         ],
       }] });
     expect(dataSource.query).toHaveBeenCalledWith(expect.stringContaining('COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $2'), ['lead-1', 'dealer-1']);

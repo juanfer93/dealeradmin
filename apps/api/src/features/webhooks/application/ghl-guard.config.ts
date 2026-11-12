@@ -2,6 +2,7 @@ import type { SourceKey } from './functions/conversations/conversation-webhook.t
 
 export const GHL_GUARD_LOCK_KEY = 'dealeradmin.ghl.guard.v1';
 export const GHL_GUARD_DEFAULT_INTERVAL_MS = 5 * 60 * 1000;
+export const GHL_GUARD_DEFAULT_QUEUED_REFRESH_WINDOW_MS = 30 * 60 * 1000;
 export const GHL_GUARD_DEFAULT_BATCH_SIZE = 1;
 export const GHL_GUARD_MAX_BATCH_SIZE = 2;
 export const GHL_GUARD_DEFAULT_CONCURRENCY = 1;
@@ -47,6 +48,11 @@ export function ghlGuardEnabled(): boolean {
 export function ghlGuardIntervalMs(): number {
   const value = Number(process.env.GHL_GUARD_INTERVAL_MS ?? GHL_GUARD_DEFAULT_INTERVAL_MS);
   return Number.isInteger(value) && value > 0 ? value : GHL_GUARD_DEFAULT_INTERVAL_MS;
+}
+
+export function ghlGuardQueuedRefreshWindowMs(): number {
+  const value = Number(process.env.GHL_GUARD_QUEUED_REFRESH_WINDOW_MS ?? GHL_GUARD_DEFAULT_QUEUED_REFRESH_WINDOW_MS);
+  return Number.isInteger(value) && value > 0 ? Math.min(value, 24 * 60 * 60 * 1000) : GHL_GUARD_DEFAULT_QUEUED_REFRESH_WINDOW_MS;
 }
 
 export function ghlGuardBatchSize(): number {

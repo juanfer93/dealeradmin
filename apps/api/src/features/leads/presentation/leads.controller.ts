@@ -38,6 +38,19 @@ import {
 
 type LeadStatus = 'pending' | 'sent' | 'wrote_again';
 
+function conversationChannelKey(value: unknown): string {
+  const channel = String(value ?? 'unknown').trim();
+  if (/whats.?app/i.test(channel)) return 'whatsapp';
+  if (/messenger|facebook/i.test(channel)) return 'messenger';
+  return channel.toLowerCase() || 'unknown';
+}
+
+function parseConversationTime(value: unknown): number | null {
+  if (!value) return null;
+  const timestamp = new Date(String(value)).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
 type EditLeadBody = UpdateLeadDto & { dealerId?: unknown };
 type BulkDeleteItem = { leadId?: unknown; dealerId?: unknown };
 
@@ -185,7 +198,9 @@ export class LeadsController {
     const rows = await this.dataSource.query(
       `SELECT c.id AS "conversationId", c.channel, c.status AS "conversationStatus",
               c.first_message_at AS "firstMessageAt", c.last_message_at AS "lastMessageAt",
-              m.id AS "messageId", m.direction, m.body, m.occurred_at AS "occurredAt"
+              m.id AS "messageId", m.direction, m.body, m.occurred_at AS "occurredAt",
+              m.ghl_message_id AS "ghlMessageId",
+              (m.raw_payload ? 'dealeradmin_guard') AS "fromGuard"
        FROM conversations c
        INNER JOIN lead_dealers ld ON ld.lead_id = c.lead_id
          AND COALESCE(ld.assigned_dealer_id, ld.dealer_id) = $2
@@ -196,28 +211,71 @@ export class LeadsController {
       [leadId, dealerId],
     ) as Array<Record<string, unknown>>;
 
+    type TranscriptMessage = { id: string; ghlMessageId: string | null; direction: string; body: string; occurredAt: string | null; fromGuard: boolean };
     const conversations = new Map<string, {
       id: string; channel: string; status: string; firstMessageAt: string | null;
       lastMessageAt: string | null;
-      messages: Array<{ id: string; direction: string; body: string; occurredAt: string | null }>;
+      messages: TranscriptMessage[];
+      latestConversationAt: number;
     }>();
     for (const row of rows) {
-      const id = String(row.conversationId);
-      let conversation = conversations.get(id);
+      const channel = conversationChannelKey(row.channel);
+      let conversation = conversations.get(channel);
+      const rowLastMessageAt = row.lastMessageAt ? String(row.lastMessageAt) : null;
+      const rowLastMessageTime = parseConversationTime(rowLastMessageAt) ?? 0;
       if (!conversation) {
         conversation = {
-          id, channel: String(row.channel ?? 'unknown'), status: String(row.conversationStatus ?? 'unknown'),
+          id: channel, channel,
+          status: String(row.conversationStatus ?? 'unknown'),
           firstMessageAt: row.firstMessageAt ? String(row.firstMessageAt) : null,
-          lastMessageAt: row.lastMessageAt ? String(row.lastMessageAt) : null, messages: [],
+          lastMessageAt: rowLastMessageAt, messages: [], latestConversationAt: rowLastMessageTime,
         };
-        conversations.set(id, conversation);
+        conversations.set(channel, conversation);
+      } else {
+        const rowFirstMessageAt = row.firstMessageAt ? String(row.firstMessageAt) : null;
+        const currentFirstMessageTime = parseConversationTime(conversation.firstMessageAt) ?? Number.POSITIVE_INFINITY;
+        const rowFirstMessageTime = parseConversationTime(rowFirstMessageAt) ?? Number.POSITIVE_INFINITY;
+        if (rowFirstMessageTime < currentFirstMessageTime) conversation.firstMessageAt = rowFirstMessageAt;
+        if (rowLastMessageTime > conversation.latestConversationAt) {
+          conversation.latestConversationAt = rowLastMessageTime;
+          conversation.lastMessageAt = rowLastMessageAt;
+          conversation.status = String(row.conversationStatus ?? 'unknown');
+        }
       }
       if (row.messageId) conversation.messages.push({
-        id: String(row.messageId), direction: String(row.direction ?? 'inbound'),
+        id: String(row.messageId), ghlMessageId: row.ghlMessageId ? String(row.ghlMessageId) : null,
+        direction: String(row.direction ?? 'inbound'),
         body: String(row.body ?? ''), occurredAt: row.occurredAt ? String(row.occurredAt) : null,
+        fromGuard: Boolean(row.fromGuard),
       });
     }
-    return { conversations: [...conversations.values()] };
+    const result = [...conversations.values()].map((conversation) => {
+      const seenGuardIds = new Set<string>();
+      const guardMessages = conversation.messages.filter((message) => {
+        if (!message.fromGuard || !message.ghlMessageId) return false;
+        if (seenGuardIds.has(message.ghlMessageId)) return false;
+        seenGuardIds.add(message.ghlMessageId);
+        return message.direction === 'inbound' && Boolean(message.body.trim());
+      });
+      const uniqueMessages = conversation.messages.filter((message) => {
+        if (!message.fromGuard || !message.ghlMessageId) return true;
+        return conversation.messages.find((candidate) => candidate.fromGuard && candidate.ghlMessageId === message.ghlMessageId)?.id === message.id;
+      });
+      const messages = uniqueMessages
+        .filter((message) => message.fromGuard || !guardMessages.some((guardMessage) => {
+          if (message.direction !== 'inbound' || message.body.trim().toLocaleLowerCase() !== guardMessage.body.trim().toLocaleLowerCase()) return false;
+          const messageTime = parseConversationTime(message.occurredAt);
+          const guardTime = parseConversationTime(guardMessage.occurredAt);
+          return messageTime !== null && guardTime !== null && Math.abs(messageTime - guardTime) <= 60_000;
+        }))
+        .sort((left, right) => (parseConversationTime(left.occurredAt) ?? 0) - (parseConversationTime(right.occurredAt) ?? 0))
+        .map(({ id, direction, body, occurredAt }) => ({ id, direction, body, occurredAt }));
+      return {
+        id: conversation.id, channel: conversation.channel, status: conversation.status,
+        firstMessageAt: conversation.firstMessageAt, lastMessageAt: conversation.lastMessageAt, messages,
+      };
+    });
+    return { conversations: result };
   }
 
   @Patch(':id/status')
