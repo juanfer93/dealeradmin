@@ -141,6 +141,47 @@ test('acepta mensajes de Messenger en Stafford además de WhatsApp', async ({ re
   await expect(response.json()).resolves.toMatchObject({ accepted: true, source: 'stafford', status: 'processed' });
 });
 
+test('Fredericksburg recibe WhatsApp y Messenger mientras Fredericksburg 2 sigue solo con Messenger', async ({ request }) => {
+  const suffix = `ghl-e2e-fredericksburg-channels-${Date.now()}`;
+  const scenarios = [
+    { source: 'fredericksburg', channel: 'whatsapp', expectedStatus: 'processed' },
+    { source: 'fredericksburg', channel: 'messenger', expectedStatus: 'processed' },
+    { source: 'fredericksburg-2', channel: 'messenger', expectedStatus: 'processed' },
+    { source: 'fredericksburg-2', channel: 'whatsapp', expectedStatus: 'ignored_channel' },
+  ] as const;
+
+  for (const scenario of scenarios) {
+    const eventId = `${suffix}-${scenario.source}-${scenario.channel}`;
+    const response = await request.post(`http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/${scenario.source}`, {
+      data: JSON.stringify({
+        message_body: 'Busco una SUV.',
+        contact_phone: '+15715550123',
+        contact_name: 'Fredericksburg QA',
+        channel: scenario.channel,
+        event_id: eventId,
+      }),
+      headers: {
+        'content-type': 'application/json',
+        'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
+        'X-DealerADMIN-Contact-ID': `${eventId}-contact`,
+        'X-DealerADMIN-Conversation-ID': `${eventId}-conversation`,
+        'X-DealerADMIN-Message-ID': `${eventId}-message`,
+      },
+    });
+
+    expect(response.status(), `${scenario.source} ${scenario.channel}`).toBe(200);
+    if (scenario.expectedStatus === 'ignored_channel') {
+      expect(await response.text()).toBe('');
+    } else {
+      await expect(response.json()).resolves.toMatchObject({
+        accepted: true,
+        source: scenario.source,
+        status: scenario.expectedStatus,
+      });
+    }
+  }
+});
+
 test('responde con rechazo auditable cuando la firma del webhook es inválida', async ({ request }) => {
   const response = await request.post('http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/stafford', {
     data: JSON.stringify({

@@ -29,7 +29,7 @@ export const GHL_SOURCE_CONFIG: SourceConfigMap = {
   lucki: { locationId: LUCKI_MAZDA_LOCATION_ID, defaultChannel: 'whatsapp', supportedChannels: ['whatsapp'] },
   carhub: { locationId: CARHUB_STAFFORD_LOCATION_ID, defaultChannel: 'whatsapp', supportedChannels: ['whatsapp', 'messenger'] },
   alpha: { locationId: ALPHA_MOTORSPORTS_LOCATION_ID, defaultChannel: 'whatsapp', supportedChannels: ['whatsapp', 'messenger'] },
-  fredericksburg: { locationId: 'MyxWNKacThim798E8KC6', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
+  fredericksburg: { locationId: 'MyxWNKacThim798E8KC6', defaultChannel: 'messenger', supportedChannels: ['whatsapp', 'messenger'] },
   'fredericksburg-2': { locationId: 'bAuMEQeH48xAtu9tAMFf', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
   easterns: { locationId: 'xN2LSSl62okzv9GnOJPU', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
   arlington: { locationId: '9v8zH9Y5eLiiJwZTZDci', defaultChannel: 'messenger', supportedChannels: ['messenger'] },

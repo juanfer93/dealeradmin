@@ -659,6 +659,44 @@ describe('ConversationWebhookService', () => {
     });
   });
 
+  it('processes WhatsApp and Messenger for Fredericksburg 1 while Fredericksburg 2 stays Messenger-only', async () => {
+    expect(GHL_SOURCE_CONFIG.fredericksburg).toEqual({
+      locationId: 'MyxWNKacThim798E8KC6',
+      defaultChannel: 'messenger',
+      supportedChannels: ['whatsapp', 'messenger'],
+    });
+    expect(GHL_SOURCE_CONFIG['fredericksburg-2']).toEqual({
+      locationId: 'bAuMEQeH48xAtu9tAMFf',
+      defaultChannel: 'messenger',
+      supportedChannels: ['messenger'],
+    });
+
+    const service = new ConversationWebhookService();
+    const whatsapp = await service.acceptCustomerReplied(
+      { message_body: 'Busco una SUV.', channel: 'whatsapp', ghl_location_id: 'MyxWNKacThim798E8KC6' },
+      'fredericksburg',
+      { contactId: 'ghl-fredericksburg-whatsapp-contact', conversationId: 'ghl-fredericksburg-whatsapp-conversation' },
+    );
+    const messenger = await service.acceptCustomerReplied(
+      { message_body: 'Busco una SUV.', channel: 'messenger', ghl_location_id: 'MyxWNKacThim798E8KC6' },
+      'fredericksburg',
+      { contactId: 'ghl-fredericksburg-messenger-contact', conversationId: 'ghl-fredericksburg-messenger-conversation' },
+    );
+    const fred2Whatsapp = await service.acceptCustomerReplied(
+      { message_body: 'Busco una SUV.', channel: 'whatsapp', ghl_location_id: 'bAuMEQeH48xAtu9tAMFf' },
+      'fredericksburg-2',
+      { contactId: 'ghl-fredericksburg-2-whatsapp-contact', conversationId: 'ghl-fredericksburg-2-whatsapp-conversation' },
+    );
+
+    expect(whatsapp).toMatchObject({ source: 'fredericksburg', status: 'processed' });
+    expect(messenger).toMatchObject({ source: 'fredericksburg', status: 'processed' });
+    expect(fred2Whatsapp).toMatchObject({ source: 'fredericksburg-2', status: 'ignored_channel' });
+    expect(getTestConversationEvents()).toEqual([
+      expect.objectContaining({ source: 'fredericksburg', channel: 'whatsapp' }),
+      expect.objectContaining({ source: 'fredericksburg', channel: 'messenger' }),
+    ]);
+  });
+
   it('configures Country Club Cars as a WhatsApp-only source', async () => {
     expect(GHL_SOURCE_CONFIG.country).toEqual({
       locationId: 'k9DePpsNBu9qWT1C6pW0',
