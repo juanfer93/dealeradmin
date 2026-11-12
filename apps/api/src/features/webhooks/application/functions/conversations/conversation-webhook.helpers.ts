@@ -102,8 +102,9 @@ export function sourceKey(value: string, sourceConfig: SourceConfigMap): SourceK
   return source;
 }
 
-export function isStaffordWhatsApp(source: SourceKey, channel: string): boolean {
-  return (source === 'stafford' || source === 'country' || source === 'lucki' || source === 'carhub' || source === 'alpha' || source === 'action-cars') && channel.trim().toLowerCase() === 'whatsapp';
+export function isConfiguredWhatsApp(source: SourceKey, channel: string, sourceConfig: SourceConfigMap): boolean {
+  const configuredChannels = sourceConfig[source].supportedChannels ?? [sourceConfig[source].defaultChannel];
+  return channel.trim().toLowerCase() === 'whatsapp' && configuredChannels.includes('whatsapp');
 }
 
 export function parseOccurredAt(value: string | undefined): string {
@@ -165,7 +166,8 @@ export function extractNativeWhatsappPhone(messages: ConversationMessageRow[]): 
     if (!message.raw_payload || typeof message.raw_payload !== 'object' || Array.isArray(message.raw_payload)) continue;
     const payload = asRecord(message.raw_payload);
     const customData = asRecord(payload.custom_data ?? payload.customData);
-    const value = payload.contact_phone ?? customData.contact_phone ?? customData.contactPhone;
+    const contact = asRecord(payload.contact);
+    const value = payload.contact_phone ?? customData.contact_phone ?? customData.contactPhone ?? payload.phone ?? contact.phone;
     const phone = safePhone(typeof value === 'string' ? value : null);
     if (phone) return phone;
   }

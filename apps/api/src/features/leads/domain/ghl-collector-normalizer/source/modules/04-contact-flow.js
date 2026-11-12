@@ -60,7 +60,7 @@ const normalizeRealName = (value) => {
 };
 const isMessengerChannel = (value) => /(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(clean(value));
 const isWhatsAppChannel = (value) => /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(clean(value));
-const isStaffordWhatsApp = (source, value) => ['stafford', 'country', 'lucki', 'carhub', 'alpha', 'action-cars'].includes(clean(source).toLocaleLowerCase()) && isWhatsAppChannel(value);
+const isConfiguredWhatsApp = (source, value) => ['stafford', 'country', 'lucki', 'carhub', 'alpha', 'action-cars', 'fredericksburg'].includes(clean(source).toLocaleLowerCase()) && isWhatsAppChannel(value);
 const effectiveChannel = (input) => {
   const channel = clean(input.channel);
   if (channel) return channel;
@@ -154,7 +154,7 @@ const profile = inputData.profile && typeof inputData.profile === 'object' ? inp
 const whatsappProfile = inputData.whatsapp && typeof inputData.whatsapp === 'object' && inputData.whatsapp.profile && typeof inputData.whatsapp.profile === 'object' ? inputData.whatsapp.profile : {};
 const rawContactName = first(inputData.contact_name, inputData.contactName, profile.name, whatsappProfile.name, inputData.name);
 const channel = effectiveChannel(inputData);
-const staffordWhatsApp = isStaffordWhatsApp(inputData.source, channel);
+const configuredWhatsApp = isConfiguredWhatsApp(inputData.source, channel);
 const contactName = isMessengerChannel(channel)
   ? normalizeProfileDisplayName(rawContactName)
   : (isProfileDisplayName(rawContactName) ? '' : normalizeRealName(rawContactName));
@@ -180,19 +180,19 @@ const whatsappNames = [
   declaredNameFromText(rawHistory),
   nameFromText(rawMessage),
   nameFromText(rawHistory),
-  staffordWhatsApp && /^(?:un|una|a|an|my|mi|the|como|quiero|busco|buscando|tengo|tienes|hay|have|do you have|looking for)\b/i.test(whatsappContactFallback) && (vehicleBrands.test(whatsappContactFallback) || vehicleModels.test(whatsappContactFallback) || vehicleCategories.test(whatsappContactFallback)) ? '' : nativeWhatsappName,
+  configuredWhatsApp && /^(?:un|una|a|an|my|mi|the|como|quiero|busco|buscando|tengo|tienes|hay|have|do you have|looking for)\b/i.test(whatsappContactFallback) && (vehicleBrands.test(whatsappContactFallback) || vehicleModels.test(whatsappContactFallback) || vehicleCategories.test(whatsappContactFallback)) ? '' : nativeWhatsappName,
   memoryValue(['real_name', 'real name', 'customer_name', 'customer name', 'contact_name', 'contact name', 'full_name', 'full name', 'name', 'nombre_real', 'nombre real', 'nombre completo', 'nombre']),
   contactName,
 ];
 const normalizeWhatsAppCandidate = (value) => {
   const candidate = clean(value);
-  // Stafford, Country Club Cars, Lucki Mazda, CarHub, Alpha, and Action Pre Owned Cars use native WhatsApp contact data. GHL sometimes exposes a vehicle/offer label as
-  // the contact name (for example, "Un Ford Explorer Estoppel"). Do not let
+  // GHL can expose a vehicle/offer label as the contact name (for example,
+  // "Un Ford Explorer Estoppel"). Do not let
   // that label become the buyer's real name; recover the name only from an
   // explicit declaration or a valid conversational answer.
   const startsWithVehicleArticle = /^(?:un|una|a|an|my|mi|the|como|quiero|busco|buscando|tengo|tienes|hay|have|do you have|looking for)\b/i.test(candidate);
   const containsVehicleToken = vehicleBrands.test(candidate) || vehicleModels.test(candidate) || vehicleCategories.test(candidate);
-  if (staffordWhatsApp && candidate && startsWithVehicleArticle && containsVehicleToken) return '';
+  if (configuredWhatsApp && candidate && startsWithVehicleArticle && containsVehicleToken) return '';
   if (candidate && candidate === nativeWhatsappName) return nativeWhatsappName;
   return normalizeRealName(candidate);
 };

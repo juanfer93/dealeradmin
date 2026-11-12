@@ -7,7 +7,7 @@ import { findQueuedConversationDuplicate } from '../../../../leads/domain/lead-d
 import { ConversationQueueService, type QueuedPauseDispatch } from './conversation-queue.service';
 import { ConversationQualificationFunctions } from './conversation-qualification.functions';
 import { ACTIVE_RECONCILIATION_BATCH_SIZE, GHL_SOURCE_CONFIG, PARTIAL_RECOVERY_INTERVAL_MS, PARTIAL_RECOVERY_MAX_ATTEMPTS, RECONCILIATION_LOCATION_IDS, CONVERSATION_STABILIZATION_MS, WAITING_WINDOW_MAX_ATTEMPTS, WAITING_WINDOW_RETRY_INTERVAL_MS } from './conversation-webhook.config';
-import { addProcessedImageEvidence, asRecord, clean, declaredNameFromInboundTranscript, extractNativeProfileName, extractNativeWhatsappPhone, inputIndicatesWhatsApp, isActionCarsSpanishNameFlow, isAttachmentEvidenceMessage, nativeMessageChannel, safePhone, splitName } from './conversation-webhook.helpers';
+import { addProcessedImageEvidence, asRecord, clean, declaredNameFromInboundTranscript, extractNativeProfileName, extractNativeWhatsappPhone, inputIndicatesWhatsApp, isActionCarsSpanishNameFlow, isAttachmentEvidenceMessage, isConfiguredWhatsApp, nativeMessageChannel, safePhone, splitName } from './conversation-webhook.helpers';
 import type { ConversationMessageRow, ConversationSnapshot, LocationSnapshot, MediaReconciliationResponse, SourceConfigMap, SourceKey } from './conversation-webhook.types';
 import { configureWebhookTransactionSafety } from '../../transaction-safety';
 import { isEmptyMarker } from '../../../../leads/domain/collector-normalizer/text-cleaner';
@@ -230,7 +230,7 @@ export class ConversationReconciliationFunctions {
         : this.sourceConfig[source].splitByLanguage ? detectLeadLanguage(transcript) : current.language;
       const actionCarsSpanishNameFlow = isActionCarsSpanishNameFlow(source, channel, language);
       const recentPhone = safePhone(extractRecentMessagePhone(evidenceMessages.map((message) => ({ ...message, is_attachment_evidence: isAttachmentEvidenceMessage(message) })), now));
-      const nativeWhatsapp = this.isStaffordWhatsApp(source, channel);
+      const nativeWhatsapp = isConfiguredWhatsApp(source, channel, this.sourceConfig);
       const nativeWhatsappPhone = nativeWhatsapp
         ? safePhone(row.canonical_phone) || extractNativeWhatsappPhone(messages)
         : null;
@@ -511,7 +511,4 @@ export class ConversationReconciliationFunctions {
     }
   }
 
-  private isStaffordWhatsApp(source: SourceKey, channel: string): boolean {
-    return (source === 'stafford' || source === 'country' || source === 'lucki' || source === 'carhub' || source === 'alpha' || source === 'action-cars') && channel.trim().toLowerCase() === 'whatsapp';
-  }
 }

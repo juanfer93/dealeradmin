@@ -9,7 +9,7 @@ import {
 } from '../../application/conversation-webhook.service';
 import { normalizeCollectorInput } from '../../../leads/domain/collector-normalizer';
 import { getTestConversationEvents, resetTestConversationEvents } from '../../application/test-conversation-store';
-import { normalizeWebhookInput } from '../../application/functions/conversations/conversation-webhook.helpers';
+import { extractNativeWhatsappPhone, isConfiguredWhatsApp, normalizeWebhookInput } from '../../application/functions/conversations/conversation-webhook.helpers';
 
 describe('ConversationWebhookService', () => {
   const originalNodeEnv = process.env.NODE_ENV;
@@ -256,7 +256,7 @@ describe('ConversationWebhookService', () => {
     ]);
   });
 
-  it('uses Stafford WhatsApp contact.phone when the buyer does not type the number', async () => {
+  it.each(['stafford', 'fredericksburg'] as const)('uses configured WhatsApp contact.phone for %s when the buyer does not type the number', async (source) => {
     const transcript = [
       '¡Hola! 👋 Te saludamos de Off Lease Stafford. Para iniciar tu proceso, ¿cuál es tu nombre?',
       'Fidel Aparicio',
@@ -273,8 +273,8 @@ describe('ConversationWebhookService', () => {
       release: vi.fn(),
       isTransactionActive: true,
       query: vi.fn(async (sql: string) => {
-        if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [{ event_id: 'evt-stafford-whatsapp-phone' }];
-        if (sql.includes('FROM dealers')) return [{ id: 'dealer-stafford', code: 'STAFFORD', name: 'Off Lease Stafford', timezone: 'America/New_York', routing_config: {} }];
+        if (sql.includes('INSERT INTO webhook_events') && sql.includes('RETURNING')) return [{ event_id: `evt-${source}-whatsapp-phone` }];
+        if (sql.includes('FROM dealers')) return [{ id: `dealer-${source}`, code: source.toUpperCase(), name: `Off Lease ${source}`, timezone: 'America/New_York', routing_config: {} }];
         if (sql.includes('FROM leads WHERE ghl_location_id')) return [];
         if (sql.includes('INSERT INTO leads')) return [{ id: 'lead-stafford-whatsapp', canonical_phone: '+14438144460', first_name: 'Lead', last_name: '' }];
         if (sql.includes('FROM conversations c')) return [];
@@ -290,8 +290,8 @@ describe('ConversationWebhookService', () => {
 
     await service.acceptCustomerReplied(
       { message_body: '2,000', contact_phone: '+1 (443) 814-4460', contact_name: 'Miguel Aparicio', channel: 'whatsapp' },
-      'stafford',
-      { contactId: 'ghl-miguel-aparicio', conversationId: 'ghl-miguel-aparicio-conversation', testNow: new Date('2026-09-13T13:30:15.000Z') },
+      source,
+      { contactId: `ghl-${source}-buyer`, conversationId: `ghl-${source}-buyer-conversation`, testNow: new Date('2026-09-13T13:30:15.000Z') },
     );
 
     const leadInsert = queryRunner.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO leads')) as [string, unknown[]] | undefined;
@@ -307,6 +307,21 @@ describe('ConversationWebhookService', () => {
       missing_qualification: [],
     });
     expect(conversationUpdate?.[1]?.[1]).toBe('waiting_window');
+  });
+
+  it('uses only the configured channel list to enable native WhatsApp behavior', () => {
+    expect(isConfiguredWhatsApp('fredericksburg', 'whatsapp', GHL_SOURCE_CONFIG)).toBe(true);
+    expect(isConfiguredWhatsApp('fredericksburg-2', 'whatsapp', GHL_SOURCE_CONFIG)).toBe(false);
+    expect(isConfiguredWhatsApp('fredericksburg-2', 'messenger', GHL_SOURCE_CONFIG)).toBe(false);
+  });
+
+  it('recovers a native WhatsApp contact phone from stored GHL payload history', () => {
+    expect(extractNativeWhatsappPhone([{
+      body: 'SUV',
+      direction: 'inbound',
+      occurred_at: '2026-11-12T22:22:32.000Z',
+      raw_payload: { phone: '+1 (540) 555-0123' },
+    }])).toBe('+15405550123');
   });
 
   it('keeps a below-minimum down payment additive and keeps the conversation in waiting_window', () => {

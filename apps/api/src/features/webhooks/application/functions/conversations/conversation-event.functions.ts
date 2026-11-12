@@ -16,7 +16,7 @@ import {
   hash,
   isAttachmentEvidenceMessage,
   isActionCarsSpanishNameFlow,
-  isStaffordWhatsApp,
+  isConfiguredWhatsApp,
   normalizeWebhookInput,
   parseOccurredAt,
   safePhone,
@@ -96,7 +96,7 @@ export class ConversationEventFunctions {
       let lead = await this.qualification.upsertLead(runner, {
         locationId,
         contactId: event.ghl_contact_id,
-        phone: isStaffordWhatsApp(source, event.channel) ? safePhone(event.contact_phone) : null,
+        phone: isConfiguredWhatsApp(source, event.channel, this.sourceConfig) ? safePhone(event.contact_phone) : null,
         firstName,
         lastName,
       });
@@ -130,7 +130,7 @@ export class ConversationEventFunctions {
       if (await this.qualification.isLeadSent(runner, lead.id)) {
         const previousSnapshot = conversation.qualification_snapshot ?? {};
         const predictedBotQuestion = clean((previousSnapshot.qualification_progress as { predicted_bot_question?: unknown } | undefined)?.predicted_bot_question);
-        const declaredCandidate = isStaffordWhatsApp(source, event.channel)
+        const declaredCandidate = isConfiguredWhatsApp(source, event.channel, this.sourceConfig)
           ? declaredNameFromInboundTranscript(clean(event.message_body), predictedBotQuestion, invalidRealNames)
           : '';
         const declaredName = isInvalidRealName(declaredCandidate, invalidRealNames) ? '' : declaredCandidate;
@@ -208,13 +208,13 @@ export class ConversationEventFunctions {
         ...message,
         is_attachment_evidence: isAttachmentEvidenceMessage(message),
       })), now));
-      const nativeWhatsappPhone = isStaffordWhatsApp(source, event.channel)
+      const nativeWhatsappPhone = isConfiguredWhatsApp(source, event.channel, this.sourceConfig)
         ? safePhone(event.contact_phone) || extractNativeWhatsappPhone(messages)
         : null;
-      const nativeWhatsapp = isStaffordWhatsApp(source, event.channel);
-      const normalizedGhlPhone = isStaffordWhatsApp(source, event.channel) ? null : safePhone(event.contact_phone);
+      const nativeWhatsapp = isConfiguredWhatsApp(source, event.channel, this.sourceConfig);
+      const normalizedGhlPhone = isConfiguredWhatsApp(source, event.channel, this.sourceConfig) ? null : safePhone(event.contact_phone);
       const verifiedMessengerPhone = recentPhone && (!normalizedGhlPhone || recentPhone === normalizedGhlPhone) ? recentPhone : null;
-      const eligiblePhone = isStaffordWhatsApp(source, event.channel) ? recentPhone || nativeWhatsappPhone || '' : verifiedMessengerPhone || '';
+      const eligiblePhone = isConfiguredWhatsApp(source, event.channel, this.sourceConfig) ? recentPhone || nativeWhatsappPhone || '' : verifiedMessengerPhone || '';
       const previousSnapshot = conversation.qualification_snapshot ?? {};
       const normalized = normalizeCollectorInput({
         source,
