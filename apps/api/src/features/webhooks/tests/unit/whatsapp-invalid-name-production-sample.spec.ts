@@ -42,7 +42,9 @@ describe('ten anonymized production WhatsApp sample shapes', () => {
       expect(invalidRealNames).toContain('Busco un carro');
       expect(result.real_name).toBe('Ana Qa');
     } else {
-      expect(invalidRealNames).toEqual([]);
+      // The transcript can lose the outbound prompt; a clear buying-intent
+      // phrase still must not replace the WhatsApp profile as the name.
+      expect(invalidRealNames).toEqual(['Busco una SUV']);
       expect(result.real_name).toBe('wa_sample_profile');
     }
   });

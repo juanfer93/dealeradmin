@@ -12,6 +12,41 @@ describe.skipIf(!databaseUrl)('WhatsApp invalid-name memory (local PostgreSQL E2
   const learnedPhrase = 'busco un carro';
   const learnedTail = 'busco una honda civic';
 
+  it('keeps the Stafford customer Julio separate from a purchase in July', async () => {
+    await dataSource.initialize();
+    const runner = dataSource.createQueryRunner();
+    await runner.connect();
+    try {
+      await new InvalidRealNames1710000055000().up(runner);
+      await new MessengerInvalidRealNames1710000057000().up(runner);
+      const catalog = await loadInvalidRealNames(runner, 'whatsapp');
+      const actualLead = normalizeCollectorInput({
+        source: 'stafford',
+        channel: 'whatsapp',
+        profile: { name: 'Empresario' },
+        invalid_real_names: catalog,
+        message: 'Yo vivo en Lynchburg Virginia',
+        chat_history_log: '__NAME_PROMPT__\nJulio\nYo vivo en Lynchburg Virginia',
+        qualification_memory: 'real_name: Julio',
+      });
+      const julyTiming = normalizeCollectorInput({
+        source: 'stafford',
+        channel: 'whatsapp',
+        invalid_real_names: catalog,
+        message: 'Voy a comprar en Julio',
+        chat_history_log: '¿Cuándo planeas comprar?\nVoy a comprar en Julio',
+      });
+
+      expect(actualLead.real_name).toBe('Julio');
+      expect(actualLead.purchase_timeline).toBe('');
+      expect(julyTiming.real_name).toBe('');
+      expect(julyTiming.purchase_timeline).toBe('julio');
+    } finally {
+      await runner.release();
+      await dataSource.destroy();
+    }
+  });
+
   it('learns a rejected answer after an outbound name prompt and uses the WhatsApp profile when no name was requested', async () => {
     await dataSource.initialize();
     const runner = dataSource.createQueryRunner();

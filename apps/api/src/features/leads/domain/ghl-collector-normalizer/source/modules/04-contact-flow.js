@@ -28,12 +28,12 @@ const isBaltimoreVariant = (value) => {
     .some((token) => editDistanceAtMost(token, 'baltimore', 3));
 };
 const nameDeclaration = /(?:me llamo|mi nombre es|soy|yo soy|my name is|my name['’]s|i am|i['’]m|this is|call me(?!\s+at\b)|ll[aá]mame)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i;
-const declaredNameContinuation = /\s+(?:y|and|pero)\s+(?=(?:me|yo|estoy|ando|busco|buscando|quiero|necesito|tengo|puedo|podr[ií]a|looking|i|my|the|a|un|una)\b)/i;
+const declaredNameContinuation = /\s+(?:y|and|pero)\s+(?=(?:me|yo|estoy|ando|voy|busco|buscando|quiero|necesito|tengo|puedo|podr[ií]a|looking|i|my|the|a|un|una)\b)/i;
 const nameQuestion = /(?:__NAME_PROMPT__|what(?:'s| is)?\s+(?:your|the)\s+name|full\s+name|what\s+should\s+i\s+call|how\s+do\s+you\s+(?:call|go by)|c[oó]mo\s+te\s+llamas|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i;
 const realNameToken = "[\\p{L}\\p{M}]+(?:[-'][\\p{L}\\p{M}]+)*";
 const realNamePattern = new RegExp(`^${realNameToken}(?:\\s+${realNameToken})*$`, 'u');
 const technicalNameLabel = /^(?:precio|price)\s+(?:de|of)\b/i;
-const locationResponse = /^(?:estoy|vivo)\s+en\b/i;
+const locationResponse = /^(?:(?:yo\s+)?(?:estoy|vivo))\s+en\b/i;
 const englishLocationResponse = /^(?:i(?:'m| am)\s+)?(?:in|from|near|around|located\s+in)\s+(?:maryland|md|virginia|va|pennsylvania|pa|delaware|de|new\s+york|ny|new\s+jersey|nj|district\s+of\s+columbia|washington\s+dc|dc)$/i;
 const profileDisplayLabelMarkers = /\b(?:me\s+puede(?:s)?\s+(?:mandar|enviar)|(?:mandar|enviar)\s+(?:fotos?|informaci[oó]n)|fotos?\s+de|copiar)\b/i;
 const nameSuffixPunctuation = /\b(jr|sr|ii|iii|iv|v)\.(?=\s|,|$)/gi;
@@ -103,7 +103,7 @@ const nameFromText = (value) => {
       && !singleWordNameBlocklist.test(candidate);
     const isFullName = /^[a-záéíóúüñ][a-záéíóúüñ'-]*(?:\s+[a-záéíóúüñ][a-záéíóúüñ'-]*){1,3}$/i.test(candidate);
     if (!isOneWordName && !isFullName) continue;
-    if (genericVehicleIntent.test(candidate) || /\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) continue;
+    if (genericVehicleIntent.test(candidate) || /\b(?:quiero|busco|necesito|tengo|vivo|voy|buy|buying|purchase|purchasing|comprar|comprando|compra|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) continue;
     const name = normalizeRealName(candidate);
     if (!name) continue;
     if (nameQuestionWindow > 0) {

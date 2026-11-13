@@ -85,7 +85,7 @@ const memoryValue = (aliases) => {
   return clean(match?.[1]).replace(/(trade[- ]?in)\d+$/i, '$1');
 };
 const invalidRealNames = new Set(['.', '..', '...', 'unknown', 'n/a', 'na', 'lead', 'whatsapp', 'facebook', 'saludos', 'hello', 'hi', 'hey', 'hola', 'greetings', 'buen dia', 'buen día', 'buen dis', 'buenos dias', 'buenos días', 'buenas tardes', 'buenas noches', 'bendiciones', 'buenos dias bendiciones', 'buenas tardes bendiciones', 'buenas noches bendiciones', 'thu chikitha linda', 'como asi', 'como así', 'cómo asi', 'cómo así', 'how so', 'what do you mean', 'me lo puede explicar', 'me puede explicar', 'me lo puedes explicar', 'me puedes explicar', 'exacto', 'exactamente', 'stop', 'licencia y social', 'licencia y tax id', 'licencia y taxid', 'pero madame fotos', 'madame fotos', 'estaré pendiente', 'estare pendiente']);
-const qualificationResponseMarkers = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|baltimore|maryland|where are you located|where are you|what|which|how|como\s+as[ií]|how\s+so|what\s+do\s+you\s+mean|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|ubicaci[oó]n|ubicados?|vehicle|car|auto|carro|coche|veh[ií]culo|suv|sedan|midsize|mid[- ]?size|medium[- ]?size|mediano|mediana|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|interested|si|sí|no|no tengo|papeles?|cheques?|checks?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
+const qualificationResponseMarkers = /\b(?:today|hoy|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|now if possible|if possible now|ahora si se puede|si es posible ahora|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|baltimore|maryland|where are you located|where are you|what|which|how|como\s+as[ií]|how\s+so|what\s+do\s+you\s+mean|d[oó]nde est[aá]n ubicad[oa]s?|d[oó]nde est[aá]n|ubicaci[oó]n|ubicados?|vehicle|car|auto|carro|coche|veh[ií]culo|suv|sedan|midsize|mid[- ]?size|medium[- ]?size|mediano|mediana|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|requirements?|requisitos?|yes|yeah|yep|correct|tengo|tiene|have it|i have|i'm looking|im looking|looking for|busco|buscando|quiero|want|buy|buying|purchase|purchasing|comprar|comprando|compra|interested|si|sí|no|no tengo|papeles?|cheques?|checks?|aplicar|apply|perfecto|perfect|claro|bien|bueno)\b/i;
 invalidRealNames.add('excelente señorita');
 invalidRealNames.add('dnd enabled by customer');
 invalidRealNames.add('mes');
@@ -309,12 +309,12 @@ const isBaltimoreVariant = (value) => {
     .some((token) => editDistanceAtMost(token, 'baltimore', 3));
 };
 const nameDeclaration = /(?:me llamo|mi nombre es|soy|yo soy|my name is|my name['’]s|i am|i['’]m|this is|call me(?!\s+at\b)|ll[aá]mame)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i;
-const declaredNameContinuation = /\s+(?:y|and|pero)\s+(?=(?:me|yo|estoy|ando|busco|buscando|quiero|necesito|tengo|puedo|podr[ií]a|looking|i|my|the|a|un|una)\b)/i;
+const declaredNameContinuation = /\s+(?:y|and|pero)\s+(?=(?:me|yo|estoy|ando|voy|busco|buscando|quiero|necesito|tengo|puedo|podr[ií]a|looking|i|my|the|a|un|una)\b)/i;
 const nameQuestion = /(?:__NAME_PROMPT__|what(?:'s| is)?\s+(?:your|the)\s+name|full\s+name|what\s+should\s+i\s+call|how\s+do\s+you\s+(?:call|go by)|c[oó]mo\s+te\s+llamas|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i;
 const realNameToken = "[\\p{L}\\p{M}]+(?:[-'][\\p{L}\\p{M}]+)*";
 const realNamePattern = new RegExp(`^${realNameToken}(?:\\s+${realNameToken})*$`, 'u');
 const technicalNameLabel = /^(?:precio|price)\s+(?:de|of)\b/i;
-const locationResponse = /^(?:estoy|vivo)\s+en\b/i;
+const locationResponse = /^(?:(?:yo\s+)?(?:estoy|vivo))\s+en\b/i;
 const englishLocationResponse = /^(?:i(?:'m| am)\s+)?(?:in|from|near|around|located\s+in)\s+(?:maryland|md|virginia|va|pennsylvania|pa|delaware|de|new\s+york|ny|new\s+jersey|nj|district\s+of\s+columbia|washington\s+dc|dc)$/i;
 const profileDisplayLabelMarkers = /\b(?:me\s+puede(?:s)?\s+(?:mandar|enviar)|(?:mandar|enviar)\s+(?:fotos?|informaci[oó]n)|fotos?\s+de|copiar)\b/i;
 const nameSuffixPunctuation = /\b(jr|sr|ii|iii|iv|v)\.(?=\s|,|$)/gi;
@@ -341,6 +341,7 @@ const normalizeRealName = (value) => {
 };
 const isMessengerChannel = (value) => /(?:^|[^a-z])(?:messenger|facebook|instagram)(?:$|[^a-z])/i.test(clean(value));
 const isWhatsAppChannel = (value) => /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(clean(value));
+const isConfiguredWhatsApp = (source, value) => ['stafford', 'country', 'lucki', 'carhub', 'alpha', 'action-cars', 'fredericksburg'].includes(clean(source).toLocaleLowerCase()) && isWhatsAppChannel(value);
 const effectiveChannel = (input) => {
   const channel = clean(input.channel);
   if (channel) return channel;
@@ -383,7 +384,7 @@ const nameFromText = (value) => {
       && !singleWordNameBlocklist.test(candidate);
     const isFullName = /^[a-záéíóúüñ][a-záéíóúüñ'-]*(?:\s+[a-záéíóúüñ][a-záéíóúüñ'-]*){1,3}$/i.test(candidate);
     if (!isOneWordName && !isFullName) continue;
-    if (genericVehicleIntent.test(candidate) || /\b(?:quiero|busco|necesito|tengo|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) continue;
+    if (genericVehicleIntent.test(candidate) || /\b(?:quiero|busco|necesito|tengo|vivo|voy|buy|buying|purchase|purchasing|comprar|comprando|compra|carro|auto|veh[ií]culo|suv|sedan|truck|troca|camioneta|pickup|van|financiar|finance|down|payment|hoy|today|yes|no)\b/i.test(candidate)) continue;
     const name = normalizeRealName(candidate);
     if (!name) continue;
     if (nameQuestionWindow > 0) {
@@ -434,7 +435,7 @@ const profile = inputData.profile && typeof inputData.profile === 'object' ? inp
 const whatsappProfile = inputData.whatsapp && typeof inputData.whatsapp === 'object' && inputData.whatsapp.profile && typeof inputData.whatsapp.profile === 'object' ? inputData.whatsapp.profile : {};
 const rawContactName = first(inputData.contact_name, inputData.contactName, profile.name, whatsappProfile.name, inputData.name);
 const channel = effectiveChannel(inputData);
-const configuredWhatsApp = ['stafford', 'country', 'lucki', 'carhub', 'alpha', 'action-cars', 'fredericksburg'].includes(clean(inputData.source).toLocaleLowerCase()) && isWhatsAppChannel(channel);
+const configuredWhatsApp = isConfiguredWhatsApp(inputData.source, channel);
 const contactName = isMessengerChannel(channel)
   ? normalizeProfileDisplayName(rawContactName)
   : (isProfileDisplayName(rawContactName) ? '' : normalizeRealName(rawContactName));
@@ -466,8 +467,8 @@ const whatsappNames = [
 ];
 const normalizeWhatsAppCandidate = (value) => {
   const candidate = clean(value);
-  // Stafford, Country Club Cars, Lucki Mazda, CarHub, Alpha, and Action Pre Owned Cars use native WhatsApp contact data. GHL sometimes exposes a vehicle/offer label as
-  // the contact name (for example, "Un Ford Explorer Estoppel"). Do not let
+  // GHL can expose a vehicle/offer label as the contact name (for example,
+  // "Un Ford Explorer Estoppel"). Do not let
   // that label become the buyer's real name; recover the name only from an
   // explicit declaration or a valid conversational answer.
   const startsWithVehicleArticle = /^(?:un|una|a|an|my|mi|the|como|quiero|busco|buscando|tengo|tienes|hay|have|do you have|looking for)\b/i.test(candidate);
@@ -802,6 +803,9 @@ const timelineMonths = {
   december: ['december', 'diciembre', 'dec(?:ember)?'],
 };
 const timelineMonthKey = (value) => Object.entries(timelineMonths).find(([, [, spanish, pattern]]) => new RegExp(`\\b(?:${pattern}|${spanish})\\b`, 'i').test(value))?.[0] || '';
+const timelineQuestion = /\b(?:when (?:are you|do you|would you|will you) (?:plan(?:ning)? to )?(?:buy|purchase)|when are you looking to buy|what month (?:do you|are you planning to) (?:buy|purchase)|cu[aá]ndo (?:planeas|piensas|quieres|vas a|te gustar[ií]a) (?:comprar|adquirir)|en qu[eé] mes (?:planeas|piensas|quieres|vas a) (?:comprar|adquirir))\b/i;
+const explicitMonthTiming = /\b(?:in|en|para|by|during|this|next|pr[oó]ximo|pr[oó]xima|siguiente)\s+(?:january|jan|enero|february|feb|febrero|march|mar|marzo|april|apr|abril|may|mayo|june|jun|junio|july|jul|julio|august|aug|agosto|september|sept|sep|septiembre|setiembre|october|oct|octubre|november|nov|noviembre|december|dec|diciembre)\b/i;
+const monthNamesPattern = Object.values(timelineMonths).map(([, spanish, pattern]) => `(?:${pattern}|${spanish})`).join('|');
 const timelineDate = (value) => {
   const spanish = String(value).match(/\b(0?[1-9]|[12]\d|3[01])\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/i);
   if (spanish) return `${Number(spanish[1])} de ${spanish[2].replace(/^setiembre$/i, 'septiembre')}`;
@@ -811,9 +815,16 @@ const timelineDate = (value) => {
   return englishDayFirst ? `${englishDayFirst[2].toLowerCase()} ${Number(englishDayFirst[1])}` : '';
 };
 const timelineFrom = (text) => {
-  const dateText = clean(text).match(/\b(?:\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december))\b/i)?.[0] || '';
+  const source = clean(text);
+  const lines = source.split(/\r?\n/).map(clean).filter(Boolean);
+  for (let index = 0; index < lines.length; index += 1) {
+    const monthOnly = timelineMonthKey(lines[index]) && new RegExp(`^\\s*(?:${monthNamesPattern})\\s*[.!?]*$`, 'i').test(lines[index]);
+    if (monthOnly && lines.slice(Math.max(0, index - 3), index).some((line) => timelineQuestion.test(line))) return timelineMonthKey(lines[index]);
+  }
+  const dateText = source.match(/\b(?:\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december))\b/i)?.[0] || '';
   if (dateText) return timelineDate(dateText);
-  const hit = clean(text).match(/\b(?:today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes posible|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|end of next month|a (?:fines?|finales?) del otro mes|a (?:fines?|finales?) del pr[oó]ximo mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|within \d+ days?|en \d+ d[ií]as?|jan(?:uary)?|enero|feb(?:ruary)?|febrero|mar(?:ch)?|marzo|apr(?:il)?|abril|may|mayo|jun(?:e)?|junio|jul(?:y)?|julio|aug(?:ust)?|agosto|sep(?:t(?:ember|iembre)?|tiembre)|setiembre|septiembre|oct(?:ober)?|octubre|nov(?:ember)?|noviembre|dec(?:ember)?|diciembre)\b/i)?.[0] || '';
+  const evidence = explicitMonthTiming.test(source) ? source : source.replace(new RegExp(`\\b(?:${monthNamesPattern})\\b`, 'gi'), ' ');
+  const hit = evidence.match(/\b(?:today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes posible|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|end of next month|a (?:fines?|finales?) del otro mes|a (?:fines?|finales?) del pr[oó]ximo mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|within \d+ days?|en \d+ d[ií]as?|jan(?:uary)?|enero|feb(?:ruary)?|febrero|mar(?:ch)?|marzo|apr(?:il)?|abril|may|mayo|jun(?:e)?|junio|jul(?:y)?|julio|aug(?:ust)?|agosto|sep(?:t(?:ember|iembre)?|tiembre)|setiembre|septiembre|oct(?:ober)?|octubre|nov(?:ember)?|noviembre|dec(?:ember)?|diciembre)\b/i)?.[0] || '';
   const date = timelineDate(hit);
   if (date) return date;
   if (/today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes/i.test(hit)) return 'today';

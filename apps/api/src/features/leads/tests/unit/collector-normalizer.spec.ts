@@ -82,6 +82,49 @@ describe('normalizeCollectorInput', () => {
     expect(result.real_name).toBe('José Velázquez');
   });
 
+  it('does not mistake a July purchase timeline for the WhatsApp customer Julio', () => {
+    const timelineReply = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      message: 'Voy a comprar en Julio',
+      chat_history_log: '¿Cuándo planeas comprar?\nVoy a comprar en Julio',
+    });
+    const declaredName = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      message: 'Me llamo Julio',
+      chat_history_log: '¿Cuál es tu nombre?\nMe llamo Julio',
+    });
+    const combinedSignals = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      message: 'Me llamo Julio y voy a comprar en Julio',
+      chat_history_log: '¿Cuál es tu nombre?\nMe llamo Julio y voy a comprar en Julio',
+    });
+    const promptedName = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      message: 'Julio',
+      chat_history_log: '¿Cuál es tu nombre completo?\nJulio',
+    });
+    const staffordConversation = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      message: 'Yo vivo en Lynchburg Virginia',
+      chat_history_log: '¿Cuál es tu nombre para poder ayudarte?\nJulio\nYo vivo en Lynchburg Virginia',
+    });
+
+    expect(timelineReply.real_name).toBe('');
+    expect(timelineReply.purchase_timeline).toBe('julio');
+    expect(declaredName.real_name).toBe('Julio');
+    expect(combinedSignals.real_name).toBe('Julio');
+    expect(combinedSignals.purchase_timeline).toBe('julio');
+    expect(promptedName.real_name).toBe('Julio');
+    expect(promptedName.purchase_timeline).toBe('');
+    expect(staffordConversation.real_name).toBe('Julio');
+    expect(staffordConversation.purchase_timeline).toBe('');
+  });
+
   it('leaves name and vehicle unresolved when the available text cannot establish either', () => {
     const result = normalizeCollectorInput({
       source: 'easterns',

@@ -18,6 +18,10 @@ const TIMELINE_MONTHS: Array<[string, string, string]> = [
   ['december', 'diciembre', 'dec(?:ember)?'],
 ];
 
+const TIMELINE_QUESTION = /\b(?:when (?:are you|do you|would you|will you) (?:plan(?:ning)? to )?(?:buy|purchase)|when are you looking to buy|what month (?:do you|are you planning to) (?:buy|purchase)|cu[aá]ndo (?:planeas|piensas|quieres|vas a|te gustar[ií]a) (?:comprar|adquirir)|en qu[eé] mes (?:planeas|piensas|quieres|vas a) (?:comprar|adquirir))\b/i;
+const EXPLICIT_MONTH_TIMING = /\b(?:in|en|para|by|during|this|next|pr[oó]ximo|pr[oó]xima|siguiente)\s+(?:january|jan|enero|february|feb|febrero|march|mar|marzo|april|apr|abril|may|mayo|june|jun|junio|july|jul|julio|august|aug|agosto|september|sept|sep|septiembre|setiembre|october|oct|octubre|november|nov|noviembre|december|dec|diciembre)\b/i;
+const MONTH_NAMES_PATTERN = TIMELINE_MONTHS.map(([, spanish, pattern]) => `(?:${pattern}|${spanish})`).join('|');
+
 function timelineMonth(value: string): [string, string] | null {
   const source = clean(value).toLowerCase();
   for (const [english, spanish, pattern] of TIMELINE_MONTHS) {
@@ -40,10 +44,21 @@ function timelineDate(value: string): string {
 export function extractTimeline(message: string): string {
   const source = clean(message);
   if (!source) return EMPTY;
+  const lines = source.split(/\r?\n/).map(clean).filter(Boolean);
+  for (let index = 0; index < lines.length; index += 1) {
+    const month = timelineMonth(lines[index]);
+    if (month && TIMELINE_MONTHS.some(([, spanish, pattern]) => new RegExp(`^\\s*(?:${pattern}|${spanish})\\s*[.!?]*$`, 'i').test(lines[index]))) {
+      const previousLines = lines.slice(Math.max(0, index - 3), index);
+      if (previousLines.some((line) => TIMELINE_QUESTION.test(line))) return normalizeTimeline(lines[index]);
+    }
+  }
   const date = source.match(/\b(?:\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december))\b/i)?.[0];
   if (date) return timelineDate(date);
-  const match = source.match(/\b(?:today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|esta mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|end of next month|a (?:fines?|finales?) del otro mes|a (?:fines?|finales?) del pr[oó]ximo mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|within \d+ days?|en \d+ d[ií]as?|in \d+ (?:days?|weeks?|months?)|en \d+ (?:d[ií]as?|semanas?|mes(?:es)?)|in a month|en un mes|in two weeks|en dos semanas|jan(?:uary)?|enero|feb(?:ruary)?|febrero|mar(?:ch)?|marzo|apr(?:il)?|abril|may|mayo|jun(?:e)?|junio|jul(?:y)?|julio|aug(?:ust)?|agosto|sep(?:t(?:ember|iembre)?|tiembre)|setiembre|septiembre|oct(?:ober)?|octubre|nov(?:ember)?|noviembre|dec(?:ember)?|diciembre)\b/i)?.[0];
-  return match ? normalizeTimeline(match) : /\b(?:solo|sólo|just|only)\b.*\b(?:mirar|mirando|ver|viendo|looking|browsing)\b/i.test(source) ? 'exploring options' : EMPTY;
+  const evidence = EXPLICIT_MONTH_TIMING.test(source) || TIMELINE_QUESTION.test(source)
+    ? source
+    : source.replace(new RegExp(`\\b(?:${MONTH_NAMES_PATTERN})\\b`, 'gi'), ' ');
+  const match = evidence.match(/\b(?:today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|esta mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|end of next month|a (?:fines?|finales?) del otro mes|a (?:fines?|finales?) del pr[oó]ximo mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|within \d+ days?|en \d+ d[ií]as?|in \d+ (?:days?|weeks?|months?)|en \d+ (?:d[ií]as?|semanas?|mes(?:es)?)|in a month|en un mes|in two weeks|en dos semanas|jan(?:uary)?|enero|feb(?:ruary)?|febrero|mar(?:ch)?|marzo|apr(?:il)?|abril|may|mayo|jun(?:e)?|junio|jul(?:y)?|julio|aug(?:ust)?|agosto|sep(?:t(?:ember|iembre)?|tiembre)|setiembre|septiembre|oct(?:ober)?|octubre|nov(?:ember)?|noviembre|dec(?:ember)?|diciembre)\b/i)?.[0];
+  return match ? normalizeTimeline(match) : /\b(?:solo|sólo|just|only)\b.*\b(?:mirar|mirando|ver|viendo|looking|browsing)\b/i.test(evidence) ? 'exploring options' : EMPTY;
 }
 
 export function normalizeTimeline(value: string, language: CollectorLanguage = detectLeadLanguage(value)): string {

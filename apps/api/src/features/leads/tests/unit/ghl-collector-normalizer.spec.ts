@@ -1753,6 +1753,31 @@ describe('HighLevel collector custom-code normalizer', () => {
     }).real_name).toBe('');
   });
 
+  it('separates the WhatsApp name Julio from a purchase planned for July in Custom Code', () => {
+    const nameAnswer = execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      message: 'Julio',
+      chat_history_log: '¿Cuál es tu nombre?\nJulio',
+    });
+    const purchaseAnswer = execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      message: 'Voy a comprar en Julio',
+      chat_history_log: '¿Cuándo planeas comprar?\nVoy a comprar en Julio',
+    });
+    const bothAnswers = execute({
+      source: 'stafford',
+      channel: 'whatsapp',
+      message: 'Me llamo Julio y voy a comprar en Julio',
+      chat_history_log: '¿Cuál es tu nombre?\nMe llamo Julio y voy a comprar en Julio',
+    });
+
+    expect(nameAnswer).toMatchObject({ real_name: 'Julio', purchase_timeline: '' });
+    expect(purchaseAnswer).toMatchObject({ real_name: '', purchase_timeline: 'julio' });
+    expect(bothAnswers).toMatchObject({ real_name: 'Julio', purchase_timeline: 'julio' });
+  });
+
   it('scores the complete Custom Code transcript and localizes a Spanish timeline', () => {
     const transcript = [
       'Hola, variedad en chevrolet maneja, busco uno en 4 o 6 cilindros con modelo 2lt',
