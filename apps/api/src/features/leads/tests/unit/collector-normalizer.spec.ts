@@ -106,6 +106,7 @@ describe('normalizeCollectorInput', () => {
       channel: 'whatsapp',
       message: 'Julio',
       chat_history_log: '¿Cuál es tu nombre completo?\nJulio',
+      qualification_memory: 'real_name: Julio; vehicle: SUV; timeline: julio',
     });
     const staffordConversation = normalizeCollectorInput({
       source: 'stafford',

@@ -1759,6 +1759,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       channel: 'whatsapp',
       message: 'Julio',
       chat_history_log: '¿Cuál es tu nombre?\nJulio',
+      qualification_memory: 'real_name: Julio; vehicle: SUV; timeline: julio',
     });
     const purchaseAnswer = execute({
       source: 'stafford',

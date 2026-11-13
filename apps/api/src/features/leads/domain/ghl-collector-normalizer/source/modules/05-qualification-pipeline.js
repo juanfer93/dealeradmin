@@ -512,7 +512,8 @@ const downPaymentAmount = downPaymentRange
   ? Number(downPaymentRange[2])
   : /^\d+(?:\.\d+)?$/.test(String(down).replace(/[$,\s]/g, '')) ? Number(String(down).replace(/[$,\s]/g, '')) : null;
 const downPaymentSufficient = requiredDownPayment !== null && (tradeInDownPayment || down === cashDownPayment || down.toLocaleLowerCase().includes(cashDownPayment.toLocaleLowerCase()) || (downPaymentAmount !== null && downPaymentAmount >= requiredDownPayment));
-const rawTimeline = first(timelineFrom(message), timelineFrom(history), memoryValue(['timeline', 'purchase timeline', 'purchase_timeline']), inputData.purchase_timeline);
+const transcriptTimeline = first(timelineFrom(message), timelineFrom(history));
+const rawTimeline = first(transcriptTimeline, memoryValue(['timeline', 'purchase timeline', 'purchase_timeline']), inputData.purchase_timeline);
 const identification = documentStatus('id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b', ['identification', 'id', 'itin', 'passport', 'pasaporte'], inputData.identification || inputData.documents);
 const income = documentStatus('proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina|bank account|cuenta bancaria|cuenta de banco', ['income', 'proof of income', 'estados de cuenta', 'account statements', 'bank statements', 'check stubs', 'bank account', 'cuenta bancaria', 'cuenta de banco'], inputData.documents);
 const bankEvidenceSource = conversationalEvidence(rawMessage, rawHistory);
@@ -532,9 +533,15 @@ const englishSignals = (languageText.match(/\b(?:i|i'm|im|my|want|wants|need|loo
 const spanishSignals = (languageText.match(/\b(?:yo|mi|quiero|necesito|busco|tengo|sí|si|qué|cuando|donde|este|esta|hoy|semana|mes|tienes)\b/gi) || []).length;
 const language = message || history ? (englishSignals > spanishSignals ? 'en' : 'es') : 'en';
 const englishCalendarMonth = Object.entries(timelineMonths).some(([key, [english]]) => rawTimeline === key && new RegExp(`\\b${english}\\b`, 'i').test(`${message}; ${history}`));
-const timeline = englishCalendarMonth ? rawTimeline : language === 'es'
+const timelineValue = englishCalendarMonth ? rawTimeline : language === 'es'
   ? ({ today: 'hoy', 'this week': 'esta semana', 'this month': 'este mes', 'next week': 'próxima semana', 'next month': 'próximo mes', 'within 30 days': 'en 30 días', 'exploring options': 'explorando opciones', january: 'enero', february: 'febrero', march: 'marzo', april: 'abril', may: 'mayo', june: 'junio', july: 'julio', august: 'agosto', september: 'septiembre', october: 'octubre', november: 'noviembre', december: 'diciembre' }[rawTimeline] || rawTimeline)
   : rawTimeline;
+const nameMonthCollision = !transcriptTimeline
+  && Boolean(realName)
+  && clean(realName).toLocaleLowerCase() === clean(timelineValue).toLocaleLowerCase()
+  && Boolean(timelineMonthKey(realName))
+  && timelineMonthKey(realName) === timelineMonthKey(timelineValue);
+const timeline = nameMonthCollision ? '' : timelineValue;
 const hasRealVehicle = Boolean(vehicle) && !isAdvisorHandoffVehicle(vehicle);
 const coreMissing = (sourceAware
   ? [!phone && !phoneSatisfiedByNative ? 'phone' : '', !hasRealVehicle ? 'vehicle_type' : '']

@@ -27,7 +27,7 @@ describe.skipIf(!databaseUrl)('WhatsApp invalid-name memory (local PostgreSQL E2
         invalid_real_names: catalog,
         message: 'Yo vivo en Lynchburg Virginia',
         chat_history_log: '__NAME_PROMPT__\nJulio\nYo vivo en Lynchburg Virginia',
-        qualification_memory: 'real_name: Julio',
+        qualification_memory: 'real_name: Julio; vehicle: SUV; documents: identification: no; timeline: julio',
       });
       const julyTiming = normalizeCollectorInput({
         source: 'stafford',
@@ -157,5 +157,5 @@ describe.skipIf(!databaseUrl)('WhatsApp invalid-name memory (local PostgreSQL E2
       await runner.release();
       await dataSource.destroy();
     }
-  });
+  }, 30_000);
 });

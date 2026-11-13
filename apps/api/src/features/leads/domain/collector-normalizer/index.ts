@@ -149,8 +149,15 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   down = visibleDownPayment(down, input.source);
   const downPaymentRule = evaluateDownPayment(vehicle, down);
 
-  const normalizedTimeline = normalizeTimeline(firstNonEmpty(formContext?.purchase_timeline, extractTimeline(messageForExtraction), extractTimeline(history), extractTimeline(memoryText(memory)), memoryValue(memory, ['timeline', 'purchase timeline', 'purchase_timeline']), input.purchase_timeline), language);
-  const timeline = language === 'es' && normalizedTimeline === 'today' ? 'hoy' : normalizedTimeline || clean(formContext?.purchase_timeline);
+  const transcriptTimeline = firstNonEmpty(extractTimeline(messageForExtraction), extractTimeline(history));
+  const normalizedTimeline = normalizeTimeline(firstNonEmpty(formContext?.purchase_timeline, transcriptTimeline, extractTimeline(memoryText(memory)), memoryValue(memory, ['timeline', 'purchase timeline', 'purchase_timeline']), input.purchase_timeline), language);
+  const timelineValue = language === 'es' && normalizedTimeline === 'today' ? 'hoy' : normalizedTimeline || clean(formContext?.purchase_timeline);
+  const nameMonthCollision = !formContext?.purchase_timeline
+    && !transcriptTimeline
+    && Boolean(realName)
+    && realName.trim().toLocaleLowerCase() === timelineValue.trim().toLocaleLowerCase()
+    && normalizeTimeline(realName, language).toLocaleLowerCase() === timelineValue.trim().toLocaleLowerCase();
+  const timeline = nameMonthCollision ? EMPTY : timelineValue;
   const memoryDocumentFacts = [memoryValue(memory, ['documents']), memoryValue(memory, ['identification', 'id', 'itin', 'passport', 'pasaporte']) ? `identification: ${memoryValue(memory, ['identification', 'id', 'itin', 'passport', 'pasaporte'])}` : EMPTY, memoryValue(memory, ['proof of income', 'income proof', 'prueba de ingresos', 'comprobante de ingresos']) ? `proof of income: ${memoryValue(memory, ['proof of income', 'income proof', 'prueba de ingresos', 'comprobante de ingresos'])}` : EMPTY].filter(Boolean).join('; ');
   const docs = mergeDocuments(firstNonEmpty(memoryDocumentFacts, input.documents), [rawHistory, rawMessage].filter(Boolean).join('\n'));
   const identification = firstNonEmpty(docs.id, memoryValue(memory, ['identification', 'id']), input.identification);
