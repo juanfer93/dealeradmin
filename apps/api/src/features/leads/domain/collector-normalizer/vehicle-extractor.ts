@@ -1,6 +1,6 @@
 import { ADVISOR_HANDOFF_VEHICLE, EMPTY } from './constants';
 import { isCampaignButton, isFalsePositiveVanVerb, isNonVehicleIntent, stripCampaignButtonPhrases, TRADE_IN_INTENT, ECONOMIC_SEDAN_INTENT, FAMILY_PASSENGER_VAN_INTENT, FOUR_DOOR_SPORTS_CAR_INTENT, GENERIC_SEDAN_INTENT, INDECISIVE_VEHICLE_INTENT } from './collector-intents';
-import { VEHICLE_BRANDS, VEHICLE_CATEGORIES, VEHICLE_CONTEXT, VEHICLE_MODELS, extractExplicitVehicleTrim, extractVehicleLabel, normalizeVehicle, normalizeWhisperVehicleAliases } from './vehicle-normalizer';
+import { VEHICLE_BRANDS, VEHICLE_CATEGORIES, VEHICLE_CONTEXT, VEHICLE_MODELS, extractExplicitVehicleTrim, extractVehicleLabel, isPossessiveVehicleStatement, normalizeVehicle, normalizeWhisperVehicleAliases } from './vehicle-normalizer';
 import { resolveVehicleCandidate, type VehicleCandidate } from './candidate-resolver';
 import { clean } from './text-cleaner';
 import { isWhatsAppChannel } from './flow-policy';
@@ -35,6 +35,7 @@ export function extractVehicle(message: string): string {
     if (!candidate || isCampaignButton(candidate) || isNonVehicleIntent(candidate)) continue;
     if (isFalsePositiveVanVerb(candidate)) continue;
     if (/^\s*(?:vehicle_type|vehicle_category)\s*[:=]/i.test(candidate)) continue;
+    if (isPossessiveVehicleStatement(candidate)) continue;
     if (TRADE_IN_INTENT.test(candidate)
       && /\b(?:tengo|tiene|have|has|my|mi)\b/i.test(candidate)
       && !/\b(?:looking for|busco|quiero|want|interested in|interesado en)\b/i.test(candidate)) continue;

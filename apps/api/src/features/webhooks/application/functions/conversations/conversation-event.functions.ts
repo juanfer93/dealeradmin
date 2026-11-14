@@ -308,7 +308,9 @@ export class ConversationEventFunctions {
       } else if (isSocialProfileChannel) {
         await learnInvalidMessengerNames(runner, messengerNameMemoryTranscript, invalidRealNames, realName);
       }
-      const vehicleType = additiveField(normalized.vehicle_type, previousSnapshot.vehicle_type);
+      const invalidatedOwnedVehicle = normalized.vehicle_owned_without_purchase_intent
+        && (!clean(normalized.vehicle_type) || isAdvisorHandoffVehicle(normalized.vehicle_type));
+      const vehicleType = invalidatedOwnedVehicle ? '' : additiveField(normalized.vehicle_type, previousSnapshot.vehicle_type);
       const previousVehicleIntent = previousSnapshot.vehicle_intent === 'buy' || previousSnapshot.vehicle_intent === 'sell'
         ? previousSnapshot.vehicle_intent
         : '';
@@ -318,11 +320,15 @@ export class ConversationEventFunctions {
       const documents = additiveField(normalized.documents, previousSnapshot.documents);
       const identification = additiveField(normalized.identification, previousSnapshot.identification);
       const bankAccount = additiveField(normalized.bank_account, previousSnapshot.bank_account);
-      const qualificationMemoryBase = additiveField(normalized.qualification_memory, previousSnapshot.qualification_memory);
+      const qualificationMemoryBase = invalidatedOwnedVehicle
+        ? clean(normalized.qualification_memory)
+        : additiveField(normalized.qualification_memory, previousSnapshot.qualification_memory);
       const qualificationMemory = isSocialProfileChannel
         ? mergeMemory(qualificationMemoryBase, { real_name: realName })
         : qualificationMemoryBase;
-      const vehicleYear = typeof normalized.vehicle_year === 'number'
+      const vehicleYear = invalidatedOwnedVehicle
+        ? null
+        : typeof normalized.vehicle_year === 'number'
         ? normalized.vehicle_year
         : typeof previousSnapshot.vehicle_year === 'number' ? previousSnapshot.vehicle_year : null;
       const previousFinancing = normalized.previous_financing

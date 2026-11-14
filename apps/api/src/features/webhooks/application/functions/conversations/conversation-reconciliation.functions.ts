@@ -310,9 +310,15 @@ export class ConversationReconciliationFunctions {
       } else if (isSocialProfileChannel) {
         await learnInvalidMessengerNames(runner, messengerNameMemoryTranscript, invalidRealNames, realName);
       }
-      const vehicle = targeted ? clean(normalized.vehicle_type) : preserveOrNormalize(current.vehicle_type, normalized.vehicle_type);
+      const invalidatedOwnedVehicle = normalized.vehicle_owned_without_purchase_intent
+        && (!clean(normalized.vehicle_type) || isAdvisorHandoffVehicle(normalized.vehicle_type));
+      const vehicle = invalidatedOwnedVehicle
+        ? ''
+        : targeted ? clean(normalized.vehicle_type) : preserveOrNormalize(current.vehicle_type, normalized.vehicle_type);
       const vehicleIntent = normalized.vehicle_intent || current.vehicle_intent || '';
-      const vehicleYear = targeted
+      const vehicleYear = invalidatedOwnedVehicle
+        ? null
+        : targeted
         ? normalized.vehicle_year
         : additiveOnly && typeof current.vehicle_year === 'number'
         ? current.vehicle_year
@@ -326,7 +332,9 @@ export class ConversationReconciliationFunctions {
       const documents = targetedOrExisting(current.documents, normalized.documents);
       const identification = targetedOrExisting(current.identification, normalized.identification);
       const bankAccount = targetedOrExisting(current.bank_account, normalized.bank_account);
-      const qualificationMemoryBase = targetedOrExisting(current.qualification_memory, normalized.qualification_memory);
+      const qualificationMemoryBase = invalidatedOwnedVehicle
+        ? clean(normalized.qualification_memory)
+        : targetedOrExisting(current.qualification_memory, normalized.qualification_memory);
       const qualificationMemory = isSocialProfileChannel
         ? mergeMemory(qualificationMemoryBase, { real_name: realName })
         : qualificationMemoryBase;
@@ -336,7 +344,7 @@ export class ConversationReconciliationFunctions {
           : current.previous_financing === 'yes' || current.previous_financing === 'no' ? current.previous_financing : ''
         : normalized.previous_financing || (current.previous_financing === 'yes' || current.previous_financing === 'no' ? current.previous_financing : '');
       const downPaymentRule = evaluateDownPayment(vehicle, downPayment);
-      const qualificationComplete = Boolean(current.qualification_complete) || isQualificationComplete({
+      const qualificationComplete = invalidatedOwnedVehicle ? false : Boolean(current.qualification_complete) || isQualificationComplete({
         real_name: realName,
         phone: effectivePhone,
         vehicle_type: vehicle,
@@ -421,7 +429,8 @@ export class ConversationReconciliationFunctions {
       const activeWindow = row.status === 'waiting_window' && row.next_attempt_at && new Date(row.next_attempt_at).getTime() > now.getTime();
       const waitingWindowGrace = row.status === 'waiting_window'
         && (activeWindow || Number(row.waiting_window_attempts ?? 0) < WAITING_WINDOW_MAX_ATTEMPTS);
-      const preserveTargetedStatus = targeted && (row.status === 'queued' || row.status === 'duplicate_ignored');
+      const preserveTargetedStatus = targeted
+        && (row.status === 'duplicate_ignored' || row.status === 'queued' && snapshot.qualification_complete);
       const status = preserveTargetedStatus
         ? { status: row.status as 'queued' | 'duplicate_ignored', nextAttemptAt: null }
         : waitingWindowGrace
