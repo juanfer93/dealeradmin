@@ -202,6 +202,10 @@ export function extractVehicleYear(value: string | null | undefined): number | n
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter(Boolean);
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
     const line = lines[lineIndex];
+    const ownershipStatement = /\b(?:yo\s+tengo|i\s+own|my\s+current\s+(?:car|vehicle))\b/i.test(line);
+    const purchaseStatement = /\b(?:need|needs|looking for|busco|buscando|quiero|want|interested in|interesado en|me interesa(?:n)?|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i.test(line);
+    const changeStatement = /\b(?:cambiar|cambio|entregar|trade[- ]?in|change|sell|vender)\b/i.test(line);
+    if (ownershipStatement && !purchaseStatement && !changeStatement) continue;
     const phoneRanges = [...line.matchAll(PHONE_LIKE_SEQUENCE)].map((match) => ({
       start: match.index ?? 0,
       end: (match.index ?? 0) + match[0].length,

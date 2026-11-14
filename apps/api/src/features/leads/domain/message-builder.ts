@@ -150,7 +150,13 @@ export function buildWhatsAppMessage(name: string, phone: string, data: MessageL
     return [name.trim(), phone, saleCopy].filter(Boolean).join(' ') + '.';
   }
   const downValue = visibleDownPayment(data.down_payment, data.dealer_name);
-  const down = downValue && !isNoDownPayment(downValue) ? (isCashDownPayment(downValue) ? CASH_DOWN_PAYMENT : `${downValue}${language === 'es' ? ' de down' : ' down'}`) : '';
+  const down = downValue && !isNoDownPayment(downValue)
+    ? isCashDownPayment(downValue)
+      ? CASH_DOWN_PAYMENT
+      : /^trade[- ]?in$/i.test(downValue)
+        ? downValue
+        : `${downValue}${language === 'es' ? ' de down' : ' down'}`
+    : '';
   const hasPromotionalFinancingEvidence = data.previous_financing === 'yes'
     && data.down_payment_amount != null
     && data.required_down_payment != null
