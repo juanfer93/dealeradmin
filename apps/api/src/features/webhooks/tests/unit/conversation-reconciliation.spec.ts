@@ -780,6 +780,80 @@ Full name: Jose Eduardo Martins Cabral
     expect(leadUpdate?.[1]).toEqual(['lead-whatsapp-declared-name', 'Edwin', '']);
   });
 
+  it('demotes a previously queued Country Club snapshot when the transcript only says the buyer owns the vehicle', async () => {
+    const transcript = [
+      '*Headline:* Hasta $700 de ayuda',
+      '*Source URL:* https://fb.me/7foX0L0MJ',
+      '¿Cuáles son los requisitos para la promoción? tengo un Ford expedición 2008',
+      'Opportunity created',
+      'Si',
+      'Delmi RAMOS',
+    ];
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('SELECT c.id, c.channel')) return [{
+        id: 'conversation-country-owned-vehicle',
+        channel: 'whatsapp',
+        ghl_location_id: GHL_SOURCE_CONFIG.country.locationId,
+        ghl_contact_id: 'country-owned-vehicle-contact',
+        ghl_conversation_id: 'country-owned-vehicle-conversation',
+        status: 'queued',
+        qualification_snapshot: {
+          real_name: 'Ivonne',
+          phone: '+14109004801',
+          vehicle_type: 'Ford expedición 2008',
+          vehicle_year: 2008,
+          qualification_memory: 'real_name: Ivonne; vehicle: Ford expedición 2008',
+          qualification_complete: true,
+          language: 'es',
+        },
+        location_snapshot: { city: null, state: null, zip_code: null, easterns_zone: null },
+        ready_at: '2026-11-14T17:00:00.000Z',
+        next_attempt_at: null,
+        last_message_at: '2026-11-14T17:05:00.000Z',
+        waiting_window_attempts: 5,
+        lead_id: 'lead-country-owned-vehicle',
+        canonical_phone: '+14109004801',
+        first_name: 'Ivonne',
+        last_name: '',
+      }];
+      if (sql.includes('FROM invalid_real_names')) return [];
+      if (sql.includes('SELECT cm.body')) return transcript.map((body, index) => ({
+        body,
+        direction: index === 3 ? 'outbound' : 'inbound',
+        occurred_at: `2026-11-14T17:0${index}:00.000Z`,
+        raw_payload: { customData: { channel: 'whatsapp', contact_name: 'Ivonne' } },
+      }));
+      return [];
+    });
+    const runner = { connect: vi.fn(), startTransaction: vi.fn(), commitTransaction: vi.fn(), rollbackTransaction: vi.fn(), release: vi.fn(), isTransactionActive: true, query };
+    const statusForConversation = vi.fn().mockReturnValue({ status: 'partial', nextAttemptAt: null });
+    const qualification = {
+      resolveLocation: vi.fn().mockResolvedValue({ city: null, state: null, zip_code: null, easterns_zone: null }),
+      findSourceDealer: vi.fn().mockResolvedValue({ id: 'dealer-country', timezone: 'America/New_York', routing_config: {} }),
+      statusForConversation,
+      syncLeadDealer: vi.fn(),
+    };
+    const reconciliation = new ConversationReconciliationFunctions(
+      { createQueryRunner: () => runner } as never,
+      qualification as never,
+      { createQueuedPauseEvent: vi.fn(), dispatchQueuedPauseEvent: vi.fn() } as never,
+    );
+
+    await reconciliation.reconcileConversation('conversation-country-owned-vehicle', new Date('2026-11-14T17:10:00.000Z'), true);
+
+    const update = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    const snapshot = JSON.parse(String(update?.[1]?.[2]));
+    expect(update?.[1]?.[1]).toBe('partial');
+    expect(snapshot).toMatchObject({
+      vehicle_type: '',
+      vehicle_year: null,
+      qualification_complete: false,
+    });
+    expect(snapshot.missing_qualification).toContain('vehicle_type');
+    expect(snapshot.qualification_memory).not.toMatch(/vehicle:\s*Ford/i);
+    expect(qualification.syncLeadDealer).not.toHaveBeenCalled();
+  });
+
   it('keeps a later declared name over an earlier bank-account answer and learns only the label', async () => {
     const messages = [
       { body: '¿Cuál es tu nombre?', direction: 'outbound', occurred_at: '2026-11-09T20:58:30.193Z' },

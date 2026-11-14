@@ -5,7 +5,7 @@ import { detectLeadLanguage } from './language-normalizer';
 import { collectorFlowPolicy, effectiveChannel, extractCustomerLocation, isAdvisorHandoffVehicle, isMessengerChannel, isWhatsAppChannel } from './flow-policy';
 import { clean, conversationalEvidence, firstNonEmpty, lastMeaningfulLine, memoryText, memoryValue } from './text-cleaner';
 import type { CollectorInput, CollectorLanguage, CollectorOutput, QualificationProgress, QualificationStep } from './types';
-import { extractVehicleYear, normalizeVehicle } from './vehicle-normalizer';
+import { extractVehicleYear, isPossessiveVehicleStatement, normalizeVehicle } from './vehicle-normalizer';
 import { extractTimeline, mergeDocuments, normalizeTimeline, yesNo } from './qualification-normalizer';
 import { mergeMemory, normalizeMemoryDownPayment } from './qualification-memory';
 import { isQualificationComplete, missingQualification as getMissingQualification, qualificationStep } from './reconciliation';
@@ -107,12 +107,14 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const vehicleSource = [historyForExtraction, messageForExtraction].filter(Boolean).join('\n');
   const vehicleIntent = inferConversationVehicleIntent(historyForExtraction, messageForExtraction);
   const transcriptVehicle = extractVehicle(vehicleSource);
+  const vehicleOwnedWithoutPurchaseIntent = !transcriptVehicle
+    && vehicleSource.split(/\n+/).some((line) => isPossessiveVehicleStatement(line));
   const explicitVehicle = normalizeVehicle(firstNonEmpty(
     formContext?.vehicle,
     transcriptVehicle,
-    [memoryValue(memory, ['vehicle_type', 'vehicle', 'type']), [memoryValue(memory, ['make', 'brand', 'marca']), memoryValue(memory, ['model', 'vehicle_model', 'modelo'])].filter(Boolean).join(' ')].filter(Boolean).join(' — '),
-    memoryValue(memory, ['vehicle', 'vehicle_type']),
-    input.vehicle_type,
+    vehicleOwnedWithoutPurchaseIntent ? EMPTY : [memoryValue(memory, ['vehicle_type', 'vehicle', 'type']), [memoryValue(memory, ['make', 'brand', 'marca']), memoryValue(memory, ['model', 'vehicle_model', 'modelo'])].filter(Boolean).join(' ')].filter(Boolean).join(' — '),
+    vehicleOwnedWithoutPurchaseIntent ? EMPTY : memoryValue(memory, ['vehicle', 'vehicle_type']),
+    vehicleOwnedWithoutPurchaseIntent ? EMPTY : input.vehicle_type,
   ), isCampaignButton, isNonVehicleIntent);
   const extractedVehicle = inferVehicleIntent(vehicleSource, explicitVehicle);
   const hasExistingAdvisorMarker = [memoryValue(memory, ['vehicle_type', 'vehicle', 'type']), input.vehicle_type].some((value) => isAdvisorHandoffVehicle(value));
@@ -120,7 +122,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const formVehicleYear = extractVehicleYear(formContext?.vehicle ?? EMPTY);
   const vehicleYear = formContext?.vehicle
     ? formVehicleYear
-    : [transcriptVehicleYear, ...(transcriptVehicle ? [] : [extractVehicleYear(input.vehicle_type), extractVehicleYear(memoryValue(memory, ['vehicle_type', 'vehicle', 'type']))])].find((value): value is number => value !== null) ?? null;
+    : [transcriptVehicleYear, ...(transcriptVehicle || vehicleOwnedWithoutPurchaseIntent ? [] : [extractVehicleYear(input.vehicle_type), extractVehicleYear(memoryValue(memory, ['vehicle_type', 'vehicle', 'type']))])].find((value): value is number => value !== null) ?? null;
   const vehicleBase = extractedVehicle || (hasExistingAdvisorMarker || phoneFromConversation || (isWhatsAppChannel(input.channel) && chatPhone) ? ADVISOR_HANDOFF_VEHICLE : EMPTY);
   const vehicle = vehicleBase && vehicleYear !== null && !isAdvisorHandoffVehicle(vehicleBase) ? `${vehicleBase} ${vehicleYear}` : vehicleBase;
   const hasRealVehicle = Boolean(vehicle) && !isAdvisorHandoffVehicle(vehicle);
@@ -166,7 +168,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const bankAccountPositive = /\b(?:yes|sí|si|yeah|yep|correct|tengo|i\s+(?:have|do(?:\s+have)?))\b[^;!?]{0,50}\b(?:a\s+|an\s+|una?\s+)?(?:bank account|cuenta bancaria|cuenta de banco)\b/i.test(bankEvidenceSource);
   const bankAccountEvidence = bankAccountPositive ? 'yes' : bankEvidenceSource.match(/(?:bank account|cuenta bancaria|cuenta de banco)\s*(?:is|are|:|=)?\s*(yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available|no|not|sin|dont|don't|no tengo|i do not|do not have|not available)\b/i)?.[1] ?? (bankAccountNegative ? 'no' : '');
   const bankAccount = yesNo(firstNonEmpty(input.bank_account, bankAccountEvidence, memoryValue(memory, ['bank account', 'bank_account', 'cuenta bancaria', 'cuenta de banco'])));
-  const mergedMemory = mergeMemory(memory, { real_name: realName, vehicle, 'down payment': down, previous_financing: previousFinancing, documents: docs.value, timeline });
+  const mergedMemory = mergeMemory(memory, { real_name: realName, vehicle: vehicleOwnedWithoutPurchaseIntent ? EMPTY : vehicle, 'down payment': down, previous_financing: previousFinancing, documents: docs.value, timeline });
 
   const step: QualificationStep = qualificationStep(hasRealVehicle, policy.requiresLocation, customerLocation, policy.phoneSatisfiedByNative || Boolean(chatPhone));
   const questions: Record<CollectorLanguage, Record<QualificationStep, string>> = {
@@ -180,7 +182,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const qualificationComplete = isQualificationComplete({ real_name: realName, phone: chatPhone || (policy.phoneSatisfiedByNative ? 'native-whatsapp' : EMPTY), vehicle_type: vehicle, down_payment: down, purchase_timeline: timeline, has_identification: docs.id, has_income_proof: docs.income, bank_account: bankAccount }) && (!policy.requiresLocation || Boolean(customerLocation));
   const missingQualification = getMissingQualification(policy.phoneSatisfiedByNative || Boolean(chatPhone) ? 'provided' : EMPTY, hasRealVehicle, policy.requiresLocation, customerLocation);
   return {
-    real_name: realName, vehicle_type: vehicle, vehicle_intent: vehicleIntent, vehicle_year: vehicleYear, customer_location: customerLocation,
+    real_name: realName, vehicle_type: vehicle, vehicle_intent: vehicleIntent, vehicle_owned_without_purchase_intent: vehicleOwnedWithoutPurchaseIntent, vehicle_year: vehicleYear, customer_location: customerLocation,
     vehicle_category: downPaymentRule.category, required_down_payment: downPaymentRule.minimum, down_payment_amount: downPaymentRule.amount, down_payment_sufficient: downPaymentRule.meetsMinimum,
     down_payment: down, previous_financing: previousFinancing, purchase_timeline: timeline, documents: docs.value, identification, bank_account: bankAccount,
     qualification_memory: mergedMemory, has_identification: docs.id, has_income_proof: docs.income, next_question: nextQuestion, qualification_step: step,

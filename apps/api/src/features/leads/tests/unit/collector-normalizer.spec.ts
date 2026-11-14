@@ -2430,6 +2430,67 @@ describe('normalizeCollectorInput', () => {
     }).real_name).toBe('Josue Ramirez');
   });
 
+  it('does not qualify the Country Club contact when the only vehicle is one they say they own', () => {
+    const transcript = [
+      '*Headline:* Hasta $700 de ayuda',
+      '*Source URL:* https://fb.me/7foX0L0MJ',
+      '¿Cuáles son los requisitos para la promoción? tengo un Ford expedición 2008',
+      'Opportunity created',
+      'Si',
+      'Delmi RAMOS',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'country',
+      channel: 'whatsapp',
+      contact_name: 'Ivonne',
+      profile: { name: 'Ivonne' },
+      phone: '+14109004801',
+      message: 'Delmi RAMOS',
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: ADVISOR_HANDOFF_VEHICLE,
+      vehicle_intent: '',
+      vehicle_year: null,
+      qualification_complete: false,
+      qualification_step: 'vehicle_type',
+      dealeradmin_send_now: false,
+    });
+    expect(result.missing_qualification).toContain('vehicle_type');
+    const replayed = normalizeCollectorInput({
+      source: 'country',
+      channel: 'whatsapp',
+      contact_name: 'Ivonne',
+      phone: '+14109004801',
+      message: transcript,
+      chat_history_log: transcript,
+      vehicle_type: 'Ford Expedition 2008',
+      qualification_memory: 'real_name: Ivonne; vehicle: Ford Expedition 2008',
+    });
+    expect(replayed.vehicle_type).toBe(ADVISOR_HANDOFF_VEHICLE);
+    expect(replayed.vehicle_year).toBeNull();
+    expect(replayed.qualification_memory).not.toMatch(/vehicle:\s*Ford/i);
+  });
+
+  it('still qualifies a Country Club vehicle the buyer explicitly says they are looking for', () => {
+    const result = normalizeCollectorInput({
+      source: 'country',
+      channel: 'whatsapp',
+      contact_name: 'Carlos',
+      phone: '+18045550123',
+      message: 'Estoy buscando un Ford Expedition 2018',
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'Ford Expedition 2018',
+      vehicle_year: 2018,
+      qualification_complete: true,
+      dealeradmin_send_now: true,
+      vehicle_owned_without_purchase_intent: false,
+    });
+  });
+
   it('skips a WhatsApp language-selection reply before a later declared name', () => {
     expect(normalizeCollectorInput({
       source: 'country-club',

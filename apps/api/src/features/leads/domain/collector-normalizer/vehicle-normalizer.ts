@@ -62,6 +62,9 @@ export function normalizeWhisperVehicleAliases(value: string): string {
     .replace(/\bdarangos?\b/gi, 'Dodge Durango')
     .replace(/\bdurangos?\b/gi, 'Durango')
     .replace(/\bcamaros?\b/gi, 'Camaro')
+    // GHL transcripts can render spoken "SUV" as "HUV". Scope the alias to
+    // vehicle extraction so it cannot change customer names or free-form data.
+    .replace(/\bhuv\b/gi, 'SUV')
     .replace(/\buna\s*troca\b/gi, 'troca')
     .replace(/\bttoca\b/gi, 'troca')
     // Common phonetic misspelling of "pickup" in GHL transcripts.
@@ -182,6 +185,29 @@ export function extractExplicitVehicleTrim(value: string, label: string): string
   return value.match(new RegExp(`\\b${escapedModel}\\b\\s+(?:con|with)\\s+(?:(?:el|la|the)\\s+)?(?:(?:paquete|package)\\s+)?(\\d+\\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\\b`, 'i'))?.[1] ?? EMPTY;
 }
 
+/**
+ * Detects a vehicle the buyer says they own, without treating it as the
+ * vehicle they want to buy. A separate explicit purchase request in the same
+ * line keeps the line eligible for normal extraction.
+ */
+export function isPossessiveVehicleStatement(value: string): boolean {
+  const candidate = clean(value);
+  if (!candidate) return false;
+  const mentions = [candidate.match(VEHICLE_BRANDS), candidate.match(VEHICLE_MODELS), candidate.match(VEHICLE_CATEGORIES)]
+    .filter((match): match is RegExpMatchArray => Boolean(match))
+    .sort((left, right) => (left.index ?? 0) - (right.index ?? 0));
+  const mention = mentions[0];
+  if (!mention || mention.index === undefined) return false;
+  const prefix = candidate.slice(0, mention.index);
+  const possessionBeforeVehicle = /\b(?:yo\s+)?tengo\s+(?:(?:un|una|el|la|mi)\s+)?(?:[\p{L}\d-]+\s+){0,2}$/iu.test(prefix)
+    || /\bi\s+own\s+(?:(?:a|an|the|my)\s+)?(?:[\p{L}\d-]+\s+){0,2}$/iu.test(prefix)
+    || /\bi\s+(?:already\s+)?have\s+(?:(?:a|an|the|my)\s+)?(?:[\p{L}\d-]+\s+){0,2}$/iu.test(prefix)
+    || /\b(?:my|mi)\s+(?:current\s+)?(?:[\p{L}\d-]+\s+){0,2}$/iu.test(prefix);
+  const explicitPurchaseRequest = /\b(?:i(?:'m|\s+am)\s+looking\s+for|looking\s+for|i\s+want\s+to\s+buy|want\s+to\s+buy|interested\s+in|busco|buscando|estoy\s+buscando|quiero\s+(?:comprar|un[oa]?|el|la)|quero\s+(?:un[oa]?|el|la)|(?:quiero|quero)\s+(?:(?:un[oa]?|el|la)\s+)?(?:suv|sed[aá]n|troca|camioneta|camion|carro|auto|truck|van|pickup)|me\s+interesa(?:n)?|interesad[oa]s?\s+en|necesito\s+comprar|need|needs|want)\b/i.test(candidate);
+  const explicitTradeIn = /\b(?:trade\s*[- ]?in|trade\s+my|quiero\s+cambiar|quero\s+cambiar|voy\s+a\s+cambiar|lo\s+quiero\s+cambiar|cambiarlo|cambiarla|cambiar\s+mi|cambio|entregar|change|sell|vender)\b/i.test(candidate);
+  return possessionBeforeVehicle && !explicitPurchaseRequest && !explicitTradeIn;
+}
+
 export function isVehicleStatement(value: string | null | undefined): boolean {
   const candidate = clean(value);
   if (!candidate) return false;
@@ -202,10 +228,7 @@ export function extractVehicleYear(value: string | null | undefined): number | n
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter(Boolean);
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
     const line = lines[lineIndex];
-    const ownershipStatement = /\b(?:yo\s+tengo|i\s+own|my\s+current\s+(?:car|vehicle))\b/i.test(line);
-    const purchaseStatement = /\b(?:need|needs|looking for|busco|buscando|quiero|want|interested in|interesado en|me interesa(?:n)?|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i.test(line);
-    const changeStatement = /\b(?:cambiar|cambio|entregar|trade[- ]?in|change|sell|vender)\b/i.test(line);
-    if (ownershipStatement && !purchaseStatement && !changeStatement) continue;
+    if (isPossessiveVehicleStatement(line)) continue;
     const phoneRanges = [...line.matchAll(PHONE_LIKE_SEQUENCE)].map((match) => ({
       start: match.index ?? 0,
       end: (match.index ?? 0) + match[0].length,
