@@ -1,7 +1,7 @@
 export type VehicleIntent = 'buy' | 'sell' | '';
 
 const SELL_STATEMENT = /\b(?:(?:i(?:'m| am)|we(?:'re| are))\s+(?:(?:only|just)\s+)?(?:selling|trying to sell|looking to sell|planning to sell)|(?:i|we)\s+(?:want|need|would like)\s+to sell|selling\s+my|sell\s+my|(?:quiero|necesito|voy a|estoy|estamos)\s+(?:vender|vendiendo)|(?:vender|vendiendo)\s+mi)\b/i;
-const BUY_STATEMENT = /\b(?:(?:i(?:'m| am)|we(?:'re| are))\s+(?:looking for|interested in buying|buying)|(?:i|we)\s+(?:want|need|would like)\s+to buy|(?:busco|estoy buscando|quiero|necesito)\s+(?:comprar|un[oa]?\s+))\b/i;
+const BUY_STATEMENT = /\b(?:(?:i(?:'m| am)|we(?:'re| are))\s+(?:looking for|interested in buying|buying)|(?:i|we)\s+(?:want|need|would like)\s+to buy|(?:busco|estoy buscando|quiero|necesito)\s+(?:comprar|un[oa]?\s+)|me\s+interesa(?:n)?\s+(?:un[oa]?\s+)?)/i;
 const SELL_PROMPT = /\b(?:sell your|looking to sell|selling your|or just sell it|or just sell)\b/i;
 
 /**

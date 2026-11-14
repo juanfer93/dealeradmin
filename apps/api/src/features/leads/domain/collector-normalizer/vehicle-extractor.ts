@@ -35,12 +35,20 @@ export function extractVehicle(message: string): string {
     if (!candidate || isCampaignButton(candidate) || isNonVehicleIntent(candidate)) continue;
     if (isFalsePositiveVanVerb(candidate)) continue;
     if (/^\s*(?:vehicle_type|vehicle_category)\s*[:=]/i.test(candidate)) continue;
+    // A buyer can mention a vehicle they already own while asking about a
+    // different one. Keep the existing request (for example, an SUV) and do
+    // not promote an ownership statement into the requested vehicle unless
+    // that same statement also contains explicit purchase intent.
+    const ownershipStatement = /\b(?:yo\s+tengo|i\s+own|my\s+current\s+(?:car|vehicle))\b/i.test(candidate);
+    const purchaseStatement = /\b(?:need|needs|looking for|busco|buscando|quiero|want|interested in|interesado en|me interesa(?:n)?|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i.test(candidate);
+    const changeStatement = /\b(?:cambiar|cambio|entregar|trade[- ]?in|change|sell|vender)\b/i.test(candidate);
+    if (ownershipStatement && !purchaseStatement && !changeStatement) continue;
     if (TRADE_IN_INTENT.test(candidate)
       && /\b(?:tengo|tiene|have|has|my|mi)\b/i.test(candidate)
       && !/\b(?:looking for|busco|quiero|want|interested in|interesado en)\b/i.test(candidate)) continue;
     const hasVehicleEvidence = (VEHICLE_MODELS.test(candidate) || VEHICLE_BRANDS.test(candidate) || VEHICLE_CATEGORIES.test(candidate))
       && !/\b(?:passport|pasaporte|license|licencia|bank\s+account|bank\s+statements?|income|document(?:s|os)?|identification|id)\b/i.test(candidate);
-    const candidateForVehicle = /\b(?:need|needs|looking for|busco|quiero|want|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i.test(candidate) || hasVehicleEvidence
+    const candidateForVehicle = /\b(?:need|needs|looking for|busco|quiero|want|interested in|interesado en|me interesa(?:n)?|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i.test(candidate) || hasVehicleEvidence
       ? candidate
       : candidate.split(/[;,]/, 1)[0];
     const withoutOtherFacts = candidateForVehicle
@@ -49,7 +57,7 @@ export function extractVehicle(message: string): string {
       .replace(/\b(?:today|hoy|asap|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes)\b/gi, '')
       .split(/;/, 1)[0]
       .trim();
-    const requested = withoutOtherFacts.match(/(?:looking for|busco|quiero|want|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\s+(?:a|an|un|una|um|uma)?\s*([^.!?]+)/i)?.[1];
+    const requested = withoutOtherFacts.match(/(?:looking for|busco|quiero|want|interested in|interesado en|me interesa(?:n)?|estou procurando|estou [àa] procura|procuro|tenho interesse)\s+(?:a|an|un|una|um|uma)?\s*([^.!?]+)/i)?.[1];
     if (requested && !isNonVehicleIntent(requested)) {
       const requestedLabel = extractVehicleLabel(requested);
       if (requestedLabel) {

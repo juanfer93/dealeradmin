@@ -3262,6 +3262,42 @@ Full name: Jose Eduardo Martins Cabral
     });
   });
 
+  it('keeps the requested SUV when the WhatsApp buyer only mentions owning a Camry', () => {
+    const transcript = [
+      'Me interesa un suv',
+      'Mi nombre es yaniel',
+      'Tienes algún suv con muy pocas millas que pueda absorber el negativo de otro carro',
+      'Yo tengo un Toyota Camry 2025',
+      'Ok y no hay alguna posibilidad de no dar down porq la verdad no puedo ahora mismo haser ese gasto en down',
+      'Quisiera q me enviara los autos que tiene',
+      'Primero quiero ver las opciones y le diría',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      channel: 'whatsapp',
+      contact_name: 'Yaniel',
+      phone: '+17868262324',
+      message: 'Primero quiero ver las opciones y le diría',
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Yaniel',
+      vehicle_type: 'SUV',
+      vehicle_intent: 'buy',
+      down_payment: 'trade-in',
+      purchase_timeline: 'explorando opciones',
+      vehicle_year: null,
+    });
+  });
+
+  it('does not read now as purchase timing when it only refers to the down payment', () => {
+    expect(normalizeCollectorInput({
+      message: 'No puedo ahora mismo hacer ese gasto en down\nPrimero quiero ver las opciones y le diría',
+      chat_history_log: 'No puedo ahora mismo hacer ese gasto en down\nPrimero quiero ver las opciones y le diría',
+    }).purchase_timeline).toBe('explorando opciones');
+    expect(normalizeCollectorInput({ message: 'Quiero comprar de una' }).purchase_timeline).toBe('hoy');
+  });
+
   it('uses the latest vehicle and Messenger phone for Fredericksburg', () => {
     const result = normalizeCollectorInput({
       source: 'fredericksburg',

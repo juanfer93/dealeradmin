@@ -48,4 +48,42 @@ describe('seller intent copy E2E without Docker', () => {
     expect(copy).not.toMatch(/sell|vender/i);
     expect(copy).not.toMatch(/Wants to sell their vehicle/);
   });
+
+  it('keeps the requested SUV and carries the Camry as trade-in context across WhatsApp messages', () => {
+    const transcript = [
+      'Me interesa un suv',
+      'Mi nombre es yaniel',
+      'Tienes algún suv con muy pocas millas que pueda absorber el negativo de otro carro',
+      'Yo tengo un Toyota Camry 2025',
+      'Ok y no hay alguna posibilidad de no dar down porq la verdad no puedo ahora mismo haser ese gasto en down',
+      'Quisiera q me enviara los autos que tiene',
+      'Primero quiero ver las opciones y le diría',
+    ].join('\n');
+    const normalized = normalizeCollectorInput({
+      channel: 'whatsapp',
+      contact_name: 'Yaniel',
+      phone: '+17868262324',
+      message: 'Primero quiero ver las opciones y le diría',
+      chat_history_log: transcript,
+    });
+    const copy = buildWhatsAppMessage(normalized.real_name, normalized.phone, {
+      language: 'es',
+      vehicle_type: normalized.vehicle_type,
+      vehicle_intent: normalized.vehicle_intent,
+      down_payment: normalized.down_payment,
+      purchase_timeline: normalized.purchase_timeline,
+    });
+
+    expect(normalized).toMatchObject({
+      vehicle_type: 'SUV',
+      vehicle_intent: 'buy',
+      vehicle_year: null,
+      down_payment: 'trade-in',
+      purchase_timeline: 'explorando opciones',
+    });
+    expect(copy).toContain('SUV');
+    expect(copy).toContain('Quiere ver opciones');
+    expect(copy).not.toMatch(/Toyota Camry|2025/);
+    expect(copy).not.toMatch(/Quiere vender|Wants to sell/i);
+  });
 });
