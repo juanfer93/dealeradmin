@@ -200,10 +200,11 @@ export function isPossessiveVehicleStatement(value: string): boolean {
   if (!mention || mention.index === undefined) return false;
   const prefix = candidate.slice(0, mention.index);
   const possessionBeforeVehicle = /\b(?:yo\s+)?tengo\s+(?:(?:un|una|el|la|mi)\s+)?(?:[\p{L}\d-]+\s+){0,2}$/iu.test(prefix)
+    || /\bi\s+own\s+(?:(?:a|an|the|my)\s+)?(?:[\p{L}\d-]+\s+){0,2}$/iu.test(prefix)
     || /\bi\s+(?:already\s+)?have\s+(?:(?:a|an|the|my)\s+)?(?:[\p{L}\d-]+\s+){0,2}$/iu.test(prefix)
     || /\b(?:my|mi)\s+(?:current\s+)?(?:[\p{L}\d-]+\s+){0,2}$/iu.test(prefix);
-  const explicitPurchaseRequest = /\b(?:i(?:'m|\s+am)\s+looking\s+for|looking\s+for|i\s+want\s+to\s+buy|want\s+to\s+buy|interested\s+in\s+buying|busco|estoy\s+buscando|quiero\s+(?:comprar|un[oa]?|el|la)|quero\s+(?:un[oa]?|el|la)|(?:quiero|quero)\s+(?:(?:un[oa]?|el|la)\s+)?(?:suv|sed[aá]n|troca|camioneta|camion|carro|auto|truck|van|pickup)|me\s+interesa|interesad[oa]s?\s+en\s+comprar|necesito\s+comprar)\b/i.test(candidate);
-  const explicitTradeIn = /\b(?:trade\s*[- ]?in|trade\s+my|quiero\s+cambiar|quero\s+cambiar|voy\s+a\s+cambiar|lo\s+quiero\s+cambiar|cambiarlo|cambiarla|cambiar\s+mi)\b/i.test(candidate);
+  const explicitPurchaseRequest = /\b(?:i(?:'m|\s+am)\s+looking\s+for|looking\s+for|i\s+want\s+to\s+buy|want\s+to\s+buy|interested\s+in|busco|buscando|estoy\s+buscando|quiero\s+(?:comprar|un[oa]?|el|la)|quero\s+(?:un[oa]?|el|la)|(?:quiero|quero)\s+(?:(?:un[oa]?|el|la)\s+)?(?:suv|sed[aá]n|troca|camioneta|camion|carro|auto|truck|van|pickup)|me\s+interesa(?:n)?|interesad[oa]s?\s+en|necesito\s+comprar|need|needs|want)\b/i.test(candidate);
+  const explicitTradeIn = /\b(?:trade\s*[- ]?in|trade\s+my|quiero\s+cambiar|quero\s+cambiar|voy\s+a\s+cambiar|lo\s+quiero\s+cambiar|cambiarlo|cambiarla|cambiar\s+mi|cambio|entregar|change|sell|vender)\b/i.test(candidate);
   return possessionBeforeVehicle && !explicitPurchaseRequest && !explicitTradeIn;
 }
 

@@ -145,7 +145,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
       ? EMPTY
       : cashDownCandidate;
   const tradeDown = firstValidAmount(extractTradeInDownPayment(messageForExtraction), extractTradeInDownPayment(historyForExtraction), extractTradeInDownPayment(memoryText(memory)));
-  const baseDown = cashDown || tradeDown;
+  const baseDown = tradeDown && cashDown === 'No down payment' ? tradeDown : cashDown || tradeDown;
   const conversationalSource = [clean(historyForExtraction), messageForExtraction].filter(Boolean).join('; ');
   let down = baseDown && TRADE_IN_INTENT.test(conversationalSource) && !/trade[- ]?in/i.test(baseDown) ? `${baseDown} + trade-in` : baseDown;
   down = visibleDownPayment(down, input.source);

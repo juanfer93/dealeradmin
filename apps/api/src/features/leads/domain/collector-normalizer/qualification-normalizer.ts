@@ -44,7 +44,13 @@ function timelineDate(value: string): string {
 export function extractTimeline(message: string): string {
   const source = clean(message);
   if (!source) return EMPTY;
-  const lines = source.split(/\r?\n/).map(clean).filter(Boolean);
+  const timingSource = source.replace(/\b(?:ahora mismo|right now|at this moment)\b/gi, (phrase, offset: number) => {
+    const lineStart = source.lastIndexOf('\n', offset) + 1;
+    const lineEnd = source.indexOf('\n', offset);
+    const line = source.slice(lineStart, lineEnd < 0 ? source.length : lineEnd);
+    return /\b(?:down|payment|enganche|pago\s+inicial|gasto|expense)\b/i.test(line) ? ' ' : phrase;
+  });
+  const lines = timingSource.split(/\r?\n/).map(clean).filter(Boolean);
   for (let index = 0; index < lines.length; index += 1) {
     const month = timelineMonth(lines[index]);
     if (month && TIMELINE_MONTHS.some(([, spanish, pattern]) => new RegExp(`^\\s*(?:${pattern}|${spanish})\\s*[.!?]*$`, 'i').test(lines[index]))) {
@@ -52,13 +58,16 @@ export function extractTimeline(message: string): string {
       if (previousLines.some((line) => TIMELINE_QUESTION.test(line))) return normalizeTimeline(lines[index]);
     }
   }
-  const date = source.match(/\b(?:\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december))\b/i)?.[0];
+  const date = timingSource.match(/\b(?:\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december))\b/i)?.[0];
   if (date) return timelineDate(date);
-  const evidence = EXPLICIT_MONTH_TIMING.test(source) || TIMELINE_QUESTION.test(source)
-    ? source
-    : source.replace(new RegExp(`\\b(?:${MONTH_NAMES_PATTERN})\\b`, 'gi'), ' ');
-  const match = evidence.match(/\b(?:today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|esta mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|end of next month|a (?:fines?|finales?) del otro mes|a (?:fines?|finales?) del pr[oó]ximo mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|within \d+ days?|en \d+ d[ií]as?|in \d+ (?:days?|weeks?|months?)|en \d+ (?:d[ií]as?|semanas?|mes(?:es)?)|in a month|en un mes|in two weeks|en dos semanas|jan(?:uary)?|enero|feb(?:ruary)?|febrero|mar(?:ch)?|marzo|apr(?:il)?|abril|may|mayo|jun(?:e)?|junio|jul(?:y)?|julio|aug(?:ust)?|agosto|sep(?:t(?:ember|iembre)?|tiembre)|setiembre|septiembre|oct(?:ober)?|octubre|nov(?:ember)?|noviembre|dec(?:ember)?|diciembre)\b/i)?.[0];
-  return match ? normalizeTimeline(match) : /\b(?:solo|sólo|just|only)\b.*\b(?:mirar|mirando|ver|viendo|looking|browsing)\b/i.test(evidence) ? 'exploring options' : EMPTY;
+  const evidence = EXPLICIT_MONTH_TIMING.test(timingSource) || TIMELINE_QUESTION.test(timingSource)
+    ? timingSource
+    : timingSource.replace(new RegExp(`\\b(?:${MONTH_NAMES_PATTERN})\\b`, 'gi'), ' ');
+  const match = evidence.match(/\b(?:today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|de una|ahora mismo|de inmediato|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|esta mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|end of next month|a (?:fines?|finales?) del otro mes|a (?:fines?|finales?) del pr[oó]ximo mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|within \d+ days?|en \d+ d[ií]as?|in \d+ (?:days?|weeks?|months?)|en \d+ (?:d[ií]as?|semanas?|mes(?:es)?)|in a month|en un mes|in two weeks|en dos semanas|jan(?:uary)?|enero|feb(?:ruary)?|febrero|mar(?:ch)?|marzo|apr(?:il)?|abril|may|mayo|jun(?:e)?|junio|jul(?:y)?|julio|aug(?:ust)?|agosto|sep(?:t(?:ember|iembre)?|tiembre)|setiembre|septiembre|oct(?:ober)?|octubre|nov(?:ember)?|noviembre|dec(?:ember)?|diciembre)\b/i)?.[0];
+  if (match) return normalizeTimeline(match);
+  if (/\b(?:primero\s+)?quiero\s+ver\s+(?:las\s+)?opciones\b|\bquisiera\s+(?:ver|mirar)\s+(?:las\s+)?opciones\b|\b(?:first\s+)?(?:i\s+want|i(?:'d|\s+would)\s+like)\s+to\s+see\s+(?:the\s+)?options\b/i.test(evidence)
+    || /\b(?:solo|sólo|just|only)\b.*\b(?:mirar|mirando|ver|viendo|looking|browsing)\b/i.test(evidence)) return 'exploring options';
+  return EMPTY;
 }
 
 export function normalizeTimeline(value: string, language: CollectorLanguage = detectLeadLanguage(value)): string {
@@ -68,7 +77,7 @@ export function normalizeTimeline(value: string, language: CollectorLanguage = d
   const localized = (english: string, spanishValue: string): string => spanish ? spanishValue : english;
   const date = timelineDate(source);
   if (date) return date;
-  if (/\b(today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda)\b/i.test(source)) return 'today';
+  if (/\b(today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|de una|ahora mismo|de inmediato|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda)\b/i.test(source)) return 'today';
   if (/\b(this|esta)\s+(week|semana)\b/i.test(source)) return localized('this week', 'esta semana');
   if (/\b(this|este|esta)\s+(month|mes)\b/i.test(source)) return localized('this month', 'este mes');
   if (/\b(?:next|proxim[oa]|pr[oó]xim[oa]|siguiente)\s+(week|semana)\b/i.test(source)) return localized('next week', 'próxima semana');
