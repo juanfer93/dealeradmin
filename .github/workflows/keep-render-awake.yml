@@ -1,10 +1,9 @@
-name: Keep Render services awake
+name: Check DealerAdmin availability
 
 on:
   schedule:
-    # Free Render services may sleep after inactivity. Keep them warm from
-    # 16:00 through 00:50 America/Bogota (21:00-05:50 UTC), while allowing
-    # the quiet window from 01:00 through 15:50 to sleep.
+    # Check the always-on OCI deployment every 10 minutes during
+    # 16:00 through 00:50 America/Bogota (21:00-05:50 UTC).
     - cron: '*/10 21-23 * * *'
     - cron: '*/10 0-5 * * *'
   workflow_dispatch:
@@ -16,11 +15,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Ping frontend and API
+      - name: Check frontend and API
         run: |
           set -euo pipefail
-          frontend_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --connect-timeout 10 --max-time 60 https://dealeradmin-web.onrender.com/)"
-          api_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --connect-timeout 10 --max-time 60 https://dealeradmin.onrender.com/)"
+          frontend_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --connect-timeout 10 --max-time 60 https://dealeradmin.163-192-138-175.sslip.io/)"
+          api_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --connect-timeout 10 --max-time 60 https://dealeradmin.163-192-138-175.sslip.io/api/auth/session)"
           test "$frontend_status" != "000"
           test "$api_status" != "000"
           echo "frontend_http_status=$frontend_status api_http_status=$api_status"
