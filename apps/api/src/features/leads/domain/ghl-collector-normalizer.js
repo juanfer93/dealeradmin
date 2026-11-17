@@ -216,7 +216,7 @@ const canonicalVehicleCategory = (value) => clean(value)
   .replace(/\b(?:truk|troka|troca|trokita|troquita|troque|trokas|pickup|pick-up|pickop|camioneta|camionetq|camion|camión)\b/gi, 'truck');
 // Trade-in requires affirmative intent. A campaign CTA such as "Quiero mi
 // Auto con Eastern" is not evidence that the buyer has a vehicle to trade.
-const tradeInLanguage = /\btrade[- ]?in\b|\b(?:carro|auto|veh[ií]culo)\s+como\s+enganche\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\bchange\s+(?:my\s+)?(?:vehicle|car|van|truck)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\b(?:and|y)\s+(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion)\b|\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion)\s+(?:for|para)\s+(?:trade(?:[- ]?in)?|entregar|cambiar|dar)\b|\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion|ban)\b[\s\S]{0,24}\b(?:\d{3,5}\s*(?:dollars?|d[oó]lares?)|down|payment|enganche)\b|\b(?:\d{3,5}\s*(?:dollars?|d[oó]lares?)|down|payment|enganche)\b[\s\S]{0,24}\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion|ban)\b/i;
+const tradeInLanguage = /\btrade[- ]?in\b|\b(?:carro|auto|veh[ií]culo)\s+como\s+enganche\b|\b(?:carro|auto|veh[ií]culo)\s+para\s+(?:dar|entregar|cambiar)\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\bchange\s+(?:my\s+)?(?:vehicle|car|van|truck)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\b(?:and|y)\s+(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion)\b|\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion)\s+(?:for|para)\s+(?:trade(?:[- ]?in)?|entregar|cambiar|dar)\b|\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion|ban)\b[\s\S]{0,24}\b(?:\d{3,5}\s*(?:dollars?|d[oó]lares?)|down|payment|enganche)\b|\b(?:\d{3,5}\s*(?:dollars?|d[oó]lares?)|down|payment|enganche)\b[\s\S]{0,24}\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion|ban)\b/i;
 const vehicleLabel = (value) => {
   let source = normalizeWhisperVehicleAliases(value)
     .replace(/\b(?:19|20)\d{2}\b/g, ' ')
@@ -589,7 +589,7 @@ const tradeIn = (text) => {
   const source = clean(text);
   if (!source || campaign || isNonVehicleIntent(source)) return '';
   const token = amountToken;
-  const trade = '(?:trade[- ]?in|my car|my vehicle|my van|my truck|mi carro|mi auto|mi vehículo|mi van|mi troca|mi camioneta|carro como enganche|(?:entregar|entrego|entregue|dar|doy)\\s+(?:(?:mi|el|de)\\s+)?(?:vehículo|carro|auto|van|troca|camioneta|camion))';
+  const trade = '(?:trade[- ]?in|my car|my vehicle|my van|my truck|mi carro|mi auto|mi vehículo|mi van|mi troca|mi camioneta|carro como enganche|(?:carro|auto|vehículo)\\s+para\\s+(?:dar|entregar|cambiar)|(?:entregar|entrego|entregue|dar|doy)\\s+(?:(?:mi|el|de)\\s+)?(?:vehículo|carro|auto|van|troca|camioneta|camion))';
   const match = source.match(new RegExp(`\\$?\\s*(${token})\\s*(?:down|payment|enganche|inicial)?\\s*(?:\\+|and|y)\\s*${trade}`, 'i')) || source.match(new RegExp(`${trade}\\s*(?:(?:and|plus|with|y|mas|más|con)\\s*(?:put|poner|pay|pagar|give|dar)?\\s*|[^0-9;.!?]{0,16}(?:down|payment|enganche|inicial|deposit|dep[oó]sito)[^0-9;.!?]{0,8})\\$?\\s*(${token})`, 'i'));
   const value = validAmount(match?.[1]);
   return value ? `${value} + trade-in` : tradeInLanguage.test(source) ? 'trade-in' : '';
@@ -602,6 +602,9 @@ const downFrom = (text) => {
     .trim();
   if (!source || campaign) return '';
   if (noDownPaymentResponse.test(source)) return 'No down payment';
+  // In conversational Spanish, "unos 700 a mil" means an approximate
+  // qualifying amount up to $1,000, not two amounts multiplied by "mil".
+  if (/\b(?:unos?\s+)?\d{1,3}\s+a\s+mil\b/i.test(source)) return '1000';
   const cashEvidenceSource = source.replace(/(?:bank account|cuenta bancaria|cuenta de banco|cheque|check)[^.!?\n]*(?:[.!?]|$)/gi, '');
   if (/\b(?:pay|pagar|pago|pagar[eé]|voy\s+a\s+pagar|purchase|buy|comprar|compra|hacer\s+la\s+compra|put|poner|down|enganche|inicial)[^.!?\n]{0,80}\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b/i.test(cashEvidenceSource)) return cashDownPayment;
   const token = `(${amountToken})`;
@@ -1032,10 +1035,11 @@ const vehicleCategory = /\b(?:truck|troka|troca|trokita|troquita|troque|trokas|p
         : '';
 const requiredDownPayment = ({ sedan: 1500, luxury_sedan: 2000, suv_or_van: 2000, truck: 3000 }[vehicleCategory] || null);
 const tradeInDownPayment = tradeInLanguage.test(down);
-const downPaymentRange = String(down).match(/^\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*$/);
+const downPaymentCash = String(down).replace(/\s*\+\s*trade[- ]?in\d*$/i, '').trim();
+const downPaymentRange = downPaymentCash.match(/^\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*$/);
 const downPaymentAmount = downPaymentRange
   ? Number(downPaymentRange[2])
-  : /^\d+(?:\.\d+)?$/.test(String(down).replace(/[$,\s]/g, '')) ? Number(String(down).replace(/[$,\s]/g, '')) : null;
+  : /^\d+(?:\.\d+)?$/.test(downPaymentCash.replace(/[$,\s]/g, '')) ? Number(downPaymentCash.replace(/[$,\s]/g, '')) : null;
 const downPaymentSufficient = requiredDownPayment !== null && (tradeInDownPayment || down === cashDownPayment || down.toLocaleLowerCase().includes(cashDownPayment.toLocaleLowerCase()) || (downPaymentAmount !== null && downPaymentAmount >= requiredDownPayment));
 const transcriptTimeline = first(timelineFrom(message), timelineFrom(history));
 const rawTimeline = first(transcriptTimeline, memoryValue(['timeline', 'purchase timeline', 'purchase_timeline']), inputData.purchase_timeline);

@@ -2397,4 +2397,30 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
     expect(execute({ message: 'Corolla' }).vehicle_type).toBe('Corolla');
   });
+
+  it('normalizes the Country Club WhatsApp Luis, Sedan, trade-in, and approximate $1,000 exchange', () => {
+    const transcript = [
+      '*Headline:* 💰 Hasta $700 de ayuda',
+      '*Source URL:* https://fb.me/cyWjnQiwd',
+      'Hola',
+      'Sedan',
+      'Luis',
+      'Tengo un carro para dar y unos 700 a mil',
+    ].join('\n');
+
+    expect(execute({
+      source: 'country',
+      channel: 'whatsapp',
+      contact_name: 'لويس فينتو',
+      profile: { name: 'لويس فينتو' },
+      phone: '+12277259260',
+      message: transcript,
+      chat_history_log: transcript,
+    })).toMatchObject({
+      real_name: 'Luis',
+      vehicle_type: 'Sedan',
+      down_payment: '1000 + trade-in',
+      down_payment_amount: 1000,
+    });
+  });
 });

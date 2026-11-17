@@ -145,7 +145,7 @@ export function extractTradeInDownPayment(message: string): string {
   if (!source || isCampaignButton(source)) return EMPTY;
   const tradeIn = TRADE_IN_INTENT.test(source);
   const amountPattern = '(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?|\\d{1,2}\\s*(?:mil|thousand)|mil(?:\\s+quinientos)?|(?:un|one|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+mil(?:\\s+(?:quinientos|five hundred))?)';
-  const tradeInPattern = '(?:trade[- ]?in|my car|my vehicle|my van|my truck|mi carro|mi auto|mi vehículo|mi van|mi troca|mi camioneta|carro como enganche|(?:cambiar|cambio)\\s+(?:(?:mi|el|de)\\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)|change\\s+(?:my\\s+)?(?:vehicle|car|van|truck))';
+  const tradeInPattern = '(?:trade[- ]?in|my car|my vehicle|my van|my truck|mi carro|mi auto|mi vehículo|mi van|mi troca|mi camioneta|carro como enganche|(?:carro|auto|veh[ií]culo)\\s+para\\s+(?:dar|entregar|cambiar)|(?:cambiar|cambio)\\s+(?:(?:mi|el|de)\\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)|change\\s+(?:my\\s+)?(?:vehicle|car|van|truck))';
   const beforeTradeIn = source.match(new RegExp(`\\$?\\s*(${amountPattern})\\s*(?:down|payment|enganche|inicial)?\\s*(?:\\+|and|y)\\s*${tradeInPattern}`, 'i'));
   const afterTradeIn = source.match(new RegExp(`${tradeInPattern}\\s*(?:(?:and|plus|with|y|mas|más|con)\\s*(?:put|poner|pay|pagar|give|dar)?\\s*|[^0-9;.!?]{0,16}(?:down|payment|enganche|inicial|deposit|dep[oó]sito)[^0-9;.!?]{0,8})\\$?\\s*(${amountPattern})`, 'i'));
   const amount = beforeTradeIn?.[1] ?? afterTradeIn?.[1];
@@ -157,6 +157,10 @@ export function extractDownPayment(message: string): string {
   const source = String(message ?? '').replace(/\r\n?/g, '\n').replace(/\b\d+(?:st|nd|rd|th)\b/gi, ' ').trim();
   if (!source || isCampaignButton(source)) return EMPTY;
   if (NO_DOWN_PAYMENT_RESPONSE.test(source)) return 'No down payment';
+  // In conversational Spanish, "unos 700 a mil" expresses an approximate
+  // amount up to $1,000. Keep the qualifying ceiling instead of interpreting
+  // "mil" as a thousands multiplier on both range endpoints.
+  if (/\b(?:unos?\s+)?\d{1,3}\s+a\s+mil\b/i.test(source)) return '1000';
   const cashEvidenceSource = source.replace(/(?:bank account|cuenta bancaria|cuenta de banco|cheque|check)[^.!?\n]*(?:[.!?]|$)/gi, '');
   if (/\b(?:pay|pagar|pago|pagar[eé]|voy\s+a\s+pagar|purchase|buy|comprar|compra|hacer\s+la\s+compra|put|poner|down|enganche|inicial)[^.!?\n]{0,80}\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b/i.test(cashEvidenceSource)) return CASH_DOWN_PAYMENT;
   const amountToken = '(?:\\d{1,3}(?:,\\d{3})+|\\d{1,2}\\s*(?:mil|thousand)|mil(?:\\s+quinientos)?|(?:un|one|a|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+(?:mil|thousand)(?:\\s+(?:quinientos|five hundred))?|\\d+(?:[,.]\\d+)?\\s*k?)(?:\\s*d[oó]lar(?:es|e)?)?';

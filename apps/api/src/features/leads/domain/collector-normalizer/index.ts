@@ -59,6 +59,13 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     || /^lead$/i.test(firstNonEmpty(input.contact_name, input.contactName, input.profile?.name, input.name))
     ? EMPTY
     : firstNonEmpty(whatsappProfileName, input.contact_name, input.contactName, input.name);
+  const unpromptedWhatsappName = (transcript: string): string => {
+    const candidate = extractRealNameFromText(transcript, { invalidRealNames });
+    // Some WhatsApp histories contain only buyer messages, without the bot's
+    // preceding name question. Accept a standalone one-word answer such as
+    // "Luis", while requiring the prompt for declarations and full names.
+    return candidate && !/\s/.test(candidate) ? candidate : EMPTY;
+  };
   const extractedNames = [realNameFromQualificationMemory(memory, invalidRealNames), extractRealNameFromText(rawMessage, { invalidRealNames }), extractRealNameFromText(rawHistory, { invalidRealNames })];
   const nativeWhatsappName = isStaffordWhatsAppVehicleLabel(whatsappContactFallback, input.source, channel)
     ? EMPTY
@@ -66,6 +73,8 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const whatsappNames = [
     extractRealNameFromText(rawMessage, { onlyAfterNameQuestion: true, invalidRealNames }),
     extractRealNameFromText(rawHistory, { onlyAfterNameQuestion: true, invalidRealNames }),
+    unpromptedWhatsappName(rawMessage),
+    unpromptedWhatsappName(rawHistory),
     nativeWhatsappName,
     whatsappProfileFallback,
     profileName,
