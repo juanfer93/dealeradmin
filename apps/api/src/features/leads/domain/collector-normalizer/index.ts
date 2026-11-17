@@ -5,7 +5,7 @@ import { detectLeadLanguage } from './language-normalizer';
 import { collectorFlowPolicy, effectiveChannel, extractCustomerLocation, isAdvisorHandoffVehicle, isMessengerChannel, isWhatsAppChannel } from './flow-policy';
 import { clean, conversationalEvidence, firstNonEmpty, lastMeaningfulLine, memoryText, memoryValue } from './text-cleaner';
 import type { CollectorInput, CollectorLanguage, CollectorOutput, QualificationProgress, QualificationStep } from './types';
-import { extractVehicleYear, isPossessiveVehicleStatement, normalizeVehicle } from './vehicle-normalizer';
+import { extractVehicleYear, extractVehicleYearLabel, isPossessiveVehicleStatement, normalizeVehicle } from './vehicle-normalizer';
 import { extractTimeline, mergeDocuments, normalizeTimeline, yesNo } from './qualification-normalizer';
 import { mergeMemory, normalizeMemoryDownPayment } from './qualification-memory';
 import { isQualificationComplete, missingQualification as getMissingQualification, qualificationStep } from './reconciliation';
@@ -119,12 +119,15 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const extractedVehicle = inferVehicleIntent(vehicleSource, explicitVehicle);
   const hasExistingAdvisorMarker = [memoryValue(memory, ['vehicle_type', 'vehicle', 'type']), input.vehicle_type].some((value) => isAdvisorHandoffVehicle(value));
   const transcriptVehicleYear = extractVehicleYear(vehicleSource);
+  const transcriptVehicleYearLabel = extractVehicleYearLabel(vehicleSource);
   const formVehicleYear = extractVehicleYear(formContext?.vehicle ?? EMPTY);
   const vehicleYear = formContext?.vehicle
     ? formVehicleYear
     : [transcriptVehicleYear, ...(transcriptVehicle || vehicleOwnedWithoutPurchaseIntent ? [] : [extractVehicleYear(input.vehicle_type), extractVehicleYear(memoryValue(memory, ['vehicle_type', 'vehicle', 'type']))])].find((value): value is number => value !== null) ?? null;
   const vehicleBase = extractedVehicle || (hasExistingAdvisorMarker || phoneFromConversation || (isWhatsAppChannel(input.channel) && chatPhone) ? ADVISOR_HANDOFF_VEHICLE : EMPTY);
-  const vehicle = vehicleBase && vehicleYear !== null && !isAdvisorHandoffVehicle(vehicleBase) ? `${vehicleBase} ${vehicleYear}` : vehicleBase;
+  const vehicle = vehicleBase && (transcriptVehicleYearLabel || vehicleYear !== null) && !isAdvisorHandoffVehicle(vehicleBase)
+    ? `${vehicleBase} ${transcriptVehicleYearLabel ?? vehicleYear}`
+    : vehicleBase;
   const hasRealVehicle = Boolean(vehicle) && !isAdvisorHandoffVehicle(vehicle);
 
   const explicitCashDown = firstValidAmount(extractLatestDownPayment(rawMessage), extractDownPayment(messageForExtraction), rawHistory.includes('__DOWN_PROMPT__') ? extractDownPayment(historyForExtraction) : EMPTY, extractLatestDownPayment(rawHistory));

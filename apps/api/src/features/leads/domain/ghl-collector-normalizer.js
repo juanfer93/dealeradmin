@@ -737,6 +737,13 @@ const vehicleFrom = (text) => {
       ? activeCandidates.find((candidate) => candidate.hasModel && candidate.lineIndex < latest.lineIndex) || latest
       : latest);
   if (!best) return '';
+  const activeLine = lines[best.lineIndex] || '';
+  const alternatives = activeLine.split(/\s+(?:o|or|y|and)\s+/i)
+    .map((part) => normalizeWhisperVehicleAliases(part))
+    .filter((part) => vehicleModels.test(part))
+    .map((part) => vehicleLabel(part))
+    .filter((label, index, labels) => label && labels.findIndex((item) => item.toLocaleLowerCase() === label.toLocaleLowerCase()) === index);
+  if (alternatives.length > 1) return alternatives.join(' o ');
   const brands = [...new Set(activeCandidates.map((candidate) => candidate.brand).filter(Boolean).map((brand) => brand.toLocaleLowerCase()))];
   if (!vehicleBrands.test(best.label) && brands.length === 1 && (best.hasModel || latest?.isColloquialTruck)) {
     const brand = activeCandidates.find((candidate) => candidate.brand && candidate.brand.toLocaleLowerCase() === brands[0])?.brand || brands[0];
@@ -749,6 +756,10 @@ const cleanVehicleValue = (value) => {
   const candidate = clean(value).replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
   if (!candidate) return '';
   if (economicCarIntent.test(candidate)) return 'Sedan';
+  const alternatives = candidate.split(/\s+o\s+/i)
+    .map((part) => vehicleLabel(part))
+    .filter((label, index, labels) => vehicleModels.test(label) && labels.findIndex((item) => item.toLocaleLowerCase() === label.toLocaleLowerCase()) === index);
+  if (alternatives.length > 1) return alternatives.join(' o ');
   // Do not allow arbitrary Custom Code/memory text to become vehicle_type.
   // Keep exact categories and recognized make/model labels only.
   const label = vehicleLabel(candidate);
@@ -793,6 +804,23 @@ const vehicleYearFrom = (value) => {
   }
   return null;
 };
+const vehicleYearLabelFrom = (value) => {
+  const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter(Boolean);
+  const years = /\b(20(?:0[6-9]|1\d|2[0-6]))\b/g;
+  for (const line of lines) {
+    if (!(vehicleBrands.test(line) || vehicleModels.test(line) || vehicleCategories.test(line) || vehicleContext.test(line))) continue;
+    const matches = [...line.matchAll(years)];
+    for (let index = 0; index < matches.length - 1; index += 1) {
+      const firstYear = matches[index];
+      const secondYear = matches[index + 1];
+      const between = line.slice((firstYear.index || 0) + firstYear[0].length, secondYear.index || 0);
+      if (!/^\s*(?:(o|or)|(?:a|al|hasta|to)|[-–—/])?\s*$/i.test(between)) continue;
+      const connector = between.match(/\b(o|or)\b/i)?.[1];
+      return connector ? `${firstYear[1]} o ${secondYear[1]}` : `${firstYear[1]}-${secondYear[1]}`;
+    }
+  }
+  return '';
+};
 const timelineMonths = {
   january: ['january', 'enero', 'jan(?:uary)?'], february: ['february', 'febrero', 'feb(?:ruary)?'],
   march: ['march', 'marzo', 'mar(?:ch)?'], april: ['april', 'abril', 'apr(?:il)?'],
@@ -824,12 +852,12 @@ const timelineFrom = (text) => {
   const dateText = source.match(/\b(?:\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december))\b/i)?.[0] || '';
   if (dateText) return timelineDate(dateText);
   const evidence = explicitMonthTiming.test(source) ? source : source.replace(new RegExp(`\\b(?:${monthNamesPattern})\\b`, 'gi'), ' ');
-  const hit = evidence.match(/\b(?:today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes posible|this week|esta semana|this month|este mes|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|end of next month|a (?:fines?|finales?) del otro mes|a (?:fines?|finales?) del pr[oó]ximo mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|within \d+ days?|en \d+ d[ií]as?|jan(?:uary)?|enero|feb(?:ruary)?|febrero|mar(?:ch)?|marzo|apr(?:il)?|abril|may|mayo|jun(?:e)?|junio|jul(?:y)?|julio|aug(?:ust)?|agosto|sep(?:t(?:ember|iembre)?|tiembre)|setiembre|septiembre|oct(?:ober)?|octubre|nov(?:ember)?|noviembre|dec(?:ember)?|diciembre)\b/i)?.[0] || '';
+  const hit = evidence.match(/\b(?:today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes posible|this week|esta semana|this month|este mes|este mea|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|end of next month|a (?:fines?|finales?) del otro mes|a (?:fines?|finales?) del pr[oó]ximo mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|within \d+ days?|en \d+ d[ií]as?|jan(?:uary)?|enero|feb(?:ruary)?|febrero|mar(?:ch)?|marzo|apr(?:il)?|abril|may|mayo|jun(?:e)?|junio|jul(?:y)?|julio|aug(?:ust)?|agosto|sep(?:t(?:ember|iembre)?|tiembre)|setiembre|septiembre|oct(?:ober)?|octubre|nov(?:ember)?|noviembre|dec(?:ember)?|diciembre)\b/i)?.[0] || '';
   const date = timelineDate(hit);
   if (date) return date;
   if (/today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes/i.test(hit)) return 'today';
   if (/this week|esta semana/i.test(hit)) return 'this week';
-  if (/this month|este mes/i.test(hit)) return 'this month';
+  if (/this month|este mea?/i.test(hit)) return 'this month';
   if (/next week|pr[oó]xima? semana/i.test(hit)) return 'next week';
   if (/next month|pr[oó]ximo mes|end of next month|a (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes/i.test(hit)) return 'next month';
   const month = timelineMonthKey(hit);
@@ -899,6 +927,7 @@ const extractedVehicle = familyPassengerVanIntent.test(vehicleSource)
 const existingAdvisorMarker = [memoryValue(['vehicle', 'vehicle_type']), inputData.vehicle_type].some(isAdvisorHandoffVehicle);
 const phone = phoneFrom(message, history, inputData.phone);
   const transcriptVehicleYear = vehicleYearFrom(vehicleSource);
+const transcriptVehicleYearLabel = vehicleYearLabelFrom(vehicleSource);
   const vehicleYear = [
     transcriptVehicleYear,
     ...(transcriptVehicle ? [] : [
@@ -909,7 +938,9 @@ const phone = phoneFrom(message, history, inputData.phone);
 const vehicleBase = extractedVehicle || (existingAdvisorMarker || phoneFromConversation || (isWhatsAppChannel(inputData.channel) && phone)
   ? advisorHandoffVehicle
   : '');
-const vehicle = vehicleBase && vehicleYear !== null && vehicleBase !== advisorHandoffVehicle ? `${vehicleBase} ${vehicleYear}` : vehicleBase;
+const vehicle = vehicleBase && (transcriptVehicleYearLabel || vehicleYear !== null) && vehicleBase !== advisorHandoffVehicle
+  ? `${vehicleBase} ${transcriptVehicleYearLabel || vehicleYear}`
+  : vehicleBase;
 // Prefer a phone found in the conversation before accepting custom/memory down values.
 // This prevents a stale area-code-only value (e.g. 443) from becoming a down payment.
 const memoryDown = memoryValue(['down payment', 'down_payment', 'downpayment']);

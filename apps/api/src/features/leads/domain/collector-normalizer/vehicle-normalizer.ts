@@ -258,10 +258,33 @@ export function extractVehicleYear(value: string | null | undefined): number | n
   return null;
 }
 
+/** Preserve a buyer's explicit model-year range or two year alternatives. */
+export function extractVehicleYearLabel(value: string | null | undefined): string | null {
+  const lines = String(value ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map(clean).filter(Boolean);
+  const yearPattern = /\b(20(?:0[6-9]|1\d|2[0-6]))\b/g;
+  for (const line of lines) {
+    if (!(VEHICLE_BRANDS.test(line) || VEHICLE_MODELS.test(line) || VEHICLE_CATEGORIES.test(line) || VEHICLE_CONTEXT.test(line))) continue;
+    const years = [...line.matchAll(yearPattern)];
+    for (let index = 0; index < years.length - 1; index += 1) {
+      const first = years[index];
+      const second = years[index + 1];
+      const between = line.slice((first.index ?? 0) + first[0].length, second.index ?? 0);
+      if (!/^\s*(?:(o|or)|(?:a|al|hasta|to)|[-–—/])?\s*$/i.test(between)) continue;
+      const connector = between.match(/\b(o|or)\b/i)?.[1];
+      return connector ? `${first[1]} o ${second[1]}` : `${first[1]}-${second[1]}`;
+    }
+  }
+  return null;
+}
+
 export function normalizeVehicle(value: string, isCampaignButton: (candidate: string) => boolean, isNonVehicleIntent: (candidate: string) => boolean): string {
   let source = normalizeWhisperVehicleAliases(value).replace(/-{2,}/g, '-').replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
   if (isAdvisorHandoffVehicle(source)) return ADVISOR_HANDOFF_VEHICLE;
   if (isCampaignButton(source) || isNonVehicleIntent(source)) return EMPTY;
+  const alternatives = source.split(/\s+o\s+/i)
+    .map((part) => extractVehicleLabel(part))
+    .filter((label, index, labels) => VEHICLE_MODELS.test(label) && labels.findIndex((item) => item.toLocaleLowerCase() === label.toLocaleLowerCase()) === index);
+  if (alternatives.length > 1) return alternatives.join(' o ');
   if (/\b(?:(?:carro|carros|auto|autos|coche|coches|veh[ií]culo|veh[ií]culos)\s+econ[oó]mic[oa]s?|(?:economic|economical|affordable|budget)\s+(?:car|cars|auto|vehicle)|algo\s+econ[oó]mic[oa]?)\b/i.test(source)) return 'Sedan';
   const labeled = source.match(/^(.+?)\s*vehicle(?:_type)?\s*:\s*(.+)$/i);
   if (labeled?.[1]) source = labeled[1].trim();
