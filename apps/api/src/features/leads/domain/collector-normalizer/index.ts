@@ -127,6 +127,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   ), isCampaignButton, isNonVehicleIntent);
   const extractedVehicle = inferVehicleIntent(vehicleSource, explicitVehicle);
   const hasExistingAdvisorMarker = [memoryValue(memory, ['vehicle_type', 'vehicle', 'type']), input.vehicle_type].some((value) => isAdvisorHandoffVehicle(value));
+  const advisorHandoffRequested = /\b(?:m[aá]ndame|env[ií]ame|dame|p[aá]same)\s+(?:el\s+|su\s+|tu\s+)?(?:n[uú]mero|tel[eé]fono)[\s\S]{0,60}\b(?:llamar|llamen|llamarme|comunicarme)\b|\b(?:quiero|necesito|me gustar[ií]a)\s+(?:hablar|comunicarme)\s+con\s+(?:un\s+)?(?:asesor|representante|especialista)\b|\b(?:send|give)\s+me\s+(?:the\s+)?(?:phone\s+)?number\s+to\s+call\b|\b(?:i want|i need|i would like)\s+to\s+speak\s+with\s+(?:an?\s+)?(?:advisor|representative|specialist)\b/i.test([rawMessage, rawHistory].join('\n'));
   const transcriptVehicleYear = extractVehicleYear(vehicleSource);
   const transcriptVehicleYearLabel = extractVehicleYearLabel(vehicleSource);
   const formVehicleYear = extractVehicleYear(formContext?.vehicle ?? EMPTY);
@@ -182,7 +183,8 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const bankAccount = yesNo(firstNonEmpty(input.bank_account, bankAccountEvidence, memoryValue(memory, ['bank account', 'bank_account', 'cuenta bancaria', 'cuenta de banco'])));
   const mergedMemory = mergeMemory(memory, { real_name: realName, vehicle: vehicleOwnedWithoutPurchaseIntent ? EMPTY : vehicle, 'down payment': down, previous_financing: previousFinancing, documents: docs.value, timeline });
 
-  const step: QualificationStep = qualificationStep(hasRealVehicle, policy.requiresLocation, customerLocation, policy.phoneSatisfiedByNative || Boolean(chatPhone));
+  const routingVehicleSatisfied = hasRealVehicle || (advisorHandoffRequested && isAdvisorHandoffVehicle(vehicle));
+  const step: QualificationStep = qualificationStep(routingVehicleSatisfied, policy.requiresLocation, customerLocation, policy.phoneSatisfiedByNative || Boolean(chatPhone));
   const questions: Record<CollectorLanguage, Record<QualificationStep, string>> = {
     en: { real_name: 'What is your full name?', vehicle_type: 'What vehicle are you looking for?', customer_location: 'What city are you located in?', phone: "What's the best phone number to reach you?", down_payment: 'How much do you have for the down payment?', purchase_timeline: 'When are you planning to buy?', documents: 'Do you have identification and proof of income?', bank_account: 'Do you have a bank account?', complete: EMPTY },
     es: { real_name: '¿Cuál es tu nombre completo?', vehicle_type: '¿Qué vehículo estás buscando?', customer_location: '¿En qué ciudad te encuentras?', phone: '¿Cuál es el mejor número para contactarte?', down_payment: '¿Cuánto tienes para el enganche?', purchase_timeline: '¿Cuándo planeas comprar?', documents: '¿Tienes identificación y comprobante de ingresos?', bank_account: '¿Tienes una cuenta bancaria?', complete: EMPTY },
@@ -191,10 +193,10 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const completedOrder: Array<[string, boolean]> = policy.sourceAware ? [['real_name', Boolean(realName)], ['vehicle_type', hasRealVehicle], ['customer_location', Boolean(customerLocation)], ['phone', Boolean(chatPhone) || policy.phoneSatisfiedByNative]] : [['real_name', Boolean(realName)], ['phone', Boolean(chatPhone)], ['vehicle_type', hasRealVehicle]];
   const lastAnsweredField = [...completedOrder].reverse().find(([, complete]) => complete)?.[0] ?? null;
   const qualificationProgress: QualificationProgress = { step, last_answered_field: step === 'complete' ? 'phone' : lastAnsweredField, predicted_bot_question: nextQuestion, language, confidence: step === 'complete' ? 1 : 0.95, evidence: step === 'complete' ? 'complete' : 'normalized_fields' };
-  const qualificationComplete = isQualificationComplete({ real_name: realName, phone: chatPhone || (policy.phoneSatisfiedByNative ? 'native-whatsapp' : EMPTY), vehicle_type: vehicle, down_payment: down, purchase_timeline: timeline, has_identification: docs.id, has_income_proof: docs.income, bank_account: bankAccount }) && (!policy.requiresLocation || Boolean(customerLocation));
-  const missingQualification = getMissingQualification(policy.phoneSatisfiedByNative || Boolean(chatPhone) ? 'provided' : EMPTY, hasRealVehicle, policy.requiresLocation, customerLocation);
+  const qualificationComplete = isQualificationComplete({ real_name: realName, phone: chatPhone || (policy.phoneSatisfiedByNative ? 'native-whatsapp' : EMPTY), vehicle_type: vehicle, advisor_handoff_requested: advisorHandoffRequested, down_payment: down, purchase_timeline: timeline, has_identification: docs.id, has_income_proof: docs.income, bank_account: bankAccount }) && (!policy.requiresLocation || Boolean(customerLocation));
+  const missingQualification = getMissingQualification(policy.phoneSatisfiedByNative || Boolean(chatPhone) ? 'provided' : EMPTY, hasRealVehicle, policy.requiresLocation, customerLocation, advisorHandoffRequested && isAdvisorHandoffVehicle(vehicle));
   return {
-    real_name: realName, vehicle_type: vehicle, vehicle_intent: vehicleIntent, vehicle_owned_without_purchase_intent: vehicleOwnedWithoutPurchaseIntent, vehicle_year: vehicleYear, customer_location: customerLocation,
+    real_name: realName, vehicle_type: vehicle, vehicle_intent: vehicleIntent, advisor_handoff_requested: advisorHandoffRequested, vehicle_owned_without_purchase_intent: vehicleOwnedWithoutPurchaseIntent, vehicle_year: vehicleYear, customer_location: customerLocation,
     vehicle_category: downPaymentRule.category, required_down_payment: downPaymentRule.minimum, down_payment_amount: downPaymentRule.amount, down_payment_sufficient: downPaymentRule.meetsMinimum,
     down_payment: down, previous_financing: previousFinancing, purchase_timeline: timeline, documents: docs.value, identification, bank_account: bankAccount,
     qualification_memory: mergedMemory, has_identification: docs.id, has_income_proof: docs.income, next_question: nextQuestion, qualification_step: step,

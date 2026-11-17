@@ -3544,6 +3544,7 @@ Full name: Jose Eduardo Martins Cabral
     expect(hasMinimumRoutingQualification({ real_name: '', phone: '+15551234567', vehicle_type: 'SUV' })).toBe(true);
     expect(hasMinimumRoutingQualification({ real_name: 'QA Customer', phone: '+15551234567', vehicle_type: '' })).toBe(false);
     expect(hasMinimumRoutingQualification({ real_name: 'QA Customer', phone: '+15551234567', vehicle_type: ADVISOR_HANDOFF_VEHICLE })).toBe(false);
+    expect(hasMinimumRoutingQualification({ real_name: 'QA Customer', phone: '+15551234567', vehicle_type: ADVISOR_HANDOFF_VEHICLE, advisor_handoff_requested: true })).toBe(true);
     expect(hasMinimumRoutingQualification({ real_name: 'QA Customer', phone: '', vehicle_type: 'SUV' })).toBe(false);
   });
 
@@ -4091,5 +4092,44 @@ Full name: Jose Eduardo Martins Cabral
       down_payment: '1000 + trade-in',
       down_payment_amount: 1000,
     });
+  });
+
+  it('does not treat the Messenger dealer vehicle menu as the buyer choice when they ask for a call', () => {
+    const transcript = [
+      '¿Qué tipos de autos están incluidos?',
+      'Podemos ayudarle a encontrar un sedán, SUV o camioneta. ¿Qué tipo de vehículo está buscando?',
+      'Mándame su número para llamar',
+      '¡Claro! Un especialista de Koons Culpeper le puede proporcionar el número y más detalles. ¿Cuál es el mejor número para que le llamen?',
+      '5406074419',
+      'Bueno',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'koons-culpeper',
+      channel: 'messenger',
+      contact_name: 'Abe ZN',
+      real_name: 'Abe ZN',
+      phone: '+15406074419',
+      message: transcript,
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: ADVISOR_HANDOFF_VEHICLE,
+      advisor_handoff_requested: true,
+      qualification_step: 'complete',
+      qualification_complete: true,
+      missing_qualification: [],
+    });
+
+    const explicitChoice = normalizeCollectorInput({
+      source: 'koons-culpeper',
+      channel: 'messenger',
+      contact_name: 'Abe ZN',
+      real_name: 'Abe ZN',
+      phone: '+15406074419',
+      message: transcript.replace('Mándame su número para llamar', 'Sedan\nMándame su número para llamar'),
+      chat_history_log: transcript.replace('Mándame su número para llamar', 'Sedan\nMándame su número para llamar'),
+    });
+    expect(explicitChoice.vehicle_type).toBe('Sedan');
   });
 });

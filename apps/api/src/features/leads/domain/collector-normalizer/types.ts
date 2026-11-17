@@ -13,6 +13,7 @@ export type CollectorInput = {
   message?: string | null;
   phone?: string | null;
   vehicle_type?: string | null;
+  advisor_handoff_requested?: boolean;
   down_payment?: string | null;
   purchase_timeline?: string | null;
   documents?: string | null;
@@ -50,6 +51,7 @@ export type CollectorOutput = {
   real_name: string;
   vehicle_type: string;
   vehicle_intent: 'buy' | 'sell' | '';
+  advisor_handoff_requested: boolean;
   vehicle_owned_without_purchase_intent: boolean;
   vehicle_year: number | null;
   customer_location: string;

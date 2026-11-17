@@ -178,12 +178,19 @@ const isFalsePositiveVanVerb = (value) => {
   if (!/\bvan\s+a\s+[a-záéíóúüñ]+(?:ar|er|ir)\b/i.test(candidate)) return false;
   return !/(?:^|\b)(?:una?\s+|mi\s+|my\s+|tengo\s+|tiene\s+|busco\s+|buscando\s+|quiero\s+|looking\s+for\s+|need\s+|needs\s+|have\s+|has\s+)(?:van)\b|^van$|\bvan\s+(?:con|para|de)\b/i.test(candidate);
 };
+const isVehicleOptionPrompt = (line) => {
+  const asksForChoice = /\b(?:what|which)\s+(?:(?:type|kind)\s+of\s+)?(?:vehicles?|cars?|trucks?)\b[\s\S]*\b(?:looking for|searching for|want|need|seeking)\b|\b(?:qu[eé]|cu[aá]l)\s+(?:(?:tipo|clase)\s+de\s+)?(?:veh[ií]culos?|autos?|carros?)\b[\s\S]*\b(?:buscando|busca|quiere|prefiere)\b/i.test(line);
+  const options = line.match(/\b(?:sed[aá]ns?|suvs?|camionetas?|trucks?|trocas?|vans?|pickups?|pick-up)\b/gi) || [];
+  return asksForChoice && options.length >= 2;
+};
 const vehicleFrom = (text) => {
   const source = String(text ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source || campaign) return '';
   const candidates = [];
   const lines = source.split(/\n+/).map(clean).filter(Boolean);
   for (const [lineIndex, line] of lines.entries()) {
+    // Ignore dealer prompts that list examples rather than a buyer choice.
+    if (isVehicleOptionPrompt(line)) continue;
     const candidate = normalizeWhisperVehicleAliases(stripCampaignButtonPhrases(line));
     if (!candidate || isCampaignButton(candidate) || isNonVehicleIntent(candidate)) continue;
     if (isFalsePositiveVanVerb(candidate)) continue;
@@ -434,6 +441,7 @@ const extractedVehicle = familyPassengerVanIntent.test(vehicleSource)
         ? 'Sedan'
         : explicitVehicle || (indecisiveVehicleIntent.test(vehicleSource) ? 'Sedan' : '');
 const existingAdvisorMarker = [memoryValue(['vehicle', 'vehicle_type']), inputData.vehicle_type].some(isAdvisorHandoffVehicle);
+const advisorHandoffRequested = /\b(?:m[aá]ndame|env[ií]ame|dame|p[aá]same)\s+(?:el\s+|su\s+|tu\s+)?(?:n[uú]mero|tel[eé]fono)[\s\S]{0,60}\b(?:llamar|llamen|llamarme|comunicarme)\b|\b(?:quiero|necesito|me gustar[ií]a)\s+(?:hablar|comunicarme)\s+con\s+(?:un\s+)?(?:asesor|representante|especialista)\b|\b(?:send|give)\s+me\s+(?:the\s+)?(?:phone\s+)?number\s+to\s+call\b|\b(?:i want|i need|i would like)\s+to\s+speak\s+with\s+(?:an?\s+)?(?:advisor|representative|specialist)\b/i.test(`${message}\n${history}`);
 const phone = phoneFrom(message, history, inputData.phone);
   const transcriptVehicleYear = vehicleYearFrom(vehicleSource);
 const transcriptVehicleYearLabel = vehicleYearLabelFrom(vehicleSource);
@@ -578,9 +586,10 @@ const nameMonthCollision = !transcriptTimeline
   && timelineMonthKey(realName) === timelineMonthKey(timelineValue);
 const timeline = nameMonthCollision ? '' : timelineValue;
 const hasRealVehicle = Boolean(vehicle) && !isAdvisorHandoffVehicle(vehicle);
+const routingVehicleSatisfied = hasRealVehicle || (advisorHandoffRequested && isAdvisorHandoffVehicle(vehicle));
 const coreMissing = (sourceAware
-  ? [!phone && !phoneSatisfiedByNative ? 'phone' : '', !hasRealVehicle ? 'vehicle_type' : '']
-  : [!phone ? 'phone' : '', !hasRealVehicle ? 'vehicle_type' : ''])
+  ? [!phone && !phoneSatisfiedByNative ? 'phone' : '', !routingVehicleSatisfied ? 'vehicle_type' : '']
+  : [!phone ? 'phone' : '', !routingVehicleSatisfied ? 'vehicle_type' : ''])
   .filter(Boolean);
 const qualificationMissing = [
   ...coreMissing,
@@ -590,14 +599,14 @@ const parts = memoryText(rawMemory).split(';').map((part) => clean(part).replace
 const canonical = [['real_name', realName], ['vehicle', vehicle], ['down payment', down], ['previous financing', effectivePreviousFinancing], ['documents', documents], ['timeline', timeline]].filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).replace(/\s*;\s*/g, ', ')}`);
 const qualificationMemory = [...new Set([...parts.filter((part) => !/^(?:real_name|real name|name|nombre|nombre real|nombre completo|vehicle|vehicle_type|down|down payment|down_payment|previous financing|previous_financing|financing history|historial de financiamiento|documents?|docs|timeline|purchase timeline|purchase_timeline)\s*(?::|=|-)/i.test(part)), ...canonical])].join('; ');
 const qualificationStep = sourceAware
-  ? (!hasRealVehicle
+  ? (!routingVehicleSatisfied
       ? 'vehicle_type'
       : requiresLocation && !customerLocation
         ? 'customer_location'
         : !phone && !phoneSatisfiedByNative
           ? 'phone'
           : 'complete')
-  : (!hasRealVehicle
+  : (!routingVehicleSatisfied
         ? 'vehicle_type'
       : !phone
         ? 'phone'
@@ -633,6 +642,7 @@ return {
   channel: String(inputData.channel ?? ''),
   real_name: realName,
   vehicle_type: vehicle,
+  advisor_handoff_requested: advisorHandoffRequested,
   vehicle_year: vehicleYear,
   customer_location: customerLocation,
   vehicle_category: vehicleCategory || null,

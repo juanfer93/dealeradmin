@@ -254,6 +254,7 @@ export class WebhookService {
         real_name: normalized.real_name || payload.lead.name,
         phone: canonicalPhone,
         vehicle_type: normalized.vehicle_type,
+        advisor_handoff_requested: normalized.advisor_handoff_requested,
       })) {
         throw new UnprocessableEntityException({
           code: 'MISSING_LEAD_ROUTING_FACTS',

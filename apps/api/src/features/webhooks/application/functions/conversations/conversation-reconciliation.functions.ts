@@ -316,6 +316,7 @@ export class ConversationReconciliationFunctions {
         ? ''
         : targeted ? clean(normalized.vehicle_type) : preserveOrNormalize(current.vehicle_type, normalized.vehicle_type);
       const vehicleIntent = normalized.vehicle_intent || current.vehicle_intent || '';
+      const advisorHandoffRequested = Boolean(normalized.advisor_handoff_requested || current.advisor_handoff_requested);
       const vehicleYear = invalidatedOwnedVehicle
         ? null
         : targeted
@@ -348,13 +349,14 @@ export class ConversationReconciliationFunctions {
         real_name: realName,
         phone: effectivePhone,
         vehicle_type: vehicle,
+        advisor_handoff_requested: advisorHandoffRequested,
         down_payment: downPayment,
         purchase_timeline: purchaseTimeline,
         has_identification: identification,
         has_income_proof: documents,
         bank_account: bankAccount,
       });
-      const missingQualification = [!realName ? 'real_name' : '', !effectivePhone ? 'phone' : '', !vehicle || isAdvisorHandoffVehicle(vehicle) ? 'vehicle_type' : ''].filter(Boolean);
+      const missingQualification = [!realName ? 'real_name' : '', !effectivePhone ? 'phone' : '', !vehicle || (isAdvisorHandoffVehicle(vehicle) && !advisorHandoffRequested) ? 'vehicle_type' : ''].filter(Boolean);
       const resolvedLocation = await this.qualification.resolveLocation(runner, transcript);
       const hasResolvedLocation = Boolean(resolvedLocation.city || resolvedLocation.state || resolvedLocation.zip_code || resolvedLocation.easterns_zone);
       const existingLocation = row.location_snapshot ?? { city: null, state: null, zip_code: null, easterns_zone: null };
@@ -377,6 +379,7 @@ export class ConversationReconciliationFunctions {
         phone: effectivePhone,
         vehicle_type: vehicle,
         vehicle_intent: vehicleIntent,
+        advisor_handoff_requested: advisorHandoffRequested,
         vehicle_year: vehicleYear,
         customer_location: preserveOrNormalize(current.customer_location, normalized.customer_location),
         vehicle_category: downPaymentRule.category,

@@ -196,4 +196,24 @@ describe('ConversationQualificationFunctions', () => {
     expect(result.status).toBe('waiting_window');
     expect(result.nextAttemptAt).toBeTruthy();
   });
+
+  it('puts an explicit call request with its supplied phone into the waiting window', () => {
+    const result = new ConversationQualificationFunctions().statusForConversation(
+      {
+        real_name: 'Abe ZN',
+        phone: '+15406074419',
+        vehicle_type: 'Quiere hablar con un asesor',
+        advisor_handoff_requested: true,
+        qualification_complete: true,
+      } as never,
+      { city: null, state: null, zip_code: null, easterns_zone: null },
+      { id: 'dealer-koons', routing_config: {} } as never,
+      'koons-culpeper',
+      new Date('2026-11-17T14:00:00.000Z'),
+      'capture',
+    );
+
+    expect(result.status).toBe('waiting_window');
+    expect(result.nextAttemptAt).toBeTruthy();
+  });
 });

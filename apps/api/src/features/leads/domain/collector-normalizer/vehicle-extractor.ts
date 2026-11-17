@@ -24,6 +24,12 @@ export function inferVehicleIntent(vehicleSource: string, explicitVehicle: strin
           : explicitVehicle || (INDECISIVE_VEHICLE_INTENT.test(vehicleSource) ? 'Sedan' : EMPTY);
 }
 
+function isVehicleOptionPrompt(line: string): boolean {
+  const asksForChoice = /\b(?:what|which)\s+(?:(?:type|kind)\s+of\s+)?(?:vehicles?|cars?|trucks?)\b[\s\S]*\b(?:looking for|searching for|want|need|seeking)\b|\b(?:qu[eé]|cu[aá]l)\s+(?:(?:tipo|clase)\s+de\s+)?(?:veh[ií]culos?|autos?|carros?)\b[\s\S]*\b(?:buscando|busca|quiere|prefiere)\b/i.test(line);
+  const options = line.match(/\b(?:sed[aá]ns?|suvs?|camionetas?|trucks?|trocas?|vans?|pickups?|pick-up)\b/gi) ?? [];
+  return asksForChoice && options.length >= 2;
+}
+
 export function extractVehicle(message: string): string {
   const source = String(message ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source) return EMPTY;
@@ -31,6 +37,9 @@ export function extractVehicle(message: string): string {
   const candidates: VehicleCandidate[] = [];
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
     const line = lines[lineIndex];
+    // Dealer prompts often list example body styles. They are not the buyer's
+    // selection and must not become the normalized vehicle.
+    if (isVehicleOptionPrompt(line)) continue;
     const candidate = normalizeWhisperVehicleAliases(stripCampaignButtonPhrases(line));
     if (!candidate || isCampaignButton(candidate) || isNonVehicleIntent(candidate)) continue;
     if (isFalsePositiveVanVerb(candidate)) continue;

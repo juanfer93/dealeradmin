@@ -2423,4 +2423,34 @@ describe('HighLevel collector custom-code normalizer', () => {
       down_payment_amount: 1000,
     });
   });
+
+  it('ignores a dealer vehicle menu in Messenger and routes a call request to an advisor', () => {
+    const transcript = [
+      '¿Qué tipos de autos están incluidos?',
+      'Podemos ayudarle a encontrar un sedán, SUV o camioneta. ¿Qué tipo de vehículo está buscando?',
+      'Mándame su número para llamar',
+      '¡Claro! Un especialista de Koons Culpeper le puede proporcionar el número y más detalles. ¿Cuál es el mejor número para que le llamen?',
+      '5406074419',
+      'Bueno',
+    ].join('\n');
+    const input = {
+      source: 'koons-culpeper',
+      channel: 'messenger',
+      contact_name: 'Abe ZN',
+      real_name: 'Abe ZN',
+      phone: '+15406074419',
+      message: transcript,
+      chat_history_log: transcript,
+    };
+
+    expect(execute(input)).toMatchObject({
+      vehicle_type: 'Quiere hablar con un asesor',
+      advisor_handoff_requested: true,
+      qualification_step: 'complete',
+      qualification_complete: true,
+      missing_qualification: [],
+    });
+    const explicitChoiceTranscript = transcript.replace('Mándame su número para llamar', 'Sedan\nMándame su número para llamar');
+    expect(execute({ ...input, message: explicitChoiceTranscript, chat_history_log: explicitChoiceTranscript }).vehicle_type).toBe('Sedan');
+  });
 });

@@ -436,7 +436,7 @@ export class ConversationQualificationFunctions {
     const isEasterns = source === 'easterns' && dealer.routing_config?.group === 'Easterns';
     const hasLocation = Boolean(location.city || location.state || location.easterns_zone || location.zip_code);
     const routingReady = Boolean(
-      hasMinimumRoutingQualification({ real_name: snapshot.real_name, phone: snapshot.phone, vehicle_type: snapshot.vehicle_type })
+      hasMinimumRoutingQualification({ real_name: snapshot.real_name, phone: snapshot.phone, vehicle_type: snapshot.vehicle_type, advisor_handoff_requested: snapshot.advisor_handoff_requested })
     );
     if (!routingReady) return { status: 'partial', nextAttemptAt: null };
     if (phase === 'capture') {
