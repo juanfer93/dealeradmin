@@ -1,0 +1,11 @@
+[Unit]
+Description=Check origin/main for DealerAdmin updates
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+Unit=dealeradmin-deploy.service
+
+[Install]
+WantedBy=timers.target

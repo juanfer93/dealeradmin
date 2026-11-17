@@ -1,0 +1,10 @@
+[Unit]
+Description=Deploy DealerAdmin from origin/main
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=opc
+WorkingDirectory=/home/opc/dealeradmin
+ExecStart=/home/opc/dealeradmin/deploy/oci/deploy-main.sh
