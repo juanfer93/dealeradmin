@@ -22,8 +22,14 @@ if [[ "$deployed" == "$target" ]]; then
 fi
 
 sudo -n docker compose --env-file .env.oci -f docker-compose.oci.yml up -d --build
-curl --fail --silent --show-error --connect-timeout 8 --max-time 30 \
-  --output /dev/null https://dealeradmin.163-192-138-175.sslip.io/
+status=000
+for attempt in $(seq 1 24); do
+  status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+    --connect-timeout 8 --max-time 30 https://dealeradmin.163-192-138-175.sslip.io/ || true)
+  [[ "$status" =~ ^2[0-9][0-9]$ ]] && break
+  sleep 5
+done
+[[ "$status" =~ ^2[0-9][0-9]$ ]] || { echo "Web check failed: HTTP $status" >&2; exit 1; }
 printf '%s\n' "$target" > "$state_file.tmp"
 mv "$state_file.tmp" "$state_file"
 printf 'Deployed main at %s\n' "$target"
