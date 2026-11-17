@@ -4,7 +4,7 @@ import { clean } from './text-cleaner';
 
 export const VEHICLE_BRANDS = /\b(?:toyotas?|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subarus?|suvarus?|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i;
 export const VEHICLE_MODELS = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacomas?|tacomos?|tacmas?|tecomas?|sti|rava|rav\s*4|civic|civc|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|for\s+runner|for\s+runer|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|odisea|paila|sierra|silverado|tahoe|tajo|suburban|traverse|equinox|camaros?|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durangos?|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|rlx|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
-export const VEHICLE_CATEGORIES = /\b(?:suv|sedans?|midsize|mid[- ]?size|medium[- ]?size|mediano|mediana|turismos?|trucks?|truk|troka|trocas?|trokitas?|troquitas?|troques?|pickup|pick-up|pickop|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|dump\s*trucks?|camioneta|camionetq|camion|camión)\b/i;
+export const VEHICLE_CATEGORIES = /\b(?:suv|sed[aá]ns?|midsize|mid[- ]?size|medium[- ]?size|mediano|mediana|turismos?|trucks?|truk|troka|trocas?|trokitas?|troquitas?|troques?|pickup|pick-up|pickop|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|dump\s*trucks?|camioneta|camionetq|camion|camión)\b/i;
 export const VEHICLE_TRIMS = /\b(?:\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i;
 export const VEHICLE_CONTEXT = /\b(?:tengo|tiene|tienen|ten[ií]an|have|has|got|carry|available|need|needs|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|love|like|prefer|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i;
 // GHL/Messenger often shortens a model year in pairs such as "Civic 2014/15".
@@ -116,7 +116,7 @@ export function canonicalVehicleLabel(value: string): string {
 export function canonicalVehicleCategory(value: string): string {
   return clean(value)
     .replace(/\bsuv\b/gi, 'SUV')
-    .replace(/\bsedans\b/gi, 'Sedan')
+    .replace(/\bsed[aá]ns?\b/gi, (match) => match[0] === match[0].toLocaleUpperCase() ? 'Sedan' : 'sedan')
     .replace(/\bturismos?\b/gi, 'Sedan')
     .replace(/\b(?:mid[- ]?size|medium[- ]?size|mediano|mediana)\b/gi, 'midsize')
     .replace(/\b(?:trucks?|truk|troka|trocas?|trokitas?|troquitas?|troques?|pickup|pick-up|pickop|camioneta|camionetq|camion|camión)\b/gi, (match) => /^truck$/i.test(match) ? match : 'truck');
@@ -271,7 +271,7 @@ export function extractVehicleYearLabel(value: string | null | undefined): strin
       const between = line.slice((first.index ?? 0) + first[0].length, second.index ?? 0);
       if (!/^\s*(?:(o|or)|(?:a|al|hasta|to)|[-–—/])?\s*$/i.test(between)) continue;
       const connector = between.match(/\b(o|or)\b/i)?.[1];
-      return connector ? `${first[1]} o ${second[1]}` : `${first[1]}-${second[1]}`;
+      return connector ? `${first[1]} o ${second[1]}` : `${first[1]} - ${second[1]}`;
     }
   }
   return null;
@@ -281,10 +281,11 @@ export function normalizeVehicle(value: string, isCampaignButton: (candidate: st
   let source = normalizeWhisperVehicleAliases(value).replace(/-{2,}/g, '-').replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
   if (isAdvisorHandoffVehicle(source)) return ADVISOR_HANDOFF_VEHICLE;
   if (isCampaignButton(source) || isNonVehicleIntent(source)) return EMPTY;
-  const alternatives = source.split(/\s+o\s+/i)
+  const connector = source.match(/\s+(o|or)\s+/i)?.[1]?.toLocaleLowerCase();
+  const alternatives = source.split(/\s+(?:o|or)\s+/i)
     .map((part) => extractVehicleLabel(part))
-    .filter((label, index, labels) => VEHICLE_MODELS.test(label) && labels.findIndex((item) => item.toLocaleLowerCase() === label.toLocaleLowerCase()) === index);
-  if (alternatives.length > 1) return alternatives.join(' o ');
+    .filter((label, index, labels) => (VEHICLE_MODELS.test(label) || VEHICLE_CATEGORIES.test(label)) && labels.findIndex((item) => item.toLocaleLowerCase() === label.toLocaleLowerCase()) === index);
+  if (alternatives.length > 1) return alternatives.join(connector === 'or' ? ' or ' : ' o ');
   if (/\b(?:(?:carro|carros|auto|autos|coche|coches|veh[ií]culo|veh[ií]culos)\s+econ[oó]mic[oa]s?|(?:economic|economical|affordable|budget)\s+(?:car|cars|auto|vehicle)|algo\s+econ[oó]mic[oa]?)\b/i.test(source)) return 'Sedan';
   const labeled = source.match(/^(.+?)\s*vehicle(?:_type)?\s*:\s*(.+)$/i);
   if (labeled?.[1]) source = labeled[1].trim();

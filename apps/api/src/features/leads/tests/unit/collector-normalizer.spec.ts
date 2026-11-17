@@ -4061,8 +4061,8 @@ Full name: Jose Eduardo Martins Cabral
   });
 
   it.each([
-    ['Toyota 4Runner 2013 a 2015', 'Toyota 4Runner 2013-2015', 2013],
-    ['Honda CRV 2019 2021', 'Honda CR-V 2019-2021', 2019],
+    ['Toyota 4Runner 2013 a 2015', 'Toyota 4Runner 2013 - 2015', 2013],
+    ['Honda CRV 2019 2021', 'Honda CR-V 2019 - 2021', 2019],
   ])('preserves a vehicle year range: %s', (message, vehicle_type, vehicle_year) => {
     expect(normalizeCollectorInput({ source: 'fredericksburg', channel: 'whatsapp', message })).toMatchObject({ vehicle_type, vehicle_year });
   });
@@ -4131,5 +4131,90 @@ Full name: Jose Eduardo Martins Cabral
       chat_history_log: transcript.replace('Mándame su número para llamar', 'Sedan\nMándame su número para llamar'),
     });
     expect(explicitChoice.vehicle_type).toBe('Sedan');
+  });
+
+  it('keeps Franklin Avila’s Sedan year range and both ends of his down-payment range', () => {
+    const transcript = [
+      'Quiero financiar un auto',
+      '¡Hola! Te saludamos de Arlington Motors. ¿Qué tipo de vehículo te gustaría tener? ¿Un sedán, un SUV o una troca?',
+      'Un sedán del 2017 a 2020',
+      '¡Excelente elección! Sí contamos con opciones de sedán. ¿A qué número podemos enviarte nuestro inventario e información sobre modelos del 2017 al 2020?',
+      '2028179570',
+      'Para los sedanes requerimos entre $1000 y $1500 de enganche. ¿Con cuánto contarías tú para el enganche?',
+      'Con 1500 o 2000$ pero no tengo buen crédito',
+      'Solo estoy mirando para decidir comprar uno y los pagos como serían',
+      'Po eso quiero saber cuánto serían los pagos por letras y si por mes o por quincena',
+      'Si me decido puede ser esta semana',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'arlington',
+      channel: 'messenger',
+      contact_name: 'Franklin Avila',
+      real_name: 'Franklin Avila',
+      phone: '+12028179570',
+      message: transcript,
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'Sedan 2017 - 2020',
+      down_payment: '1500 a 2000',
+      down_payment_amount: 2000,
+      purchase_timeline: 'esta semana',
+    });
+  });
+
+  it('ignores Alpha ad metadata and classifies “Tacoma es cash” as cash purchase', () => {
+    const transcript = [
+      '*Headline:* Tu próxima troca desde $2,000 de inicial 🚘',
+      '*Source URL:* https://fb.me/55Y5z953y',
+      '¡Hola! Quiero más información',
+      'Opportunity created',
+      'Tacoma es cash',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'alpha',
+      channel: 'whatsapp',
+      contact_name: '🖤',
+      phone: '+15717369664',
+      message: transcript,
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'Tacoma',
+      down_payment: 'Pagara en cash / de contado',
+      down_payment_amount: null,
+    });
+  });
+
+  it('keeps Everett Wilson’s Sedan or SUV choice and recognizes tomorrow as ASAP', () => {
+    const transcript = [
+      '⚡ I have the downpayment!',
+      '⭐ I have ID + Bank Account',
+      'Thanks for letting me know! What type of vehicle are you looking for: Sedan, SUV or Truck?',
+      'Sedan or Suv',
+      'Great, a sedan or SUV! What’s the best phone number to reach you?',
+      '4349069874',
+      'When are you planning to buy?',
+      'Tomorrow',
+        'I have $2,000',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      contact_name: 'Everett Wilson',
+      real_name: 'Everett Wilson',
+      phone: '+14349069874',
+      message: transcript,
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'sedan or SUV',
+      purchase_timeline: 'today',
+        down_payment: '2000',
+        down_payment_amount: 2000,
+    });
   });
 });

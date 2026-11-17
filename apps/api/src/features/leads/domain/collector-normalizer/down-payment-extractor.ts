@@ -1,13 +1,13 @@
 import { CASH_DOWN_PAYMENT } from '../down-payment';
 import { EMPTY } from './constants';
 import { isPhoneOnlyLine } from './contact-normalizer';
-import { clean, isEmptyMarker } from './text-cleaner';
+import { clean, isEmptyMarker, stripNonConversationMetadata } from './text-cleaner';
 import { VEHICLE_BRANDS, VEHICLE_CATEGORIES, VEHICLE_MODELS } from './vehicle-normalizer';
 import { isCampaignButton, NO_DOWN_PAYMENT_RESPONSE, TRADE_IN_INTENT } from './collector-intents';
 
 const AMOUNT_RANGE_TOKEN = '(?:\\d{1,3}(?:[,.]\\d{3})+|\\d+(?:[,.]\\d+)?\\s*(?:k|mil|thousand)?|(?:un|one|a|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+(?:mil|thousand)(?:\\s+(?:quinientos|five hundred))?)';
 
-function normalizeAmountRangeParts(start: string, end: string, assumeThousands = false): string {
+function normalizeAmountRangeParts(start: string, end: string, assumeThousands = false, separator = '-'): string {
   const unit = `${start} ${end}`.match(/\b(?:mil|thousand|k)\b/i)?.[0] ?? '';
   const applyContext = (value: string): string => {
     const trimmed = value.trim();
@@ -19,17 +19,17 @@ function normalizeAmountRangeParts(start: string, end: string, assumeThousands =
   const normalizedEnd = normalizeAmount(applyContext(end));
   if (!/^\d+(?:\.\d+)?$/.test(normalizedStart) || !/^\d+(?:\.\d+)?$/.test(normalizedEnd)) return EMPTY;
   const values = [Number(normalizedStart), Number(normalizedEnd)].sort((left, right) => left - right);
-  return `${values[0]} - ${values[1]}`;
+  return `${values[0]} ${separator} ${values[1]}`;
 }
 export function normalizeAmount(value: string): string {
   const source = clean(value).toLowerCase();
   if (!source || isEmptyMarker(source)) return EMPTY;
   if (NO_DOWN_PAYMENT_RESPONSE.test(source)) return 'No down payment';
-  const rangeMatch = source.match(new RegExp(`^\\$?(${AMOUNT_RANGE_TOKEN})(?:\\s*(mil|thousand|k))?\\s*(?:a|to|[-–—/])\\s*\\$?(${AMOUNT_RANGE_TOKEN})(?:\\s*(mil|thousand|k))?(?:\\s*(?:down|payment|enganche|inicial|d[oó]lares?|dollars?))?$`, 'i'));
+  const rangeMatch = source.match(new RegExp(`^\\$?(${AMOUNT_RANGE_TOKEN})(?:\\s*(mil|thousand|k))?\\s*(a|to|o|or|[-–—/])\\s*\\$?(${AMOUNT_RANGE_TOKEN})(?:\\s*(mil|thousand|k))?(?:\\s*(?:down|payment|enganche|inicial|d[oó]lares?|dollars?))?$`, 'i'));
   if (rangeMatch) {
     const start = `${rangeMatch[1]} ${rangeMatch[2] ?? EMPTY}`.trim();
-    const end = `${rangeMatch[3]} ${rangeMatch[4] ?? EMPTY}`.trim();
-    return normalizeAmountRangeParts(start, end);
+    const end = `${rangeMatch[4]} ${rangeMatch[5] ?? EMPTY}`.trim();
+    return normalizeAmountRangeParts(start, end, false, /^(?:o|or|a)$/i.test(rangeMatch[3]) ? 'a' : '-');
   }
   if (TRADE_IN_INTENT.test(source)) {
     const withoutTradeIn = source
@@ -141,7 +141,7 @@ export function extractQuestionedDownPayment(history: string): string {
 }
 
 export function extractTradeInDownPayment(message: string): string {
-  const source = clean(message);
+  const source = clean(stripNonConversationMetadata(message));
   if (!source || isCampaignButton(source)) return EMPTY;
   const tradeIn = TRADE_IN_INTENT.test(source);
   const amountPattern = '(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?|\\d{1,2}\\s*(?:mil|thousand)|mil(?:\\s+quinientos)?|(?:un|one|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+mil(?:\\s+(?:quinientos|five hundred))?)';
@@ -154,7 +154,7 @@ export function extractTradeInDownPayment(message: string): string {
 }
 
 export function extractDownPayment(message: string): string {
-  const source = String(message ?? '').replace(/\r\n?/g, '\n').replace(/\b\d+(?:st|nd|rd|th)\b/gi, ' ').trim();
+  const source = stripNonConversationMetadata(String(message ?? '')).replace(/\b\d+(?:st|nd|rd|th)\b/gi, ' ').trim();
   if (!source || isCampaignButton(source)) return EMPTY;
   if (NO_DOWN_PAYMENT_RESPONSE.test(source)) return 'No down payment';
   // In conversational Spanish, "unos 700 a mil" expresses an approximate
@@ -162,19 +162,19 @@ export function extractDownPayment(message: string): string {
   // "mil" as a thousands multiplier on both range endpoints.
   if (/\b(?:unos?\s+)?\d{1,3}\s+a\s+mil\b/i.test(source)) return '1000';
   const cashEvidenceSource = source.replace(/(?:bank account|cuenta bancaria|cuenta de banco|cheque|check)[^.!?\n]*(?:[.!?]|$)/gi, '');
-  if (/\b(?:pay|pagar|pago|pagar[eé]|voy\s+a\s+pagar|purchase|buy|comprar|compra|hacer\s+la\s+compra|put|poner|down|enganche|inicial)[^.!?\n]{0,80}\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b/i.test(cashEvidenceSource)) return CASH_DOWN_PAYMENT;
+  if (/\b(?:pay|pagar|pago|pagar[eé]|voy\s+a\s+pagar|purchase|buy|comprar|compra|hacer\s+la\s+compra|put|poner|down|enganche|inicial)[^.!?\n]{0,80}\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b|\b(?:es|son|ser[ií]a|ser[aá]|paga(?:r[aá])?|will\s+pay|is\s+paid)\b[^.!?\n]{0,40}\b(?:cash|contado|efectivo)\b/i.test(cashEvidenceSource)) return CASH_DOWN_PAYMENT;
   const amountToken = '(?:\\d{1,3}(?:,\\d{3})+|\\d{1,2}\\s*(?:mil|thousand)|mil(?:\\s+quinientos)?|(?:un|one|a|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+(?:mil|thousand)(?:\\s+(?:quinientos|five hundred))?|\\d+(?:[,.]\\d+)?\\s*k?)(?:\\s*d[oó]lar(?:es|e)?)?';
   const safeSource = source.split('\n').filter((line) => !isPhoneOnlyLine(line)).join('\n');
   const informalAmount = safeSource.match(new RegExp(`(?:tanda|cantidad|lo m[aá]ximo|lo m[aá]s que tengo|maximum|maximo|m[aá]ximo)[^\\n]{0,60}?\\$?(${amountToken})`, 'i'))?.[1];
   const contextualPromptLine = safeSource.split('\n').map((line, index, lines) => line.trim() === '__DOWN_PROMPT__' ? lines[index + 1]?.trim() ?? EMPTY : EMPTY).find(Boolean) ?? EMPTY;
   const contextualPromptAmount = contextualPromptLine.match(new RegExp(`^(?:(?:quiz[aá]s|maybe|perhaps|aprox(?:imadamente)?|approximately|around|unos?)\\s+)?\\$?(${amountToken})\\b`, 'i'))?.[1];
-  const rangeMatch = safeSource.match(new RegExp(`\\$?(${amountToken})(?:\\s*(mil|thousand|k))?\\s*(?:a|to|[-–—/])\\s*\\$?(${amountToken})(?:\\s*(mil|thousand|k))?`, 'i'));
-  if (rangeMatch) {
+  const rangeMatches = [...safeSource.matchAll(new RegExp(`\\$?(${amountToken})(?:\\s*(mil|thousand|k))?\\s*(a|to|o|or|[-–—/])\\s*\\$?(${amountToken})(?:\\s*(mil|thousand|k))?`, 'gi'))];
+  for (const rangeMatch of rangeMatches) {
     const start = `${rangeMatch[1]} ${rangeMatch[2] ?? EMPTY}`.trim();
-    const end = `${rangeMatch[3]} ${rangeMatch[4] ?? EMPTY}`.trim();
-    if (isVehicleYearValue(start) || isVehicleYearValue(end)) return EMPTY;
+    const end = `${rangeMatch[4]} ${rangeMatch[5] ?? EMPTY}`.trim();
+    if (isVehicleYearValue(start) || isVehicleYearValue(end)) continue;
     const assumeThousands = /\b(?:down|payment|enganche|inicial|deposit|dep[oó]sito)\b/i.test(source) && [start, end].every((value) => /^\d{1,2}$/.test(value.trim()));
-    const normalizedRange = normalizeAmountRangeParts(start, end, assumeThousands);
+    const normalizedRange = normalizeAmountRangeParts(start, end, assumeThousands, /^(?:o|or)$/i.test(rangeMatch[3]) ? 'a' : '-');
     if (normalizedRange) return normalizedRange;
   }
   const amount = source.match(new RegExp(`(?:down|enganche|inicial|deposit|dep[oó]sito)[ \\t]*(?:payment|pago)?[ \\t]*(?:is|es|de|:)?[ \\t]*\\$?[ \\t]*(${amountToken})`, 'i'))?.[1]
@@ -205,13 +205,13 @@ export function extractStandaloneDownPayment(message: string): string {
 }
 
 export function extractLatestDownPayment(message: string): string {
-  const lines = String(message ?? '').replace(/\r\n?/g, '\n').split(/\n+/).map((line) => clean(line).replace(/\b\d+(?:st|nd|rd|th)\b/gi, ' ')).filter(Boolean).reverse();
+  const lines = stripNonConversationMetadata(message).split(/\n+/).map((line) => clean(line).replace(/\b\d+(?:st|nd|rd|th)\b/gi, ' ')).filter(Boolean).reverse();
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
     const line = lines[lineIndex];
     const previousDistinctLine = lines.slice(lineIndex + 1).find((candidate) => candidate !== line) ?? '';
     if (/^\d{1,2}$/.test(line) && CALL_TIME_QUESTION.test(previousDistinctLine)) continue;
     const lineDigits = line.replace(/\D/g, '');
-    const paymentRange = /\$?\d+(?:[,.]\d+)?\s*(?:a|to|[-–/])\s*\$?\d+(?:[,.]\d+)?/i.test(line);
+    const paymentRange = /\$?\d+(?:[,.]\d+)?\s*(?:a|to|o|or|[-–/])\s*\$?\d+(?:[,.]\d+)?/i.test(line);
     if (/[?¿]/.test(line) || isPhoneOnlyLine(line) || isVehicleYearRange(line) || /\b(?:phone|telephone|tel[eé]fono|n[uú]mero|number)\b/i.test(line) || (lineDigits.length >= 7 && !paymentRange && !/\b(?:down|payment|enganche|inicial|deposit|dep[oó]sito)\b/i.test(line))) continue;
     const contextual = extractDownPayment(line);
     if (contextual && !(isShortVehicleYearValue(contextual) && (VEHICLE_BRANDS.test(String(message)) || VEHICLE_MODELS.test(String(message)) || VEHICLE_CATEGORIES.test(String(message))))) return contextual;
@@ -219,11 +219,11 @@ export function extractLatestDownPayment(message: string): string {
     if (standalone && !isShortVehicleYearValue(standalone)) return standalone;
     if (/\b\d{1,2}:\d{2}\b|\b(?:am|pm)\b/i.test(line)) continue;
     const amountToken = '(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?)';
-    const range = [...line.matchAll(new RegExp(`\\$?(${amountToken})\\s*(?:a|to|[-–/])\\s*\\$?(${amountToken})`, 'gi'))]
-      .map((match) => normalizeAmountRangeParts(match[1], match[2], /\b(?:down|payment|enganche|inicial|deposit|dep[oó]sito)\b/i.test(line)))
+    const range = [...line.matchAll(new RegExp(`\\$?(${amountToken})\\s*(a|to|o|or|[-–/])\\s*\\$?(${amountToken})`, 'gi'))]
+      .map((match) => normalizeAmountRangeParts(match[1], match[3], /\b(?:down|payment|enganche|inicial|deposit|dep[oó]sito)\b/i.test(line), /^(?:o|or)$/i.test(match[2]) ? 'a' : '-'))
       .find((amount) => amount && !isVehicleYearRange(amount));
     if (range) return range;
-    const answerLike = /\b(?:tengo|have|cuento|cuenta|puedo|podr[ií]a|maximum|maximo|m[aá]ximo|son|available|will\s+have|down|payment|enganche|d[oó]lares?|dollars?)\b/i.test(line) || /^(?:si|sí|yes|yeah|yep|claro|ok(?:ay)?|bien)\b\s*\$?\d/i.test(line);
+    const answerLike = /\b(?:tengo|have|cuento|cuenta|puedo|podr[ií]a|con|with|maximum|maximo|m[aá]ximo|son|available|will\s+have|down|payment|enganche|d[oó]lares?|dollars?)\b/i.test(line) || /^(?:si|sí|yes|yeah|yep|claro|ok(?:ay)?|bien)\b\s*\$?\d/i.test(line);
     if (!answerLike) continue;
     const hasVehicleEvidence = VEHICLE_BRANDS.test(String(message)) || VEHICLE_MODELS.test(String(message)) || VEHICLE_CATEGORIES.test(String(message));
     const amounts = [...line.matchAll(new RegExp(`\\$?(${amountToken})(?!\\d)`, 'gi'))]

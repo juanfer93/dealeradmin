@@ -1,6 +1,9 @@
 // Body for the HighLevel Custom Code action used by all four collector workflows.
 // Keep this executable without imports: HighLevel provides inputData at runtime.
 const clean = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
+const stripNonConversationMetadata = (value) => String(value ?? '').replace(/\r\n?/g, '\n').split('\n')
+  .filter((line) => !/^\s*\*?\s*(?:headline|source\s+url)\*?\s*:/i.test(line) && !/^\s*opportunity\s+created\s*$/i.test(line))
+  .join('\n');
 const advisorHandoffVehicle = 'Quiere hablar con un asesor';
 const cashDownPayment = 'Pagara en cash / de contado';
 const isAdvisorHandoffVehicle = (value) => clean(value).toLocaleLowerCase() === advisorHandoffVehicle.toLocaleLowerCase();

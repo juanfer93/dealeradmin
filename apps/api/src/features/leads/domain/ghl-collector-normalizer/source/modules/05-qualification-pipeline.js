@@ -1,6 +1,6 @@
-const historyForExtraction = stripCampaignButtonPhrases(rawHistory);
+const historyForExtraction = stripCampaignButtonPhrases(stripNonConversationMetadata(rawHistory));
 const amountRangeToken = '(?:\\d{1,3}(?:[,.]\\d{3})+|\\d+(?:[,.]\\d+)?\\s*(?:k|mil|thousand)?|(?:un|one|a|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+(?:mil|thousand)(?:\\s+(?:quinientos|five hundred))?)';
-const amountRangeParts = (start, end, assumeThousands = false) => {
+const amountRangeParts = (start, end, assumeThousands = false, separator = '-') => {
   const unit = `${start} ${end}`.match(/\b(?:mil|thousand|k)\b/i)?.[0] || '';
   const applyContext = (value) => {
     const trimmed = String(value).trim();
@@ -12,17 +12,17 @@ const amountRangeParts = (start, end, assumeThousands = false) => {
     .map((value) => Number(value))
     .filter((value) => Number.isFinite(value))
     .sort((left, right) => left - right);
-  return normalized.length === 2 ? `${normalized[0]} - ${normalized[1]}` : '';
+  return normalized.length === 2 ? `${normalized[0]} ${separator} ${normalized[1]}` : '';
 };
 const amount = (value) => {
   const source = clean(value).toLowerCase();
   if (!source || emptyMarker(source)) return '';
   if (noDownPaymentResponse.test(source)) return 'No down payment';
-  const rangeMatch = source.match(new RegExp(`^\\$?(${amountRangeToken})(?:\\s*(mil|thousand|k))?\\s*(?:a|to|[-–—])\\s*\\$?(${amountRangeToken})(?:\\s*(mil|thousand|k))?(?:\\s*(?:down|payment|enganche|inicial|d[oó]lares?|dollars?))?$`, 'i'));
+  const rangeMatch = source.match(new RegExp(`^\\$?(${amountRangeToken})(?:\\s*(mil|thousand|k))?\\s*(a|to|o|or|[-–—])\\s*\\$?(${amountRangeToken})(?:\\s*(mil|thousand|k))?(?:\\s*(?:down|payment|enganche|inicial|d[oó]lares?|dollars?))?$`, 'i'));
   if (rangeMatch) {
     const start = `${rangeMatch[1]} ${rangeMatch[2] || ''}`.trim();
-    const end = `${rangeMatch[3]} ${rangeMatch[4] || ''}`.trim();
-    return amountRangeParts(start, end);
+    const end = `${rangeMatch[4]} ${rangeMatch[5] || ''}`.trim();
+    return amountRangeParts(start, end, false, /^(?:o|or|a)$/i.test(rangeMatch[3]) ? 'a' : '-');
   }
   const tradeMarker = tradeInLanguage;
   if (tradeMarker.test(source)) {
@@ -69,7 +69,7 @@ const isOffleaseDealer = (value) => {
 const visibleDownPayment = (value, dealerOrSource) => {
   const normalized = validAmount(value);
   if (!normalized || /^no down payment$/i.test(normalized) || normalized === cashDownPayment) return normalized;
-  const range = normalized.match(/^\s*\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?)\s*-\s*\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?)\s*$/i);
+  const range = normalized.match(/^\s*\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?)\s*(?:-|a|to)\s*\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?\s*k?)\s*$/i);
   const match = range ? [range[0], range[2]] : normalized.match(/\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)/);
   if (!match) return normalized;
   const compact = match[1].replace(/,/g, '');
@@ -92,7 +92,7 @@ const isShortVehicleYear = (value) => {
 };
 const amountToken = '(?:\\d{1,3}(?:,\\d{3})+|\\d{1,2}\\s*(?:mil|thousand)|mil(?:\\s+quinientos)?|(?:un|one|a|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+(?:mil|thousand)(?:\\s+(?:quinientos|five hundred))?|\\d+(?:[,.]\\d+)?\\s*k?)(?:\\s*d[oó]lar(?:es|e)?)?';
 const tradeIn = (text) => {
-  const source = clean(text);
+  const source = clean(stripNonConversationMetadata(text));
   if (!source || campaign || isNonVehicleIntent(source)) return '';
   const token = amountToken;
   const trade = '(?:trade[- ]?in|my car|my vehicle|my van|my truck|mi carro|mi auto|mi vehículo|mi van|mi troca|mi camioneta|carro como enganche|(?:carro|auto|vehículo)\\s+para\\s+(?:dar|entregar|cambiar)|(?:entregar|entrego|entregue|dar|doy)\\s+(?:(?:mi|el|de)\\s+)?(?:vehículo|carro|auto|van|troca|camioneta|camion))';
@@ -101,7 +101,7 @@ const tradeIn = (text) => {
   return value ? `${value} + trade-in` : tradeInLanguage.test(source) ? 'trade-in' : '';
 };
 const downFrom = (text) => {
-  const source = String(text ?? '')
+  const source = stripNonConversationMetadata(String(text ?? ''))
     .replace(/\r\n?/g, '\n')
     // Dates such as "the 23rd" are not down-payment amounts.
     .replace(/\b\d+(?:st|nd|rd|th)\b/gi, ' ')
@@ -112,23 +112,23 @@ const downFrom = (text) => {
   // qualifying amount up to $1,000, not two amounts multiplied by "mil".
   if (/\b(?:unos?\s+)?\d{1,3}\s+a\s+mil\b/i.test(source)) return '1000';
   const cashEvidenceSource = source.replace(/(?:bank account|cuenta bancaria|cuenta de banco|cheque|check)[^.!?\n]*(?:[.!?]|$)/gi, '');
-  if (/\b(?:pay|pagar|pago|pagar[eé]|voy\s+a\s+pagar|purchase|buy|comprar|compra|hacer\s+la\s+compra|put|poner|down|enganche|inicial)[^.!?\n]{0,80}\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b/i.test(cashEvidenceSource)) return cashDownPayment;
+  if (/\b(?:pay|pagar|pago|pagar[eé]|voy\s+a\s+pagar|purchase|buy|comprar|compra|hacer\s+la\s+compra|put|poner|down|enganche|inicial)[^.!?\n]{0,80}\b(?:cash|contado|efectivo|paid\s+in\s+full|paga(?:r)?\s+de\s+contado)\b|\b(?:es|son|ser[ií]a|ser[aá]|paga(?:r[aá])?|will\s+pay|is\s+paid)\b[^.!?\n]{0,40}\b(?:cash|contado|efectivo)\b/i.test(cashEvidenceSource)) return cashDownPayment;
   const token = `(${amountToken})`;
   const safeSource = source.split('\n').filter((line) => !isPhoneOnlyLine(line)).join('\n');
   const informalAmount = safeSource.match(new RegExp(`(?:tanda|cantidad|lo m[aá]ximo|lo m[aá]s que tengo|maximum|maximo|m[aá]ximo)[^\\n]{0,60}?\\$?(${amountToken})`, 'i'))?.[1];
-  const rangeMatch = safeSource.match(new RegExp(`\\$?(${amountToken})(?:\\s*(mil|thousand|k))?\\s*(?:a|to|[-–—])\\s*\\$?(${amountToken})(?:\\s*(mil|thousand|k))?`, 'i'));
+  const rangeMatches = [...safeSource.matchAll(new RegExp(`\\$?(${amountToken})(?:\\s*(mil|thousand|k))?\\s*(a|to|o|or|[-–—])\\s*\\$?(${amountToken})(?:\\s*(mil|thousand|k))?`, 'gi'))];
   const shortUnitRange = safeSource.match(/\$?(\d{1,2})\s*(?:a|to|[-–—/])\s*(\d{1,2})\s*(mil|thousand|k)\b/i);
   if (shortUnitRange) {
     const normalizedRange = amountRangeParts(`${shortUnitRange[1]} ${shortUnitRange[3]}`, `${shortUnitRange[2]} ${shortUnitRange[3]}`);
     if (normalizedRange) return normalizedRange;
   }
-  if (rangeMatch) {
+  for (const rangeMatch of rangeMatches) {
     const start = `${rangeMatch[1]} ${rangeMatch[2] || ''}`.trim();
-    const end = `${rangeMatch[3]} ${rangeMatch[4] || ''}`.trim();
-    if (isVehicleYear(start) || isVehicleYear(end)) return '';
+    const end = `${rangeMatch[4]} ${rangeMatch[5] || ''}`.trim();
+    if (isVehicleYear(start) || isVehicleYear(end)) continue;
     const assumeThousands = /\b(?:down|payment|enganche|inicial|deposit|dep[oó]sito)\b/i.test(source)
       && [start, end].every((value) => /^\d{1,2}$/.test(value.trim()));
-    const normalizedRange = amountRangeParts(start, end, assumeThousands);
+    const normalizedRange = amountRangeParts(start, end, assumeThousands, /^(?:o|or)$/i.test(rangeMatch[3]) ? 'a' : '-');
     if (normalizedRange) return normalizedRange;
   }
   const explicit = source.match(new RegExp(`(?:down|enganche|inicial|deposit|dep[oó]sito)[ \\t]*(?:payment|pago)?[ \\t]*(?:is|es|de|:)?[ \\t]*\\$?[ \\t]*${token}`, 'i'));
@@ -184,7 +184,7 @@ const isVehicleOptionPrompt = (line) => {
   return asksForChoice && options.length >= 2;
 };
 const vehicleFrom = (text) => {
-  const source = String(text ?? '').replace(/\r\n?/g, '\n').trim();
+  const source = stripNonConversationMetadata(text).trim();
   if (!source || campaign) return '';
   const candidates = [];
   const lines = source.split(/\n+/).map(clean).filter(Boolean);
@@ -254,12 +254,13 @@ const vehicleFrom = (text) => {
       : latest);
   if (!best) return '';
   const activeLine = lines[best.lineIndex] || '';
+  const alternativeConnector = activeLine.match(/\s+(o|or|y|and)\s+/i)?.[1] || 'o';
   const alternatives = activeLine.split(/\s+(?:o|or|y|and)\s+/i)
     .map((part) => normalizeWhisperVehicleAliases(part))
-    .filter((part) => vehicleModels.test(part))
+    .filter((part) => vehicleModels.test(part) || vehicleCategories.test(part))
     .map((part) => vehicleLabel(part))
     .filter((label, index, labels) => label && labels.findIndex((item) => item.toLocaleLowerCase() === label.toLocaleLowerCase()) === index);
-  if (alternatives.length > 1) return alternatives.join(' o ');
+  if (alternatives.length > 1) return alternatives.join(alternativeConnector.toLocaleLowerCase() === 'or' ? ' or ' : ' o ');
   const brands = [...new Set(activeCandidates.map((candidate) => candidate.brand).filter(Boolean).map((brand) => brand.toLocaleLowerCase()))];
   if (!vehicleBrands.test(best.label) && brands.length === 1 && (best.hasModel || latest?.isColloquialTruck)) {
     const brand = activeCandidates.find((candidate) => candidate.brand && candidate.brand.toLocaleLowerCase() === brands[0])?.brand || brands[0];
@@ -272,10 +273,11 @@ const cleanVehicleValue = (value) => {
   const candidate = clean(value).replace(/(?:19|20)\d{2}(?:\d{2})*$/i, '').trim();
   if (!candidate) return '';
   if (economicCarIntent.test(candidate)) return 'Sedan';
-  const alternatives = candidate.split(/\s+o\s+/i)
+  const connector = candidate.match(/\s+(o|or)\s+/i)?.[1]?.toLocaleLowerCase();
+  const alternatives = candidate.split(/\s+(?:o|or)\s+/i)
     .map((part) => vehicleLabel(part))
-    .filter((label, index, labels) => vehicleModels.test(label) && labels.findIndex((item) => item.toLocaleLowerCase() === label.toLocaleLowerCase()) === index);
-  if (alternatives.length > 1) return alternatives.join(' o ');
+    .filter((label, index, labels) => (vehicleModels.test(label) || vehicleCategories.test(label)) && labels.findIndex((item) => item.toLocaleLowerCase() === label.toLocaleLowerCase()) === index);
+  if (alternatives.length > 1) return alternatives.join(connector === 'or' ? ' or ' : ' o ');
   // Do not allow arbitrary Custom Code/memory text to become vehicle_type.
   // Keep exact categories and recognized make/model labels only.
   const label = vehicleLabel(candidate);
@@ -332,7 +334,7 @@ const vehicleYearLabelFrom = (value) => {
       const between = line.slice((firstYear.index || 0) + firstYear[0].length, secondYear.index || 0);
       if (!/^\s*(?:(o|or)|(?:a|al|hasta|to)|[-–—/])?\s*$/i.test(between)) continue;
       const connector = between.match(/\b(o|or)\b/i)?.[1];
-      return connector ? `${firstYear[1]} o ${secondYear[1]}` : `${firstYear[1]}-${secondYear[1]}`;
+      return connector ? `${firstYear[1]} o ${secondYear[1]}` : `${firstYear[1]} - ${secondYear[1]}`;
     }
   }
   return '';
@@ -368,10 +370,10 @@ const timelineFrom = (text) => {
   const dateText = source.match(/\b(?:\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december))\b/i)?.[0] || '';
   if (dateText) return timelineDate(dateText);
   const evidence = explicitMonthTiming.test(source) ? source : source.replace(new RegExp(`\\b(?:${monthNamesPattern})\\b`, 'gi'), ' ');
-  const hit = evidence.match(/\b(?:today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes posible|this week|esta semana|this month|este mes|este mea|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|end of next month|a (?:fines?|finales?) del otro mes|a (?:fines?|finales?) del pr[oó]ximo mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|within \d+ days?|en \d+ d[ií]as?|jan(?:uary)?|enero|feb(?:ruary)?|febrero|mar(?:ch)?|marzo|apr(?:il)?|abril|may|mayo|jun(?:e)?|junio|jul(?:y)?|julio|aug(?:ust)?|agosto|sep(?:t(?:ember|iembre)?|tiembre)|setiembre|septiembre|oct(?:ober)?|octubre|nov(?:ember)?|noviembre|dec(?:ember)?|diciembre)\b/i)?.[0] || '';
+  const hit = evidence.match(/\b(?:tomorrow|today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes posible|this week|esta semana|this month|este mes|este mea|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|end of next month|a (?:fines?|finales?) del otro mes|a (?:fines?|finales?) del pr[oó]ximo mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|within \d+ days?|en \d+ d[ií]as?|jan(?:uary)?|enero|feb(?:ruary)?|febrero|mar(?:ch)?|marzo|apr(?:il)?|abril|may|mayo|jun(?:e)?|junio|jul(?:y)?|julio|aug(?:ust)?|agosto|sep(?:t(?:ember|iembre)?|tiembre)|setiembre|septiembre|oct(?:ober)?|octubre|nov(?:ember)?|noviembre|dec(?:ember)?|diciembre)\b/i)?.[0] || '';
   const date = timelineDate(hit);
   if (date) return date;
-  if (/today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes/i.test(hit)) return 'today';
+  if (/tomorrow|today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes/i.test(hit)) return 'today';
   if (/this week|esta semana/i.test(hit)) return 'this week';
   if (/this month|este mea?/i.test(hit)) return 'this month';
   if (/next week|pr[oó]xima? semana/i.test(hit)) return 'next week';
@@ -421,7 +423,7 @@ const documentStatus = (pattern, memoryAliases, custom) => {
   }
   return '';
 };
-const vehicleSource = [historyForExtraction, rawMessage].filter(Boolean).join('\n');
+const vehicleSource = [historyForExtraction, stripNonConversationMetadata(rawMessage)].filter(Boolean).join('\n');
 const transcriptVehicle = vehicleFrom(vehicleSource);
 const phoneFromConversation = phoneFrom(message, history);
 // Keep the WhatsApp/Messenger shorthand "carro económico" as the stable
@@ -550,7 +552,7 @@ const vehicleCategory = /\b(?:truck|troka|troca|trokita|troquita|troque|trokas|p
 const requiredDownPayment = ({ sedan: 1500, luxury_sedan: 2000, suv_or_van: 2000, truck: 3000 }[vehicleCategory] || null);
 const tradeInDownPayment = tradeInLanguage.test(down);
 const downPaymentCash = String(down).replace(/\s*\+\s*trade[- ]?in\d*$/i, '').trim();
-const downPaymentRange = downPaymentCash.match(/^\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*$/);
+const downPaymentRange = downPaymentCash.match(/^\s*(\d+(?:\.\d+)?)\s*(?:-|a|to)\s*(\d+(?:\.\d+)?)\s*$/);
 const downPaymentAmount = downPaymentRange
   ? Number(downPaymentRange[2])
   : /^\d+(?:\.\d+)?$/.test(downPaymentCash.replace(/[$,\s]/g, '')) ? Number(downPaymentCash.replace(/[$,\s]/g, '')) : null;

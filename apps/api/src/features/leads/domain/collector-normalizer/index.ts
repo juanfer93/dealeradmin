@@ -3,7 +3,7 @@ import { ADVISOR_HANDOFF_VEHICLE, EMPTY } from './constants';
 import { extractPhone, extractRealNameFromText, extractDeclaredRealNameFromText, isLikelyBusinessName, isLikelyProfileDisplayName, isPhoneAreaCodeAmount, normalizeNativeWhatsappName, normalizeRealName, profileDisplayNameFromInput, profileNameFromInput, realNameFromQualificationMemory, whatsappProfileNameFallback } from './contact-normalizer';
 import { detectLeadLanguage } from './language-normalizer';
 import { collectorFlowPolicy, effectiveChannel, extractCustomerLocation, isAdvisorHandoffVehicle, isMessengerChannel, isWhatsAppChannel } from './flow-policy';
-import { clean, conversationalEvidence, firstNonEmpty, lastMeaningfulLine, memoryText, memoryValue } from './text-cleaner';
+import { clean, conversationalEvidence, firstNonEmpty, lastMeaningfulLine, memoryText, memoryValue, stripNonConversationMetadata } from './text-cleaner';
 import type { CollectorInput, CollectorLanguage, CollectorOutput, QualificationProgress, QualificationStep } from './types';
 import { extractVehicleYear, extractVehicleYearLabel, isPossessiveVehicleStatement, normalizeVehicle } from './vehicle-normalizer';
 import { extractTimeline, mergeDocuments, normalizeTimeline, yesNo } from './qualification-normalizer';
@@ -42,8 +42,8 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const policy = collectorFlowPolicy(input);
   const customerLocation = extractCustomerLocation(input, languageText);
   const campaignReply = isCampaignButton(message);
-  const messageForExtraction = stripCampaignButtonPhrases(rawMessage);
-  const historyForExtraction = stripCampaignButtonPhrases(rawHistory);
+  const messageForExtraction = stripCampaignButtonPhrases(stripNonConversationMetadata(rawMessage));
+  const historyForExtraction = stripCampaignButtonPhrases(stripNonConversationMetadata(rawHistory));
   const channel = effectiveChannel(input);
   const formContext = String(input.source ?? '').toLowerCase() === 'carhub'
     ? extractLeadFormContext([rawHistory, rawMessage].filter(Boolean).join('\n'))

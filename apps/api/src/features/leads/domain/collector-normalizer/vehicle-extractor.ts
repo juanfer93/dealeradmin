@@ -2,7 +2,7 @@ import { ADVISOR_HANDOFF_VEHICLE, EMPTY } from './constants';
 import { isCampaignButton, isFalsePositiveVanVerb, isNonVehicleIntent, stripCampaignButtonPhrases, TRADE_IN_INTENT, ECONOMIC_SEDAN_INTENT, FAMILY_PASSENGER_VAN_INTENT, FOUR_DOOR_SPORTS_CAR_INTENT, GENERIC_SEDAN_INTENT, INDECISIVE_VEHICLE_INTENT } from './collector-intents';
 import { VEHICLE_BRANDS, VEHICLE_CATEGORIES, VEHICLE_CONTEXT, VEHICLE_MODELS, extractExplicitVehicleTrim, extractVehicleLabel, isPossessiveVehicleStatement, normalizeVehicle, normalizeWhisperVehicleAliases } from './vehicle-normalizer';
 import { resolveVehicleCandidate, type VehicleCandidate } from './candidate-resolver';
-import { clean } from './text-cleaner';
+import { clean, stripNonConversationMetadata } from './text-cleaner';
 import { isWhatsAppChannel } from './flow-policy';
 
 export function isStaffordWhatsAppVehicleLabel(value: string, source: string | null | undefined, channel: string | null | undefined): boolean {
@@ -31,7 +31,7 @@ function isVehicleOptionPrompt(line: string): boolean {
 }
 
 export function extractVehicle(message: string): string {
-  const source = String(message ?? '').replace(/\r\n?/g, '\n').trim();
+  const source = stripNonConversationMetadata(message).trim();
   if (!source) return EMPTY;
   const lines = source.split(/\n+/).map(clean).filter(Boolean);
   const candidates: VehicleCandidate[] = [];
@@ -103,12 +103,13 @@ export function extractVehicle(message: string): string {
   const latest = resolveVehicleCandidate(textualCandidates.length > 0 ? textualCandidates : candidates);
   if (!latest) return EMPTY;
   const activeLine = lines[latest.lineIndex] ?? EMPTY;
+  const alternativeConnector = activeLine.match(/\s+(o|or|y|and)\s+/i)?.[1] ?? 'o';
   const alternatives = activeLine.split(/\s+(?:o|or|y|and)\s+/i)
     .map((part) => normalizeWhisperVehicleAliases(part))
-    .filter((part) => VEHICLE_MODELS.test(part))
+    .filter((part) => VEHICLE_MODELS.test(part) || VEHICLE_CATEGORIES.test(part))
     .map((part) => extractVehicleLabel(part))
     .filter((label, index, labels) => Boolean(label) && labels.findIndex((item) => item.toLocaleLowerCase() === label.toLocaleLowerCase()) === index);
-  if (alternatives.length > 1) return alternatives.join(' o ');
+  if (alternatives.length > 1) return alternatives.join(alternativeConnector.toLocaleLowerCase() === 'or' ? ' or ' : ' o ');
   const brands = [...new Set(candidates.map((candidate) => candidate.brand).filter(Boolean).map((brand) => brand.toLocaleLowerCase()))];
   if (!VEHICLE_BRANDS.test(latest.label) && brands.length === 1 && (latest.hasModel || latest.isColloquialTruck)) {
     const brand = candidates.find((candidate) => candidate.brand && candidate.brand.toLocaleLowerCase() === brands[0])?.brand ?? brands[0];

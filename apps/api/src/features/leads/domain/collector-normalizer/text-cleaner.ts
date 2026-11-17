@@ -4,6 +4,12 @@ export function clean(value: string | null | undefined): string {
   return value?.replace(/\s+/g, ' ').trim() ?? EMPTY;
 }
 
+export function stripNonConversationMetadata(value: string | null | undefined): string {
+  return String(value ?? '').replace(/\r\n?/g, '\n').split('\n')
+    .filter((line) => !/^\s*\*?\s*(?:headline|source\s+url)\*?\s*:/i.test(line) && !/^\s*opportunity\s+created\s*$/i.test(line))
+    .join('\n');
+}
+
 export function isEmptyMarker(value: string): boolean {
   return /^(?:--|-|n\/?a|not indicated|not specified|no indicado|no especificado)$/i.test(value.trim());
 }
