@@ -4065,4 +4065,31 @@ Full name: Jose Eduardo Martins Cabral
   ])('preserves a vehicle year range: %s', (message, vehicle_type, vehicle_year) => {
     expect(normalizeCollectorInput({ source: 'fredericksburg', channel: 'whatsapp', message })).toMatchObject({ vehicle_type, vehicle_year });
   });
+
+  it('normalizes the Country Club WhatsApp Luis, Sedan, trade-in, and approximate $1,000 exchange', () => {
+    const transcript = [
+      '*Headline:* 💰 Hasta $700 de ayuda',
+      '*Source URL:* https://fb.me/cyWjnQiwd',
+      'Hola',
+      'Sedan',
+      'Luis',
+      'Tengo un carro para dar y unos 700 a mil',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'country',
+      channel: 'whatsapp',
+      contact_name: 'لويس فينتو',
+      profile: { name: 'لويس فينتو' },
+      phone: '+12277259260',
+      message: transcript,
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Luis',
+      vehicle_type: 'Sedan',
+      down_payment: '1000 + trade-in',
+      down_payment_amount: 1000,
+    });
+  });
 });
