@@ -1,0 +1,49 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["pnpm", "--filter", "api", "start"]
+    env_file:
+      - .env.oci
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+    expose:
+      - "3001"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["pnpm", "--filter", "web", "start", "--hostname", "0.0.0.0"]
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      API_URL: http://api:3001
+    expose:
+      - "3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  proxy:
+    image: caddy:2-alpine
+    environment:
+      DEALERADMIN_DOMAIN: ${DEALERADMIN_DOMAIN:?Set DEALERADMIN_DOMAIN in the shell or pass --env-file .env.oci}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/oci/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
