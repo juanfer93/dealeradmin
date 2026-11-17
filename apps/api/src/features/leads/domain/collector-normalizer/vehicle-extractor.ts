@@ -93,6 +93,13 @@ export function extractVehicle(message: string): string {
   const textualCandidates = candidates.filter((candidate) => !candidate.isSyntheticEvidence);
   const latest = resolveVehicleCandidate(textualCandidates.length > 0 ? textualCandidates : candidates);
   if (!latest) return EMPTY;
+  const activeLine = lines[latest.lineIndex] ?? EMPTY;
+  const alternatives = activeLine.split(/\s+(?:o|or|y|and)\s+/i)
+    .map((part) => normalizeWhisperVehicleAliases(part))
+    .filter((part) => VEHICLE_MODELS.test(part))
+    .map((part) => extractVehicleLabel(part))
+    .filter((label, index, labels) => Boolean(label) && labels.findIndex((item) => item.toLocaleLowerCase() === label.toLocaleLowerCase()) === index);
+  if (alternatives.length > 1) return alternatives.join(' o ');
   const brands = [...new Set(candidates.map((candidate) => candidate.brand).filter(Boolean).map((brand) => brand.toLocaleLowerCase()))];
   if (!VEHICLE_BRANDS.test(latest.label) && brands.length === 1 && (latest.hasModel || latest.isColloquialTruck)) {
     const brand = candidates.find((candidate) => candidate.brand && candidate.brand.toLocaleLowerCase() === brands[0])?.brand ?? brands[0];

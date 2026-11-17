@@ -1795,6 +1795,50 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
   });
 
+  it('replays the Fredericksburg WhatsApp exchange and repairs the Este mea timeline typo', () => {
+    const transcript = [
+      'Me interesa una SUV o troca',
+      'Darwin',
+      'Mucho gusto, Darwin. Vi que buscas una SUV o una troca. ¿Cuál de las dos prefieres?',
+      'Toyota runner 2013 o 2014',
+      '1,000',
+      'Este mea',
+      'Sí',
+      'Estabien. Mándame algún link para ver los vehículos xfa',
+    ].join('\n');
+
+    expect(execute({
+      source: 'fredericksburg',
+      channel: 'whatsapp',
+      contact_name: 'Darwin',
+      phone: '+12272451032',
+      message: transcript,
+      chat_history_log: transcript,
+    })).toMatchObject({
+      real_name: 'Darwin',
+      vehicle_type: 'Toyota 4Runner 2013 o 2014',
+      vehicle_year: 2013,
+      down_payment: '',
+      purchase_timeline: 'este mes',
+      qualification_complete: true,
+    });
+  });
+
+  it.each([
+    ['Toyota 4Runner 2013 a 2015', 'Toyota 4Runner 2013-2015', 2013],
+    ['Honda CRV 2019 2021', 'Honda CR-V 2019-2021', 2019],
+  ])('preserves a vehicle year range in Custom Code: %s', (message, vehicle_type, vehicle_year) => {
+    expect(execute({ source: 'fredericksburg', channel: 'whatsapp', message })).toMatchObject({ vehicle_type, vehicle_year });
+  });
+
+  it('keeps multiple requested models as alternatives in Custom Code', () => {
+    expect(execute({
+      source: 'fredericksburg',
+      channel: 'whatsapp',
+      message: 'Estoy buscando Honda CRV y también Toyota RAV4',
+    }).vehicle_type).toBe('Honda CR-V o Toyota RAV4');
+  });
+
   it.each([
     ['I am looking for a Mustang', 'en', 'phone', "What's the best phone number to reach you?"],
     ['Estoy buscando un Mustang', 'es', 'phone', '¿Cuál es el mejor número para contactarte?'],

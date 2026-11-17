@@ -44,6 +44,23 @@ function visibleDownPayment(value: string | null | undefined, dealerName?: strin
   return amount === 999 ? (minimum <= 1000 ? rounded : '') : amount < minimum ? '' : normalized;
 }
 
+function requiredDownPaymentForVehicle(vehicleType: string | null | undefined): number | null {
+  const vehicle = clean(vehicleType).toLocaleLowerCase();
+  if (/\b(?:truck|troca|pickup|pick-up|camioneta|tacoma|tundra|f-?150|f-?250|f-?350|ranger|silverado|sierra|colorado|frontier|titan|ridgeline|gladiator|ram)\b/i.test(vehicle)) return 3000;
+  if (/\b(?:suv|van|minivan|crossover|4\s*runner|highlander|rav\s*4|sienna|grand caravan|pacifica|odyssey|pilot|passport|cr[- ]?v|hr[- ]?v|tahoe|suburban|traverse|equinox|blazer|yukon|acadia|terrain|wrangler|cherokee|compass|renegade|durango|explorer|expedition|escape|edge|armada|rogue|pathfinder|sportage|telluride|sorento|palisade|santa fe|tucson|forester|outback|ascent|atlas|tiguan|cayenne|range rover|defender)\b/i.test(vehicle)) return 2000;
+  if (/\b(?:sedan|civic|corolla|camry|accord|altima|sentra|versa|maxima|malibu|jetta|passat|sonata|elantra|optima|forte|rio|impala|avalon|prius|coupe|hatchback)\b/i.test(vehicle)) return 1500;
+  return null;
+}
+
+function copyLeadWithEligibleDownPayment(lead: Lead): Lead {
+  const minimum = requiredDownPaymentForVehicle(lead.vehicleType);
+  const downPayment = clean(lead.downPayment);
+  if (!minimum || !downPayment || /\b(?:cash|contado|efectivo|trade[- ]?in|no down|sin enganche)\b/i.test(downPayment)) return lead;
+  const amountText = downPayment.match(/^\$?\s*(\d{1,3}(?:,\d{3})+|\d+)$/)?.[1];
+  const amount = amountText ? Number(amountText.replace(/,/g, '')) : null;
+  return amount !== null && amount < minimum ? { ...lead, downPayment: '' } : lead;
+}
+
 const IDENTIFICATION_DOCUMENT_PATTERN = 'id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b';
 const INCOME_DOCUMENT_PATTERN = 'proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina';
 const POSITIVE_DOCUMENT_VALUE = 'yes|sí|si|true|yeah|yep|correct|tengo|have it|i do|i have|available';
@@ -189,12 +206,13 @@ export function formatLeadMessage(lead: Lead, language?: 'es' | 'en') {
 }
 
 export function formatLeadCopy(lead: Lead): string {
-  const visibleDown = visibleDownPayment(lead.downPayment, lead.dealerName);
+  const copyLead = copyLeadWithEligibleDownPayment(lead);
+  const visibleDown = visibleDownPayment(copyLead.downPayment, copyLead.dealerName);
   const storedMessageIncludesVisibleDown = Boolean(visibleDown)
-    && (lead.messageText ?? '').toLocaleLowerCase().includes(visibleDown.toLocaleLowerCase());
+    && (copyLead.messageText ?? '').toLocaleLowerCase().includes(visibleDown.toLocaleLowerCase());
   const source = visibleDown === clean(lead.downPayment) && (!visibleDown || storedMessageIncludesVisibleDown)
-    ? lead.messageText || formatLeadMessage(lead)
-    : formatLeadMessage(lead);
+    ? copyLead.messageText || formatLeadMessage(copyLead)
+    : formatLeadMessage(copyLead);
   const name = clean(lead.name);
   const phone = clean(lead.phone);
   if (!source || !name || !phone) return source;

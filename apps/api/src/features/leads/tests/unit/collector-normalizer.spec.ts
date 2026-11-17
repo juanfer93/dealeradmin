@@ -2142,7 +2142,7 @@ describe('normalizeCollectorInput', () => {
       channel: 'whatsapp',
       message: 'Estoy interesado en tres filas de asiento, bien sea odisea o una paila o tajo.',
     });
-    expect(result.vehicle_type).toBe('Odyssey');
+    expect(result.vehicle_type).toBe('Odyssey o Pilot o Tahoe');
   });
 
   it('keeps the cash portion when vehicle-change language is combined with a payment', () => {
@@ -4041,5 +4041,28 @@ Full name: Jose Eduardo Martins Cabral
       down_payment: '',
     });
     expect(normalizeCollectorInput({ message: 'Corolla' }).vehicle_type).toBe('Corolla');
+  });
+
+  it('preserves vehicle year alternatives and requested model alternatives', () => {
+    const yearOptions = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'whatsapp',
+      message: 'Toyota runner 2013 o 2014',
+    });
+    expect(yearOptions).toMatchObject({ vehicle_type: 'Toyota 4Runner 2013 o 2014', vehicle_year: 2013 });
+
+    const modelOptions = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'whatsapp',
+      message: 'Estoy buscando Honda CRV y también Toyota RAV4',
+    });
+    expect(modelOptions.vehicle_type).toBe('Honda CR-V o Toyota RAV4');
+  });
+
+  it.each([
+    ['Toyota 4Runner 2013 a 2015', 'Toyota 4Runner 2013-2015', 2013],
+    ['Honda CRV 2019 2021', 'Honda CR-V 2019-2021', 2019],
+  ])('preserves a vehicle year range: %s', (message, vehicle_type, vehicle_year) => {
+    expect(normalizeCollectorInput({ source: 'fredericksburg', channel: 'whatsapp', message })).toMatchObject({ vehicle_type, vehicle_year });
   });
 });
