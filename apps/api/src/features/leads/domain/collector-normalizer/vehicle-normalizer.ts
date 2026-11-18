@@ -42,6 +42,9 @@ export function normalizeWhisperVehicleAliases(value: string): string {
     // contaminate names or other free-form qualification fields.
     .replace(/\bnisan\b/gi, 'Nissan')
     .replace(/\btandra\b/gi, 'Tundra')
+    // This Messenger transcription rendered "Hyundai Palisade" as
+    // "Hundía Padilason". Keep the alias on the paired vehicle phrase.
+    .replace(/\bhund[ií]a\s+padilason\b/gi, 'Hyundai Palisade')
     // GHL can omit the leading "4" when a buyer asks for a Toyota 4Runner.
     // Keep this scoped to Toyota so a generic "runner" is never promoted.
     .replace(/\btoyota\s+runner\b/gi, 'Toyota 4Runner')

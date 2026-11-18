@@ -154,6 +154,9 @@ const normalizeWhisperVehicleAliases = (value) => clean(value)
   // tokens so a misspelling cannot alter names or free-form notes.
   .replace(/\btoyata\b/gi, 'Toyota')
   .replace(/\btandra\b/gi, 'Tundra')
+  // This Messenger transcription rendered "Hyundai Palisade" as
+  // "Hundía Padilason". Keep the alias on the paired vehicle phrase.
+  .replace(/\bhund[ií]a\s+padilason\b/gi, 'Hyundai Palisade')
   // GHL can omit the leading "4" when a buyer asks for a Toyota 4Runner.
   // Keep this scoped to Toyota so a generic "runner" is never promoted.
   .replace(/\btoyota\s+runner\b/gi, 'Toyota 4Runner')

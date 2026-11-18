@@ -3,6 +3,18 @@ import { normalizeCollectorInput } from '../../domain/collector-normalizer';
 import { buildWhatsAppMessage } from '../../domain/message-builder';
 
 describe('seller intent copy E2E without Docker', () => {
+  it('normalizes the transcribed Hyundai Palisade model spelling', () => {
+    const normalized = normalizeCollectorInput({
+      source: 'action-cars',
+      channel: 'whatsapp',
+      phone: '+18483434200',
+      message: 'Hundía Padilason',
+      chat_history_log: 'Hundía Padilason',
+    });
+
+    expect(normalized.vehicle_type).toBe('Hyundai Palisade');
+  });
+
   it('normalizes a WhatsApp lead who gives their full name after a greeting and is still browsing', () => {
     const transcript = [
       '*Headline:* Chat with us',

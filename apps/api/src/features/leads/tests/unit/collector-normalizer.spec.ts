@@ -1841,6 +1841,7 @@ describe('normalizeCollectorInput', () => {
     ['4 runner', '4Runner'],
     ['for runner', '4Runner'],
     ['for runer', '4Runner'],
+    ['Hundía Padilason', 'Hyundai Palisade'],
   ])('canonicalizes a controlled model spelling variant: %s', (message, expected) => {
     expect(normalizeCollectorInput({ message }).vehicle_type).toBe(expected);
   });

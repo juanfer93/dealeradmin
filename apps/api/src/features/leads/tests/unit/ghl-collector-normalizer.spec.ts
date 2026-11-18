@@ -1494,6 +1494,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     ['4 runner', '4Runner'],
     ['for runner', '4Runner'],
     ['for runer', '4Runner'],
+    ['Hundía Padilason', 'Hyundai Palisade'],
   ])('canonicalizes a controlled model spelling variant in Custom Code: %s', (message, expected) => {
     expect(execute({ message }).vehicle_type).toBe(expected);
   });
