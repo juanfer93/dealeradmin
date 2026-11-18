@@ -185,6 +185,11 @@ export class ConversationEventFunctions {
         .map((item) => String(item.body ?? '').replace(/\r\n?/g, '\n').trim())
         .filter(Boolean)
         .join('\n');
+      const inboundVehicleTranscript = evidenceMessages
+        .filter((item) => item.direction === 'inbound')
+        .map((item) => String(item.body ?? '').replace(/\r\n?/g, '\n').trim())
+        .filter(Boolean)
+        .join('\n');
       const nameMemoryTranscript = evidenceMessages
         .flatMap((item) => {
           const body = String(item.body ?? '').replace(/\r\n?/g, '\n').trim();
@@ -225,6 +230,7 @@ export class ConversationEventFunctions {
         invalid_real_names: invalidRealNames,
         message: transcript,
         chat_history_log: transcript,
+        vehicle_transcript: inboundVehicleTranscript,
         phone: eligiblePhone,
         vehicle_type: clean(previousSnapshot.vehicle_type),
         down_payment: clean(previousSnapshot.down_payment),
@@ -323,7 +329,9 @@ export class ConversationEventFunctions {
       const qualificationMemoryBase = invalidatedOwnedVehicle
         ? clean(normalized.qualification_memory)
         : additiveField(normalized.qualification_memory, previousSnapshot.qualification_memory);
-      const qualificationMemory = isSocialProfileChannel
+      const invalidWhatsAppProfileName = nativeWhatsapp
+        && isInvalidRealName(normalizeRealName(clean(displayName)), invalidRealNames);
+      const qualificationMemory = isSocialProfileChannel || invalidWhatsAppProfileName
         ? mergeMemory(qualificationMemoryBase, { real_name: realName })
         : qualificationMemoryBase;
       const vehicleYear = invalidatedOwnedVehicle
@@ -378,7 +386,10 @@ export class ConversationEventFunctions {
         qualification_progress: normalized.qualification_progress,
       };
       const fallbackLeadName = language === 'en' ? '(Lead without name)' : '(Lead sin nombre)';
-      const persistedLeadName = realName || fallbackLeadName;
+      const whatsappProfileLeadName = whatsappChannel
+        ? normalizeRealName(clean(snapshot.profile_name)) || clean(snapshot.profile_name)
+        : '';
+      const persistedLeadName = realName || whatsappProfileLeadName || fallbackLeadName;
       const { firstName: persistedFirstName, lastName: persistedLastName } = splitName(persistedLeadName);
       await runner.query(
         `UPDATE leads SET first_name = $2, last_name = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,

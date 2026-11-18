@@ -1,6 +1,6 @@
 import { evaluateDownPayment, visibleDownPayment } from '../down-payment';
 import { ADVISOR_HANDOFF_VEHICLE, EMPTY } from './constants';
-import { extractPhone, extractRealNameFromText, extractDeclaredRealNameFromText, isLikelyBusinessName, isLikelyProfileDisplayName, isPhoneAreaCodeAmount, normalizeNativeWhatsappName, normalizeRealName, profileDisplayNameFromInput, profileNameFromInput, realNameFromQualificationMemory, whatsappProfileNameFallback } from './contact-normalizer';
+import { extractPhone, extractRealNameFromText, extractDeclaredRealNameFromText, isInvalidRealName, isLikelyBusinessName, isLikelyProfileDisplayName, isPhoneAreaCodeAmount, normalizeNativeWhatsappName, normalizeRealName, profileDisplayNameFromInput, profileNameFromInput, realNameFromQualificationMemory, whatsappProfileNameFallback } from './contact-normalizer';
 import { detectLeadLanguage } from './language-normalizer';
 import { collectorFlowPolicy, effectiveChannel, extractCustomerLocation, isAdvisorHandoffVehicle, isMessengerChannel, isWhatsAppChannel } from './flow-policy';
 import { clean, conversationalEvidence, firstNonEmpty, lastMeaningfulLine, memoryText, memoryValue, stripNonConversationMetadata } from './text-cleaner';
@@ -54,7 +54,15 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const profileDisplayName = profileDisplayNameFromInput(input, invalidRealNames);
   const profileName = profileNameFromInput(input, isMessengerChannel(channel), invalidRealNames);
   const whatsappProfileName = firstNonEmpty(input.profile?.name);
-  const whatsappProfileFallback = isWhatsAppChannel(channel) ? whatsappProfileNameFallback(whatsappProfileName, invalidRealNames) : EMPTY;
+  const whatsappProfileCandidate = isWhatsAppChannel(channel) ? whatsappProfileNameFallback(whatsappProfileName, invalidRealNames) : EMPTY;
+  // WhatsApp display labels stay available as profile metadata, but catalogued
+  // profile identities must not become a verified real_name. Normalize a
+  // decorated profile first so names such as "Sergio Echeverri 😎" match the
+  // catalog entry "sergio echeverri".
+  const whatsappProfileCanonicalName = normalizeRealName(whatsappProfileName);
+  const whatsappProfileIsInvalid = isInvalidRealName(whatsappProfileName, invalidRealNames)
+    || Boolean(whatsappProfileCanonicalName && isInvalidRealName(whatsappProfileCanonicalName, invalidRealNames));
+  const whatsappProfileFallback = whatsappProfileIsInvalid ? EMPTY : whatsappProfileCandidate;
   const whatsappContactFallback = !isWhatsAppChannel(channel)
     || /^lead$/i.test(firstNonEmpty(input.contact_name, input.contactName, input.profile?.name, input.name))
     ? EMPTY
@@ -120,7 +128,9 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const phoneFromConversation = extractPhone(input.chat_history_log) || extractPhone(input.message);
   const memoryDown = normalizeMemoryDownPayment(memoryValue(memory, ['down payment', 'down_payment', 'downpayment']), normalizeAmount, TRADE_IN_INTENT);
   const inputDown = clean(input.down_payment ?? EMPTY);
-  const vehicleSource = [historyForExtraction, messageForExtraction].filter(Boolean).join('\n');
+  const vehicleSource = clean(input.vehicle_transcript)
+    ? stripCampaignButtonPhrases(stripNonConversationMetadata(input.vehicle_transcript ?? EMPTY))
+    : [historyForExtraction, messageForExtraction].filter(Boolean).join('\n');
   const vehicleIntent = inferConversationVehicleIntent(historyForExtraction, messageForExtraction);
   const transcriptVehicle = extractVehicle(vehicleSource);
   const vehicleOwnedWithoutPurchaseIntent = !transcriptVehicle

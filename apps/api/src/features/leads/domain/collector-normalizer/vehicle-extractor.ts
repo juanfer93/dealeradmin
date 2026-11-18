@@ -101,6 +101,19 @@ export function extractVehicle(message: string): string {
 
   const textualCandidates = candidates.filter((candidate) => !candidate.isSyntheticEvidence);
   const latest = resolveVehicleCandidate(textualCandidates.length > 0 ? textualCandidates : candidates);
+  // Buyers often list alternatives across separate inbound messages instead
+  // of putting them in one sentence ("Toyota Highlander" then "o Honda CR-V").
+  // Keep each distinct, model-specific request in transcript order while
+  // allowing a later vehicle/category change to retain its existing priority.
+  const distinctTranscriptModels = textualCandidates
+    .filter((candidate) => candidate.hasModel)
+    .sort((left, right) => left.lineIndex - right.lineIndex)
+    .map((candidate) => clean(candidate.label))
+    .filter((label, index, labels) => Boolean(label) && labels.findIndex((item) => item.toLocaleLowerCase() === label.toLocaleLowerCase()) === index);
+  const latestModelLineIndex = Math.max(...textualCandidates.filter((candidate) => candidate.hasModel).map((candidate) => candidate.lineIndex), -1);
+  if (distinctTranscriptModels.length > 1 && latest?.hasModel && latest.lineIndex >= latestModelLineIndex) {
+    return distinctTranscriptModels.join(' o ');
+  }
   if (!latest) return EMPTY;
   const activeLine = lines[latest.lineIndex] ?? EMPTY;
   const alternativeConnector = activeLine.match(/\s+(o|or|y|and)\s+/i)?.[1] ?? 'o';

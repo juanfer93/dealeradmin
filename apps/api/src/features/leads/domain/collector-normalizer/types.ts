@@ -21,6 +21,8 @@ export type CollectorInput = {
   bank_account?: string | null;
   qualification_memory?: string | null;
   chat_history_log?: string | null;
+  /** Inbound-only transcript for vehicle extraction when a conversation has mixed directions. */
+  vehicle_transcript?: string | null;
   customer_location?: string | null;
   previous_predicted_bot_question?: string | null;
 };

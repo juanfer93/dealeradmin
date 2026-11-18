@@ -2436,6 +2436,30 @@ describe('normalizeCollectorInput', () => {
     }
   });
 
+  it('does not promote an unverified WhatsApp profile or "en mi trabajo" to real_name', () => {
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Sergio Echeverri 😎',
+      profile: { name: 'Sergio Echeverri 😎' },
+      invalid_real_names: ['sergio echeverri', 'en mi trabajo'],
+      phone: '+18048745893',
+      vehicle_type: 'Honda Civic o Accord 2020',
+      message: [
+        'Sergio, buscas un Honda Civic o Accord 2020 en adelante. ¿Lo buscas financiado?',
+        'No yo ahora mismo soy en mi trabajo',
+      ].join('\n'),
+      chat_history_log: [
+        'Sergio, buscas un Honda Civic o Accord 2020 en adelante. ¿Lo buscas financiado?',
+        'No yo ahora mismo soy en mi trabajo',
+      ].join('\n'),
+    });
+
+    expect(result.real_name).toBe('');
+    expect(result.vehicle_type).toBe('Honda Civic o Accord 2020');
+    expect(result.phone).toBe('+18048745893');
+  });
+
   it('keeps the declared WhatsApp name when the contact label is a rejected reply', () => {
     expect(normalizeCollectorInput({
       source: 'alpha',
@@ -4220,6 +4244,24 @@ Full name: Jose Eduardo Martins Cabral
       message: 'Estoy buscando Honda CRV y también Toyota RAV4',
     });
     expect(modelOptions.vehicle_type).toBe('Honda CR-V o Toyota RAV4');
+  });
+
+  it('combines model requests sent in separate WhatsApp messages', () => {
+    const inboundMessages = ['BUSCO UNA SUV', 'Toyota highlander', 'O honda crv', '2500$'].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      phone: '+18048339050',
+      message: inboundMessages,
+      chat_history_log: inboundMessages,
+      vehicle_transcript: inboundMessages,
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'Toyota Highlander o Honda CR-V',
+      down_payment: '2500',
+      phone: '+18048339050',
+    });
   });
 
   it.each([
