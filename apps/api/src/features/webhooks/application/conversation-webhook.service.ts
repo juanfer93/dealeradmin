@@ -36,6 +36,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
   private readonly logger = new Logger(ConversationWebhookService.name);
   private duePollTimer?: ReturnType<typeof setInterval>;
   private duePollInFlight = false;
+  private partialRecoveryInFlight = false;
   private readonly queueService: ConversationQueueService;
   private readonly qualification: ConversationQualificationFunctions;
   private readonly eventFunctions: ConversationEventFunctions;
@@ -63,6 +64,7 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       void this.pollDueConversations().catch((error) => {
         this.logger.error(`Automatic due-conversation poll failed: ${error instanceof Error ? error.message : String(error)}`);
       });
+      void this.pollDuePartialRecoveries();
       void this.dispatchPendingQueuedPauseEvents().catch((error) => {
         this.logger.error(`Pending queued-pause dispatch failed: ${error instanceof Error ? error.message : String(error)}`);
       });
@@ -380,6 +382,24 @@ export class ConversationWebhookService implements OnModuleInit, OnModuleDestroy
       // Polling is best effort; the next cycle retries the pending work.
     } finally {
       this.duePollInFlight = false;
+    }
+  }
+
+  private async pollDuePartialRecoveries(): Promise<void> {
+    if (this.partialRecoveryInFlight) return;
+    this.partialRecoveryInFlight = true;
+    try {
+      const health = await this.getDueConversationHealth({ recentOnly: true });
+      const contactIds = [...new Set(health.partialGuardContactIds ?? [])];
+      if (contactIds.length === 0) return;
+      const result = await this.runGhlGuard(new Date(), { contactIds, force: true, recentOnly: true });
+      if (result.failed > 0) {
+        this.logger.warn(`Automatic partial recovery Guard failed for ${result.failed} conversation(s)`);
+      }
+    } catch (error) {
+      this.logger.error(`Automatic partial-recovery poll failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      this.partialRecoveryInFlight = false;
     }
   }
 

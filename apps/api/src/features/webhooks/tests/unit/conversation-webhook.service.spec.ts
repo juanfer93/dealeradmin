@@ -1465,6 +1465,39 @@ describe('ConversationWebhookService', () => {
     });
   });
 
+  it('runs a separate targeted Guard poll for partial recoveries once their retry is due', async () => {
+    const service = new ConversationWebhookService();
+    vi.spyOn(service, 'getDueConversationHealth').mockResolvedValue({
+      accepted: true,
+      checkedAt: '2026-11-18T19:15:00.000Z',
+      waitingWindowCount: 0,
+      overdueCount: 0,
+      missingNextAttemptCount: 0,
+      oldestDueAt: null,
+      partialRecoveryDueCount: 1,
+      partialGuardContactIds: ['small-rv-contact'],
+      guardRetryContactIds: [],
+      overdueConversations: [],
+    });
+    const runGhlGuard = vi.spyOn(service, 'runGhlGuard').mockResolvedValue({
+      enabled: true,
+      skipped: false,
+      selected: 1,
+      fetched: 1,
+      inserted: 0,
+      repaired: 1,
+      failed: 0,
+    });
+
+    await (service as unknown as { pollDuePartialRecoveries: () => Promise<void> }).pollDuePartialRecoveries();
+
+    expect(runGhlGuard).toHaveBeenCalledWith(expect.any(Date), {
+      contactIds: ['small-rv-contact'],
+      force: true,
+      recentOnly: true,
+    });
+  });
+
   it('reabre un webhook marcado como failed para que un reintento no se pierda como duplicado', async () => {
     const queryRunner = {
       connect: vi.fn(),
