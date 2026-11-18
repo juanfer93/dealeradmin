@@ -25,10 +25,7 @@ if [[ "$deployed" == "$target" ]]; then
   fi
 fi
 
-deploy_env_file=$(mktemp)
-trap 'rm -f "$deploy_env_file"' EXIT
-printf 'DEALERADMIN_GIT_SHA=%s\n' "$target" > "$deploy_env_file"
-sudo -n docker compose --env-file .env.oci --env-file "$deploy_env_file" -f docker-compose.oci.yml up -d --build
+sudo -n env DEALERADMIN_GIT_SHA="$target" docker compose --env-file .env.oci -f docker-compose.oci.yml up -d --build
 status=000
 for attempt in $(seq 1 24); do
   status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
