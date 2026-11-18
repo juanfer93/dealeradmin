@@ -197,7 +197,7 @@ describe('ConversationQualificationFunctions', () => {
     expect(result.nextAttemptAt).toBeTruthy();
   });
 
-  it('puts an explicit call request with its supplied phone into the waiting window', () => {
+  it('puts an explicit advisor handoff with a supplied phone into the waiting window', () => {
     const result = new ConversationQualificationFunctions().statusForConversation(
       {
         real_name: 'Abe ZN',

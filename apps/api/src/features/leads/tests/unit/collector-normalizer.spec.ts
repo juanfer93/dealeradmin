@@ -3608,13 +3608,44 @@ Full name: Jose Eduardo Martins Cabral
     })).toBe(true);
   });
 
-  it('requires only a phone and real vehicle before a lead enters dealerADMIN', () => {
+  it('requires only a phone and real vehicle or explicit handoff before a lead enters dealerADMIN', () => {
     expect(hasMinimumRoutingQualification({ real_name: 'QA Customer', phone: '+15551234567', vehicle_type: 'SUV' })).toBe(true);
     expect(hasMinimumRoutingQualification({ real_name: '', phone: '+15551234567', vehicle_type: 'SUV' })).toBe(true);
     expect(hasMinimumRoutingQualification({ real_name: 'QA Customer', phone: '+15551234567', vehicle_type: '' })).toBe(false);
     expect(hasMinimumRoutingQualification({ real_name: 'QA Customer', phone: '+15551234567', vehicle_type: ADVISOR_HANDOFF_VEHICLE })).toBe(false);
     expect(hasMinimumRoutingQualification({ real_name: 'QA Customer', phone: '+15551234567', vehicle_type: ADVISOR_HANDOFF_VEHICLE, advisor_handoff_requested: true })).toBe(true);
     expect(hasMinimumRoutingQualification({ real_name: 'QA Customer', phone: '', vehicle_type: 'SUV' })).toBe(false);
+  });
+
+  it('keeps the advisor default and routes a buyer who has no specific vehicle preference', () => {
+    const transcript = [
+      'I need a car asap. I have had my job for a while now and I am in desperate need of a vehicle. I am a single mom looking for a safe reliable cheap vehicle that I can get with possibly no money down.',
+      'I dont care what it is as long as it runs',
+      'Im looking for the cheapest vehicle possible.',
+      'Im in Brooklyn park md.',
+      '443-409-7196 ive spoke to people before i have a steady income i dont wanna be bsed again i need to get something asap',
+      'Yes',
+      'I get paid on Wednesday so I would like to be able to do so around then if possible as far as insurance wise.',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'action-cars',
+      channel: 'messenger',
+      real_name: 'Shannon Marrie',
+      phone: '+14434097196',
+      message: 'I get paid on Wednesday so I would like to be able to do so around then if possible as far as insurance wise.',
+      chat_history_log: transcript,
+      vehicle_type: ADVISOR_HANDOFF_VEHICLE,
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Shannon Marrie',
+      phone: '+14434097196',
+      vehicle_type: ADVISOR_HANDOFF_VEHICLE,
+      qualification_complete: true,
+      qualification_step: 'complete',
+      missing_qualification: [],
+      advisor_handoff_requested: true,
+    });
   });
 
   it.each([
