@@ -18,6 +18,28 @@ const normalizeCollectorInput = (input: Parameters<typeof normalizeCollectorInpu
 });
 
 describe('normalizeCollectorInput', () => {
+  it('recognizes a small RV request instead of treating it as an unknown vehicle', () => {
+    const result = normalizeCollectorInput({
+      source: 'small-rv',
+      channel: 'messenger',
+      real_name: 'John Testerman',
+      phone: '+17033388174',
+      message: '703 338 8174',
+      chat_history_log: [
+        "I'm not looking for a car I am looking for a small RV",
+        'Do you have any small RVs available?',
+        "I'm not sure whether we have small RVs available. What's the best phone number to reach you?",
+        '703 338 8174',
+      ].join('\n'),
+    });
+
+    expect(result).toMatchObject({
+      phone: '+17033388174',
+      vehicle_type: 'Small RV',
+      qualification_complete: true,
+      missing_qualification: [],
+    });
+  });
   it('rejects database-catalogued false names and keeps ordinary names', () => {
     const databaseCatalog = ['excelente señorita', 'puedo llamar', 'por donde está el local', 'una ven talvez', 'esa era la pregunta', 'estoy entre ambos'];
     expect(isInvalidRealName('  Excelente Señorita ', databaseCatalog)).toBe(true);

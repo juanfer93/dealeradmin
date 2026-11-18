@@ -13,6 +13,28 @@ const sourceModules = [
 const execute = (inputData: Record<string, unknown>) => new Function('inputData', body)(inputData) as Record<string, any>;
 
 describe('HighLevel collector custom-code normalizer', () => {
+  it('keeps a small RV as the requested vehicle in Custom Code', () => {
+    const result = execute({
+      source: 'small-rv',
+      channel: 'messenger',
+      real_name: 'John Testerman',
+      phone: '+17033388174',
+      message: '703 338 8174',
+      chat_history_log: [
+        "I'm not looking for a car I am looking for a small RV",
+        'Do you have any small RVs available?',
+        "I'm not sure whether we have small RVs available. What's the best phone number to reach you?",
+        '703 338 8174',
+      ].join('\n'),
+    });
+
+    expect(result).toMatchObject({
+      phone: '+17033388174',
+      vehicle_type: 'Small RV',
+      qualification_complete: true,
+      missing_qualification: [],
+    });
+  });
   it('keeps the standalone entrypoint generated from the maintainable source', () => {
     expect(body).toContain('Generated GHL Custom Code entrypoint.');
     for (const sourceModule of sourceModules) expect(body).toContain(sourceModule);
