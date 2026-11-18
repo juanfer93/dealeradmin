@@ -8,6 +8,11 @@ export const INDECISIVE_VEHICLE_INTENT = /\b(?:anything\s+(?:you\s+)?(?:have|got
 
 export const NO_DOWN_PAYMENT_RESPONSE = /\b(?:no(?:\s+\w+){0,3}\s+(?:down(?:\s+payment)?|enganche|pago\s+inicial|dinero)|sin\s+(?:down|enganche|pago\s+inicial)|zero\s+down|\$?0\s*(?:down|enganche|pago\s+inicial)|no\s+(?:cuento|cuenta)\s+con\s+(?:dinero|down|enganche|pago\s+inicial))\b/i;
 export const TRADE_IN_INTENT = /\btrade[- ]?in\b|\b(?:absorber|absorb|incluir|include|incorporar|roll(?:\s+in)?)\s+(?:el\s+)?(?:negative\s+equity|negativo)(?:\s+(?:de|of)\s+(?:otro\s+)?(?:carro|auto|veh[ií]culo|car|vehicle))?\b|\b(?:carro|auto|veh[ií]culo)\s+como\s+enganche\b|\b(?:carro|auto|veh[ií]culo)\s+para\s+(?:dar|entregar|cambiar)\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\bchange\s+(?:my\s+)?(?:vehicle|car|van|truck)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\b(?:and|y)\s+(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion)\b|\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion)\s+(?:for|para)\s+(?:trade(?:[- ]?in)?|entregar|cambiar|dar)\b|\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion|ban)\b[\s\S]{0,24}\b(?:\d{3,5}\s*(?:dollars?|d[oó]lares?)|down|payment|enganche)\b|\b(?:\d{3,5}\s*(?:dollars?|d[oó]lares?)|down|payment|enganche)\b[\s\S]{0,24}\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion|ban)\b/i;
+export const VEHICLE_TURN_IN_INTENT = /\b(?:voy\s+a\s+)?(?:entregar|entrego|entregue|dar|doy|cambiar|cambio)\s+(?:(?:mi|el|la|un|una|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b/i;
+
+export function isTradeInIntent(value: string): boolean {
+  return TRADE_IN_INTENT.test(value) || VEHICLE_TURN_IN_INTENT.test(value);
+}
 export const NON_VEHICLE_INTENT_VALUES = /^(?:(?:(?:quiero|necesito|me gustar[ií]a|me interesa)\s+)?(?:m[aá]s\s+)?(?:informaci[oó]n|info|detalles?|details?|information)|more\s+(?:information|info|details?)|learn\s+more)$/i;
 
 // "Van a llamar/hacer/comprar" is a Spanish verb phrase, not a vehicle answer.

@@ -3,7 +3,7 @@ import { EMPTY } from './constants';
 import { isPhoneOnlyLine } from './contact-normalizer';
 import { clean, isEmptyMarker, stripNonConversationMetadata } from './text-cleaner';
 import { VEHICLE_BRANDS, VEHICLE_CATEGORIES, VEHICLE_MODELS } from './vehicle-normalizer';
-import { isCampaignButton, NO_DOWN_PAYMENT_RESPONSE, TRADE_IN_INTENT } from './collector-intents';
+import { isCampaignButton, isTradeInIntent, NO_DOWN_PAYMENT_RESPONSE, TRADE_IN_INTENT, VEHICLE_TURN_IN_INTENT } from './collector-intents';
 
 const AMOUNT_RANGE_TOKEN = '(?:\\d{1,3}(?:[,.]\\d{3})+|\\d+(?:[,.]\\d+)?\\s*(?:k|mil|thousand)?|(?:un|one|a|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+(?:mil|thousand)(?:\\s+(?:quinientos|five hundred))?)';
 
@@ -31,9 +31,10 @@ export function normalizeAmount(value: string): string {
     const end = `${rangeMatch[4]} ${rangeMatch[5] ?? EMPTY}`.trim();
     return normalizeAmountRangeParts(start, end, false, /^(?:o|or|a)$/i.test(rangeMatch[3]) ? 'a' : '-');
   }
-  if (TRADE_IN_INTENT.test(source)) {
+  if (isTradeInIntent(source)) {
     const withoutTradeIn = source
       .replace(TRADE_IN_INTENT, '')
+      .replace(VEHICLE_TURN_IN_INTENT, '')
       .replace(/\b(?:and|y)\b|\+/gi, ' ')
       .replace(/\b(?:quiero|want|i have|tengo)\b/gi, ' ')
       .trim();
@@ -143,7 +144,7 @@ export function extractQuestionedDownPayment(history: string): string {
 export function extractTradeInDownPayment(message: string): string {
   const source = clean(stripNonConversationMetadata(message));
   if (!source || isCampaignButton(source)) return EMPTY;
-  const tradeIn = TRADE_IN_INTENT.test(source);
+  const tradeIn = isTradeInIntent(source);
   const amountPattern = '(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:[,.]\\d+)?\\s*k?|\\d{1,2}\\s*(?:mil|thousand)|mil(?:\\s+quinientos)?|(?:un|one|dos|two|tres|three|cuatro|four|cinco|five|seis|six|siete|seven|ocho|eight|nueve|nine|diez|ten)\\s+mil(?:\\s+(?:quinientos|five hundred))?)';
   const tradeInPattern = '(?:trade[- ]?in|my car|my vehicle|my van|my truck|mi carro|mi auto|mi vehículo|mi van|mi troca|mi camioneta|carro como enganche|(?:carro|auto|veh[ií]culo)\\s+para\\s+(?:dar|entregar|cambiar)|(?:cambiar|cambio)\\s+(?:(?:mi|el|de)\\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)|change\\s+(?:my\\s+)?(?:vehicle|car|van|truck))';
   const beforeTradeIn = source.match(new RegExp(`\\$?\\s*(${amountPattern})\\s*(?:down|payment|enganche|inicial)?\\s*(?:\\+|and|y)\\s*${tradeInPattern}`, 'i'));
@@ -227,6 +228,7 @@ export function extractLatestDownPayment(message: string): string {
     if (!answerLike) continue;
     const hasVehicleEvidence = VEHICLE_BRANDS.test(String(message)) || VEHICLE_MODELS.test(String(message)) || VEHICLE_CATEGORIES.test(String(message));
     const amounts = [...line.matchAll(new RegExp(`\\$?(${amountToken})(?!\\d)`, 'gi'))]
+      .filter((match) => !/\b(?:miles?|millas?|kilometers?|kil[oó]metros?|kms?|odometer|od[oó]metro)\b/i.test(line.slice((match.index ?? 0) + match[0].length, (match.index ?? 0) + match[0].length + 24)))
       .map((match) => normalizeAmount(match[1]))
       .filter((amount) => amount && !isVehicleYearValue(amount) && !(hasVehicleEvidence && isShortVehicleYearValue(amount)));
     if (amounts.length > 0) return amounts.at(-1) ?? EMPTY;

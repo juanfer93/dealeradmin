@@ -136,6 +136,8 @@ const canonicalVehicleCategory = (value) => clean(value)
 // Trade-in requires affirmative intent. A campaign CTA such as "Quiero mi
 // Auto con Eastern" is not evidence that the buyer has a vehicle to trade.
 const tradeInLanguage = /\btrade[- ]?in\b|\b(?:carro|auto|veh[ií]culo)\s+como\s+enganche\b|\b(?:carro|auto|veh[ií]culo)\s+para\s+(?:dar|entregar|cambiar)\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\bchange\s+(?:my\s+)?(?:vehicle|car|van|truck)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\b(?:and|y)\s+(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion)\b|\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion)\s+(?:for|para)\s+(?:trade(?:[- ]?in)?|entregar|cambiar|dar)\b|\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion|ban)\b[\s\S]{0,24}\b(?:\d{3,5}\s*(?:dollars?|d[oó]lares?)|down|payment|enganche)\b|\b(?:\d{3,5}\s*(?:dollars?|d[oó]lares?)|down|payment|enganche)\b[\s\S]{0,24}\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion|ban)\b/i;
+const vehicleTurnInIntent = /\b(?:voy\s+a\s+)?(?:entregar|entrego|entregue|dar|doy|cambiar|cambio)\s+(?:(?:mi|el|la|un|una|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b/i;
+const hasTradeInIntent = (value) => tradeInLanguage.test(value) || vehicleTurnInIntent.test(value);
 const vehicleLabel = (value) => {
   let source = normalizeWhisperVehicleAliases(value)
     .replace(/\b(?:19|20)\d{2}\b/g, ' ')

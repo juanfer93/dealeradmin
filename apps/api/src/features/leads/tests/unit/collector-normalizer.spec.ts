@@ -1698,6 +1698,24 @@ describe('normalizeCollectorInput', () => {
     expect(result.real_name).toBe('Davila Davila');
   });
 
+  it('recognizes a Spanish vehicle handoff in history as trade-in without using the owned car as the purchase vehicle', () => {
+    const transcript = [
+      'Hola, ¿tendrías un Toyota Grand Highlander híbrido?',
+      'Voy a entregar un auto que tengo, un Volkswagen Jetta TSI 2014 con 77 mil millas.',
+      'Está saldado.',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'action-cars',
+      channel: 'messenger',
+      real_name: 'QA Buyer',
+      phone: '+13019560179',
+      message: 'Está saldado.',
+      chat_history_log: transcript,
+    });
+
+    expect(result.down_payment).toBe('trade-in');
+  });
+
   it('scores the full transcript so narrative Chevrolet text cannot replace an explicit Camaro request', () => {
     const transcript = [
       'Hola, variedad en chevrolet maneja, busco uno en 4 o 6 cilindros con modelo 2lt',

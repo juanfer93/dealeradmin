@@ -9,7 +9,7 @@ import { extractVehicleYear, extractVehicleYearLabel, isPossessiveVehicleStateme
 import { extractTimeline, mergeDocuments, normalizeTimeline, yesNo } from './qualification-normalizer';
 import { mergeMemory, normalizeMemoryDownPayment } from './qualification-memory';
 import { isQualificationComplete, missingQualification as getMissingQualification, qualificationStep } from './reconciliation';
-import { isCampaignButton, isNonVehicleIntent, stripCampaignButtonPhrases, TRADE_IN_INTENT } from './collector-intents';
+import { isCampaignButton, isNonVehicleIntent, isTradeInIntent, stripCampaignButtonPhrases, TRADE_IN_INTENT } from './collector-intents';
 import { recoverPreviousFinancing } from './financing-normalizer';
 import { extractVehicle, inferVehicleIntent, isStaffordWhatsAppVehicleLabel } from './vehicle-extractor';
 import { affirmativeDownConfirmation, extractDownPayment, extractLatestDownPayment, extractQuestionedDownPayment, extractStandaloneDownPayment, extractTradeInDownPayment, firstValidAmount, isConcatenatedVehicleYearAmount, normalizeAmount } from './down-payment-extractor';
@@ -167,7 +167,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const tradeDown = firstValidAmount(extractTradeInDownPayment(messageForExtraction), extractTradeInDownPayment(historyForExtraction), extractTradeInDownPayment(memoryText(memory)));
   const baseDown = tradeDown && cashDown === 'No down payment' ? tradeDown : cashDown || tradeDown;
   const conversationalSource = [clean(historyForExtraction), messageForExtraction].filter(Boolean).join('; ');
-  let down = baseDown && TRADE_IN_INTENT.test(conversationalSource) && !/trade[- ]?in/i.test(baseDown) ? `${baseDown} + trade-in` : baseDown;
+  let down = baseDown && isTradeInIntent(conversationalSource) && !/trade[- ]?in/i.test(baseDown) ? `${baseDown} + trade-in` : baseDown;
   down = visibleDownPayment(down, input.source);
   const downPaymentRule = evaluateDownPayment(vehicle, down);
 

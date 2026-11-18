@@ -225,6 +225,8 @@ const canonicalVehicleCategory = (value) => clean(value)
 // Trade-in requires affirmative intent. A campaign CTA such as "Quiero mi
 // Auto con Eastern" is not evidence that the buyer has a vehicle to trade.
 const tradeInLanguage = /\btrade[- ]?in\b|\b(?:carro|auto|veh[ií]culo)\s+como\s+enganche\b|\b(?:carro|auto|veh[ií]culo)\s+para\s+(?:dar|entregar|cambiar)\b|\b(?:cambiar|cambio)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\bchange\s+(?:my\s+)?(?:vehicle|car|van|truck)\b|\b(?:entregar|entrego|entregue|dar|doy)\s+(?:(?:mi|el|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b|\b(?:and|y)\s+(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion)\b|\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion)\s+(?:for|para)\s+(?:trade(?:[- ]?in)?|entregar|cambiar|dar)\b|\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion|ban)\b[\s\S]{0,24}\b(?:\d{3,5}\s*(?:dollars?|d[oó]lares?)|down|payment|enganche)\b|\b(?:\d{3,5}\s*(?:dollars?|d[oó]lares?)|down|payment|enganche)\b[\s\S]{0,24}\b(?:my|mi)\s+(?:car|vehicle|van|truck|carro|auto|veh[ií]culo|troca|camioneta|camion|ban)\b/i;
+const vehicleTurnInIntent = /\b(?:voy\s+a\s+)?(?:entregar|entrego|entregue|dar|doy|cambiar|cambio)\s+(?:(?:mi|el|la|un|una|de)\s+)?(?:veh[ií]culo|carro|auto|van|troca|camioneta|camion)\b/i;
+const hasTradeInIntent = (value) => tradeInLanguage.test(value) || vehicleTurnInIntent.test(value);
 const vehicleLabel = (value) => {
   let source = normalizeWhisperVehicleAliases(value)
     .replace(/\b(?:19|20)\d{2}\b/g, ' ')
@@ -600,7 +602,7 @@ const tradeIn = (text) => {
   const trade = '(?:trade[- ]?in|my car|my vehicle|my van|my truck|mi carro|mi auto|mi vehículo|mi van|mi troca|mi camioneta|carro como enganche|(?:carro|auto|vehículo)\\s+para\\s+(?:dar|entregar|cambiar)|(?:entregar|entrego|entregue|dar|doy)\\s+(?:(?:mi|el|de)\\s+)?(?:vehículo|carro|auto|van|troca|camioneta|camion))';
   const match = source.match(new RegExp(`\\$?\\s*(${token})\\s*(?:down|payment|enganche|inicial)?\\s*(?:\\+|and|y)\\s*${trade}`, 'i')) || source.match(new RegExp(`${trade}\\s*(?:(?:and|plus|with|y|mas|más|con)\\s*(?:put|poner|pay|pagar|give|dar)?\\s*|[^0-9;.!?]{0,16}(?:down|payment|enganche|inicial|deposit|dep[oó]sito)[^0-9;.!?]{0,8})\\$?\\s*(${token})`, 'i'));
   const value = validAmount(match?.[1]);
-  return value ? `${value} + trade-in` : tradeInLanguage.test(source) ? 'trade-in' : '';
+  return value ? `${value} + trade-in` : hasTradeInIntent(source) ? 'trade-in' : '';
 };
 const downFrom = (text) => {
   const source = stripNonConversationMetadata(String(text ?? ''))
@@ -700,7 +702,7 @@ const vehicleFrom = (text) => {
     // describe a field, not a new vehicle answer, and must not override the
     // actual vehicle with a later `vehicle_type: SUV` marker.
     if (/^\s*(?:vehicle_type|vehicle_category)\s*[:=]/i.test(candidate)) continue;
-    if (tradeInLanguage.test(candidate)
+    if (hasTradeInIntent(candidate)
       && /\b(?:tengo|tiene|have|has|my|mi)\b/i.test(candidate)
       && !/\b(?:looking for|busco|quiero|want|interested in|interesado en)\b/i.test(candidate)) continue;
     const hasVehicleEvidence = (vehicleModels.test(candidate) || vehicleBrands.test(candidate) || vehicleCategories.test(candidate))
@@ -1036,7 +1038,7 @@ const tradeDown = campaign ? '' : first(tradeIn(message), tradeIn(historyForExtr
 const downCandidate = cashDown || tradeDown;
 const conversationalDownSource = `${message}; ${historyForExtraction}`;
 const source = clean(inputData.source).toLocaleLowerCase();
-let down = validAmount(cashDown && tradeInLanguage.test(conversationalDownSource) && !/trade[- ]?in/i.test(cashDown)
+let down = validAmount(cashDown && hasTradeInIntent(conversationalDownSource) && !/trade[- ]?in/i.test(cashDown)
   ? `${cashDown} + trade-in`
   : downCandidate);
 down = visibleDownPayment(down, source);
@@ -1078,7 +1080,7 @@ const vehicleCategory = /\b(?:truck|troka|troca|trokita|troquita|troque|trokas|p
         ? 'sedan'
         : '';
 const requiredDownPayment = ({ sedan: 1500, luxury_sedan: 2000, suv_or_van: 2000, truck: 3000 }[vehicleCategory] || null);
-const tradeInDownPayment = tradeInLanguage.test(down);
+const tradeInDownPayment = hasTradeInIntent(down);
 const downPaymentCash = String(down).replace(/\s*\+\s*trade[- ]?in\d*$/i, '').trim();
 const downPaymentRange = downPaymentCash.match(/^\s*(\d+(?:\.\d+)?)\s*(?:-|a|to)\s*(\d+(?:\.\d+)?)\s*$/);
 const downPaymentAmount = downPaymentRange

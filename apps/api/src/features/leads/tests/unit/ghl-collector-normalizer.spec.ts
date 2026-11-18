@@ -1369,6 +1369,24 @@ describe('HighLevel collector custom-code normalizer', () => {
     });
   });
 
+  it('recognizes a Spanish vehicle handoff as trade-in in Custom Code', () => {
+    const transcript = [
+      'Hola, ¿tendrías un Toyota Grand Highlander híbrido?',
+      'Voy a entregar un auto que tengo, un Volkswagen Jetta TSI 2014 con 77 mil millas.',
+      'Está saldado.',
+    ].join('\n');
+    const result = execute({
+      source: 'action-cars',
+      channel: 'messenger',
+      real_name: 'QA Buyer',
+      phone: '+13019560179',
+      message: 'Está saldado.',
+      chat_history_log: transcript,
+    });
+
+    expect(result.down_payment).toBe('trade-in');
+  });
+
   it('recognizes no tengo pago inicial as a flexible-dealer down answer', () => {
     expect(execute({ source: 'easterns', real_name: 'QA Customer', message: 'No tengo pago inicial' })).toMatchObject({
       down_payment: 'No down payment',
