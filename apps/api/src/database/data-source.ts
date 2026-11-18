@@ -55,6 +55,7 @@ import { InvalidRealNames1710000055000 } from './migrations/1710000055000-Invali
 import { InvalidApplicationPromptAsName1710000056000 } from './migrations/1710000056000-InvalidApplicationPromptAsName';
 import { MessengerInvalidRealNames1710000057000 } from './migrations/1710000057000-MessengerInvalidRealNames';
 import { EnableArlingtonWhatsApp1710000058000 } from './migrations/1710000058000-EnableArlingtonWhatsApp';
+import { DeploymentRegistry1710000059000 } from './migrations/1710000059000-DeploymentRegistry';
 import { POSTGRES_EXTRA } from './postgres-connection-options';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -125,6 +126,7 @@ export const AppDataSource = new DataSource({
     InvalidApplicationPromptAsName1710000056000,
     MessengerInvalidRealNames1710000057000,
     EnableArlingtonWhatsApp1710000058000,
+    DeploymentRegistry1710000059000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,

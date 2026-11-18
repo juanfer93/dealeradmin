@@ -9,6 +9,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: "3001"
+      DEALERADMIN_DEPLOYMENT_TARGET: oci
+      DEALERADMIN_GIT_SHA: ${DEALERADMIN_GIT_SHA:-}
     expose:
       - "3001"
     restart: unless-stopped

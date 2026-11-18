@@ -9,6 +9,7 @@ import { LeadsModule } from './features/leads/presentation/leads.module';
 import { RoutingModule } from './features/routing/presentation/routing.module';
 import { ReportsModule } from './features/reports/presentation/reports.module';
 import { TestFixturesModule } from './features/test-fixtures/presentation/test-fixtures.module';
+import { DeploymentModule } from './features/deployment/deployment.module';
 import { InitialSchema1710000000000 } from './database/migrations/1710000000000-InitialSchema';
 import { AddLeadFinancialDetails1710000001000 } from './database/migrations/1710000001000-AddLeadFinancialDetails';
 import { Day5EasternsRouting1710000002000 } from './database/migrations/1710000002000-Day5EasternsRouting';
@@ -63,6 +64,7 @@ import { InvalidRealNames1710000055000 } from './database/migrations/17100000550
 import { InvalidApplicationPromptAsName1710000056000 } from './database/migrations/1710000056000-InvalidApplicationPromptAsName';
 import { MessengerInvalidRealNames1710000057000 } from './database/migrations/1710000057000-MessengerInvalidRealNames';
 import { EnableArlingtonWhatsApp1710000058000 } from './database/migrations/1710000058000-EnableArlingtonWhatsApp';
+import { DeploymentRegistry1710000059000 } from './database/migrations/1710000059000-DeploymentRegistry';
 import { AlphaMotorsportsDealer1710000054000 } from './database/migrations/1710000054000-AlphaMotorsportsDealer';
 import { POSTGRES_EXTRA } from './database/postgres-connection-options';
 
@@ -131,6 +133,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             InvalidApplicationPromptAsName1710000056000,
             MessengerInvalidRealNames1710000057000,
             EnableArlingtonWhatsApp1710000058000,
+            DeploymentRegistry1710000059000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,
@@ -144,7 +147,7 @@ const requestThrottleLimit = process.env.NODE_ENV === 'test' ? 1000 : 100;
 @Module({
   imports: [
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: requestThrottleLimit }]),
-    ...(useDatabase ? [databaseModule] : []),
+    ...(useDatabase ? [databaseModule, DeploymentModule] : []),
     AuthModule,
     WebhooksModule,
     LeadsModule,

@@ -53,9 +53,7 @@ const isValidRealName = (value) => {
     || /^[A-ZÁÉÍÓÚÜÑ]\.?$/u.test(token)));
 };
 const normalizeRealName = (value) => {
-  const normalizedCandidate = normalizeNameSuffixPunctuation(stripConversationalNamePrefix(value));
-  // Correct the verified profile-name transcription in this Messenger case.
-  const candidate = normalizedCandidate.toLocaleLowerCase() === 'alejandro gerra' ? 'Alejandro Guerra' : normalizedCandidate;
+  const candidate = normalizeNameSuffixPunctuation(stripConversationalNamePrefix(value));
   if (!candidate || isInvalidRealName(candidate) || phoneLikeText(candidate) || !isValidRealName(candidate) || technicalNameLabel.test(candidate) || locationResponse.test(candidate) || englishLocationResponse.test(candidate) || profileDisplayLabelMarkers.test(candidate) || singleWordNameBlocklist.test(candidate) || isBaltimoreVariant(candidate) || qualificationResponseMarkers.test(candidate) || genericVehicleIntent.test(candidate) || inventoryIntent.test(candidate) || greetingOnly.test(candidate) || isVehicleStatement(candidate)) return '';
   if (candidate.length > 100 || candidate.split(/\s+/).length > 5) return '';
   return formatPersonalName(candidate);
@@ -148,9 +146,7 @@ const normalizeProfileDisplayName = (value) => {
     .replace(/\s+/g, ' ')
     .trim();
   if (isProfileDisplayName(withoutDecoration)) return '';
-  const normalized = normalizeRealName(withoutDecoration);
-  if (!normalized) return '';
-  return normalized.toLocaleLowerCase() === 'alejandro guerra' ? normalized : candidate;
+  return normalizeRealName(withoutDecoration) ? candidate : '';
 };
 const suppliedName = normalizeRealName(inputData.real_name);
 const hasSuppliedRealName = Boolean(clean(inputData.real_name));
