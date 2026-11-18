@@ -3,6 +3,43 @@ import { normalizeCollectorInput } from '../../domain/collector-normalizer';
 import { buildWhatsAppMessage } from '../../domain/message-builder';
 
 describe('seller intent copy E2E without Docker', () => {
+  it('normalizes a WhatsApp lead who gives their full name after a greeting and is still browsing', () => {
+    const transcript = [
+      '*Headline:* Chat with us',
+      '*Source URL:* https://fb.me/ajXkK9I3m',
+      'Buenos diaa',
+      'Carlos martinez',
+      'Yo soy desvilitado Busco lo mas economico',
+      'Otro tipo vehiculo',
+      'Van',
+      'Por ahorita no cuento con nada',
+      'Estoy mirando perdon',
+    ].join('\n');
+    const normalized = normalizeCollectorInput({
+      source: 'action-cars',
+      channel: 'whatsapp',
+      contact_name: 'Actionpainting93',
+      phone: '+15403336356',
+      message: 'Estoy mirando perdon',
+      chat_history_log: transcript,
+    });
+    const copy = buildWhatsAppMessage(normalized.real_name, normalized.phone, {
+      language: 'es',
+      vehicle_type: normalized.vehicle_type,
+      vehicle_intent: normalized.vehicle_intent,
+      down_payment: normalized.down_payment,
+      purchase_timeline: normalized.purchase_timeline,
+    });
+
+    expect(normalized).toMatchObject({
+      real_name: 'Carlos Martinez',
+      phone: '+15403336356',
+      vehicle_type: 'Van',
+      purchase_timeline: 'explorando opciones',
+    });
+    expect(copy).toBe('Carlos Martinez +15403336356 Van, Quiere ver opciones.');
+  });
+
   it('normalizes Carlos Inzunza’s real Arlington conversation into a seller copy', () => {
     const transcript = [
       'I am selling a tacoma 2021 trd sport 4 doors 2 axles',

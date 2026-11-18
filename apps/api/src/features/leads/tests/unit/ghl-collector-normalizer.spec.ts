@@ -315,7 +315,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result).toMatchObject({
       vehicle_type: 'SUV',
       down_payment: '2000',
-      purchase_timeline: 'this week',
+      purchase_timeline: '',
       identification: 'yes',
       has_income_proof: 'yes',
       qualification_complete: true,
@@ -514,7 +514,7 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(result).toMatchObject({
       vehicle_type: 'SUV',
       down_payment: '2000',
-      purchase_timeline: 'today',
+      purchase_timeline: '',
       identification: 'yes',
       has_income_proof: 'yes',
       qualification_complete: true,

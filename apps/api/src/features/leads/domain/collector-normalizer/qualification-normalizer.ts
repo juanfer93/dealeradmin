@@ -66,7 +66,8 @@ export function extractTimeline(message: string): string {
   const match = evidence.match(/\b(?:tomorrow|today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|de una|ahora mismo|right now|at this moment|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|este mea|esta mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|end of next month|a (?:fines?|finales?) del otro mes|a (?:fines?|finales?) del pr[oó]ximo mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|within \d+ days?|en \d+ d[ií]as?|in \d+ (?:days?|weeks?|months?)|en \d+ (?:d[ií]as?|semanas?|mes(?:es)?)|in a month|en un mes|in two weeks|en dos semanas|jan(?:uary)?|enero|feb(?:ruary)?|febrero|mar(?:ch)?|marzo|apr(?:il)?|abril|may|mayo|jun(?:e)?|junio|jul(?:y)?|julio|aug(?:ust)?|agosto|sep(?:t(?:ember|iembre)?|tiembre)|setiembre|septiembre|oct(?:ober)?|octubre|nov(?:ember)?|noviembre|dec(?:ember)?|diciembre)\b/i)?.[0];
   if (match) return normalizeTimeline(match);
   if (/\b(?:primero\s+)?quiero\s+ver\s+(?:las\s+)?opciones\b|\bquisiera\s+(?:ver|mirar)\s+(?:las\s+)?opciones\b|\b(?:first\s+)?(?:i\s+want|i(?:'d|\s+would)\s+like)\s+to\s+see\s+(?:the\s+)?options\b/i.test(evidence)
-    || /\b(?:solo|sólo|just|only)\b.*\b(?:mirar|mirando|ver|viendo|looking|browsing)\b/i.test(evidence)) return 'exploring options';
+    || /\b(?:solo|sólo|just|only)\b.*\b(?:mirar|mirando|ver|viendo|looking|browsing)\b/i.test(evidence)
+    || /\b(?:estoy|est[aá]|ando|sigo)\s+(?:(?:solo|s[oó]lo)\s+)?(?:mirando|viendo|observando|revisando)\b/i.test(evidence)) return 'exploring options';
   return EMPTY;
 }
 

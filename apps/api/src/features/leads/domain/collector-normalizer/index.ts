@@ -60,10 +60,17 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
     ? EMPTY
     : firstNonEmpty(whatsappProfileName, input.contact_name, input.contactName, input.name);
   const unpromptedWhatsappName = (transcript: string): string => {
+    const lines = String(transcript ?? '').replace(/\r\n?/g, '\n').split('\n').map(clean).filter(Boolean);
+    const greeting = /^(?:hola|hello|hi|hey|buen[oa]s?\s+d[ií]a+s?|buenas?\s+(?:tardes|noches))[\s.!¡¿?]*$/i;
+    for (let index = 1; index < lines.length; index += 1) {
+      if (!greeting.test(lines[index - 1])) continue;
+      const standaloneFullName = normalizeRealName(lines[index], invalidRealNames);
+      if (standaloneFullName && /\s/.test(standaloneFullName)) return standaloneFullName;
+    }
     const candidate = extractRealNameFromText(transcript, { invalidRealNames });
-    // Some WhatsApp histories contain only buyer messages, without the bot's
-    // preceding name question. Accept a standalone one-word answer such as
-    // "Luis", while requiring the prompt for declarations and full names.
+    // Some WhatsApp histories contain only buyer messages, without a name
+    // question. Accept a standalone one-word name after checking for a full
+    // name sent immediately after a greeting.
     return candidate && !/\s/.test(candidate) ? candidate : EMPTY;
   };
   const extractedNames = [realNameFromQualificationMemory(memory, invalidRealNames), extractRealNameFromText(rawMessage, { invalidRealNames }), extractRealNameFromText(rawHistory, { invalidRealNames })];

@@ -1774,12 +1774,12 @@ describe('normalizeCollectorInput', () => {
     expect(result).toMatchObject({
       phone: '+17176989246',
       vehicle_type: 'Sedan',
-      purchase_timeline: 'este mes',
+      purchase_timeline: '',
       identification: 'yes',
       has_income_proof: 'yes',
       bank_account: 'yes',
     });
-    expect(result.qualification_memory).toContain('timeline: este mes');
+    expect(result.qualification_memory).not.toContain('timeline: este mes');
     expect(result.qualification_memory).toContain('bank account: yes');
   });
 
@@ -3511,12 +3511,12 @@ Full name: Jose Eduardo Martins Cabral
     'vehicle_type = SUV\ndown_payment: $2,000\ndocuments: driver license, proof of income\npurchase_timeline: this week\nbank account: yes',
     '{"vehicle_type":"SUV","down_payment":"2K","documents":"ID and proof of income","purchase_timeline":"this week","bank_account":"yes"}',
     '• vehicle: SUV | • down payment: 2000 | • identification: yes | • proof of income: yes | • timeline: this week | • bank account: yes',
-  ])('promotes complete qualification memory into normalized fields: %s', (qualification_memory) => {
+  ])('does not promote a purchase timeline from generated qualification memory: %s', (qualification_memory) => {
     const result = normalizeCollectorInput({ qualification_memory, real_name: 'QA Customer', phone: '+13015550123' });
     expect(result).toMatchObject({
       vehicle_type: 'SUV',
       down_payment: '2000',
-      purchase_timeline: 'this week',
+      purchase_timeline: '',
       qualification_complete: true,
       missing_qualification: [],
     });
@@ -3602,12 +3602,12 @@ Full name: Jose Eduardo Martins Cabral
     expect(normalizeCollectorInput({ message: 'Hoy mismo' }).purchase_timeline).toBe('hoy');
   });
 
-  it('normalizes free-form Spanish memory without requiring keyed fields', () => {
+  it('does not promote purchase timing from free-form qualification memory', () => {
     const result = normalizeCollectorInput({
       qualification_memory: 'El lead tiene una troca para trade-in y quiere el vehículo hoy mismo.',
     });
     expect(result.down_payment).toBe('trade-in');
-    expect(result.purchase_timeline).toBe('today');
+    expect(result.purchase_timeline).toBe('');
   });
 
   it.each([
@@ -3720,6 +3720,35 @@ Full name: Jose Eduardo Martins Cabral
     expect(normalizeCollectorInput({ channel: 'whatsapp', message: 'me llamo yahir', chat_history_log: '__NAME_PROMPT__\nme llamo yahir' }).real_name).toBe('Yahir');
     expect(normalizeCollectorInput({ channel: 'whatsapp', message: 'Mi nombre es Yahir Pérez', chat_history_log: '__NAME_PROMPT__\nMi nombre es Yahir Pérez' }).real_name).toBe('Yahir Pérez');
     expect(normalizeCollectorInput({ channel: 'whatsapp', message: 'Quiero ver si puedo con 1000' }).down_payment).toBe('1000');
+  });
+
+  it('captures a full WhatsApp name sent after a greeting and recognizes an exploring-options reply', () => {
+    const transcript = [
+      '*Headline:* Chat with us',
+      '*Source URL:* https://fb.me/ajXkK9I3m',
+      'Buenos diaa',
+      'Carlos martinez',
+      'Yo soy desvilitado Busco lo mas economico',
+      'Otro tipo vehiculo',
+      'Van',
+      'Por ahorita no cuento con nada',
+      'Estoy mirando perdon',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'action-cars',
+      channel: 'whatsapp',
+      contact_name: 'Actionpainting93',
+      phone: '+15403336356',
+      message: 'Estoy mirando perdon',
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Carlos Martinez',
+      phone: '+15403336356',
+      vehicle_type: 'Van',
+      purchase_timeline: 'explorando opciones',
+    });
   });
 
   it('prefers the declared WhatsApp name over an availability reply and falls back to the native profile name', () => {

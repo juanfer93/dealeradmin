@@ -1,5 +1,6 @@
 import type { CreateManualLeadDto } from '@dealeradmin/contracts';
 import { normalizeCollectorInput } from './collector-normalizer';
+import { normalizeTimeline } from './collector-normalizer/qualification-normalizer';
 import { normalizePhone } from './phone-normalizer';
 
 export type ParsedBulkLead = {
@@ -136,7 +137,7 @@ function parseLine(line: string, rowNumber: number): ParsedBulkLead {
       phone,
       vehicle_type: normalized.vehicle_type,
       down_payment: normalized.down_payment,
-      purchase_timeline: normalized.purchase_timeline,
+      purchase_timeline: values.purchase_timeline ? normalizeTimeline(values.purchase_timeline, 'en') : normalized.purchase_timeline,
       documents: normalized.documents,
       identification: normalized.identification,
       bank_account: normalized.bank_account,
