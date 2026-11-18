@@ -32,7 +32,7 @@ export const GHL_SOURCE_CONFIG: SourceConfigMap = {
   fredericksburg: { locationId: 'MyxWNKacThim798E8KC6', defaultChannel: 'messenger', supportedChannels: ['whatsapp', 'messenger'] },
   'fredericksburg-2': { locationId: 'bAuMEQeH48xAtu9tAMFf', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
   easterns: { locationId: 'xN2LSSl62okzv9GnOJPU', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
-  arlington: { locationId: '9v8zH9Y5eLiiJwZTZDci', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
+  arlington: { locationId: '9v8zH9Y5eLiiJwZTZDci', defaultChannel: 'messenger', supportedChannels: ['messenger', 'whatsapp'] },
   'koons-fred': { locationId: 'xuHo0opTO2g5edIuPJRl', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
   'koons-fred-eng': { locationId: 'ozAIEblxTjrh0PfoaHge', defaultChannel: 'messenger', supportedChannels: ['messenger'] },
   'koons-culpeper': { locationId: 'bTNJHpNZ8FaS1PUHkuUq', defaultChannel: 'messenger', supportedChannels: ['messenger'] },

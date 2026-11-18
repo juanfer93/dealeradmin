@@ -54,6 +54,7 @@ import { CarHubStaffordDealer1710000053000 } from './migrations/1710000053000-Ca
 import { InvalidRealNames1710000055000 } from './migrations/1710000055000-InvalidRealNames';
 import { InvalidApplicationPromptAsName1710000056000 } from './migrations/1710000056000-InvalidApplicationPromptAsName';
 import { MessengerInvalidRealNames1710000057000 } from './migrations/1710000057000-MessengerInvalidRealNames';
+import { EnableArlingtonWhatsApp1710000058000 } from './migrations/1710000058000-EnableArlingtonWhatsApp';
 import { POSTGRES_EXTRA } from './postgres-connection-options';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -123,6 +124,7 @@ export const AppDataSource = new DataSource({
     InvalidRealNames1710000055000,
     InvalidApplicationPromptAsName1710000056000,
     MessengerInvalidRealNames1710000057000,
+    EnableArlingtonWhatsApp1710000058000,
   ],
   migrationsTableName: 'migrations',
   synchronize: false,

@@ -141,6 +141,41 @@ test('acepta mensajes de Messenger en Stafford además de WhatsApp', async ({ re
   await expect(response.json()).resolves.toMatchObject({ accepted: true, source: 'stafford', status: 'processed' });
 });
 
+test('Arlington recibe WhatsApp y conserva Messenger', async ({ request }) => {
+  const suffix = `ghl-e2e-arlington-channels-${Date.now()}`;
+  const scenarios = [
+    { channel: 'whatsapp', expectedStatus: 'processed' },
+    { channel: 'messenger', expectedStatus: 'processed' },
+  ] as const;
+
+  for (const scenario of scenarios) {
+    const eventId = `${suffix}-${scenario.channel}`;
+    const response = await request.post('http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/arlington', {
+      data: JSON.stringify({
+        message_body: 'Busco una SUV.',
+        contact_phone: '+15715550123',
+        contact_name: 'Arlington Channel QA',
+        channel: scenario.channel,
+        event_id: eventId,
+      }),
+      headers: {
+        'content-type': 'application/json',
+        'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
+        'X-DealerADMIN-Contact-ID': `${eventId}-contact`,
+        'X-DealerADMIN-Conversation-ID': `${eventId}-conversation`,
+        'X-DealerADMIN-Message-ID': `${eventId}-message`,
+      },
+    });
+
+    expect(response.status(), `Arlington ${scenario.channel}`).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      accepted: true,
+      source: 'arlington',
+      status: scenario.expectedStatus,
+    });
+  }
+});
+
 test('Fredericksburg recibe WhatsApp y Messenger mientras Fredericksburg 2 sigue solo con Messenger', async ({ request }) => {
   const suffix = `ghl-e2e-fredericksburg-channels-${Date.now()}`;
   const scenarios = [

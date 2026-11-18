@@ -666,12 +666,31 @@ describe('ConversationWebhookService', () => {
     expect(result.conversationId).toBe('ghl-easterns-conversation');
   });
 
-  it('configures Arlington Woodbridge as a Messenger-only conversation source', async () => {
+  it('processes Messenger and WhatsApp for Arlington Woodbridge', async () => {
     expect(GHL_SOURCE_CONFIG.arlington).toEqual({
       locationId: '9v8zH9Y5eLiiJwZTZDci',
       defaultChannel: 'messenger',
-      supportedChannels: ['messenger'],
+      supportedChannels: ['messenger', 'whatsapp'],
     });
+
+    const service = new ConversationWebhookService();
+    const whatsapp = await service.acceptCustomerReplied(
+      { message_body: 'Busco una SUV.', channel: 'whatsapp', ghl_location_id: '9v8zH9Y5eLiiJwZTZDci' },
+      'arlington',
+      { contactId: 'ghl-arlington-whatsapp-contact', conversationId: 'ghl-arlington-whatsapp-conversation' },
+    );
+    const messenger = await service.acceptCustomerReplied(
+      { message_body: 'Busco una SUV.', channel: 'messenger', ghl_location_id: '9v8zH9Y5eLiiJwZTZDci' },
+      'arlington',
+      { contactId: 'ghl-arlington-messenger-contact', conversationId: 'ghl-arlington-messenger-conversation' },
+    );
+
+    expect(whatsapp).toMatchObject({ source: 'arlington', status: 'processed' });
+    expect(messenger).toMatchObject({ source: 'arlington', status: 'processed' });
+    expect(getTestConversationEvents()).toEqual([
+      expect.objectContaining({ source: 'arlington', channel: 'whatsapp' }),
+      expect.objectContaining({ source: 'arlington', channel: 'messenger' }),
+    ]);
   });
 
   it('processes WhatsApp and Messenger for Fredericksburg 1 while Fredericksburg 2 stays Messenger-only', async () => {
