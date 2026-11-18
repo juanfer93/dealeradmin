@@ -44,6 +44,34 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeRealNameWithCatalog('Bank Account', ['bank account'])).toBe('');
   });
 
+  it('normalizes a misspelled Ram request without appending the bot follow-up question', () => {
+    const result = normalizeCollectorInput({
+      source: 'koons-fred',
+      channel: 'messenger',
+      real_name: 'Adhair Morales Mendoza',
+      phone: '+12524553384',
+      message: 'Kiero presios',
+      chat_history_log: [
+        'Ondeestan',
+        '¡Hola! Estamos en Fredericksburg, Virginia. ¿Qué tipo de vehículo busca: sedán, SUV o camioneta?',
+        'Vino enelisabes kiero una rram',
+        '¡Una Ram! ¿Cuál es el mejor número de teléfono para comunicarnos con usted?',
+        '252 4553384',
+        '1500',
+        'Ableme nosekelejoestan vivo en Elizabeth ziti carolina',
+        'Kiero presios',
+      ].join('\n'),
+      vehicle_type: 'Quiere hablar con un asesor',
+      qualification_memory: 'vehicle: Quiere hablar con un asesor; real_name: Adhair Morales Mendoza',
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: 'Ram',
+      vehicle_category: 'truck',
+      advisor_handoff_requested: false,
+    });
+  });
+
   it('rejects a repeated Easterns Motors suffix from a Messenger profile label', () => {
     const invalidProfile = 'Samantha de Easterns Motors de Easterns Motors';
     const result = normalizeCollectorInput({

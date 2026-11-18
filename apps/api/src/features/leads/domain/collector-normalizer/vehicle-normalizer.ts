@@ -21,6 +21,10 @@ export const FINANCIAL_CONTEXT_BEFORE_AMOUNT = /\b(?:down|payment|enganche|inici
 // instead of falling back to the advisor handoff marker.
 export function normalizeWhisperVehicleAliases(value: string): string {
   return clean(value)
+    // Messenger transcription may add a duplicate initial r in a spoken
+    // request for the Ram make ("quiero una rram"). Keep this alias scoped
+    // to vehicle extraction so it cannot alter names or free-form notes.
+    .replace(/\brram\b/gi, 'Ram')
     .replace(/^ban$/i, 'van')
     .replace(/\bsedán\b/gi, 'Sedan')
     // Spanish GHL/Messenger transcription can render "van" as "ban" in a
@@ -124,6 +128,9 @@ export function canonicalVehicleCategory(value: string): string {
 
 export function extractVehicleLabel(value: string | null | undefined): string {
   const source = normalizeWhisperVehicleAliases(String(value ?? ''))
+    // Do not append the bot's follow-up question to a confirmed make, e.g.
+    // "¡Una Ram! ¿Cuál es el mejor número para comunicarnos contigo?".
+    .replace(/\s+¿\s*(?:cu[aá]l|qu[eé]|qu[ií]en|c[oó]mo|d[oó]nde|cu[aá]nto)\b[\s\S]*$/i, ' ')
     // Structured image evidence can wrap a model in quotes. Those quotes are
     // transcript punctuation, not part of the vehicle label (BMW " -> BMW).
     .replace(/["“”]/g, ' ')

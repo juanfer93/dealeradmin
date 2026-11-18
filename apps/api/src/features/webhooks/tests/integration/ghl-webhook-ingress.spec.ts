@@ -28,6 +28,8 @@ describeDatabase('GHL webhook ingress regression for the three reported leads', 
   let app: any;
   let port: number;
   const suffix = `ghl-ingress-regression-${Date.now()}`;
+  const ramContactId = `${suffix}-koons-ram-contact`;
+  const ramConversationId = `${ramContactId}-conversation`;
   const cases: IngressCase[] = [
     {
       source: 'stafford',
@@ -184,6 +186,11 @@ describeDatabase('GHL webhook ingress regression for the three reported leads', 
       await dataSource.query('DELETE FROM conversations WHERE ghl_contact_id = $1', [testCase.contactId]);
       await dataSource.query('DELETE FROM leads WHERE ghl_contact_id = $1', [testCase.contactId]);
     }
+    await dataSource.query('DELETE FROM conversation_messages WHERE conversation_id IN (SELECT id FROM conversations WHERE ghl_contact_id = $1)', [ramContactId]);
+    await dataSource.query('DELETE FROM conversation_bot_pause_events WHERE ghl_contact_id = $1', [ramContactId]);
+    await dataSource.query('DELETE FROM conversations WHERE ghl_contact_id = $1', [ramContactId]);
+    await dataSource.query('DELETE FROM lead_dealers WHERE lead_id IN (SELECT id FROM leads WHERE ghl_contact_id = $1)', [ramContactId]);
+    await dataSource.query('DELETE FROM leads WHERE ghl_contact_id = $1', [ramContactId]);
     await dataSource.query('DELETE FROM webhook_events WHERE event_id LIKE $1', [`${suffix}-%`]);
     await dataSource.query('DELETE FROM webhook_processing_attempts WHERE ghl_contact_id LIKE $1', [`${suffix}-%`]);
     await dataSource.destroy();
@@ -250,6 +257,42 @@ describeDatabase('GHL webhook ingress regression for the three reported leads', 
     if (testCase.expectedVehicle) expect(rows[0].qualification_snapshot).toMatchObject({ vehicle_type: testCase.expectedVehicle });
     if (testCase.expectedVehicleYear) expect(rows[0].qualification_snapshot).toMatchObject({ vehicle_year: testCase.expectedVehicleYear });
     expect(['partial', 'waiting_window', 'queued', 'sent']).toContain(rows[0].status);
+  }, 30_000);
+
+  it('normalizes a misspelled Ram in Koons Fredericksburg and opens the waiting window', async () => {
+    const messages = [
+      'Vino enelisabes kiero una rram',
+      '252 4553384',
+      '1500',
+      'Ableme nosekelejoestan vivo en Elizabeth ziti carolina',
+      'Kiero presios',
+    ];
+    for (const [index, message] of messages.entries()) {
+      const eventId = `${suffix}-koons-ram-${index + 1}`;
+      const response = await postJson(port, '/webhooks/ghl/customer-replied/koons-fred', {
+        event_id: eventId,
+        event_type: 'customer.replied',
+        ghl_contact_id: ramContactId,
+        ghl_conversation_id: ramConversationId,
+        channel: 'messenger',
+        contact_name: 'Adhair Morales Mendoza',
+        contact_phone: '+12524553384',
+        message_body: message,
+        occurred_at: new Date(Date.parse('2026-10-12T22:59:50.000Z') + index * 1_000).toISOString(),
+      });
+      expect(response.statusCode, `message ${index + 1}: ${response.body}`).toBe(200);
+      expect(JSON.parse(response.body)).toMatchObject({ accepted: true, source: 'koons-fred', status: 'processed' });
+    }
+
+    const rows = await dataSource.query(
+      `SELECT c.status, c.qualification_snapshot
+       FROM conversations c
+       WHERE c.ghl_contact_id = $1 AND c.ghl_conversation_id = $2`,
+      [ramContactId, ramConversationId],
+    ) as Array<{ status: string; qualification_snapshot: Record<string, unknown> }>;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ status: 'waiting_window' });
+    expect(rows[0].qualification_snapshot).toMatchObject({ vehicle_type: 'Ram', vehicle_category: 'truck', qualification_complete: true });
   }, 30_000);
 });
 
