@@ -165,7 +165,10 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const downPaymentRule = evaluateDownPayment(vehicle, down);
 
   const transcriptTimeline = firstNonEmpty(extractTimeline(messageForExtraction), extractTimeline(history));
-  const normalizedTimeline = normalizeTimeline(firstNonEmpty(formContext?.purchase_timeline, transcriptTimeline, extractTimeline(memoryText(memory)), memoryValue(memory, ['timeline', 'purchase timeline', 'purchase_timeline']), input.purchase_timeline), language);
+  // A purchase timeline must come from customer evidence in the transcript or
+  // an explicit lead form answer. Stale custom fields and generated memory can
+  // otherwise invent a buying date the customer never gave.
+  const normalizedTimeline = normalizeTimeline(firstNonEmpty(formContext?.purchase_timeline, transcriptTimeline), language);
   const timelineValue = language === 'es' && normalizedTimeline === 'today' ? 'hoy' : normalizedTimeline || clean(formContext?.purchase_timeline);
   const nameMonthCollision = !formContext?.purchase_timeline
     && !transcriptTimeline

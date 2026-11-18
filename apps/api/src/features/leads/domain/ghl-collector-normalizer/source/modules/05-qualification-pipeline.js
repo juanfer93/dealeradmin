@@ -261,6 +261,32 @@ const vehicleFrom = (text) => {
     .map((part) => vehicleLabel(part))
     .filter((label, index, labels) => label && labels.findIndex((item) => item.toLocaleLowerCase() === label.toLocaleLowerCase()) === index);
   if (alternatives.length > 1) return alternatives.join(alternativeConnector.toLocaleLowerCase() === 'or' ? ' or ' : ' o ');
+  // Preserve multiple makes/models even when Messenger transcription drops
+  // the conjunction (for example, "Tacoma una RAM"). Pair an adjacent make
+  // and model such as "Toyota Tacoma" before returning alternatives.
+  const mentions = [
+    ...Array.from(activeLine.matchAll(new RegExp(vehicleBrands.source, 'gi')), (match) => ({ kind: 'brand', label: match[0], start: match.index || 0, end: (match.index || 0) + match[0].length })),
+    ...Array.from(activeLine.matchAll(new RegExp(vehicleModels.source, 'gi')), (match) => ({ kind: 'model', label: match[0], start: match.index || 0, end: (match.index || 0) + match[0].length })),
+  ].sort((left, right) => left.start - right.start || (left.kind === 'brand' ? -1 : 1));
+  const vehicleMentions = [];
+  const consumedMentions = new Set();
+  for (let mentionIndex = 0; mentionIndex < mentions.length; mentionIndex += 1) {
+    const mention = mentions[mentionIndex];
+    if (consumedMentions.has(mentionIndex)) continue;
+    if (mentions.slice(0, mentionIndex).some((earlier) => earlier.start <= mention.start && earlier.end >= mention.end)) continue;
+    if (mention.kind === 'brand') {
+      const adjacentModelIndex = mentions.findIndex((next) => next.kind === 'model' && next.start >= mention.end && /^\s*$/.test(activeLine.slice(mention.end, next.start)));
+      if (adjacentModelIndex >= 0) {
+        const adjacentModel = mentions[adjacentModelIndex];
+        consumedMentions.add(adjacentModelIndex);
+        vehicleMentions.push(vehicleLabel(`${mention.label} ${adjacentModel.label}`));
+        continue;
+      }
+    }
+    vehicleMentions.push(vehicleLabel(mention.label));
+  }
+  const distinctVehicleMentions = vehicleMentions.filter((label, index, labels) => label && labels.findIndex((item) => item.toLocaleLowerCase() === label.toLocaleLowerCase()) === index).sort((left, right) => left.localeCompare(right));
+  if (distinctVehicleMentions.length > 1) return distinctVehicleMentions.join(' o ');
   const brands = [...new Set(activeCandidates.map((candidate) => candidate.brand).filter(Boolean).map((brand) => brand.toLocaleLowerCase()))];
   if (!vehicleBrands.test(best.label) && brands.length === 1 && (best.hasModel || latest?.isColloquialTruck)) {
     const brand = activeCandidates.find((candidate) => candidate.brand && candidate.brand.toLocaleLowerCase() === brands[0])?.brand || brands[0];
@@ -558,7 +584,9 @@ const downPaymentAmount = downPaymentRange
   : /^\d+(?:\.\d+)?$/.test(downPaymentCash.replace(/[$,\s]/g, '')) ? Number(downPaymentCash.replace(/[$,\s]/g, '')) : null;
 const downPaymentSufficient = requiredDownPayment !== null && (tradeInDownPayment || down === cashDownPayment || down.toLocaleLowerCase().includes(cashDownPayment.toLocaleLowerCase()) || (downPaymentAmount !== null && downPaymentAmount >= requiredDownPayment));
 const transcriptTimeline = first(timelineFrom(message), timelineFrom(history));
-const rawTimeline = first(transcriptTimeline, memoryValue(['timeline', 'purchase timeline', 'purchase_timeline']), inputData.purchase_timeline);
+// Do not trust stale custom fields or generated memory to invent a purchase
+// timeline; accept only customer transcript evidence.
+const rawTimeline = transcriptTimeline;
 const identification = documentStatus('id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b', ['identification', 'id', 'itin', 'passport', 'pasaporte'], inputData.identification || inputData.documents);
 const income = documentStatus('proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina|bank account|cuenta bancaria|cuenta de banco', ['income', 'proof of income', 'estados de cuenta', 'account statements', 'bank statements', 'check stubs', 'bank account', 'cuenta bancaria', 'cuenta de banco'], inputData.documents);
 const bankEvidenceSource = conversationalEvidence(rawMessage, rawHistory);

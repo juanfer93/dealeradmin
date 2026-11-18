@@ -110,6 +110,32 @@ export function extractVehicle(message: string): string {
     .map((part) => extractVehicleLabel(part))
     .filter((label, index, labels) => Boolean(label) && labels.findIndex((item) => item.toLocaleLowerCase() === label.toLocaleLowerCase()) === index);
   if (alternatives.length > 1) return alternatives.join(alternativeConnector.toLocaleLowerCase() === 'or' ? ' or ' : ' o ');
+  // Preserve multiple makes/models even when Messenger transcription drops
+  // the conjunction (for example, "Tacoma una RAM"). Pair an adjacent make
+  // and model such as "Toyota Tacoma" before returning alternatives.
+  const mentions = [
+    ...Array.from(activeLine.matchAll(new RegExp(VEHICLE_BRANDS.source, 'gi')), (match) => ({ kind: 'brand' as const, label: match[0], start: match.index ?? 0, end: (match.index ?? 0) + match[0].length })),
+    ...Array.from(activeLine.matchAll(new RegExp(VEHICLE_MODELS.source, 'gi')), (match) => ({ kind: 'model' as const, label: match[0], start: match.index ?? 0, end: (match.index ?? 0) + match[0].length })),
+  ].sort((left, right) => left.start - right.start || (left.kind === 'brand' ? -1 : 1));
+  const vehicleMentions: string[] = [];
+  const consumedMentions = new Set<number>();
+  for (let mentionIndex = 0; mentionIndex < mentions.length; mentionIndex += 1) {
+    const mention = mentions[mentionIndex];
+    if (consumedMentions.has(mentionIndex)) continue;
+    if (mentions.slice(0, mentionIndex).some((earlier) => earlier.start <= mention.start && earlier.end >= mention.end)) continue;
+    if (mention.kind === 'brand') {
+      const adjacentModelIndex = mentions.findIndex((next) => next.kind === 'model' && next.start >= mention.end && /^\s*$/.test(activeLine.slice(mention.end, next.start)));
+      if (adjacentModelIndex >= 0) {
+        const adjacentModel = mentions[adjacentModelIndex];
+        consumedMentions.add(adjacentModelIndex);
+        vehicleMentions.push(extractVehicleLabel(`${mention.label} ${adjacentModel.label}`));
+        continue;
+      }
+    }
+    vehicleMentions.push(extractVehicleLabel(mention.label));
+  }
+  const distinctVehicleMentions = vehicleMentions.filter((label, index, labels) => label && labels.findIndex((item) => item.toLocaleLowerCase() === label.toLocaleLowerCase()) === index).sort((left, right) => left.localeCompare(right));
+  if (distinctVehicleMentions.length > 1) return distinctVehicleMentions.join(' o ');
   const brands = [...new Set(candidates.map((candidate) => candidate.brand).filter(Boolean).map((brand) => brand.toLocaleLowerCase()))];
   if (!VEHICLE_BRANDS.test(latest.label) && brands.length === 1 && (latest.hasModel || latest.isColloquialTruck)) {
     const brand = candidates.find((candidate) => candidate.brand && candidate.brand.toLocaleLowerCase() === brands[0])?.brand ?? brands[0];
