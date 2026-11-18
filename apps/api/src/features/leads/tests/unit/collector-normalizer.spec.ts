@@ -1357,6 +1357,39 @@ describe('normalizeCollectorInput', () => {
     });
   });
 
+  it('captures a Spanish down payment stated as “De $3,000 sería perfecto” in the Messenger conversation', () => {
+    const transcript = [
+      'Que tipo de camiones tienen',
+      'Que tipo de camiones tienen',
+      'Employee action log created',
+      '¡Sí, contamos con opciones de Troca y camiones disponibles! ¿Cuál es el mejor número de teléfono para contactarte y enviarte los detalles?',
+      '540-522-7779',
+      '540-522-7779',
+      'De $3,000 sería perfecto',
+      'Si tuvieran trocas de dump eso me interesa',
+      'Y que sea Chevrolet',
+      'Este mes o al mes de diciembre',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'action-cars',
+      channel: 'messenger',
+      real_name: 'Federico Choc Maaz',
+      phone: '+15405227779',
+      vehicle_type: 'Chevrolet',
+      message: 'Este mes o al mes de diciembre',
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Federico Choc Maaz',
+      phone: '+15405227779',
+      vehicle_type: 'Chevrolet',
+      down_payment: '3000',
+      down_payment_amount: 3000,
+      purchase_timeline: 'este mes',
+    });
+  });
+
   it('normalizes the real Javier Accord typo and qualifies its 3000 down', () => {
     const transcript = [
       'Me gustaria financiar un auto con ustedes.',

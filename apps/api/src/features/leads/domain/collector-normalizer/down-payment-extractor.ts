@@ -190,7 +190,7 @@ export function extractDownPayment(message: string): string {
     ?? source.match(new RegExp(`\\b(?:puedo|puede|can|could|i can|i could)[ \\t]+(?:con|with)[ \\t]+\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
     ?? source.match(new RegExp(`(?:^|\\n)\\s*con[ \\t]+\\$?[ \\t]*(${amountToken})\\b`, 'i'))?.[1]
     ?? informalAmount
-    ?? source.match(new RegExp(`(?:^|\\n)\\$?[ \\t]*(${amountToken})[ \\t]*(?:d[oó]lares?|usd)?[ \\t]*(?:est[aá]\\s+(?:perfecto|bien)|perfecto|bien|ok(?:ay)?|works?(?:\\s+for\\s+me)?|is\\s+(?:fine|perfect|okay))\\b`, 'i'))?.[1];
+    ?? source.match(new RegExp(`(?:^|\\n)[ \\t]*(?:de[ \\t]+)?\\$?[ \\t]*(${amountToken})[ \\t]*(?:d[oó]lares?|usd)?[ \\t]*(?:(?:ser[ií]a|est[aá])\\s+)*(?:perfecto|bien|ok(?:ay)?|works?(?:\\s+for\\s+me)?|is\\s+(?:fine|perfect|okay))\\b`, 'i'))?.[1];
   if (amount && isShortVehicleYearValue(amount) && (VEHICLE_BRANDS.test(source) || VEHICLE_MODELS.test(source) || VEHICLE_CATEGORIES.test(source))) return EMPTY;
   return amount ? normalizeAmount(amount) : EMPTY;
 }
