@@ -62,6 +62,7 @@ import { CarHubStaffordDealer1710000053000 } from './database/migrations/1710000
 import { InvalidRealNames1710000055000 } from './database/migrations/1710000055000-InvalidRealNames';
 import { InvalidApplicationPromptAsName1710000056000 } from './database/migrations/1710000056000-InvalidApplicationPromptAsName';
 import { MessengerInvalidRealNames1710000057000 } from './database/migrations/1710000057000-MessengerInvalidRealNames';
+import { EnableArlingtonWhatsApp1710000058000 } from './database/migrations/1710000058000-EnableArlingtonWhatsApp';
 import { AlphaMotorsportsDealer1710000054000 } from './database/migrations/1710000054000-AlphaMotorsportsDealer';
 import { POSTGRES_EXTRA } from './database/postgres-connection-options';
 
@@ -129,6 +130,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             InvalidRealNames1710000055000,
             InvalidApplicationPromptAsName1710000056000,
             MessengerInvalidRealNames1710000057000,
+            EnableArlingtonWhatsApp1710000058000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,
