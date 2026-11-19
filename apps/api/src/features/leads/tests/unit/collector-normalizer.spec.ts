@@ -4310,6 +4310,20 @@ Full name: Jose Eduardo Martins Cabral
     expect(modelOptions.vehicle_type).toBe('Honda CR-V o Toyota RAV4');
   });
 
+  it('keeps a WhatsApp Honda Accord alternative when transcription shortens it to acor', () => {
+    const transcript = 'Me interesa un sedán\nErnesto\nHonda civic o acor';
+    const result = normalizeCollectorInput({
+      source: 'lucki',
+      channel: 'whatsapp',
+      contact_name: 'Ernesto Antonio',
+      phone: '+17038897796',
+      message: transcript,
+      chat_history_log: transcript,
+    });
+
+    expect(result.vehicle_type).toBe('Honda Civic o Accord');
+  });
+
   it('combines model requests sent in separate WhatsApp messages', () => {
     const inboundMessages = ['BUSCO UNA SUV', 'Toyota highlander', 'O honda crv', '2500$'].join('\n');
     const result = normalizeCollectorInput({
