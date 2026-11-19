@@ -1703,6 +1703,36 @@ describe('normalizeCollectorInput', () => {
     expect(normalizeCollectorInput({ message }).identification).toBe('yes');
   });
 
+  it('normalizes Lucy Arreola’s Easterns Messenger answers, including 4x4 and passport plus SSN', () => {
+    const transcript = [
+      'Quiero mi Auto con Eastern STERLING!',
+      'Quiero un auto 4x4 económico',
+      '4433558782',
+      '1000 dolares',
+      'Este mes',
+      'Si tengo un número de seguro social y mi crédito es de 770',
+      'Pasaporte y número de seguro social',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'easterns',
+      channel: 'messenger',
+      real_name: 'Lucy Arreola',
+      phone: '+14433558782',
+      message: transcript,
+      chat_history_log: transcript,
+      vehicle_transcript: transcript,
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Lucy Arreola',
+      phone: '+14433558782',
+      vehicle_type: '4x4',
+      down_payment: '1000',
+      identification: 'yes',
+      purchase_timeline: 'este mes',
+    });
+  });
+
   it('accepts a trade-in as the down payment even without a cash amount', () => {
     expect(normalizeCollectorInput({ real_name: 'QA Customer', phone: '+13015550123', qualification_memory: 'make: Toyota; model: RAV4; down payment: trade-in; timeline: today; documents: driver license and proof of income; bank account: yes' })).toMatchObject({
       vehicle_type: 'Toyota RAV4',

@@ -428,7 +428,7 @@ describe('normalizeGhlOutboundPayload', () => {
         qualification_complete: true,
         vehicle_type: 'SUV — Toyota RAV4',
         down_payment: '2000 + trade-in',
-        purchase_timeline: 'in 2 weeks',
+        purchase_timeline: null,
       },
     },
     {
@@ -457,7 +457,7 @@ describe('normalizeGhlOutboundPayload', () => {
         qualification_complete: true,
         vehicle_type: 'SUV — Honda CR-V',
         down_payment: '1500 + trade-in',
-        purchase_timeline: 'this month',
+        purchase_timeline: null,
       },
     },
   ])('$name', ({ payload, expected }) => {

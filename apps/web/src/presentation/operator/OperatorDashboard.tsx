@@ -16,32 +16,12 @@ import { logout as logoutRequest } from '../../infrastructure/auth/auth-api';
 import { copyLead, deleteLead as deleteLeadRequest, deleteLeads, getDealerLeads, markLeadSent } from '../../infrastructure/operator/operator-api';
 import { useOperatorQueue } from '../../application/operator/use-operator-queue';
 import { ConversationViewerModal } from './ConversationViewerModal';
+import { visibleDownPayment } from '../../domain/leads/down-payment-visibility';
 
 function clean(value: string | null | undefined) { return value?.trim() ?? ''; }
 
 function isNoDownPayment(value: string | null | undefined): boolean {
   return /^(?:no\s+down(?:\s+payment)?|no\s+tengo\s+down(?:\s+payment)?|sin\s+enganche|no\s+enganche)$/i.test(clean(value));
-}
-
-function isOffleaseDealer(value: string | null | undefined): boolean {
-  const normalized = clean(value).toLocaleLowerCase();
-  return new Set(['fredericksburg', 'fredericksburg-2', 'fredericksburg 2']).has(normalized)
-    || /^offlease(?:\s+motors)?\s+fredericksburg(?:\s*2)?$/i.test(normalized);
-}
-
-function visibleDownPayment(value: string | null | undefined, dealerName?: string | null): string {
-  const normalized = clean(value);
-  if (!normalized || isNoDownPayment(normalized)) return normalized;
-  const numeric = normalized.match(/\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\b/)?.[1];
-  if (!numeric) return normalized;
-  const compact = numeric.replace(/,/g, '');
-  const amount = /^\d{1,3}(?:\.\d{3})+$/.test(compact)
-    ? Number(compact.replace(/\./g, ''))
-    : Number.parseFloat(compact);
-  if (!Number.isFinite(amount)) return normalized;
-  const rounded = amount === 999 ? '1000' : normalized;
-  const minimum = isOffleaseDealer(dealerName) ? 1500 : 1000;
-  return amount === 999 ? (minimum <= 1000 ? rounded : '') : amount < minimum ? '' : normalized;
 }
 
 function requiredDownPaymentForVehicle(vehicleType: string | null | undefined): number | null {

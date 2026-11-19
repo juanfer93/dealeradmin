@@ -112,7 +112,8 @@ export function mergeDocuments(current: string, message: string): { value: strin
   const answer = (documentPattern: string): 'yes' | 'no' | '' => {
     const positive = 'yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available';
     const negative = "no|nó|dont|don't|no tengo|i do not|do not have|don't have|not available";
-    const context = source.match(new RegExp(`(?:${positive}|${negative})[^!?]{0,160}(?:${documentPattern})|(?:${documentPattern})[^!?]{0,160}(?:${positive}|${negative})`, 'i'))?.[0] ?? '';
+    const confirmation = `(?<![\\p{L}\\p{N}_])(?:${positive}|${negative})(?![\\p{L}\\p{N}_])`;
+    const context = source.match(new RegExp(`${confirmation}[^!?]{0,160}(?:${documentPattern})|(?:${documentPattern})[^!?]{0,160}${confirmation}`, 'iu'))?.[0] ?? '';
     const explicit = yesNo(context);
     if (explicit) return explicit;
     const currentSegment = currentSource.split(/[;,]/).find((segment) => new RegExp(documentPattern, 'i').test(segment)) ?? '';

@@ -34,7 +34,7 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
     expect(queryRunner.commitTransaction).toHaveBeenCalledOnce();
   });
 
-  it('actualiza la cualificación y conserva sent para una relación ya despachada', async () => {
+  it('actualiza la cualificación basada en evidencia y conserva sent para una relación ya despachada', async () => {
     const queryRunner = {
       connect: vi.fn(),
       startTransaction: vi.fn(),
@@ -91,7 +91,7 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
       '3500',
       'yes',
       '',
-      'Quiere ver opciones',
+      '',
       'Pasaporte e ID',
       '',
       'dealer-222',
@@ -99,7 +99,7 @@ describe('Protección contra re-procesamiento (Smart Merge)', () => {
       'Source dealer from GHL location',
       'resolved',
       'sent',
-      'Carlos Mendoza +15551234567 truck, 3500 down, ID, Pasaporte e ID, wants to see options.',
+      'Carlos Mendoza +15551234567 truck, 3500 down, ID, Pasaporte e ID.',
       false,
     ]);
   });
