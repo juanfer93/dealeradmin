@@ -41,7 +41,7 @@ function copyLeadWithEligibleDownPayment(lead: Lead): Lead {
   return amount !== null && amount < minimum ? { ...lead, downPayment: '' } : lead;
 }
 
-const IDENTIFICATION_DOCUMENT_PATTERN = 'id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b';
+const IDENTIFICATION_DOCUMENT_PATTERN = 'id\\b|tax[ -]?(?:id|identification)\\b|taxpayer id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b';
 const INCOME_DOCUMENT_PATTERN = 'proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina';
 const POSITIVE_DOCUMENT_VALUE = 'yes|sí|si|true|yeah|yep|correct|tengo|have it|i do|i have|available';
 const NEGATIVE_DOCUMENT_VALUE = 'no|n[oó]|false|not available|not indicated|not specified|no indicado|no especificado|sin|dont|don\'t|no tengo|i do not|do not have|don\'t have';

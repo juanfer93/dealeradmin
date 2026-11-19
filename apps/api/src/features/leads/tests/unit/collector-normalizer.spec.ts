@@ -40,6 +40,39 @@ describe('normalizeCollectorInput', () => {
       missing_qualification: [],
     });
   });
+
+  it('normalizes Marcelino’s WhatsApp down answer and Tax ID as ID evidence', () => {
+    const transcript = [
+      '*Headline:* Usados desde $191/mes* · ¿Cuál eliges?\n*Source URL:* https://fb.me/824EieFDM\n\nBUSCO UNA TROCA',
+      'Dónde están ubicados',
+      'Unos 1500',
+      'Tax ID',
+      'Sii',
+      'Dónde están ubicados',
+      'Posiblemente el próximo mes',
+      'Me mandaría el inventario para chacar',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'lucki',
+      channel: 'whatsapp',
+      contact_name: 'Marcelino',
+      phone: '+17577152419',
+      message: transcript,
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Marcelino',
+      vehicle_type: 'truck',
+      down_payment: '1500',
+      down_payment_amount: 1500,
+      down_payment_sufficient: false,
+      identification: 'yes',
+      has_identification: 'yes',
+      purchase_timeline: 'próximo mes',
+    });
+    expect(result.documents).toContain('identification: yes');
+  });
   it('rejects database-catalogued false names and keeps ordinary names', () => {
     const databaseCatalog = ['excelente señorita', 'puedo llamar', 'por donde está el local', 'una ven talvez', 'esa era la pregunta', 'estoy entre ambos'];
     expect(isInvalidRealName('  Excelente Señorita ', databaseCatalog)).toBe(true);

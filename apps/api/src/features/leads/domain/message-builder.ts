@@ -47,7 +47,7 @@ export function formatIdentification(value: string | null | undefined): string {
   if (!normalized) return '';
   const withoutLabel = normalized.replace(/^identification\s*:\s*/i, '').trim();
   if (!withoutLabel || isNegative(withoutLabel)) return '';
-  if (isAffirmative(withoutLabel) || /^(?:id|driver(?:'s)? license|license|licencia|itin|passport|pasaporte)$/i.test(withoutLabel)) return 'ID';
+  if (isAffirmative(withoutLabel) || /^(?:id|tax[ -]?(?:id|identification)|taxpayer id|driver(?:'s)? license|license|licencia|itin|passport|pasaporte)$/i.test(withoutLabel)) return 'ID';
   return `ID: ${withoutLabel}`;
 }
 
@@ -77,8 +77,8 @@ export function formatDocuments(value: string | null | undefined, language: 'es'
     })
     .filter(Boolean);
   const source = normalized.toLowerCase();
-  const hasIdentification = /\b(?:id|identification|driver(?:'s)? license|license|licencia|itin|passport|pasaporte)\b/i.test(source)
-    && !/(?:identification|id|license|licencia|itin|passport|pasaporte)[^;,]{0,40}\b(?:no|not|sin|false)\b/i.test(source);
+  const hasIdentification = /\b(?:id|tax[ -]?(?:id|identification)|taxpayer id|identification|driver(?:'s)? license|license|licencia|itin|passport|pasaporte)\b/i.test(source)
+    && !/(?:identification|tax[ -]?(?:id|identification)|taxpayer id|id|license|licencia|itin|passport|pasaporte)[^;,]{0,40}\b(?:no|not|sin|false)\b/i.test(source);
   const hasIncome = /\b(?:proof of income|income proof|prueba de ingresos|comprobante de ingresos|income|ingresos)\b/i.test(source)
     && !/(?:proof of income|income proof|prueba de ingresos|comprobante de ingresos|income|ingresos)[^;,]{0,40}\b(?:no|not|sin|false)\b/i.test(source);
   const documentLabels = [
