@@ -75,6 +75,64 @@ describe('ConversationReconciliationFunctions', () => {
     expect(conversationUpdate?.[1]?.[6]).toBe(0);
   });
 
+  it('keeps an existing real vehicle during targeted replay when the remaining transcript has no vehicle', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('SELECT c.id, c.channel')) return [{
+        id: 'conversation-targeted-down-id',
+        channel: 'whatsapp',
+        ghl_location_id: GHL_SOURCE_CONFIG.lucki.locationId,
+        ghl_contact_id: 'lucki-targeted-down-id-contact',
+        ghl_conversation_id: 'lucki-targeted-down-id-conversation',
+        status: 'queued',
+        qualification_snapshot: {
+          real_name: 'Marcelino',
+          profile_name: 'Marcelino',
+          phone: '+17577152419',
+          vehicle_type: 'truck',
+          qualification_complete: true,
+          language: 'es',
+        },
+        location_snapshot: { city: null, state: null, zip_code: null, easterns_zone: null },
+        ready_at: null,
+        next_attempt_at: null,
+        last_message_at: '2026-11-19T15:24:55.789Z',
+        waiting_window_attempts: 0,
+        lead_id: 'lead-lucki-targeted-down-id',
+        canonical_phone: '+17577152419',
+        first_name: 'Marcelino',
+        last_name: '',
+      }];
+      if (sql.includes('SELECT cm.body')) return [
+        { body: 'Unos 1500', direction: 'inbound', occurred_at: '2026-11-19T15:22:58.951Z' },
+        { body: 'Tax ID', direction: 'inbound', occurred_at: '2026-11-19T15:23:36.058Z' },
+        { body: 'Sii', direction: 'inbound', occurred_at: '2026-11-19T15:24:00.778Z' },
+      ];
+      return [];
+    });
+    const runner = { connect: vi.fn(), startTransaction: vi.fn(), commitTransaction: vi.fn(), rollbackTransaction: vi.fn(), release: vi.fn(), isTransactionActive: true, query };
+    const qualification = {
+      resolveLocation: vi.fn().mockResolvedValue({ city: null, state: null, zip_code: null, easterns_zone: null }),
+      findSourceDealer: vi.fn().mockResolvedValue({ id: 'dealer-lucki', timezone: 'America/New_York', routing_config: {} }),
+      statusForConversation: vi.fn().mockReturnValue({ status: 'queued', nextAttemptAt: null }),
+      syncLeadDealer: vi.fn(),
+    };
+    const reconciliation = new ConversationReconciliationFunctions(
+      { createQueryRunner: () => runner } as never,
+      qualification as never,
+      { createQueuedPauseEvent: vi.fn(), dispatchQueuedPauseEvent: vi.fn() } as never,
+    );
+
+    await reconciliation.reconcileConversation('conversation-targeted-down-id', new Date('2026-11-19T15:30:00.000Z'), true, false, true);
+
+    const conversationUpdate = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2]))).toMatchObject({
+      vehicle_type: 'truck',
+      vehicle_category: 'truck',
+      required_down_payment: 3000,
+    });
+    expect(JSON.parse(String(conversationUpdate?.[1]?.[2])).qualification_memory).toContain('vehicle: truck');
+  });
+
   it('repairs a stale Messenger channel from the native GHL WhatsApp message type', async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('SELECT c.id, c.channel')) return [{

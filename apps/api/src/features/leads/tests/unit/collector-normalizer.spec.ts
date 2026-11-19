@@ -59,6 +59,7 @@ describe('normalizeCollectorInput', () => {
       phone: '+17577152419',
       message: transcript,
       chat_history_log: transcript,
+      profile: { name: 'Marcelino' },
     });
 
     expect(result).toMatchObject({

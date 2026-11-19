@@ -312,9 +312,18 @@ export class ConversationReconciliationFunctions {
       }
       const invalidatedOwnedVehicle = normalized.vehicle_owned_without_purchase_intent
         && (!clean(normalized.vehicle_type) || isAdvisorHandoffVehicle(normalized.vehicle_type));
+      const normalizedVehicle = clean(normalized.vehicle_type);
+      const currentVehicle = clean(current.vehicle_type);
+      const preserveCurrentVehicle = targeted
+        && Boolean(currentVehicle)
+        && !isAdvisorHandoffVehicle(currentVehicle)
+        && (!normalizedVehicle || isAdvisorHandoffVehicle(normalizedVehicle))
+        && !normalized.advisor_handoff_requested;
       const vehicle = invalidatedOwnedVehicle
         ? ''
-        : targeted ? clean(normalized.vehicle_type) : preserveOrNormalize(current.vehicle_type, normalized.vehicle_type);
+        : targeted
+          ? preserveCurrentVehicle ? currentVehicle : normalizedVehicle
+          : preserveOrNormalize(current.vehicle_type, normalized.vehicle_type);
       const vehicleIntent = normalized.vehicle_intent || current.vehicle_intent || '';
       const advisorHandoffRequested = Boolean(normalized.advisor_handoff_requested || current.advisor_handoff_requested);
       const vehicleYear = invalidatedOwnedVehicle
@@ -335,6 +344,8 @@ export class ConversationReconciliationFunctions {
       const bankAccount = targetedOrExisting(current.bank_account, normalized.bank_account);
       const qualificationMemoryBase = invalidatedOwnedVehicle
         ? clean(normalized.qualification_memory)
+        : preserveCurrentVehicle
+        ? mergeMemory(normalized.qualification_memory, { vehicle })
         : targetedOrExisting(current.qualification_memory, normalized.qualification_memory);
       const qualificationMemory = isSocialProfileChannel
         ? mergeMemory(qualificationMemoryBase, { real_name: realName })
