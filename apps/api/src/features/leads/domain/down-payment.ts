@@ -6,6 +6,9 @@ const CASH_PATTERNS = [
   /\bpaga(?:r[aá]|r)?\s+de\s+contado\b/i,
 ];
 export const CASH_DOWN_PAYMENT = 'Pagara en cash / de contado';
+export function formatCashDownPayment(language: 'es' | 'en'): string {
+  return language === 'en' ? 'Pay in cash' : CASH_DOWN_PAYMENT;
+}
 export const GENERAL_DOWN_PAYMENT_MINIMUM = 1000;
 export const OFFLEASE_DOWN_PAYMENT_MINIMUM = 1500;
 export const OFFLEASE_DEALER_IDS = new Set([

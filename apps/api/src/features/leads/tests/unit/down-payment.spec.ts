@@ -45,6 +45,15 @@ describe('normalización de pago inicial', () => {
     expect(buildWhatsAppMessage('Ana Perez', '+15550000000', { down_payment: 'pagará de contado' })).toContain('Pagara en cash / de contado');
   });
 
+  it('normaliza el pago completo en inglés como Pay in cash', () => {
+    expect(buildWhatsAppMessage('Darryl Corum', '+12026278741', {
+      language: 'en',
+      vehicle_type: 'Ford Transit XLT 2016',
+      down_payment: 'I’m willing to pay $7500 cash that includes everything',
+      purchase_timeline: 'today',
+    })).toContain('Pay in cash');
+  });
+
   it('mantiene el resumen en inglés cuando la cualificación llega en inglés', () => {
     expect(buildWhatsAppMessage('Alexander Freez', '3212343212', {
       vehicle_type: 'truck',

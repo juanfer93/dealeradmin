@@ -4324,6 +4324,36 @@ Full name: Jose Eduardo Martins Cabral
     expect(result.vehicle_type).toBe('Honda Civic o Accord');
   });
 
+  it('normalizes Darryl’s Ford Transit XLT year and later Transit Connect wording', () => {
+    const transcript = [
+      'Do you have any 2016 Ford transit XLT?',
+      'I want to see available vehicles',
+      'I seen one in Alexandria, but they didn’t give the address to where the truck was located 2016. It was for $7900. I’m basically looking for a work Truck used willing to pay up to $7500 on the road tax tags and registration can make a deal today',
+      'Mileage 130,000 to 150,000 miles',
+      '202-627-8741',
+      'I don’t read Spanish language',
+      'Darryl Corum',
+      '__DOWN_PROMPT__',
+      'I’m willing to pay $7500 cash that includes everything if it meets my criteria I don’t want any windows in it the transit connector Ford',
+      'I’m trying to make a deal right away',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'action-cars',
+      channel: 'messenger',
+      real_name: 'Darryl Corum',
+      phone: '+12026278741',
+      message: transcript,
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      vehicle_year: 2016,
+      down_payment: 'Pagara en cash / de contado',
+      purchase_timeline: 'today',
+    });
+    expect(result.vehicle_type).toBe('Ford Transit XLT o Ford Transit Connect 2016');
+  });
+
   it('combines model requests sent in separate WhatsApp messages', () => {
     const inboundMessages = ['BUSCO UNA SUV', 'Toyota highlander', 'O honda crv', '2500$'].join('\n');
     const result = normalizeCollectorInput({

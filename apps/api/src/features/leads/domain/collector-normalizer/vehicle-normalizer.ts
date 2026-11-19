@@ -3,9 +3,9 @@ import { isAdvisorHandoffVehicle } from './flow-policy';
 import { clean } from './text-cleaner';
 
 export const VEHICLE_BRANDS = /\b(?:toyotas?|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subarus?|suvarus?|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|land rover|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion)\b/i;
-export const VEHICLE_MODELS = /\b(?:grand caravan|grand cherokee|transit connect|promaster city|mustang|tacomas?|tacomos?|tacmas?|tecomas?|sti|rava|rav\s*4|civic|civc|acor(?:d)?|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|for\s+runner|for\s+runer|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|odisea|paila|sierra|silverado|tahoe|tajo|suburban|traverse|equinox|camaros?|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durangos?|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|rlx|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
+export const VEHICLE_MODELS = /\b(?:grand caravan|grand cherokee|transit connect|transit|promaster city|mustang|tacomas?|tacomos?|tacmas?|tecomas?|sti|rava|rav\s*4|civic|civc|acor(?:d)?|accord|camry|coroll?a|highlander|hilander|sienna|4\s*runner|for\s+runner|for\s+runer|tundra|sequoia|prius|avalon|f-?150|f-?250|f-?350|maverick|ranger|bronco|explorer|expedition|escape|edge|cr-?v|hr-?v|pilot|passport|ridgeline|odyssey|odisea|paila|sierra|silverado|tahoe|tajo|suburban|traverse|equinox|camaros?|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durangos?|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|rlx|model [3syx]|f-?type|range rover|defender|wrx|highlander)\b/i;
 export const VEHICLE_CATEGORIES = /\b(?:4\s*[x×]\s*4|small\s+rvs?|rvs?|suv|sed[aá]ns?|midsize|mid[- ]?size|medium[- ]?size|mediano|mediana|turismos?|trucks?|truk|troka|trocas?|trokitas?|troquitas?|troques?|pickup|pick-up|pickop|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|dump\s*trucks?|camioneta|camionetq|camion|camión)\b/i;
-export const VEHICLE_TRIMS = /\b(?:\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i;
+export const VEHICLE_TRIMS = /\b(?:\d+\s*lt|lt|xlt|xle|le|se|sr5|limited|sport|touring|ex)\b/i;
 export const VEHICLE_CONTEXT = /\b(?:tengo|tiene|tienen|ten[ií]an|have|has|got|carry|available|need|needs|i have|my vehicle is|mi (?:carro|auto|veh[ií]culo) es|estoy buscando|ando buscando|looking for|busco|buscando|quiero|want|love|like|prefer|interested in|interesado en|estou procurando|estou [àa] procura|procuro|tenho interesse)\b/i;
 // GHL/Messenger often shortens a model year in pairs such as "Civic 2014/15".
 // Two-digit years are accepted only in vehicle context and map to 2005-2026.
@@ -33,6 +33,11 @@ export function normalizeWhisperVehicleAliases(value: string): string {
     .replace(/\bban\b(?=\s+(?:con|para)\b)/gi, 'van')
     .replace(/\b(?:andas|onda|ondas|honda)\s+y\s*vis\s+si\b/gi, 'Honda Civic')
     .replace(/\b(?:andas|onda|ondas)\s+civ(?:ic|is)\b/gi, 'Honda Civic')
+    // Messenger can transcribe "Transit Connect Ford" as "Transit Connector Ford"
+    // and put the make after the model.
+    .replace(/\btransit\s+connector\s+ford\b/gi, 'Ford Transit Connect')
+    // Messenger can also transcribe "Transit Connect" as "Transit Connector".
+    .replace(/\btransit\s+connector\b/gi, 'Transit Connect')
     // GHL/Messenger transcription in the Culpeper replay rendered
     // "Toyota Tundra" as "toyata tandra". Keep these bounded to vehicle
     // tokens so a misspelling cannot alter names or free-form notes.
@@ -115,6 +120,7 @@ export function canonicalVehicleLabel(value: string): string {
     if (lower === 'rav4') return 'RAV4';
     if (lower === '4runner') return '4Runner';
     if (lower === 'rlx') return 'RLX';
+    if (lower === 'xlt') return 'XLT';
     if (lower === 'cr-v' || lower === 'hr-v') return lower.toLocaleUpperCase();
     if (/^f-?\d+$/.test(lower)) return `F-${lower.replace(/^f-?/, '')}`;
     return `${lower[0].toLocaleUpperCase()}${lower.slice(1)}`;
@@ -177,7 +183,7 @@ export function extractVehicleLabel(value: string | null | undefined): string {
     if (modelAfterBrand?.index !== undefined) {
       const model = modelAfterBrand[0];
       const afterModel = afterBrand.slice(modelAfterBrand.index + model.length);
-      const trim = afterModel.match(/^\s+(?:(?:con|with)\s+(?:(?:el|la|the)\s+)?(?:(?:paquete|package)\s+)?)?(\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i)?.[1];
+      const trim = afterModel.match(/^\s+(?:(?:con|with)\s+(?:(?:el|la|the)\s+)?(?:(?:paquete|package)\s+)?)?(\d+\s*lt|lt|xlt|xle|le|se|sr5|limited|sport|touring|ex)\b/i)?.[1];
       const category = afterModel.match(VEHICLE_CATEGORIES)?.[0];
       return canonicalVehicleLabel(`${brand} ${model}${trim ? ` ${trim}` : EMPTY}${category ? ` ${category}` : EMPTY}`);
     }
@@ -189,7 +195,7 @@ export function extractVehicleLabel(value: string | null | undefined): string {
   if (preferredMatch.kind === 'model') {
     const model = preferredMatch.match[0];
     const afterModel = source.slice((preferredMatch.match.index ?? 0) + model.length);
-    const trim = afterModel.match(/^\s+(?:(?:con|with)\s+(?:(?:el|la|the)\s+)?(?:(?:paquete|package)\s+)?)?(\d+\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\b/i)?.[1];
+    const trim = afterModel.match(/^\s+(?:(?:con|with)\s+(?:(?:el|la|the)\s+)?(?:(?:paquete|package)\s+)?)?(\d+\s*lt|lt|xlt|xle|le|se|sr5|limited|sport|touring|ex)\b/i)?.[1];
     return canonicalVehicleLabel(`${model}${trim ? ` ${trim}` : EMPTY}`);
   }
   return canonicalVehicleCategory(preferredMatch.match[0]);
@@ -199,7 +205,7 @@ export function extractExplicitVehicleTrim(value: string, label: string): string
   const model = label.match(VEHICLE_MODELS)?.[0];
   if (!model || VEHICLE_TRIMS.test(label)) return EMPTY;
   const escapedModel = model.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return value.match(new RegExp(`\\b${escapedModel}\\b\\s+(?:con|with)\\s+(?:(?:el|la|the)\\s+)?(?:(?:paquete|package)\\s+)?(\\d+\\s*lt|lt|xle|le|se|sr5|limited|sport|touring|ex)\\b`, 'i'))?.[1] ?? EMPTY;
+  return value.match(new RegExp(`\\b${escapedModel}\\b\\s+(?:con|with)\\s+(?:(?:el|la|the)\\s+)?(?:(?:paquete|package)\\s+)?(\\d+\\s*lt|lt|xlt|xle|le|se|sr5|limited|sport|touring|ex)\\b`, 'i'))?.[1] ?? EMPTY;
 }
 
 /**

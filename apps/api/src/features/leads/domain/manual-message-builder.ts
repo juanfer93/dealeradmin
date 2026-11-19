@@ -8,7 +8,7 @@ type ManualMessageLeadData = {
   dealer_name?: string | null;
 };
 
-import { CASH_DOWN_PAYMENT, isCashDownPayment, isNoDownPayment, visibleDownPayment } from './down-payment';
+import { formatCashDownPayment, isCashDownPayment, isNoDownPayment, visibleDownPayment } from './down-payment';
 import { LOOKING_OPTIONS_LABEL, detectMessageLanguage, formatBankAccount, formatDocuments, formatIdentification, formatPurchaseTimeline } from './message-builder';
 
 function clean(value: string | null | undefined): string | undefined {
@@ -28,7 +28,7 @@ export function buildManualLeadMessage(name: string, phone: string, data: Manual
   return [
     [name.trim(), phone].filter(Boolean).join(' '),
     vehicle,
-    down && !isNoDownPayment(down) ? (isCashDownPayment(down) ? CASH_DOWN_PAYMENT : `${down}${language === 'es' ? ' de down' : ' down'}`) : '',
+    down && !isNoDownPayment(down) ? (isCashDownPayment(down) ? formatCashDownPayment(language) : `${down}${language === 'es' ? ' de down' : ' down'}`) : '',
     identification,
     bankAccount,
     documents,

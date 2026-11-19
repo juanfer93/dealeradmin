@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { visibleDownPayment } from './down-payment-visibility';
+import { formatDownPaymentLabel, visibleDownPayment } from './down-payment-visibility';
 
 describe('visibleDownPayment', () => {
+  it('shows the cash label in the language of the lead', () => {
+    expect(formatDownPaymentLabel('Pagara en cash / de contado', 'en')).toBe('Pay in cash');
+    expect(formatDownPaymentLabel('Pagara en cash / de contado', 'es')).toBe('Pagara en cash / de contado');
+  });
+
   it('shows general down payments from $1,000', () => {
     expect(visibleDownPayment('1000', 'Offlease Motors Stafford')).toBe('1000');
     expect(visibleDownPayment('999', 'Offlease Motors Stafford')).toBe('1000');

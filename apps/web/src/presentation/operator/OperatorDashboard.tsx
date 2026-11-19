@@ -16,7 +16,7 @@ import { logout as logoutRequest } from '../../infrastructure/auth/auth-api';
 import { copyLead, deleteLead as deleteLeadRequest, deleteLeads, getDealerLeads, markLeadSent } from '../../infrastructure/operator/operator-api';
 import { useOperatorQueue } from '../../application/operator/use-operator-queue';
 import { ConversationViewerModal } from './ConversationViewerModal';
-import { visibleDownPayment } from '../../domain/leads/down-payment-visibility';
+import { formatDownPaymentLabel, isCashDownPaymentLabel, visibleDownPayment } from '../../domain/leads/down-payment-visibility';
 
 function clean(value: string | null | undefined) { return value?.trim() ?? ''; }
 
@@ -170,7 +170,11 @@ export function formatLeadMessage(lead: Lead, language?: 'es' | 'en') {
   const resolvedLanguage = language ?? detectLeadLanguage(lead);
   const identity = [clean(lead.name), clean(lead.phone), clean(lead.vehicleType)].filter(Boolean).join(' ');
   const downValue = visibleDownPayment(lead.downPayment, lead.dealerName);
-  const down = downValue && !isNoDownPayment(downValue) ? (resolvedLanguage === 'es' ? `${downValue} de down` : `${downValue} down`) : '';
+  const down = downValue && !isNoDownPayment(downValue)
+    ? isCashDownPaymentLabel(downValue)
+      ? formatDownPaymentLabel(downValue, resolvedLanguage)
+      : `${downValue}${resolvedLanguage === 'es' ? ' de down' : ' down'}`
+    : '';
   const previousFinancing = lead.previousFinancing === 'yes'
     && lead.downPaymentAmount != null
     && lead.requiredDownPayment != null
@@ -190,7 +194,7 @@ export function formatLeadCopy(lead: Lead): string {
   const visibleDown = visibleDownPayment(copyLead.downPayment, copyLead.dealerName);
   const storedMessageIncludesVisibleDown = Boolean(visibleDown)
     && (copyLead.messageText ?? '').toLocaleLowerCase().includes(visibleDown.toLocaleLowerCase());
-  const source = visibleDown === clean(lead.downPayment) && (!visibleDown || storedMessageIncludesVisibleDown)
+  const source = visibleDown === clean(lead.downPayment) && (!visibleDown || (storedMessageIncludesVisibleDown && !isCashDownPaymentLabel(visibleDown)))
     ? copyLead.messageText || formatLeadMessage(copyLead)
     : formatLeadMessage(copyLead);
   const name = clean(lead.name);
@@ -253,7 +257,11 @@ function Qualification({ lead, language, empty }: { lead: Lead; language: 'es' |
     && lead.downPaymentAmount < lead.requiredDownPayment
     ? (language === 'es' ? 'Ya ha financiado antes' : 'Has financed before')
     : '';
-  return <div className="space-y-2"><div className="flex max-w-[300px] flex-wrap gap-1.5">{tag(visibleDownPayment(lead.downPayment, lead.dealerName) && !isNoDownPayment(lead.downPayment) ? visibleDownPayment(lead.downPayment, lead.dealerName) : '', empty.downPayment)}{previousFinancing && tag(previousFinancing, '')}{tag(identification, empty.identification)}{tag(bankAccount, empty.bankAccount)}{tag(documents, empty.documents)}{tag(formatPurchaseTimelineLabel(lead.purchaseTimeline, language).replace(/^(?:quiere comprar|wants to buy)\s+/i, ''), empty.purchaseTimeline)}</div>{(category || minimum || downRule || step) && <div className="max-w-[340px] rounded border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-2 text-[11px] leading-5 text-[var(--text-muted)]"><span className="font-semibold text-[var(--text)]">{language === 'es' ? 'Normalizado' : 'Normalized'}</span>{category && <span className="ml-2">{language === 'es' ? 'categoría' : 'category'}: {category}</span>}{minimum && <span className="ml-2">{language === 'es' ? 'mínimo' : 'minimum'}: {minimum}</span>}{downRule && <span className={`ml-2 font-semibold ${lead.downPaymentSufficient ? 'text-[var(--brand-strong)]' : 'text-[var(--error)]'}`}>{downRule}</span>}{step && <span className="ml-2">{language === 'es' ? 'paso' : 'step'}: {step}</span>}</div>}</div>;
+  const downValue = visibleDownPayment(lead.downPayment, lead.dealerName);
+  const downLabel = downValue && !isNoDownPayment(lead.downPayment)
+    ? formatDownPaymentLabel(downValue, detectLeadLanguage(lead))
+    : '';
+  return <div className="space-y-2"><div className="flex max-w-[300px] flex-wrap gap-1.5">{tag(downLabel, empty.downPayment)}{previousFinancing && tag(previousFinancing, '')}{tag(identification, empty.identification)}{tag(bankAccount, empty.bankAccount)}{tag(documents, empty.documents)}{tag(formatPurchaseTimelineLabel(lead.purchaseTimeline, language).replace(/^(?:quiere comprar|wants to buy)\s+/i, ''), empty.purchaseTimeline)}</div>{(category || minimum || downRule || step) && <div className="max-w-[340px] rounded border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-2 text-[11px] leading-5 text-[var(--text-muted)]"><span className="font-semibold text-[var(--text)]">{language === 'es' ? 'Normalizado' : 'Normalized'}</span>{category && <span className="ml-2">{language === 'es' ? 'categoría' : 'category'}: {category}</span>}{minimum && <span className="ml-2">{language === 'es' ? 'mínimo' : 'minimum'}: {minimum}</span>}{downRule && <span className={`ml-2 font-semibold ${lead.downPaymentSufficient ? 'text-[var(--brand-strong)]' : 'text-[var(--error)]'}`}>{downRule}</span>}{step && <span className="ml-2">{language === 'es' ? 'paso' : 'step'}: {step}</span>}</div>}</div>;
 }
 
 export default function OperatorDashboard() {

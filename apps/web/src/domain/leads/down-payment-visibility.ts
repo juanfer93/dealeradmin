@@ -27,3 +27,15 @@ export function visibleDownPayment(value: string | null | undefined, dealerName?
   const minimum = isOffleaseDealer(dealerName) ? 1500 : 1000;
   return amount === 999 ? (minimum <= 1000 ? rounded : '') : amount < minimum ? '' : normalized;
 }
+
+export function formatDownPaymentLabel(value: string | null | undefined, language: 'es' | 'en'): string {
+  const normalized = clean(value);
+  if (isCashDownPaymentLabel(normalized)) {
+    return language === 'en' ? 'Pay in cash' : 'Pagara en cash / de contado';
+  }
+  return normalized;
+}
+
+export function isCashDownPaymentLabel(value: string | null | undefined): boolean {
+  return /^(?:pagara en cash \/ de contado|cash|contado|de contado|efectivo|paid in full|pay in cash)$/i.test(clean(value));
+}

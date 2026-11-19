@@ -14,7 +14,7 @@ export type MessageLeadData = {
   dealer_name?: string | null;
 };
 
-import { CASH_DOWN_PAYMENT, isCashDownPayment, isNoDownPayment, visibleDownPayment } from './down-payment';
+import { formatCashDownPayment, isCashDownPayment, isNoDownPayment, visibleDownPayment } from './down-payment';
 
 export const LOOKING_OPTIONS_LABEL = 'Quiere ver opciones';
 
@@ -152,7 +152,7 @@ export function buildWhatsAppMessage(name: string, phone: string, data: MessageL
   const downValue = visibleDownPayment(data.down_payment, data.dealer_name);
   const down = downValue && !isNoDownPayment(downValue)
     ? isCashDownPayment(downValue)
-      ? CASH_DOWN_PAYMENT
+      ? formatCashDownPayment(language)
       : /^trade[- ]?in$/i.test(downValue)
         ? downValue
         : `${downValue}${language === 'es' ? ' de down' : ' down'}`
