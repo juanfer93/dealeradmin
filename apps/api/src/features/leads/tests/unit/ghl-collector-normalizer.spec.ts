@@ -41,6 +41,41 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(body).not.toMatch(/(^|\n)\s*import\s|\brequire\s*\(/);
   });
 
+  it('marks a buyer who asks to see models and prices as exploring options without changing other normalized details', () => {
+    const transcript = [
+      'Tendría carros del 2015 o 2016 que sean Toyota o Honda',
+      'Danny',
+      'Este modelo de este año',
+      'Honda Civic, Toyota Corolla Camry',
+      '1500 pero deseo ver los modelos podría mandarme',
+      'Quiero ver los modelos y los precios de eso voy a ver si compro',
+      'Ok',
+      'El que me guste',
+      'Y el precio y el millaje',
+    ].join('\n');
+
+    expect(execute({
+      source: 'arlington',
+      channel: 'whatsapp',
+      real_name: 'Danny',
+      phone: '+12405736525',
+      vehicle_type: 'Honda Civic o Toyota Corolla',
+      down_payment: '1500',
+      message: 'Quiero ver los modelos y los precios de eso voy a ver si compro',
+      chat_history_log: transcript,
+    })).toMatchObject({
+      real_name: 'Danny',
+      phone: '+12405736525',
+      vehicle_type: expect.stringMatching(/Honda Civic.*Toyota Corolla/i),
+      down_payment: '1500',
+      purchase_timeline: 'explorando opciones',
+    });
+  });
+
+  it('keeps a concrete purchase date ahead of model browsing intent', () => {
+    expect(execute({ message: 'Quiero ver los modelos y comprar este mes' }).purchase_timeline).toBe('este mes');
+  });
+
   it('does not turn a conversational answer or dealer suffix into a buyer name', () => {
     for (const name of [
       'Estoy Entre Ambos',

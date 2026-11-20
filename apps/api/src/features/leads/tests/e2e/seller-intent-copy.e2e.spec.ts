@@ -52,6 +52,45 @@ describe('seller intent copy E2E without Docker', () => {
     expect(copy).toBe('Carlos Martinez +15403336356 Van, Quiere ver opciones.');
   });
 
+  it('normalizes Danny’s request to see models, prices, and mileage as wanting options', () => {
+    const transcript = [
+      'Tendría carros del 2015 o 2016 que sean Toyota o Honda',
+      'Danny',
+      'Este modelo de este año',
+      'Honda Civic, Toyota Corolla Camry',
+      '1500 pero deseo ver los modelos podría mandarme',
+      'Quiero ver los modelos y los precios de eso voy a ver si compro',
+      'Ok',
+      'El que me guste',
+      'Y el precio y el millaje',
+    ].join('\n');
+    const normalized = normalizeCollectorInput({
+      source: 'arlington',
+      channel: 'whatsapp',
+      real_name: 'Danny',
+      phone: '+12405736525',
+      vehicle_type: 'Honda Civic o Toyota Corolla',
+      down_payment: '1500',
+      message: 'Quiero ver los modelos y los precios de eso voy a ver si compro',
+      chat_history_log: transcript,
+    });
+    const copy = buildWhatsAppMessage(normalized.real_name, normalized.phone, {
+      language: 'es',
+      vehicle_type: normalized.vehicle_type,
+      down_payment: normalized.down_payment,
+      purchase_timeline: normalized.purchase_timeline,
+    });
+
+    expect(normalized).toMatchObject({
+      real_name: 'Danny',
+      phone: '+12405736525',
+      vehicle_type: expect.stringMatching(/Honda Civic.*Toyota Corolla/i),
+      down_payment: '1500',
+      purchase_timeline: 'explorando opciones',
+    });
+    expect(copy).toContain('Quiere ver opciones');
+  });
+
   it('normalizes Carlos Inzunza’s real Arlington conversation into a seller copy', () => {
     const transcript = [
       'I am selling a tacoma 2021 trd sport 4 doors 2 axles',

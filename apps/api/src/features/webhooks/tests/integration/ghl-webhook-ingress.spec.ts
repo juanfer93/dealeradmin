@@ -294,6 +294,65 @@ describeDatabase('GHL webhook ingress regression for the three reported leads', 
     expect(rows[0]).toMatchObject({ status: 'waiting_window' });
     expect(rows[0].qualification_snapshot).toMatchObject({ vehicle_type: 'Ram', vehicle_category: 'truck', qualification_complete: true });
   }, 30_000);
+
+  it('persists Danny’s explicit request to see vehicle models and prices as options intent', async () => {
+    const contactId = `${suffix}-danny-options-contact`;
+    const conversationId = `${contactId}-conversation`;
+    const messages = [
+      'Tendría carros del 2015 o 2016 que sean Toyota o Honda',
+      'Danny',
+      'Este modelo de este año',
+      'Honda Civic, Toyota Corolla Camry',
+      '1500 pero deseo ver los modelos podría mandarme',
+      'Quiero ver los modelos y los precios de eso voy a ver si compro',
+      'Ok',
+      'El que me guste',
+      'Y el precio y el millaje',
+    ];
+
+    try {
+      for (const [index, message] of messages.entries()) {
+        const eventId = `${suffix}-danny-options-${index + 1}`;
+        const response = await postJson(port, '/webhooks/ghl/customer-replied/stafford', {
+          event_id: eventId,
+          event_type: 'customer.replied',
+          ghl_contact_id: contactId,
+          ghl_conversation_id: conversationId,
+          channel: 'whatsapp',
+          contact_name: 'Danny',
+          contact_phone: '+12405736525',
+          message_body: message,
+          occurred_at: new Date(Date.parse('2026-11-20T18:35:00.000Z') + index * 1_000).toISOString(),
+        });
+        expect(response.statusCode, `message ${index + 1}: ${response.body}`).toBe(200);
+        expect(JSON.parse(response.body)).toMatchObject({ accepted: true, source: 'stafford', status: 'processed' });
+      }
+
+      const rows = await dataSource.query(
+        `SELECT c.qualification_snapshot
+         FROM conversations c
+         WHERE c.ghl_contact_id = $1 AND c.ghl_conversation_id = $2`,
+        [contactId, conversationId],
+      ) as Array<{ qualification_snapshot: Record<string, unknown> }>;
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].qualification_snapshot).toMatchObject({
+        real_name: 'Danny',
+        phone: '+12405736525',
+        vehicle_type: expect.stringMatching(/Honda Civic.*Toyota Corolla/i),
+        down_payment: '1500',
+        purchase_timeline: 'explorando opciones',
+      });
+    } finally {
+      await dataSource.query('DELETE FROM conversation_bot_pause_events WHERE ghl_contact_id = $1', [contactId]);
+      await dataSource.query('DELETE FROM conversation_messages WHERE conversation_id IN (SELECT id FROM conversations WHERE ghl_contact_id = $1)', [contactId]);
+      await dataSource.query('DELETE FROM conversations WHERE ghl_contact_id = $1', [contactId]);
+      await dataSource.query('DELETE FROM lead_dealers WHERE lead_id IN (SELECT id FROM leads WHERE ghl_contact_id = $1)', [contactId]);
+      await dataSource.query('DELETE FROM leads WHERE ghl_contact_id = $1', [contactId]);
+      await dataSource.query('DELETE FROM webhook_events WHERE event_id LIKE $1', [`${suffix}-danny-options-%`]);
+      await dataSource.query('DELETE FROM webhook_processing_attempts WHERE ghl_contact_id = $1', [contactId]);
+    }
+  }, 30_000);
 });
 
 function postJson(port: number, path: string, payload: Record<string, unknown>): Promise<{ statusCode: number; body: string }> {

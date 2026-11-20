@@ -406,6 +406,7 @@ const timelineFrom = (text) => {
   if (/next month|pr[oó]ximo mes|end of next month|a (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes/i.test(hit)) return 'next month';
   const month = timelineMonthKey(hit);
   if (month) return month;
+  if (/\b(?:quiero|quisiera|deseo|me gustar[ií]a|i want|i would like|i'd like)\b[^.!?\n]{0,100}\b(?:ver|mirar|revisar|conocer|see|look at|check|review)\b[^.!?\n]{0,100}\b(?:modelos?|opciones?|inventario|precios?|models?|options?|inventory|prices?)\b/i.test(source)) return 'exploring options';
   return hit;
 };
 const yesNo = (value) => {
