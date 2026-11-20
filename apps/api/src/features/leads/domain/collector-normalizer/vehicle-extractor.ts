@@ -30,6 +30,16 @@ function isVehicleOptionPrompt(line: string): boolean {
   return asksForChoice && options.length >= 2;
 }
 
+function isTradeInVehicleOffer(line: string): boolean {
+  if (!isTradeInIntent(line) || !/\b(?:down|payment|enganche|pago\s+inicial)\b/i.test(line)) return false;
+  const requests = [...line.matchAll(/\b(?:looking for|busco|quiero|want|interested in|interesado en|me interesa(?:n)?)\b([^.!?]*)/gi)];
+  const explicitlyRequested = requests.some((request) => {
+    const requestedVehicle = (request[1] ?? '').replace(/\b(?:dar|doy|entregar|entrego|entregue|give|trade)\b[\s\S]*$/i, '');
+    return VEHICLE_CATEGORIES.test(requestedVehicle) || VEHICLE_MODELS.test(requestedVehicle);
+  });
+  return !explicitlyRequested;
+}
+
 export function extractVehicle(message: string): string {
   const source = stripNonConversationMetadata(message).trim();
   if (!source) return EMPTY;
@@ -43,6 +53,9 @@ export function extractVehicle(message: string): string {
     const candidate = normalizeWhisperVehicleAliases(stripCampaignButtonPhrases(line));
     if (!candidate || isCampaignButton(candidate) || isNonVehicleIntent(candidate)) continue;
     if (isFalsePositiveVanVerb(candidate)) continue;
+    // A vehicle the buyer will hand in as down payment is not the replacement
+    // vehicle they want to buy. Keep an explicit SUV/model request elsewhere.
+    if (isTradeInVehicleOffer(candidate)) continue;
     if (/^\s*(?:vehicle_type|vehicle_category)\s*[:=]/i.test(candidate)) continue;
     if (isPossessiveVehicleStatement(candidate)) continue;
     if (isTradeInIntent(candidate)

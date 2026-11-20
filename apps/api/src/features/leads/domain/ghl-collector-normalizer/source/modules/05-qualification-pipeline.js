@@ -183,6 +183,15 @@ const isVehicleOptionPrompt = (line) => {
   const options = line.match(/\b(?:sed[aá]ns?|suvs?|camionetas?|trucks?|trocas?|vans?|pickups?|pick-up)\b/gi) || [];
   return asksForChoice && options.length >= 2;
 };
+const isTradeInVehicleOffer = (line) => {
+  if (!hasTradeInIntent(line) || !/\b(?:down|payment|enganche|pago\s+inicial)\b/i.test(line)) return false;
+  const requests = [...line.matchAll(/\b(?:looking for|busco|quiero|want|interested in|interesado en|me interesa(?:n)?)\b([^.!?]*)/gi)];
+  const explicitlyRequested = requests.some((request) => {
+    const requestedVehicle = (request[1] || '').replace(/\b(?:dar|doy|entregar|entrego|entregue|give|trade)\b[\s\S]*$/i, '');
+    return vehicleCategories.test(requestedVehicle) || vehicleModels.test(requestedVehicle);
+  });
+  return !explicitlyRequested;
+};
 const vehicleFrom = (text) => {
   const source = stripNonConversationMetadata(text).trim();
   if (!source || campaign) return '';
@@ -194,6 +203,8 @@ const vehicleFrom = (text) => {
     const candidate = normalizeWhisperVehicleAliases(stripCampaignButtonPhrases(line));
     if (!candidate || isCampaignButton(candidate) || isNonVehicleIntent(candidate)) continue;
     if (isFalsePositiveVanVerb(candidate)) continue;
+    // A vehicle offered as a trade-in is not the vehicle the buyer wants.
+    if (isTradeInVehicleOffer(candidate)) continue;
     // Internal structured fields can appear beside the buyer's evidence. They
     // describe a field, not a new vehicle answer, and must not override the
     // actual vehicle with a later `vehicle_type: SUV` marker.
@@ -396,14 +407,14 @@ const timelineFrom = (text) => {
   const dateText = source.match(/\b(?:\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december))\b/i)?.[0] || '';
   if (dateText) return timelineDate(dateText);
   const evidence = explicitMonthTiming.test(source) ? source : source.replace(new RegExp(`\\b(?:${monthNamesPattern})\\b`, 'gi'), ' ');
-  const hit = evidence.match(/\b(?:tomorrow|today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes posible|this week|esta semana|this month|este mes|este mea|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|end of next month|a (?:fines?|finales?) del otro mes|a (?:fines?|finales?) del pr[oó]ximo mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|within \d+ days?|en \d+ d[ií]as?|jan(?:uary)?|enero|feb(?:ruary)?|febrero|mar(?:ch)?|marzo|apr(?:il)?|abril|may|mayo|jun(?:e)?|junio|jul(?:y)?|julio|aug(?:ust)?|agosto|sep(?:t(?:ember|iembre)?|tiembre)|setiembre|septiembre|oct(?:ober)?|octubre|nov(?:ember)?|noviembre|dec(?:ember)?|diciembre)\b/i)?.[0] || '';
+  const hit = evidence.match(/\b(?:tomorrow|today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes posible|this week|esta semana|this month|este mes|este mea|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|(?:el\s+)?mes que viene|el otro mes|otro mes|mes entrante|end of next month|a (?:fines?|finales?) del otro mes|a (?:fines?|finales?) del pr[oó]ximo mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|within \d+ days?|en \d+ d[ií]as?|jan(?:uary)?|enero|feb(?:ruary)?|febrero|mar(?:ch)?|marzo|apr(?:il)?|abril|may|mayo|jun(?:e)?|junio|jul(?:y)?|julio|aug(?:ust)?|agosto|sep(?:t(?:ember|iembre)?|tiembre)|setiembre|septiembre|oct(?:ober)?|octubre|nov(?:ember)?|noviembre|dec(?:ember)?|diciembre)\b/i)?.[0] || '';
   const date = timelineDate(hit);
   if (date) return date;
   if (/tomorrow|today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes/i.test(hit)) return 'today';
   if (/this week|esta semana/i.test(hit)) return 'this week';
   if (/this month|este mea?/i.test(hit)) return 'this month';
   if (/next week|pr[oó]xima? semana/i.test(hit)) return 'next week';
-  if (/next month|pr[oó]ximo mes|end of next month|a (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes/i.test(hit)) return 'next month';
+  if (/next month|pr[oó]ximo mes|(?:el\s+)?mes que viene|el otro mes|otro mes|mes entrante|end of next month|a (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes/i.test(hit)) return 'next month';
   const month = timelineMonthKey(hit);
   if (month) return month;
   if (/\b(?:quiero|quisiera|deseo|me gustar[ií]a|i want|i would like|i'd like)\b[^.!?\n]{0,100}\b(?:ver|mirar|revisar|conocer|see|look at|check|review)\b[^.!?\n]{0,100}\b(?:modelos?|opciones?|inventario|precios?|models?|options?|inventory|prices?)\b/i.test(source)) return 'exploring options';
@@ -440,6 +451,9 @@ const documentStatus = (pattern, memoryAliases, custom) => {
   const conversational = conversationalEvidence(rawMessage, rawHistory);
   const positive = 'yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available';
   const negative = "no|n[oó]|sin|not|dont|don't|no tengo|i do not|do not have|not available";
+  if (/\b(?:tengo|have)\s+cheques?\s+de\s+pagos?\b/i.test(conversational)) return 'yes';
+  if (/(?:\b(?:yes|s[ií]|correct)\b[^.!?\n]{0,30}\b(?:license|licencia)\b|\b(?:license|licencia)\b[^.!?\n]{0,30}\b(?:yes|s[ií]|correct)\b)/i.test(conversational)
+    && /license|licencia/i.test(pattern)) return 'yes';
   const conversationalContext = conversational.match(new RegExp(`(?:${positive}|${negative})[^!?]{0,160}(?:${pattern})|(?:${pattern})[^!?]{0,160}(?:${positive}|${negative})`, 'i'))?.[0] || '';
   const conversationalStatus = yesNo(conversationalContext);
   if (conversationalStatus) return conversationalStatus;
@@ -472,8 +486,9 @@ const extractedVehicle = familyPassengerVanIntent.test(vehicleSource)
 const existingAdvisorMarker = [memoryValue(['vehicle', 'vehicle_type']), inputData.vehicle_type].some(isAdvisorHandoffVehicle);
 const advisorHandoffRequested = /\b(?:m[aá]ndame|env[ií]ame|dame|p[aá]same)\s+(?:el\s+|su\s+|tu\s+)?(?:n[uú]mero|tel[eé]fono)[\s\S]{0,60}\b(?:llamar|llamen|llamarme|comunicarme)\b|\b(?:quiero|necesito|me gustar[ií]a)\s+(?:hablar|comunicarme)\s+con\s+(?:un\s+)?(?:asesor|representante|especialista)\b|\b(?:send|give)\s+me\s+(?:the\s+)?(?:phone\s+)?number\s+to\s+call\b|\b(?:i want|i need|i would like)\s+to\s+speak\s+with\s+(?:an?\s+)?(?:advisor|representative|specialist)\b/i.test(`${message}\n${history}`);
 const phone = phoneFrom(message, history, inputData.phone);
-  const transcriptVehicleYear = vehicleYearFrom(vehicleSource);
-const transcriptVehicleYearLabel = vehicleYearLabelFrom(vehicleSource);
+const vehicleYearEvidenceSource = vehicleSource.split(/\n+/).filter((line) => !(/\b(?:dar|doy|entregar|entrego|entregue|give|trade)\b[^.!?\n]{0,100}\b(?:down|dow(?:n)?(?:\s+payment)?|enganche|pago\s+inicial)\b/i.test(line))).join('\n');
+const transcriptVehicleYear = vehicleYearFrom(vehicleYearEvidenceSource);
+const transcriptVehicleYearLabel = vehicleYearLabelFrom(vehicleYearEvidenceSource);
   const vehicleYear = [
     transcriptVehicleYear,
     ...(transcriptVehicle ? [] : [
@@ -589,7 +604,7 @@ const transcriptTimeline = first(timelineFrom(message), timelineFrom(history));
 // timeline; accept only customer transcript evidence.
 const rawTimeline = transcriptTimeline;
 const identification = documentStatus('id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b', ['identification', 'id', 'itin', 'passport', 'pasaporte'], inputData.identification || inputData.documents);
-const income = documentStatus('proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay stubs?|check stubs?|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina|bank account|cuenta bancaria|cuenta de banco', ['income', 'proof of income', 'estados de cuenta', 'account statements', 'bank statements', 'check stubs', 'bank account', 'cuenta bancaria', 'cuenta de banco'], inputData.documents);
+const income = documentStatus('proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay ?checks?|pay stubs?|check stubs?|cheques? de pagos?|me pagan (?:con|en) cheques?|recibo (?:el |mi )?pago en cheques?|cheques? de n[oó]mina|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina|bank account|cuenta bancaria|cuenta de banco', ['income', 'proof of income', 'estados de cuenta', 'account statements', 'bank statements', 'check stubs', 'bank account', 'cuenta bancaria', 'cuenta de banco'], inputData.documents);
 const bankEvidenceSource = conversationalEvidence(rawMessage, rawHistory);
 const bankAccountNegative = /\b(?:no|sin)\s+(?:tengo|have)\s+(?:una?\s+)?(?:bank account|cuenta bancaria|cuenta de banco)\b/i.test(bankEvidenceSource);
 const bankAccountPositive = /\b(?:yes|sí|si|yeah|yep|correct|tengo|i\s+(?:have|do(?:\s+have)?))\b[^;!?]{0,50}\b(?:a\s+|an\s+|una?\s+)?(?:bank account|cuenta bancaria|cuenta de banco)\b/i.test(bankEvidenceSource);

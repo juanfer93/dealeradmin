@@ -174,4 +174,52 @@ describe('seller intent copy E2E without Docker', () => {
     expect(copy).not.toMatch(/Toyota Camry|2025/);
     expect(copy).not.toMatch(/Quiere vender|Wants to sell/i);
   });
+
+  it('builds accurate WhatsApp copies for Josselin’s next-month purchase and Leydis’s SUV trade-in', () => {
+    const josselinTranscript = [
+      'Josselin Sánchez',
+      'Sedan normal',
+      '1,000',
+      '1500',
+      'El mes que viene',
+      'Si',
+      'Todos los días después de las 4:30',
+    ].join('\n');
+    const josselin = normalizeCollectorInput({
+      source: 'stafford', channel: 'whatsapp', contact_name: 'Josselin Sanchez',
+      real_name: 'Josselin Sanchez', phone: '+14086077954', message: josselinTranscript,
+      chat_history_log: josselinTranscript,
+    });
+    const josselinCopy = buildWhatsAppMessage(josselin.real_name, josselin.phone, {
+      language: 'es', vehicle_type: josselin.vehicle_type, down_payment: josselin.down_payment,
+      purchase_timeline: josselin.purchase_timeline,
+    });
+    expect(josselin.purchase_timeline).toBe('próximo mes');
+    expect(josselinCopy).toContain('Sedan');
+    expect(josselinCopy).toContain('1500');
+
+    const leydisTranscript = [
+      'Hola tengo una ven honda del 2012 que la quisiera dar de Dow payment ?? Me interesaría un carro menos de 20 mil',
+      'La aplicación sería a nombre de mi Esposo Igor Vargas el tiene mal crédito',
+      'Es correcto SUV el auto que busco',
+      'Bueno para serte sincera lo que busco es dar la Honda de enganche sin dar dinero que la valoren la ven como el enganche',
+      'Me puedes mandar el lik para ver todo los autos que tienes y te mando si me gusta alguna y podemos comenzar con el proceso te parece?',
+      'Esta semana', 'Tengo cheque de pagos', 'Y la licencia', 'Si',
+    ].join('\n');
+    const leydis = normalizeCollectorInput({
+      source: 'stafford', channel: 'whatsapp', contact_name: 'Leydis', real_name: 'Leydis',
+      phone: '+12022929883', message: leydisTranscript, chat_history_log: leydisTranscript,
+    });
+    const leydisCopy = buildWhatsAppMessage(leydis.real_name, leydis.phone, {
+      language: 'es', vehicle_type: leydis.vehicle_type, down_payment: leydis.down_payment,
+      purchase_timeline: leydis.purchase_timeline,
+    });
+    expect(leydis).toMatchObject({
+      vehicle_type: 'SUV', down_payment: 'trade-in', purchase_timeline: 'esta semana',
+      has_income_proof: 'yes', identification: 'yes',
+    });
+    expect(leydisCopy).toContain('SUV');
+    expect(leydisCopy).not.toContain('Honda');
+    expect(leydisCopy).not.toMatch(/Quiere vender|Wants to sell/i);
+  });
 });

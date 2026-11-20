@@ -353,6 +353,93 @@ describeDatabase('GHL webhook ingress regression for the three reported leads', 
       await dataSource.query('DELETE FROM webhook_processing_attempts WHERE ghl_contact_id = $1', [contactId]);
     }
   }, 30_000);
+
+  it('persists Josselin’s next-month timeline and Leydis’s SUV, trade-in, and check-pay evidence', async () => {
+    const contacts = [
+      {
+        key: 'josselin-next-month',
+        contactId: `${suffix}-josselin-contact`,
+        conversationId: `${suffix}-josselin-conversation`,
+        name: 'Josselin Sanchez',
+        phone: '+14086077954',
+        messages: ['Josselin Sánchez', 'Sedan normal', '1,000', '1500', 'El mes que viene', 'Si', 'Todos los días después de las 4:30'],
+      },
+      {
+        key: 'leydis-suv-trade-in',
+        contactId: `${suffix}-leydis-contact`,
+        conversationId: `${suffix}-leydis-conversation`,
+        name: 'Leydis',
+        phone: '+12022929883',
+        messages: [
+          'Hola tengo una ven honda del 2012 que la quisiera dar de Dow payment ?? Me interesaría un carro menos de 20 mil',
+          'La aplicación sería a nombre de mi Esposo Igor Vargas el tiene mal crédito',
+          'Es correcto SUV el auto que busco',
+          'Bueno para serte sincera lo que busco es dar la Honda de enganche sin dar dinero que la valoren la ven como el enganche',
+          'Me puedes mandar el lik para ver todo los autos que tienes y te mando si me gusta alguna y podemos comenzar con el proceso te parece?',
+          'Esta semana',
+          'Tengo cheque de pagos',
+          'Y la licencia',
+          'Si',
+        ],
+      },
+    ];
+
+    try {
+      for (const contact of contacts) {
+        for (const [index, message] of contact.messages.entries()) {
+          const response = await postJson(port, '/webhooks/ghl/customer-replied/stafford', {
+            event_id: `${suffix}-${contact.key}-${index + 1}`,
+            event_type: 'customer.replied',
+            ghl_contact_id: contact.contactId,
+            ghl_conversation_id: contact.conversationId,
+            channel: 'whatsapp',
+            contact_name: contact.name,
+            contact_phone: contact.phone,
+            message_body: message,
+            occurred_at: new Date(Date.parse('2026-11-20T18:35:00.000Z') + index * 1_000).toISOString(),
+          });
+          expect(response.statusCode, `${contact.key} message ${index + 1}: ${response.body}`).toBe(200);
+          expect(JSON.parse(response.body)).toMatchObject({ accepted: true, source: 'stafford', status: 'processed' });
+        }
+      }
+
+      const snapshots = await Promise.all(contacts.map(async (contact) => {
+        const rows = await dataSource.query(
+          `SELECT c.qualification_snapshot FROM conversations c WHERE c.ghl_contact_id = $1 AND c.ghl_conversation_id = $2`,
+          [contact.contactId, contact.conversationId],
+        ) as Array<{ qualification_snapshot: Record<string, unknown> }>;
+        expect(rows).toHaveLength(1);
+        return rows[0].qualification_snapshot;
+      }));
+
+      expect(snapshots[0]).toMatchObject({
+        real_name: expect.stringMatching(/Josselin S[aá]nchez/i),
+        phone: '+14086077954',
+        vehicle_type: 'Sedan',
+        down_payment: '1500',
+        purchase_timeline: 'próximo mes',
+      });
+      expect(snapshots[1]).toMatchObject({
+        real_name: 'Leydis',
+        phone: '+12022929883',
+        vehicle_type: 'SUV',
+        down_payment: 'trade-in',
+        purchase_timeline: 'esta semana',
+        identification: 'yes',
+      });
+      expect(String(snapshots[1].documents)).toContain('proof of income: yes');
+    } finally {
+      for (const contact of contacts) {
+        await dataSource.query('DELETE FROM conversation_bot_pause_events WHERE ghl_contact_id = $1', [contact.contactId]);
+        await dataSource.query('DELETE FROM conversation_messages WHERE conversation_id IN (SELECT id FROM conversations WHERE ghl_contact_id = $1)', [contact.contactId]);
+        await dataSource.query('DELETE FROM conversations WHERE ghl_contact_id = $1', [contact.contactId]);
+        await dataSource.query('DELETE FROM lead_dealers WHERE lead_id IN (SELECT id FROM leads WHERE ghl_contact_id = $1)', [contact.contactId]);
+        await dataSource.query('DELETE FROM leads WHERE ghl_contact_id = $1', [contact.contactId]);
+        await dataSource.query('DELETE FROM webhook_events WHERE event_id LIKE $1', [`${suffix}-${contact.key}-%`]);
+        await dataSource.query('DELETE FROM webhook_processing_attempts WHERE ghl_contact_id = $1', [contact.contactId]);
+      }
+    }
+  }, 30_000);
 });
 
 function postJson(port: number, path: string, payload: Record<string, unknown>): Promise<{ statusCode: number; body: string }> {

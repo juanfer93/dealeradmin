@@ -4529,4 +4529,66 @@ Full name: Jose Eduardo Martins Cabral
         down_payment_amount: 2000,
     });
   });
+
+  it('normalizes Josselin Sanchez as buying next month without losing her Sedan or $1,500 down payment', () => {
+    const transcript = [
+      'Josselin Sánchez',
+      'Sedan normal',
+      '1,000',
+      '1500',
+      'El mes que viene',
+      'Si',
+      'Todos los días después de las 4:30',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Josselin Sanchez',
+      real_name: 'Josselin Sanchez',
+      phone: '+14086077954',
+      message: transcript,
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Josselin Sanchez',
+      vehicle_type: 'Sedan',
+      down_payment: '1500',
+      purchase_timeline: 'próximo mes',
+    });
+  });
+
+  it('keeps Leydis’s requested SUV separate from the Honda trade-in and recognizes pay checks as income proof', () => {
+    const transcript = [
+      'Hola tengo una ven honda del 2012 que la quisiera dar de Dow payment ?? Me interesaría un carro menos de 20 mil',
+      'La aplicación sería a nombre de mi Esposo Igor Vargas el tiene mal crédito',
+      'Es correcto SUV el auto que busco',
+      'Bueno para serte sincera lo que busco es dar la Honda de enganche sin dar dinero que la valoren la ven como el enganche',
+      'Me puedes mandar el lik para ver todo los autos que tienes y te mando si me gusta alguna y podemos comenzar con el proceso te parece?',
+      'Esta semana',
+      'Tengo cheque de pagos',
+      'Y la licencia',
+      'Si',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      contact_name: 'Leydis',
+      real_name: 'Leydis',
+      phone: '+12022929883',
+      message: transcript,
+      chat_history_log: transcript,
+    });
+
+    expect(result).toMatchObject({
+      real_name: 'Leydis',
+      vehicle_type: 'SUV',
+      down_payment: 'trade-in',
+      purchase_timeline: 'esta semana',
+      identification: 'yes',
+      has_income_proof: 'yes',
+    });
+    expect(result.documents).toContain('proof of income: yes');
+    expect(result.vehicle_type).not.toMatch(/Honda/);
+  });
 });
