@@ -133,6 +133,40 @@ describe('HighLevel collector custom-code normalizer', () => {
     expect(execute({ message: 'Quiero ver los modelos y comprar este mes' }).purchase_timeline).toBe('este mes');
   });
 
+  it('does not turn the bot’s “buy this week” question into a date when the customer only asks to see options', () => {
+    const transcript = [
+      'Truck 250',
+      "Excellent! Yes, we have truck options available. What's the best phone number to contact you and send you the details?",
+      '443 9771363',
+      "Perfect. For trucks, the regular down payment starts at $3,000. How much would you have available for the down payment?",
+      'Me puedes mandar algunas referencias mas como chevy',
+      '¡Claro! Podemos revisar opciones de troca como Chevy. ¿Con cuánto contarías para el enganche?',
+      '7000',
+      '¡Perfecto, anotado: $7,000 de enganche! ¿Para cuándo te gustaría comprar tu troca: esta semana, este mes o solo estás mirando?',
+      'Mandeme opciones',
+      'Para ver primero lo que tienen',
+    ].join('\n');
+
+    expect(execute({
+      source: 'fredericksburg',
+      channel: 'messenger',
+      message: 'Para ver primero lo que tienen',
+      chat_history_log: transcript,
+    })).toMatchObject({
+      purchase_timeline: 'explorando opciones',
+      qualification_progress: { language: 'es' },
+    });
+  });
+
+  it('still captures this week when the customer explicitly states it', () => {
+    const result = execute({
+      channel: 'messenger',
+      message: 'Quiero comprar esta semana',
+      chat_history_log: 'When do you want to buy?\nQuiero comprar esta semana',
+    });
+    expect(result.purchase_timeline).toBe('esta semana');
+  });
+
   it('does not turn a conversational answer or dealer suffix into a buyer name', () => {
     for (const name of [
       'Estoy Entre Ambos',
@@ -2006,7 +2040,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       phone: '+18049701204',
       vehicle_type: 'Honda Civic',
       down_payment: '2000',
-      purchase_timeline: 'this month',
+      purchase_timeline: 'este mes',
       identification: 'yes',
       has_income_proof: 'yes',
       qualification_complete: true,
@@ -2663,7 +2697,7 @@ describe('HighLevel collector custom-code normalizer', () => {
       chat_history_log: transcript,
     })).toMatchObject({
       vehicle_type: 'sedan or SUV',
-      purchase_timeline: 'today',
+      purchase_timeline: 'hoy',
       down_payment: '2000',
       down_payment_amount: 2000,
     });

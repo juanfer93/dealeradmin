@@ -60,19 +60,26 @@ export function extractTimeline(message: string): string {
       if (previousLines.some((line) => TIMELINE_QUESTION.test(line))) return normalizeTimeline(lines[index]);
     }
   }
-  const date = timingSource.match(/\b(?:\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december))\b/i)?.[0];
+  const customerEvidence = conversationalEvidence(timingSource);
+  const date = customerEvidence.match(/\b(?:\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december))\b/i)?.[0];
   if (date) return timelineDate(date);
-  const evidence = EXPLICIT_MONTH_TIMING.test(timingSource) || TIMELINE_QUESTION.test(timingSource)
-    ? timingSource
-    : timingSource.replace(new RegExp(`\\b(?:${MONTH_NAMES_PATTERN})\\b`, 'gi'), ' ');
+  // Conversation histories contain the dealer's own prompts. Never infer a
+  // customer's purchase date from a date that appears only in a bot question
+  // such as “are you buying this week?”. Keep the month-only answer handling
+  // above, which uses the preceding question solely as context for that reply.
+  const evidence = EXPLICIT_MONTH_TIMING.test(customerEvidence)
+    ? customerEvidence
+    : customerEvidence.replace(new RegExp(`\\b(?:${MONTH_NAMES_PATTERN})\\b`, 'gi'), ' ');
   const explicitRelativeTiming = evidence.match(/\b(?:this weekend|este fin de semana|el fin de semana|este finde|el finde|la otra semana)\b/i)?.[0];
   if (explicitRelativeTiming) return normalizeTimeline(explicitRelativeTiming);
   const match = evidence.match(/\b(?:tomorrow|today|ma[ñn]ana|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|de una|ahora mismo|right now|at this moment|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|este mea|esta mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|(?:el\s+)?mes que viene|mes entrante|el otro mes|otro mes|end of next month|a (?:fines?|finales?) del otro mes|a (?:fines?|finales?) del pr[oó]ximo mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|within \d+ days?|en \d+ d[ií]as?|in \d+ (?:days?|weeks?|months?)|en \d+ (?:d[ií]as?|semanas?|mes(?:es)?)|in a month|en un mes|in two weeks|en dos semanas|jan(?:uary)?|enero|feb(?:ruary)?|febrero|mar(?:ch)?|marzo|apr(?:il)?|abril|may|mayo|jun(?:e)?|junio|jul(?:y)?|julio|aug(?:ust)?|agosto|sep(?:t(?:ember|iembre)?|tiembre)|setiembre|septiembre|oct(?:ober)?|octubre|nov(?:ember)?|noviembre|dec(?:ember)?|diciembre)\b/i)?.[0];
   if (match) return normalizeTimeline(match);
-  if (/\b(?:quiero|quisiera|deseo|me gustar[ií]a|i want|i would like|i'd like)\b[^.!?\n]{0,100}\b(?:ver|mirar|revisar|conocer|see|look at|check|review)\b[^.!?\n]{0,100}\b(?:modelos?|opciones?|inventario|precios?|models?|options?|inventory|prices?)\b/i.test(source)
+  if (/\b(?:quiero|quisiera|deseo|me gustar[ií]a|i want|i would like|i'd like)\b[^.!?\n]{0,100}\b(?:ver|mirar|revisar|conocer|see|look at|check|review)\b[^.!?\n]{0,100}\b(?:modelos?|opciones?|inventario|precios?|models?|options?|inventory|prices?)\b/i.test(customerEvidence)
+    || /\b(?:m[aá]ndame|m[aá]ndeme|env[ií]ame|env[ií]eme|p[aá]same|comp[aá]rteme|dame)\b[^.!?\n]{0,100}\b(?:opciones?|referencias?|modelos?|inventario|veh[ií]culos?|cars?|trucks?|options?|references?|inventory)\b/i.test(customerEvidence)
+    || /\b(?:para\s+ver\s+primero\s+(?:lo\s+)?que\s+(?:tienen|hay)|(?:quiero|quisiera|me\s+gustar[ií]a)\s+ver\s+primero\s+(?:lo\s+)?que\s+(?:tienen|hay))\b/i.test(customerEvidence)
     || /\b(?:primero\s+)?quiero\s+ver\s+(?:las\s+)?opciones\b|\bquisiera\s+(?:ver|mirar)\s+(?:las\s+)?opciones\b|\b(?:first\s+)?(?:i\s+want|i(?:'d|\s+would)\s+like)\s+to\s+see\s+(?:the\s+)?options\b/i.test(evidence)
-    || /\b(?:solo|sólo|just|only)\b.*\b(?:mirar|mirando|ver|viendo|looking|browsing)\b/i.test(evidence)
-    || /\b(?:estoy|est[aá]|ando|sigo)\s+(?:(?:solo|s[oó]lo)\s+)?(?:mirando|viendo|observando|revisando)\b/i.test(evidence)) return 'exploring options';
+    || /\b(?:solo|sólo|just|only)\b.*\b(?:mirar|mirando|ver|viendo|looking|browsing)\b/i.test(customerEvidence)
+    || /\b(?:estoy|est[aá]|ando|sigo)\s+(?:(?:solo|s[oó]lo)\s+)?(?:mirando|viendo|observando|revisando)\b/i.test(customerEvidence)) return 'exploring options';
   return EMPTY;
 }
 

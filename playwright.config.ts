@@ -19,7 +19,7 @@ export default defineConfig({
       // The proxy rewrites are compiled into the Next build. Keep the build
       // and server on the same API URL so browser tests never hit Next's 404
       // page at /api/* instead of the E2E API.
-      command: 'pnpm --filter web build && node e2e/start-web.mjs',
+      command: 'node e2e/start-web.mjs',
       url: 'http://127.0.0.1:3000/login',
       reuseExistingServer: true,
       timeout: 120_000,

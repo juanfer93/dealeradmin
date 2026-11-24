@@ -398,15 +398,19 @@ const timelineDate = (value) => {
   return englishDayFirst ? `${englishDayFirst[2].toLowerCase()} ${Number(englishDayFirst[1])}` : '';
 };
 const timelineFrom = (text) => {
-  const source = clean(text);
+  const source = String(text ?? '').replace(/\r\n?/g, '\n').trim();
+  // Histories include the bot's own questions. Only customer statements may
+  // establish a purchase date; month-only answers still use the prompt above
+  // as context to distinguish a purchase month from a name.
+  const customerEvidence = conversationalEvidence(source);
   const lines = source.split(/\r?\n/).map(clean).filter(Boolean);
   for (let index = 0; index < lines.length; index += 1) {
     const monthOnly = timelineMonthKey(lines[index]) && new RegExp(`^\\s*(?:${monthNamesPattern})\\s*[.!?]*$`, 'i').test(lines[index]);
     if (monthOnly && lines.slice(Math.max(0, index - 3), index).some((line) => timelineQuestion.test(line))) return timelineMonthKey(lines[index]);
   }
-  const dateText = source.match(/\b(?:\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december))\b/i)?.[0] || '';
+  const dateText = customerEvidence.match(/\b(?:\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(?:st|nd|rd|th)?|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december))\b/i)?.[0] || '';
   if (dateText) return timelineDate(dateText);
-  const evidence = explicitMonthTiming.test(source) ? source : source.replace(new RegExp(`\\b(?:${monthNamesPattern})\\b`, 'gi'), ' ');
+  const evidence = explicitMonthTiming.test(customerEvidence) ? customerEvidence : customerEvidence.replace(new RegExp(`\\b(?:${monthNamesPattern})\\b`, 'gi'), ' ');
   const hit = evidence.match(/\b(?:tomorrow|today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|ahora mismo|de inmediato|lo antes posible|this week|esta semana|this month|este mes|este mea|next week|pr[oó]xima? semana|next month|pr[oó]ximo mes|(?:el\s+)?mes que viene|el otro mes|otro mes|mes entrante|end of next month|a (?:fines?|finales?) del otro mes|a (?:fines?|finales?) del pr[oó]ximo mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|within \d+ days?|en \d+ d[ií]as?|jan(?:uary)?|enero|feb(?:ruary)?|febrero|mar(?:ch)?|marzo|apr(?:il)?|abril|may|mayo|jun(?:e)?|junio|jul(?:y)?|julio|aug(?:ust)?|agosto|sep(?:t(?:ember|iembre)?|tiembre)|setiembre|septiembre|oct(?:ober)?|octubre|nov(?:ember)?|noviembre|dec(?:ember)?|diciembre)\b/i)?.[0] || '';
   const date = timelineDate(hit);
   if (date) return date;
@@ -417,7 +421,9 @@ const timelineFrom = (text) => {
   if (/next month|pr[oó]ximo mes|(?:el\s+)?mes que viene|el otro mes|otro mes|mes entrante|end of next month|a (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes/i.test(hit)) return 'next month';
   const month = timelineMonthKey(hit);
   if (month) return month;
-  if (/\b(?:quiero|quisiera|deseo|me gustar[ií]a|i want|i would like|i'd like)\b[^.!?\n]{0,100}\b(?:ver|mirar|revisar|conocer|see|look at|check|review)\b[^.!?\n]{0,100}\b(?:modelos?|opciones?|inventario|precios?|models?|options?|inventory|prices?)\b/i.test(source)) return 'exploring options';
+  if (/\b(?:quiero|quisiera|deseo|me gustar[ií]a|i want|i would like|i'd like)\b[^.!?\n]{0,100}\b(?:ver|mirar|revisar|conocer|see|look at|check|review)\b[^.!?\n]{0,100}\b(?:modelos?|opciones?|inventario|precios?|models?|options?|inventory|prices?)\b/i.test(customerEvidence)
+    || /\b(?:m[aá]ndame|m[aá]ndeme|env[ií]ame|env[ií]eme|p[aá]same|comp[aá]rteme|dame)\b[^.!?\n]{0,100}\b(?:opciones?|referencias?|modelos?|inventario|veh[ií]culos?|cars?|trucks?|options?|references?|inventory)\b/i.test(customerEvidence)
+    || /\b(?:para\s+ver\s+primero\s+(?:lo\s+)?que\s+(?:tienen|hay)|(?:quiero|quisiera|me\s+gustar[ií]a)\s+ver\s+primero\s+(?:lo\s+)?que\s+(?:tienen|hay))\b/i.test(customerEvidence)) return 'exploring options';
   return hit;
 };
 const yesNo = (value) => {
@@ -599,7 +605,7 @@ const downPaymentAmount = downPaymentRange
   ? Number(downPaymentRange[2])
   : /^\d+(?:\.\d+)?$/.test(downPaymentCash.replace(/[$,\s]/g, '')) ? Number(downPaymentCash.replace(/[$,\s]/g, '')) : null;
 const downPaymentSufficient = requiredDownPayment !== null && (tradeInDownPayment || down === cashDownPayment || down.toLocaleLowerCase().includes(cashDownPayment.toLocaleLowerCase()) || (downPaymentAmount !== null && downPaymentAmount >= requiredDownPayment));
-const transcriptTimeline = first(timelineFrom(message), timelineFrom(history));
+const transcriptTimeline = first(timelineFrom(rawMessage), timelineFrom(rawHistory));
 // Do not trust stale custom fields or generated memory to invent a purchase
 // timeline; accept only customer transcript evidence.
 const rawTimeline = transcriptTimeline;
@@ -617,7 +623,7 @@ const qualificationSource = rawMemory && customPresent ? 'both' : rawMemory ? 'q
 // dealer. Down payment, timing, documents, and bank-account evidence remain
 // visible but non-blocking for every dealer.
 // Prefer a phone written in the inbound conversation, then a native GHL phone.
-const languageText = `${message}; ${history}`;
+const languageText = conversationalEvidence(message, history);
 const englishSignals = (languageText.match(/\b(?:i|i'm|im|my|want|wants|need|looking|have|yes|yeah|yep|what|when|where|how|this|next|today|week|month|do|does)\b/gi) || []).length;
 const spanishSignals = (languageText.match(/\b(?:yo|mi|quiero|necesito|busco|tengo|sí|si|qué|cuando|donde|este|esta|hoy|semana|mes|tienes)\b/gi) || []).length;
 const language = message || history ? (englishSignals > spanishSignals ? 'en' : 'es') : 'en';
