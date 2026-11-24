@@ -37,7 +37,10 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const hasCustomFields = [input.vehicle_type, input.down_payment, input.purchase_timeline, input.documents, input.identification, input.bank_account, input.real_name]
     .some((value) => Boolean(firstNonEmpty(value)));
   const qualificationSource = hasMemory && hasCustomFields ? 'both' : hasMemory ? 'qualification_memory' : hasCustomFields ? 'custom_fields' : 'none';
-  const languageText = [history, message].filter(Boolean).join('\n');
+  // During webhook capture, vehicle_transcript contains only inbound messages.
+  // Prefer it for language detection so dealer prompts do not outweigh the
+  // customer's language in mixed-language conversations.
+  const languageText = clean(input.vehicle_transcript) || [history, message].filter(Boolean).join('\n');
   const language = languageText ? detectLeadLanguage(languageText) : 'en';
   const policy = collectorFlowPolicy(input);
   const customerLocation = extractCustomerLocation(input, languageText);

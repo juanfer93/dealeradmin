@@ -238,6 +238,7 @@ describe('LeadsController lead editing', () => {
       [],
       [{ id: 'lead-1' }],
       [{ lead_id: 'lead-1' }],
+      [],
       [{ id: 'lead-1', dealerId: 'dealer-1', name: 'Ana Corregida', phone: '+13019876543' }],
     ]);
     const controller = createController(runner);
@@ -261,6 +262,9 @@ describe('LeadsController lead editing', () => {
     expect(calls[1]?.[0]).toContain('FROM leads l');
     expect(calls[2]?.[0]).toContain('UPDATE leads');
     expect(calls[3]?.[0]).toContain('UPDATE lead_dealers');
+    expect(calls[4]?.[0]).toContain('UPDATE conversations');
+    expect(calls[4]?.[0]).toContain('manual_overrides');
+    expect(calls[4]?.[1]).toContain(JSON.stringify({ real_name: true, phone: true, vehicle_type: true, down_payment: true, purchase_timeline: true, documents: true, identification: true, bank_account: true }));
     expect(runner.commitTransaction).toHaveBeenCalledOnce();
     expect(runner.release).toHaveBeenCalledOnce();
   });

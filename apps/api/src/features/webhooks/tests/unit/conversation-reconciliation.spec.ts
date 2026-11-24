@@ -3,6 +3,85 @@ import { ConversationReconciliationFunctions } from '../../application/functions
 import { GHL_SOURCE_CONFIG } from '../../application/functions/conversations/conversation-webhook.config';
 
 describe('ConversationReconciliationFunctions', () => {
+  it('keeps manually corrected qualification fields when older transcript evidence is replayed', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('SELECT c.id, c.channel')) return [{
+        id: 'conversation-manual-correction',
+        channel: 'whatsapp',
+        ghl_location_id: GHL_SOURCE_CONFIG.lucki.locationId,
+        ghl_contact_id: 'manual-correction-contact',
+        ghl_conversation_id: 'manual-correction-conversation',
+        status: 'queued',
+        qualification_snapshot: {
+          real_name: 'Kari',
+          phone: '+19134132280',
+          vehicle_type: 'Ford F-150 SuperCrew 4x4',
+          down_payment: '3000',
+          purchase_timeline: 'este mes',
+          documents: 'ID y prueba de ingresos',
+          identification: 'yes',
+          bank_account: 'yes',
+          qualification_complete: true,
+          language: 'es',
+          manual_overrides: {
+            real_name: true,
+            phone: true,
+            vehicle_type: true,
+            down_payment: true,
+            purchase_timeline: true,
+            documents: true,
+            identification: true,
+            bank_account: true,
+          },
+        },
+        location_snapshot: { city: null, state: null, zip_code: null, easterns_zone: null },
+        ready_at: null,
+        next_attempt_at: null,
+        last_message_at: '2026-11-24T14:29:28.606Z',
+        waiting_window_attempts: 0,
+        lead_id: 'lead-manual-correction',
+        canonical_phone: '+19134132280',
+        first_name: 'Kari',
+        last_name: '',
+      }];
+      if (sql.includes('INNER JOIN conversations sibling')) return [
+        { body: 'O Alguna Parecida', direction: 'inbound', occurred_at: '2026-11-24T14:20:00.000Z' },
+        { body: 'Ford F-150 maybe', direction: 'inbound', occurred_at: '2026-11-24T14:21:00.000Z' },
+        { body: '1500', direction: 'inbound', occurred_at: '2026-11-24T14:22:00.000Z' },
+        { body: 'esta semana', direction: 'inbound', occurred_at: '2026-11-24T14:23:00.000Z' },
+      ];
+      return [];
+    });
+    const runner = { connect: vi.fn(), startTransaction: vi.fn(), commitTransaction: vi.fn(), rollbackTransaction: vi.fn(), release: vi.fn(), isTransactionActive: true, query };
+    const qualification = {
+      resolveLocation: vi.fn().mockResolvedValue({ city: null, state: null, zip_code: null, easterns_zone: null }),
+      findSourceDealer: vi.fn().mockResolvedValue({ id: 'dealer-lucki', timezone: 'America/New_York', routing_config: {} }),
+      statusForConversation: vi.fn().mockReturnValue({ status: 'queued', nextAttemptAt: null }),
+      syncLeadDealer: vi.fn(),
+    };
+    const reconciliation = new ConversationReconciliationFunctions(
+      { createQueryRunner: () => runner } as never,
+      qualification as never,
+      { createQueuedPauseEvent: vi.fn(), dispatchQueuedPauseEvent: vi.fn() } as never,
+    );
+
+    await reconciliation.reconcileConversation('conversation-manual-correction', new Date('2026-11-24T14:30:00.000Z'), true);
+
+    const update = query.mock.calls.find(([sql]) => sql.includes('UPDATE conversations') && sql.includes('qualification_snapshot')) as [string, unknown[]] | undefined;
+    const snapshot = JSON.parse(String(update?.[1]?.[2]));
+    expect(snapshot).toMatchObject({
+      real_name: 'Kari',
+      phone: '+19134132280',
+      vehicle_type: 'Ford F-150 SuperCrew 4x4',
+      down_payment: '3000',
+      purchase_timeline: 'este mes',
+      documents: 'ID y prueba de ingresos',
+      manual_overrides: { real_name: true, phone: true, vehicle_type: true, down_payment: true, purchase_timeline: true, documents: true },
+    });
+    expect(snapshot.qualification_memory).toContain('vehicle: Ford F-150 SuperCrew 4x4');
+    expect(snapshot.qualification_memory).toContain('timeline: este mes');
+  });
+
   it('reconciles vehicle and phone evidence across native sibling conversations', async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('SELECT c.id, c.channel')) {

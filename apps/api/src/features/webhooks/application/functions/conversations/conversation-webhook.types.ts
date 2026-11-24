@@ -57,6 +57,7 @@ export type ExistingDealerLead = {
 };
 
 export type ConversationSnapshot = {
+  manual_overrides?: Partial<Record<'real_name' | 'phone' | 'vehicle_type' | 'down_payment' | 'purchase_timeline' | 'documents' | 'identification' | 'bank_account', true>>;
   real_name: string;
   profile_name?: string;
   phone: string;

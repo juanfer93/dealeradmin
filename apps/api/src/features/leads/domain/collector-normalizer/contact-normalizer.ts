@@ -87,6 +87,7 @@ const INVENTORY_INTENT = /\b(?:inventory|inventario|see\s+(?:the\s+)?inventory|c
 const GREETING_ONLY = /^(?:(?:hola|ola)[,.!?\s]+)?(?:buen\s+d[ií]a|buenos\s+d[ií]as|buenas\s+tardes|buenas\s+noches|saludos|hello|hi|hey|hola|ola|greetings)(?:[,.!?\s]+bendiciones)?[,.!?\s]*$/i;
 const SINGLE_WORD_NAME_BLOCKLIST = /^(?:ok(?:ay|ey)?|si|s[ií]|sim|yes|no|yeah|yep|correct|cash|today|hoy|now|ahora|asap|inmediato|exacto|exactamente|stop|need|vehicle|car|auto|carro|coche|veh[ií]culo|requirements?|requisitos?|information|informaci[oó]n|details?|detalles?|location|baltimore|baltimor|baltmore|baltimroe|balitmore|baltimre|baltimorre|baltimoro|balitmor|baltimo|bomltimo|maryland|virginia|laurel|rosedale|sterling|elkton|manda|nada|bale|vale|ubicaci[oó]n|ubicasion|tacoma|toyota|hummer|honda|ford|nissan|chevrolet|chevy|hyundai|kia|mazda|subaru|volkswagen|vw|jeep|ram|gmc|bmw|mercedes|audi|lexus|acura|volvo|tesla|dodge|chrysler|buick|cadillac|lincoln|infiniti|genesis|mini|porsche|jaguar|rivian|lucid|mitsubishi|pontiac|saturn|oldsmobile|fiat|suzuki|isuzu|scion|mustang|rav4|civic|accord|camry|corolla|highlander|sienna|4runner|tundra|sequoia|prius|avalon|maverick|ranger|bronco|explorer|expedition|escape|edge|pilot|passport|ridgeline|odyssey|sierra|silverado|tahoe|suburban|traverse|equinox|camaro|malibu|blazer|colorado|yukon|acadia|terrain|wrangler|gladiator|cherokee|compass|renegade|charger|challenger|durango|journey|caravan|pacifica|frontier|titan|rogue|pathfinder|altima|sentra|versa|maxima|armada|sportage|telluride|sorento|soul|rio|palisade|santa fe|tucson|elantra|sonata|veloster|wrx|forester|outback|ascent|impreza|atlas|tiguan|jetta|passat|cayenne|range rover|defender|rlx|suv|sedan|truck|troca|pickup|pick-up|van|minivan|crossover|coupe|coupé|hatchback|motorcycle|moto|camioneta|financiar|finance|financing|down|payment|enganche|documents?|documentos?|identificaci[oó]n|income|ingresos|proof|prueba|phone|tel[eé]fono|number|n[uú]mero)$/i;
 const NAME_DECLARATION = /(?:me llamo|mi nombre es|soy|yo soy|my name is|my name['’]s|i am|i['’]m|this is|call me(?!\s+at\b)|ll[aá]mame)\s+([a-záéíóúüñ][a-záéíóúüñ' -]{1,80})/i;
+const MISWRITTEN_NAME_DECLARATION = /\b(?:mi|my)\s+(?:number|n[uú]mero)\s+(?:es|is)\s+([\p{L}][\p{L}'’-]*)/iu;
 const DECLARED_NAME_CONTINUATION = /\s+(?:y|and|pero)\s+(?=(?:me|yo|estoy|ando|voy|busco|buscando|quiero|necesito|tengo|puedo|podr[ií]a|looking|i|my|the|a|un|una)\b)/i;
 const NAME_QUESTION = /(?:__NAME_PROMPT__|what(?:'s| is)?\s+(?:your|the)\s+name|full\s+name|what\s+should\s+i\s+call|how\s+do\s+you\s+(?:call|go by)|c[oó]mo\s+te\s+llamas|cu[aá]l\s+es\s+tu\s+nombre|dime\s+tu\s+nombre)/i;
 export const PHONE_LIKE_TEXT = /\b(?:mi|my)\s+(?:n[uú]mero|number|phone|tel[eé]fono|telephone|contact)\b/i;
@@ -101,7 +102,10 @@ const ENGLISH_LOCATION_RESPONSE = /^(?:i(?:'m| am)\s+)?(?:in|from|near|around|lo
 const NAME_PARTICLES = new Set(['da', 'de', 'del', 'der', 'di', 'la', 'las', 'los', 'van', 'von', 'y']);
 
 function declaredNameCandidate(value: string): string {
-  const match = clean(value).match(NAME_DECLARATION);
+  const source = clean(value);
+  const miswrittenName = source.match(MISWRITTEN_NAME_DECLARATION);
+  if (miswrittenName) return miswrittenName[1].trim();
+  const match = source.match(NAME_DECLARATION);
   if (!match) return EMPTY;
   return match[1].split(DECLARED_NAME_CONTINUATION)[0].trim();
 }
@@ -122,7 +126,8 @@ function normalizeNameSuffixPunctuation(value: string): string {
 export function isInvalidRealName(value: string | null | undefined, catalogValues: readonly string[] = []): boolean {
   const normalized = clean(value).replace(/\s+/g, ' ').trim().toLocaleLowerCase();
   const repeatedEasternsDealerSuffix = /\s+e?de\s+easterns\s+motors(?:\s+e?de\s+easterns\s+motors)*$/i.test(normalized);
-  return Boolean(normalized && (repeatedEasternsDealerSuffix || catalogValues.some((candidate) => candidate.trim().replace(/\s+/g, ' ').toLocaleLowerCase() === normalized)));
+  const vehicleAlternativeLabel = /^(?:o\s+)?(?:alguna\s+parecida|algo\s+parecido|alguna\s+similar|algo\s+similar)$/i.test(normalized);
+  return Boolean(normalized && (repeatedEasternsDealerSuffix || vehicleAlternativeLabel || catalogValues.some((candidate) => candidate.trim().replace(/\s+/g, ' ').toLocaleLowerCase() === normalized)));
 }
 
 function stripConversationalNamePrefix(value: string): string {
@@ -208,10 +213,11 @@ export function extractRealNameFromText(value: string, options: { onlyAfterNameQ
     if (options.onlyAfterNameQuestion && !isAfterNameQuestion) continue;
     const candidate = segment.replace(/[.!?,;:]+$/g, '');
     if (options.onlyAfterNameQuestion) {
-      const intentStart = candidate.search(/\b(?:busco|buscando|quiero|necesito|ando|estoy|vivo|tengo|looking|interested|need|want|buy|buying|purchase|purchasing|comprar|comprando|compra|voy|can|could|send|please|i\s+am|i'm)\b/i);
+      const intentStart = candidate.search(/\b(?:busco|buscando|quiero|necesito|ando|estoy|vivo|tengo|me\s+interesa(?:n)?|interesa|interesan|looking|interested|need|want|buy|buying|purchase|purchasing|comprar|comprando|compra|voy|can|could|send|please|i\s+am|i'm)\b/i);
       if (intentStart > 0) {
         const prefix = candidate.slice(0, intentStart).replace(/\b(?:y|and)\s*$/i, '').trim();
-        const namePrefix = prefix.split(/\s+/).length >= 2
+        const hasNameLikeInterestLead = /\bme\s+interesa(?:n)?\b/i.test(candidate.slice(intentStart));
+        const namePrefix = prefix.split(/\s+/).length >= 2 || hasNameLikeInterestLead
           ? normalizeRealName(prefix, options.invalidRealNames)
           : EMPTY;
         if (namePrefix) return namePrefix;

@@ -42,14 +42,16 @@ function timelineDate(value: string): string {
 }
 
 export function extractTimeline(message: string): string {
-  const source = clean(message);
+  const source = String(message ?? '').replace(/\r\n?/g, '\n').trim();
   if (!source) return EMPTY;
   const timingSource = source.replace(/\b(?:ahora mismo|right now|at this moment)\b/gi, (phrase, offset: number) => {
     const lineStart = source.lastIndexOf('\n', offset) + 1;
     const lineEnd = source.indexOf('\n', offset);
     const line = source.slice(lineStart, lineEnd < 0 ? source.length : lineEnd);
     return /\b(?:down|payment|enganche|pago\s+inicial|gasto|expense)\b/i.test(line) ? ' ' : phrase;
-  });
+  }).replace(/[^\n;.!?]*\b(?:down\s*payment|downpayment|payment|enganche|pago\s+inicial|inicial)\b[^\n;.!?]*/gi, (clause) =>
+    /\b(?:buy|purchase|comprar|adquirir)\b/i.test(clause) ? clause : clause.replace(/\b(?:tomorrow|mañana|today|hoy|this week|esta semana|next week|pr[oó]xima semana|siguiente semana|la otra semana|this weekend|este fin de semana|el fin de semana|este finde|el finde)\b/gi, ' '),
+  );
   const lines = timingSource.split(/\r?\n/).map(clean).filter(Boolean);
   for (let index = 0; index < lines.length; index += 1) {
     const month = timelineMonth(lines[index]);
@@ -63,7 +65,9 @@ export function extractTimeline(message: string): string {
   const evidence = EXPLICIT_MONTH_TIMING.test(timingSource) || TIMELINE_QUESTION.test(timingSource)
     ? timingSource
     : timingSource.replace(new RegExp(`\\b(?:${MONTH_NAMES_PATTERN})\\b`, 'gi'), ' ');
-  const match = evidence.match(/\b(?:tomorrow|today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|de una|ahora mismo|right now|at this moment|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|este mea|esta mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|(?:el\s+)?mes que viene|mes entrante|el otro mes|otro mes|end of next month|a (?:fines?|finales?) del otro mes|a (?:fines?|finales?) del pr[oó]ximo mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|within \d+ days?|en \d+ d[ií]as?|in \d+ (?:days?|weeks?|months?)|en \d+ (?:d[ií]as?|semanas?|mes(?:es)?)|in a month|en un mes|in two weeks|en dos semanas|jan(?:uary)?|enero|feb(?:ruary)?|febrero|mar(?:ch)?|marzo|apr(?:il)?|abril|may|mayo|jun(?:e)?|junio|jul(?:y)?|julio|aug(?:ust)?|agosto|sep(?:t(?:ember|iembre)?|tiembre)|setiembre|septiembre|oct(?:ober)?|octubre|nov(?:ember)?|noviembre|dec(?:ember)?|diciembre)\b/i)?.[0];
+  const explicitRelativeTiming = evidence.match(/\b(?:this weekend|este fin de semana|el fin de semana|este finde|el finde|la otra semana)\b/i)?.[0];
+  if (explicitRelativeTiming) return normalizeTimeline(explicitRelativeTiming);
+  const match = evidence.match(/\b(?:tomorrow|today|ma[ñn]ana|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|de una|ahora mismo|right now|at this moment|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda|this week|esta semana|this month|este mes|este mea|esta mes|next week|pr[oó]xima? semana|siguiente semana|next month|pr[oó]ximo mes|siguiente mes|(?:el\s+)?mes que viene|mes entrante|el otro mes|otro mes|end of next month|a (?:fines?|finales?) del otro mes|a (?:fines?|finales?) del pr[oó]ximo mes|para (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes|within \d+ days?|en \d+ d[ií]as?|in \d+ (?:days?|weeks?|months?)|en \d+ (?:d[ií]as?|semanas?|mes(?:es)?)|in a month|en un mes|in two weeks|en dos semanas|jan(?:uary)?|enero|feb(?:ruary)?|febrero|mar(?:ch)?|marzo|apr(?:il)?|abril|may|mayo|jun(?:e)?|junio|jul(?:y)?|julio|aug(?:ust)?|agosto|sep(?:t(?:ember|iembre)?|tiembre)|setiembre|septiembre|oct(?:ober)?|octubre|nov(?:ember)?|noviembre|dec(?:ember)?|diciembre)\b/i)?.[0];
   if (match) return normalizeTimeline(match);
   if (/\b(?:quiero|quisiera|deseo|me gustar[ií]a|i want|i would like|i'd like)\b[^.!?\n]{0,100}\b(?:ver|mirar|revisar|conocer|see|look at|check|review)\b[^.!?\n]{0,100}\b(?:modelos?|opciones?|inventario|precios?|models?|options?|inventory|prices?)\b/i.test(source)
     || /\b(?:primero\s+)?quiero\s+ver\s+(?:las\s+)?opciones\b|\bquisiera\s+(?:ver|mirar)\s+(?:las\s+)?opciones\b|\b(?:first\s+)?(?:i\s+want|i(?:'d|\s+would)\s+like)\s+to\s+see\s+(?:the\s+)?options\b/i.test(evidence)
@@ -79,10 +83,11 @@ export function normalizeTimeline(value: string, language: CollectorLanguage = d
   const localized = (english: string, spanishValue: string): string => spanish ? spanishValue : english;
   const date = timelineDate(source);
   if (date) return date;
-  if (/\b(tomorrow|today|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|de una|ahora mismo|de inmediato|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda)\b/i.test(source)) return 'today';
+  if (/\b(tomorrow|today|ma[ñn]ana|hoy|now if possible|if possible now|ahora si se puede|si es posible ahora|asap|as soon as possible|immediately|inmediato|para ya|de una|ahora mismo|de inmediato|lo m[aá]s pronto posible|lo antes posible|lo antes que pueda)\b/i.test(source)) return 'today';
+  if (/\b(?:this|este|el)\s+(?:weekend|fin de semana|finde)\b/i.test(source)) return localized('this weekend', 'este fin de semana');
   if (/\b(this|esta)\s+(week|semana)\b/i.test(source)) return localized('this week', 'esta semana');
   if (/\b(this|este|esta)\s+(?:month|mes|mea)\b/i.test(source)) return localized('this month', 'este mes');
-  if (/\b(?:next|proxim[oa]|pr[oó]xim[oa]|siguiente)\s+(week|semana)\b/i.test(source)) return localized('next week', 'próxima semana');
+  if (/\b(?:next|proxim[oa]|pr[oó]xim[oa]|siguiente)\s+(week|semana)\b|\bla\s+otra\s+semana\b/i.test(source)) return localized('next week', 'próxima semana');
   if (/\b(?:next|proxim[oa]|pr[oó]xim[oa]|siguiente)\s+(?:month|mes)\b|\b(?:el\s+)?mes que viene\b|\bmes entrante\b|\b(?:el\s+)?otro mes\b|\bend of next month\b|\ba (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes\b|\bpara (?:fines?|finales?) del (?:otro|pr[oó]ximo|siguiente) mes\b/i.test(source)) return localized('next month', 'próximo mes');
   if (/\b(30|thirty)\s+days?\b/i.test(source)) return localized('within 30 days', 'en 30 días');
   if (/\b(?:in|en)\s+(?:a|un|one|uno|two|dos|\d+)\s+(?:days?|d[ií]as?|weeks?|semanas?|months?|mes(?:es)?)\b/i.test(source)) return clean(value).toLowerCase();
@@ -99,7 +104,7 @@ export function yesNo(value: string): 'yes' | 'no' | '' {
   const source = clean(value).toLowerCase();
   if (!source) return '';
   if (/\b(no|n[oó]|dont|don't|no tengo|i do not|do not have|don't have|not available)\b/i.test(source)) return 'no';
-  if (/\b(yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available)\b/i.test(source)) return 'yes';
+  if (/\b(yes|sí|si|yeah|yep|correct|tengo|cuento con|cuenta con|have it|i do|i have|available)\b/i.test(source)) return 'yes';
   return '';
 }
 
@@ -111,11 +116,24 @@ export function mergeDocuments(current: string, message: string): { value: strin
     .map(clean)
     .some((line) => /^(?:id|tax[ -]?(?:id|identification)|taxpayer id|itin|identification|identificaci[oó]n|driver.?s license|license|licencia|passport|pasaporte)\.?$/i.test(line));
   const answer = (documentPattern: string): 'yes' | 'no' | '' => {
-    const positive = 'yes|sí|si|yeah|yep|correct|tengo|have it|i do|i have|available';
+    const positive = 'yes|sí|si|yeah|yep|correct|tengo|cuento con|cuenta con|have it|i do|i have|available';
     const negative = "no|nó|dont|don't|no tengo|i do not|do not have|don't have|not available";
+    const explicitNegative = source.match(new RegExp(`\\b(?:no\\s+(?:tengo\\s+)?|sin\\s+|do not have\\s+|don't have\\s+|dont have\\s+)(?:${documentPattern})`, 'iu'))?.[0] ?? '';
+    if (explicitNegative) return 'no';
     const confirmation = `(?<![\\p{L}\\p{N}_])(?:${positive}|${negative})(?![\\p{L}\\p{N}_])`;
-    const context = source.match(new RegExp(`${confirmation}[^!?]{0,160}(?:${documentPattern})|(?:${documentPattern})[^!?]{0,160}${confirmation}`, 'iu'))?.[0] ?? '';
-    const explicit = yesNo(context);
+    const evidenceMatches = [...source.matchAll(new RegExp(confirmation, 'giu'))];
+    const documentMatches = [...source.matchAll(new RegExp(documentPattern, 'giu'))];
+    const nearestContext = documentMatches.flatMap((document) => evidenceMatches
+      .map((answer) => {
+        const documentStart = document.index ?? 0;
+        const documentEnd = documentStart + document[0].length;
+        const answerStart = answer.index ?? 0;
+        const answerEnd = answerStart + answer[0].length;
+        return { answer, distance: answerEnd <= documentStart ? documentStart - answerEnd : answerStart >= documentEnd ? answerStart - documentEnd : 0 };
+      })
+      .filter(({ distance }) => distance <= 160))
+      .sort((left, right) => left.distance - right.distance)[0]?.answer[0] ?? '';
+    const explicit = yesNo(nearestContext);
     if (explicit) return explicit;
     const currentSegment = currentSource.split(/[;,]/).find((segment) => new RegExp(documentPattern, 'i').test(segment)) ?? '';
     if (currentSegment) {
@@ -126,7 +144,7 @@ export function mergeDocuments(current: string, message: string): { value: strin
     return '';
   };
   const id = standaloneIdentification ? 'yes' : answer('id\\b|tax[ -]?(?:id|identification)\\b|taxpayer id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b');
-  const income = answer('proof of income|income proof|prueba de ingresos|comprobante de ingresos|estados? de cuenta|account statements?|bank statements?|financial statements?|pay ?checks?|pay stubs?|check stubs?|cheques? de pagos?|me pagan (?:con|en) cheques?|recibo (?:el |mi )?pago en cheques?|cheques? de n[oó]mina|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina|bank account|cuenta bancaria|cuenta de banco');
+  const income = answer('proof of income|income proof|prueba de ingresos|comprobante de ingresos|constancias? de trabajo|employment letters?|estados? de cuenta|account statements?|bank statements?|financial statements?|pay ?checks?|pay stubs?|check stubs?|personal checks?|cheques? de pagos?|me pagan (?:con|en) cheques?|cobro (?:con|en)?\s*cheques?|recibo (?:el |mi )?pago en cheques?|cheques? de n[oó]mina|talones? de pago|colillas? de cheques?|recibos? de n[oó]mina|bank account|cuenta bancaria|cuenta de banco');
   const parts = [...new Set(clean(current).split(';').map(clean).filter(Boolean))];
   if (id && !/\b(?:id|tax[ -]?(?:id|identification)|taxpayer id|identification|identificación|license|licencia)\s*:/i.test(current) && !/\b(?:id|tax[ -]?(?:id|identification)|taxpayer id|identification|identificación|license|licencia)\b/i.test(current)) parts.push(`identification: ${id}`);
   if (income && !/\b(?:proof of income|income proof|prueba de ingresos|comprobante de ingresos)\s*:/i.test(current) && !/\b(?:proof of income|income proof|prueba de ingresos|comprobante de ingresos)\b/i.test(current)) parts.push(`proof of income: ${income}`);

@@ -136,6 +136,7 @@ export class ConversationReconciliationFunctions {
       }
       const source = configured[0] as SourceKey;
       const current = row.qualification_snapshot ?? {} as ConversationSnapshot;
+      const manualOverrides = current.manual_overrides ?? {};
       const assignedDealerId = clean(current.assigned_dealer_id);
       // GHL can create more than one native conversation for the same contact
       // (for example when an Action campaign changes language). Qualification
@@ -239,7 +240,7 @@ export class ConversationReconciliationFunctions {
       // A Messenger transcript often contains no phone because GHL already
       // provides it on the lead. Never erase that persisted phone during an
       // active reconciliation just because the latest messages omit it.
-      const effectivePhone = candidatePhone || existingPhone || '';
+      const effectivePhone = manualOverrides.phone ? safePhone(current.phone) || existingPhone || '' : candidatePhone || existingPhone || '';
       const normalized = normalizeCollectorInput({
         source,
         channel,
@@ -290,7 +291,7 @@ export class ConversationReconciliationFunctions {
         : '';
       const transcriptDeclaredRealName = isInvalidRealName(transcriptDeclaredCandidate, invalidRealNames) ? '' : transcriptDeclaredCandidate;
       const messengerDeclaredName = isSocialProfileChannel ? extractDeclaredMessengerName(messengerNameMemoryTranscript, invalidRealNames) : '';
-      const realName = nativeWhatsapp
+      const normalizedRealName = nativeWhatsapp
         ? transcriptDeclaredRealName || authoritativeCurrentRealName || clean(normalized.real_name) || contactRealName
         : isSocialProfileChannel
         ? clean(normalized.form_context?.full_name) || messengerDeclaredName || normalizedSocialProfileName || clean(normalized.real_name) || contactRealName
@@ -305,6 +306,7 @@ export class ConversationReconciliationFunctions {
           : source === 'carhub' || source === 'alpha'
             ? clean(normalized.real_name) || normalizedSocialProfileName || preserveOrNormalize(currentRealName, normalized.real_name) || contactRealName
           : normalizedSocialProfileName || preserveOrNormalize(currentRealName, normalized.real_name) || contactRealName;
+      const realName = manualOverrides.real_name ? clean(current.real_name) : normalizedRealName;
       if (nativeWhatsapp) {
         await learnInvalidWhatsAppNames(runner, transcript, invalidRealNames, realName);
       } else if (isSocialProfileChannel) {
@@ -319,7 +321,9 @@ export class ConversationReconciliationFunctions {
         && !isAdvisorHandoffVehicle(currentVehicle)
         && (!normalizedVehicle || isAdvisorHandoffVehicle(normalizedVehicle))
         && !normalized.advisor_handoff_requested;
-      const vehicle = invalidatedOwnedVehicle
+      const vehicle = manualOverrides.vehicle_type
+        ? currentVehicle
+        : invalidatedOwnedVehicle
         ? ''
         : targeted
           ? preserveCurrentVehicle ? currentVehicle : normalizedVehicle
@@ -333,23 +337,37 @@ export class ConversationReconciliationFunctions {
         : additiveOnly && typeof current.vehicle_year === 'number'
         ? current.vehicle_year
         : normalized.vehicle_year ?? (typeof current.vehicle_year === 'number' ? current.vehicle_year : null);
-      const downPayment = normalizeDownPayment(targeted ? normalized.down_payment : preserveOrNormalize(current.down_payment, normalized.down_payment));
-      const targetedOrExisting = (existing: unknown, incoming: unknown): string => {
+      const downPayment = normalizeDownPayment(manualOverrides.down_payment ? current.down_payment : targeted ? normalized.down_payment : preserveOrNormalize(current.down_payment, normalized.down_payment));
+      const targetedOrExisting = (field: 'purchase_timeline' | 'documents' | 'identification' | 'bank_account', existing: unknown, incoming: unknown): string => {
         const incomingValue = clean(incoming);
+        if (manualOverrides[field]) return clean(existing);
         return targeted ? incomingValue || clean(existing) : preserveOrNormalize(existing, incomingValue);
       };
-      const purchaseTimeline = targetedOrExisting(current.purchase_timeline, normalized.purchase_timeline);
-      const documents = targetedOrExisting(current.documents, normalized.documents);
-      const identification = targetedOrExisting(current.identification, normalized.identification);
-      const bankAccount = targetedOrExisting(current.bank_account, normalized.bank_account);
+      const purchaseTimeline = targetedOrExisting('purchase_timeline', current.purchase_timeline, normalized.purchase_timeline);
+      const documents = targetedOrExisting('documents', current.documents, normalized.documents);
+      const identification = targetedOrExisting('identification', current.identification, normalized.identification);
+      const bankAccount = targetedOrExisting('bank_account', current.bank_account, normalized.bank_account);
       const qualificationMemoryBase = invalidatedOwnedVehicle
         ? clean(normalized.qualification_memory)
         : preserveCurrentVehicle
         ? mergeMemory(normalized.qualification_memory, { vehicle })
-        : targetedOrExisting(current.qualification_memory, normalized.qualification_memory);
-      const qualificationMemory = isSocialProfileChannel
-        ? mergeMemory(qualificationMemoryBase, { real_name: realName })
+        : targeted
+        ? clean(normalized.qualification_memory) || clean(current.qualification_memory)
+        : preserveOrNormalize(current.qualification_memory, normalized.qualification_memory);
+      const manualMemoryValues: Record<string, string> = {};
+      if (manualOverrides.real_name) manualMemoryValues.real_name = realName;
+      if (manualOverrides.vehicle_type) manualMemoryValues.vehicle = vehicle;
+      if (manualOverrides.down_payment) manualMemoryValues['down payment'] = downPayment;
+      if (manualOverrides.purchase_timeline) manualMemoryValues.timeline = purchaseTimeline;
+      if (manualOverrides.documents) manualMemoryValues.documents = documents;
+      if (manualOverrides.identification) manualMemoryValues.identification = identification;
+      if (manualOverrides.bank_account) manualMemoryValues.bank_account = bankAccount;
+      const effectiveQualificationMemory = Object.keys(manualMemoryValues).length
+        ? mergeMemory(qualificationMemoryBase, manualMemoryValues)
         : qualificationMemoryBase;
+      const qualificationMemory = isSocialProfileChannel
+        ? mergeMemory(effectiveQualificationMemory, { real_name: realName })
+        : effectiveQualificationMemory;
       const previousFinancing = targeted
         ? normalized.previous_financing === 'yes' || normalized.previous_financing === 'no'
           ? normalized.previous_financing
@@ -383,6 +401,7 @@ export class ConversationReconciliationFunctions {
         ? { ...normalized.qualification_progress, ...current.qualification_progress }
         : normalized.qualification_progress;
       const snapshot: ConversationSnapshot = {
+        manual_overrides: current.manual_overrides,
         real_name: realName,
         profile_name: /(?:^|[^a-z])whats?app(?:$|[^a-z])/i.test(channel)
           ? whatsappProfileNameFallback(profileCandidate, invalidRealNames) || whatsappProfileNameFallback(current.profile_name, invalidRealNames)

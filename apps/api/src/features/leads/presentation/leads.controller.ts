@@ -26,6 +26,7 @@ import { EASTERN_DEALER_IDS } from '../../routing/domain/services/georouting.ser
 import { buildManualLeadMessage } from '../domain/manual-message-builder';
 import { normalizeDownPayment } from '../domain/down-payment';
 import { normalizePhone } from '../domain/phone-normalizer';
+import { mergeMemory } from '../domain/collector-normalizer/qualification-memory';
 import { findDealerLeadDuplicate } from '../domain/lead-duplicate';
 import { purgeLeadForDealer } from '../application/lead-deletion';
 import {
@@ -405,6 +406,50 @@ export class LeadsController {
         ],
       ) as Array<{ lead_id: string }>;
       if (updatedRelationships.length === 0) throw new BadRequestException('Lead no encontrado en el dealer seleccionado');
+
+      const manualOverrides = {
+        real_name: true,
+        phone: true,
+        vehicle_type: true,
+        down_payment: true,
+        purchase_timeline: true,
+        documents: true,
+        identification: true,
+        bank_account: true,
+      } as const;
+      const manualDownPayment = normalizeDownPayment(parsed.data.down_payment);
+      const manualVehicleType = parsed.data.vehicle_type.trim();
+      const manualTimeline = parsed.data.purchase_timeline.trim();
+      const manualDocuments = parsed.data.documents.trim();
+      const manualIdentification = parsed.data.identification.trim();
+      const manualBankAccount = parsed.data.bank_account.trim();
+      const manualMemory = mergeMemory('', {
+        real_name: name,
+        vehicle: manualVehicleType,
+        'down payment': manualDownPayment,
+        timeline: manualTimeline,
+        documents: manualDocuments,
+        identification: manualIdentification,
+        bank_account: manualBankAccount,
+      });
+      await queryRunner.query(
+        `UPDATE conversations
+         SET qualification_snapshot = COALESCE(qualification_snapshot, '{}'::jsonb) || jsonb_build_object(
+               'real_name', $2::text,
+               'phone', $3::text,
+               'vehicle_type', $4::text,
+               'down_payment', $5::text,
+               'purchase_timeline', $6::text,
+               'documents', $7::text,
+               'identification', $8::text,
+               'bank_account', $9::text,
+               'qualification_memory', $10::text,
+               'manual_overrides', COALESCE(qualification_snapshot->'manual_overrides', '{}'::jsonb) || $11::jsonb
+             ),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE lead_id = $1`,
+        [leadId, name, canonicalPhone, manualVehicleType, manualDownPayment, manualTimeline, manualDocuments, manualIdentification, manualBankAccount, manualMemory, JSON.stringify(manualOverrides)],
+      );
 
       const rows = await queryRunner.query(
         `SELECT

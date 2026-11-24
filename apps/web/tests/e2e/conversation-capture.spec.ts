@@ -63,6 +63,102 @@ test('normaliza los casos reales de Action Midsize y Stafford Toi', async ({ req
   }
 });
 
+test('acepta seis conversaciones con evidencia de vehículo, nombre, tiempo, trade-in y documentos', async ({ request }) => {
+  const suffix = `ghl-e2e-normalization-cases-${Date.now()}`;
+  const scenarios = [
+    {
+      source: 'arlington',
+      channel: 'messenger',
+      contactName: 'Medhat Fawzy',
+      contactPhone: '+12025550101',
+      messages: ['Do you by chance have a C6 Chevrolet Corvette?', 'Yes'],
+    },
+    {
+      source: 'arlington',
+      channel: 'messenger',
+      contactName: 'Tigre Perez',
+      contactPhone: '+12025550102',
+      messages: ['Toyota tundra negra 4x4 negro asientos de cuero', 'Me llamo edgar', '2000', 'La otra semana'],
+    },
+    {
+      source: 'easterns-frederick',
+      channel: 'messenger',
+      contactName: 'Aguayo Avelar',
+      contactPhone: '+12025550103',
+      messages: [
+        'Tengo un Honda Accord 2024 EX con 55 mil millas y quisiera saber en cuánto me lo valoran',
+        'Troca',
+        '2500',
+        'Sí se puede esta semana',
+        'Cuento con licencia TAX ID y me pagan con cheques personales',
+      ],
+    },
+    {
+      source: 'fredericksburg',
+      channel: 'whatsapp',
+      contactName: 'Este Fin de Semana',
+      contactPhone: '+12025550104',
+      messages: [
+        'Jesús me interesa una pickup pero los bancos me dicen que no por mi crédito',
+        'Cuento con 3k de los cuales debo descontar lo del seguro',
+        'Este fin de semana',
+        'Sí tengo mi licencia activa, cobro cheques y tengo también una constancia de trabajo',
+      ],
+    },
+    {
+      source: 'fredericksburg',
+      channel: 'whatsapp',
+      contactName: 'O Alguna Parecida',
+      contactPhone: '+12025550105',
+      messages: [
+        'Hola buenos días, mi number es kari story buscando una Ford F150 supercrew 2.7 4x4',
+        'O alguna parecida',
+        'De motor V6',
+        'Serían $3000 de enganche, año 2022 o 2023',
+        'Para este mes',
+      ],
+    },
+    {
+      source: 'easterns',
+      channel: 'messenger',
+      contactName: 'Roberto A Paula',
+      contactPhone: '+12238776396',
+      messages: ['Mañana', 'Eso quería saber con cuánto puedo tener el inicial en esta semana, solo tengo 1000'],
+    },
+  ] as const;
+
+  for (const scenario of scenarios) {
+    const contactId = `${suffix}-${scenario.source}-${scenario.contactPhone.slice(-4)}-contact`;
+    const conversationId = `${suffix}-${scenario.source}-${scenario.contactPhone.slice(-4)}-conversation`;
+    for (const [index, message] of scenario.messages.entries()) {
+      const eventId = `${suffix}-${scenario.source}-${scenario.contactPhone.slice(-4)}-${index + 1}`;
+      const response = await request.post(`http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/${scenario.source}`, {
+        data: JSON.stringify({
+          message_body: message,
+          contact_phone: scenario.contactPhone,
+          contact_name: scenario.contactName,
+          channel: scenario.channel,
+          event_id: eventId,
+        }),
+        headers: {
+          'content-type': 'application/json',
+          'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
+          'X-DealerADMIN-Contact-ID': contactId,
+          'X-DealerADMIN-Conversation-ID': conversationId,
+          'X-DealerADMIN-Message-ID': `${eventId}-message`,
+        },
+      });
+
+      expect(response.status(), `${scenario.source} message ${index + 1}`).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({
+        accepted: true,
+        source: scenario.source,
+        status: 'processed',
+      });
+    }
+  }
+});
+
 test('captura una solicitud indecisa de Messenger como Sedan por defecto', async ({ request }) => {
   const suffix = `ghl-e2e-indecisive-sedan-${Date.now()}`;
   const messages = ['What vehicles are eligible?', 'Anything you got', '814 603 0494'];

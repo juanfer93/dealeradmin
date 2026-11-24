@@ -18,6 +18,131 @@ const normalizeCollectorInput = (input: Parameters<typeof normalizeCollectorInpu
 });
 
 describe('normalizeCollectorInput', () => {
+  it('does not treat a down-payment timeframe as the purchase timeframe', () => {
+    const transcript = [
+      'When are you planning to buy?',
+      'Mañana',
+      'Eso quería saber con cuánto puedo tener el inicial en esta semana, solo tengo 1000',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'easterns-roanoke',
+      channel: 'messenger',
+      message: transcript,
+      chat_history_log: transcript,
+      vehicle_transcript: transcript,
+    });
+
+    expect(result.purchase_timeline).toBe('hoy');
+    expect(result.down_payment).toBe('1000');
+  });
+
+  it('completes the five recent normalization regressions from inbound evidence', () => {
+    const corvette = normalizeCollectorInput({
+      source: 'arlington',
+      channel: 'messenger',
+      message: 'Do you by chance have a C6 Chevrolet Corvette?',
+      chat_history_log: 'Do you by chance have a C6 Chevrolet Corvette?',
+      vehicle_transcript: 'Do you by chance have a C6 Chevrolet Corvette?',
+    });
+    expect(corvette.vehicle_type).toMatch(/Corvette/i);
+
+    const tigreTranscript = [
+      'Toyota tundra negra 4x4 negro asientos de cuero',
+      'Me llamo edgar',
+      '2000',
+      'Me hace favor de mandar foto de la tundra',
+      'La otra semana',
+    ].join('\n');
+    const tigre = normalizeCollectorInput({
+      source: 'arlington',
+      channel: 'messenger',
+      message: `¿Cuál es tu nombre?\n${tigreTranscript}\nWhen would you like to buy?`,
+      chat_history_log: `¿Cuál es tu nombre?\n${tigreTranscript}\nWhen would you like to buy?`,
+      vehicle_transcript: tigreTranscript,
+    });
+    expect(tigre).toMatchObject({
+      real_name: 'Edgar',
+      down_payment: '2000',
+      purchase_timeline: 'próxima semana',
+      qualification_progress: { language: 'es' },
+    });
+
+    const aguayoTranscript = [
+      'tengo un honda accord 2024 ex con 55 mil millas es financian y quiera saber en cuanto me lo valoran',
+      'Troca',
+      '2500',
+      'Si se puede esta semana',
+      'Cuento con licencia TAX ID y me pagan con cheques personales',
+    ].join('\n');
+    const aguayo = normalizeCollectorInput({
+      source: 'easterns-frederick',
+      channel: 'messenger',
+      contact_name: 'Aguayo Avelar',
+      message: aguayoTranscript,
+      chat_history_log: aguayoTranscript,
+      vehicle_transcript: aguayoTranscript,
+    });
+    expect(aguayo).toMatchObject({
+      vehicle_type: 'truck',
+      down_payment: '2500 + trade-in',
+      purchase_timeline: 'esta semana',
+      identification: 'yes',
+      has_identification: 'yes',
+      has_income_proof: 'yes',
+      qualification_progress: { language: 'es' },
+    });
+
+    const jesusTranscript = [
+      '¿Cuál es tu nombre?',
+      'Jesus me interesa Una pickup pero Los bancos me dicen Que no por mi credito',
+      'Cuento con 3k de Los Cuales Debo descontar lo del seguro',
+      'Este fin de semana',
+      'Si tengo mi licencia activa cobro Cheques y tengo tambien Una constancia de trabajo de la empresa donde trabajo',
+    ].join('\n');
+    const jesus = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'whatsapp',
+      contact_name: 'Este Fin de Semana',
+      message: jesusTranscript,
+      chat_history_log: jesusTranscript,
+      vehicle_transcript: jesusTranscript,
+    });
+    expect(jesus).toMatchObject({
+      real_name: 'Jesus',
+      vehicle_type: 'truck',
+      down_payment: '3000',
+      purchase_timeline: 'este fin de semana',
+      identification: 'yes',
+      has_identification: 'yes',
+      has_income_proof: 'yes',
+      qualification_progress: { language: 'es' },
+    });
+
+    const kariTranscript = [
+      'Hola buenos días, mi number es kari story buscando una Ford F150 supercrew 2.7 4x4',
+      'O alguna parecida',
+      'De motor V6',
+      'Serían $3000 de enganche, año 2022 o 2023',
+      'Para este mes',
+    ].join('\n');
+    const kari = normalizeCollectorInput({
+      source: 'fredericksburg',
+      channel: 'whatsapp',
+      contact_name: 'O Alguna Parecida',
+      message: kariTranscript,
+      chat_history_log: kariTranscript,
+      vehicle_transcript: kariTranscript,
+    });
+    expect(kari).toMatchObject({
+      real_name: 'Kari',
+      vehicle_type: expect.stringContaining('Ford F-150'),
+      down_payment: '3000',
+      purchase_timeline: 'este mes',
+      qualification_progress: { language: 'es' },
+    });
+    expect(normalizeRealName('O Alguna Parecida')).toBe('');
+  });
+
   it('recognizes a small RV request instead of treating it as an unknown vehicle', () => {
     const result = normalizeCollectorInput({
       source: 'small-rv',
@@ -650,7 +775,7 @@ describe('normalizeCollectorInput', () => {
     expect(result).toMatchObject({
       vehicle_type: 'Toyota Tacoma',
       phone: '+13366570896',
-      identification: 'no',
+      identification: 'yes',
       documents: expect.stringContaining('proof of income: no'),
       down_payment: '1500',
     });
