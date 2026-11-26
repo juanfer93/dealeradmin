@@ -42,15 +42,17 @@ describe('formatQualificationLabels', () => {
 });
 
 describe('operator qualification message normalization', () => {
-  it('rounds 999 and hides insufficient down payments in the UI and copied text', () => {
+  it('rounds 999 and keeps a down payment visible when it meets the dealer threshold', () => {
     const base = {
       id: '1', dealerId: 'd', name: 'Lead', phone: '+15550001111', vehicleType: 'SUV',
       identification: null, bankAccount: null, documents: null, purchaseTimeline: null,
       status: 'pending' as const, messageText: '', createdAt: '2026-09-15T12:00:00.000Z',
     };
     expect(formatLeadMessage({ ...base, dealerName: 'Dealer', downPayment: '999' })).toContain('1000 de down');
-    expect(formatLeadCopy({ ...base, dealerName: 'Dealer', downPayment: '850', messageText: 'Lead +15550001111 SUV, 850 de down.' })).not.toContain('850');
-    expect(formatLeadCopy({ ...base, dealerName: 'Offlease Fredericksburg', downPayment: '1200', messageText: 'Lead +15550001111 SUV, 1200 de down.' })).not.toContain('1200');
+    expect(formatLeadCopy({ ...base, dealerName: 'Dealer', downPayment: '1500', messageText: 'Lead +15550001111 SUV.' })).toContain('1500 de down');
+    expect(formatLeadCopy({ ...base, dealerName: 'Dealer', vehicleType: 'Toyota Tacoma', downPayment: '2500', messageText: 'Lead +15550001111 Toyota Tacoma.' })).toContain('2500 de down');
+    expect(formatLeadCopy({ ...base, dealerName: 'Offlease Fredericksburg', downPayment: '1499', messageText: 'Lead +15550001111 SUV, 1499 de down.' })).not.toContain('1499');
+    expect(formatLeadCopy({ ...base, dealerName: 'Offlease Fredericksburg', vehicleType: 'Toyota Tacoma', downPayment: '1500', messageText: 'Lead +15550001111 Toyota Tacoma.' })).toContain('1500 de down');
   });
 
   it('adds the normalized down-payment range when the stored message does not include it', () => {
@@ -66,12 +68,12 @@ describe('operator qualification message normalization', () => {
     'Dependiendo de los Precios',
     'Me Puede Enviar Fotos',
     'Me Puede Mandar Fotos',
-  ])('always uses the current lead name in copied text when the stored prefix is "%s"', (storedName) => {
+  ])('keeps an allowed down payment when replacing the stale stored prefix "%s"', (storedName) => {
     expect(formatLeadCopy({
       id: '1', dealerId: 'd', dealerName: 'Stafford', name: 'Edwin', phone: '+18572006717', vehicleType: 'suv',
       downPayment: '1000', identification: null, bankAccount: null, documents: null, purchaseTimeline: null,
       status: 'pending', messageText: `${storedName} +18572006717 suv, 1000 de down.`, createdAt: '2026-09-15T12:00:00.000Z',
-    })).toBe('Edwin +18572006717 suv.');
+    })).toBe('Edwin +18572006717 suv, 1000 de down.');
   });
 
   it('preserves the stored copy details after replacing only its stale name prefix', () => {

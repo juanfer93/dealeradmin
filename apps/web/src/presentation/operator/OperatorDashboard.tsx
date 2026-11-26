@@ -9,11 +9,11 @@ import { BulkLeadModal } from './BulkLeadModal';
 import { ReassignDropdown } from './ReassignDropdown';
 import { CopyLeadDropdown, formatReengagedContact } from './CopyLeadDropdown';
 import { QueueTabs } from './QueueTabs';
-import { getPortfolioLeadResponse, isPortfolioMode, portfolioWriteBlockedMessage } from '../../infrastructure/portfolio/portfolio-repository';
+import { isPortfolioMode, portfolioWriteBlockedMessage } from '../../infrastructure/portfolio/portfolio-repository';
 import { LanguageSwitch, useLanguage } from '../../lib/i18n';
-import type { Dealer, Lead, LeadResponse, LeadStatus } from '../../domain/leads/lead.types';
+import type { Dealer, Lead } from '../../domain/leads/lead.types';
 import { logout as logoutRequest } from '../../infrastructure/auth/auth-api';
-import { copyLead, deleteLead as deleteLeadRequest, deleteLeads, getDealerLeads, markLeadSent } from '../../infrastructure/operator/operator-api';
+import { copyLead, deleteLead as deleteLeadRequest, deleteLeads, markLeadSent } from '../../infrastructure/operator/operator-api';
 import { useOperatorQueue } from '../../application/operator/use-operator-queue';
 import { ConversationViewerModal } from './ConversationViewerModal';
 import { formatDownPaymentLabel, isCashDownPaymentLabel, visibleDownPayment } from '../../domain/leads/down-payment-visibility';
@@ -22,23 +22,6 @@ function clean(value: string | null | undefined) { return value?.trim() ?? ''; }
 
 function isNoDownPayment(value: string | null | undefined): boolean {
   return /^(?:no\s+down(?:\s+payment)?|no\s+tengo\s+down(?:\s+payment)?|sin\s+enganche|no\s+enganche)$/i.test(clean(value));
-}
-
-function requiredDownPaymentForVehicle(vehicleType: string | null | undefined): number | null {
-  const vehicle = clean(vehicleType).toLocaleLowerCase();
-  if (/\b(?:truck|troca|pickup|pick-up|camioneta|tacoma|tundra|f-?150|f-?250|f-?350|ranger|silverado|sierra|colorado|frontier|titan|ridgeline|gladiator|ram)\b/i.test(vehicle)) return 3000;
-  if (/\b(?:suv|van|minivan|crossover|4\s*runner|highlander|rav\s*4|sienna|grand caravan|pacifica|odyssey|pilot|passport|cr[- ]?v|hr[- ]?v|tahoe|suburban|traverse|equinox|blazer|yukon|acadia|terrain|wrangler|cherokee|compass|renegade|durango|explorer|expedition|escape|edge|armada|rogue|pathfinder|sportage|telluride|sorento|palisade|santa fe|tucson|forester|outback|ascent|atlas|tiguan|cayenne|range rover|defender)\b/i.test(vehicle)) return 2000;
-  if (/\b(?:sedan|civic|corolla|camry|accord|altima|sentra|versa|maxima|malibu|jetta|passat|sonata|elantra|optima|forte|rio|impala|avalon|prius|coupe|hatchback)\b/i.test(vehicle)) return 1500;
-  return null;
-}
-
-function copyLeadWithEligibleDownPayment(lead: Lead): Lead {
-  const minimum = requiredDownPaymentForVehicle(lead.vehicleType);
-  const downPayment = clean(lead.downPayment);
-  if (!minimum || !downPayment || /\b(?:cash|contado|efectivo|trade[- ]?in|no down|sin enganche)\b/i.test(downPayment)) return lead;
-  const amountText = downPayment.match(/^\$?\s*(\d{1,3}(?:,\d{3})+|\d+)$/)?.[1];
-  const amount = amountText ? Number(amountText.replace(/,/g, '')) : null;
-  return amount !== null && amount < minimum ? { ...lead, downPayment: '' } : lead;
 }
 
 const IDENTIFICATION_DOCUMENT_PATTERN = 'id\\b|tax[ -]?(?:id|identification)\\b|taxpayer id\\b|identification\\b|identificación\\b|driver.?s license\\b|license\\b|licencia\\b|itin\\b|passport\\b|pasaporte\\b';
@@ -152,13 +135,6 @@ export function formatPurchaseTimelineLabel(value: string | null, language: 'es'
   return sourceLanguage === 'es' ? `quiere comprar ${localized}` : `wants to buy ${localized}`;
 }
 
-function formatVehicleCategory(value: string | null | undefined, language: 'es' | 'en'): string {
-  const labels: Record<string, string> = language === 'es'
-    ? { sedan: 'Sedán', luxury_sedan: 'Sedán de lujo', suv_or_van: 'SUV o van', truck: 'Troca o camión' }
-    : { sedan: 'Sedan', luxury_sedan: 'Luxury sedan', suv_or_van: 'SUV or van', truck: 'Truck' };
-  return value ? labels[value] ?? value : '';
-}
-
 function formatQualificationStep(value: string | null | undefined, language: 'es' | 'en'): string {
   const labels: Record<string, string> = language === 'es'
     ? { real_name: 'nombre', vehicle_type: 'vehículo', phone: 'teléfono', down_payment: 'down payment', purchase_timeline: 'tiempo de compra', documents: 'documentos', bank_account: 'cuenta bancaria', complete: 'completo' }
@@ -190,13 +166,12 @@ export function formatLeadMessage(lead: Lead, language?: 'es' | 'en') {
 }
 
 export function formatLeadCopy(lead: Lead): string {
-  const copyLead = copyLeadWithEligibleDownPayment(lead);
-  const visibleDown = visibleDownPayment(copyLead.downPayment, copyLead.dealerName);
+  const visibleDown = visibleDownPayment(lead.downPayment, lead.dealerName);
   const storedMessageIncludesVisibleDown = Boolean(visibleDown)
-    && (copyLead.messageText ?? '').toLocaleLowerCase().includes(visibleDown.toLocaleLowerCase());
+    && (lead.messageText ?? '').toLocaleLowerCase().includes(visibleDown.toLocaleLowerCase());
   const source = visibleDown === clean(lead.downPayment) && (!visibleDown || (storedMessageIncludesVisibleDown && !isCashDownPaymentLabel(visibleDown)))
-    ? copyLead.messageText || formatLeadMessage(copyLead)
-    : formatLeadMessage(copyLead);
+    ? lead.messageText || formatLeadMessage(lead)
+    : formatLeadMessage(lead);
   const name = clean(lead.name);
   const phone = clean(lead.phone);
   if (!source || !name || !phone) return source;
@@ -243,25 +218,12 @@ function Qualification({ lead, language, empty }: { lead: Lead; language: 'es' |
   const bankAccount = formatBankAccountLabel(lead.bankAccount, language);
   const documents = labels.documents;
   const tag = (value: string, fallback: string) => value ? <span className="rounded bg-[var(--brand-soft)] px-2 py-1 text-xs">{value}</span> : <span className="rounded bg-[var(--surface-raised)] px-2 py-1 text-xs text-[var(--text-muted)]">{fallback}</span>;
-  const category = formatVehicleCategory(lead.vehicleCategory, language);
-  const minimum = lead.requiredDownPayment != null ? `$${lead.requiredDownPayment.toLocaleString('en-US')}` : '';
-  const downRule = lead.downPaymentSufficient == null
-    ? ''
-    : lead.downPaymentSufficient
-      ? (language === 'es' ? 'suficiente' : 'meets minimum')
-      : (language === 'es' ? 'insuficiente' : 'below minimum');
   const step = formatQualificationStep(lead.qualificationStep, language);
-  const previousFinancing = lead.previousFinancing === 'yes'
-    && lead.downPaymentAmount != null
-    && lead.requiredDownPayment != null
-    && lead.downPaymentAmount < lead.requiredDownPayment
-    ? (language === 'es' ? 'Ya ha financiado antes' : 'Has financed before')
-    : '';
   const downValue = visibleDownPayment(lead.downPayment, lead.dealerName);
   const downLabel = downValue && !isNoDownPayment(lead.downPayment)
     ? formatDownPaymentLabel(downValue, detectLeadLanguage(lead))
     : '';
-  return <div className="space-y-2"><div className="flex max-w-[300px] flex-wrap gap-1.5">{tag(downLabel, empty.downPayment)}{previousFinancing && tag(previousFinancing, '')}{tag(identification, empty.identification)}{tag(bankAccount, empty.bankAccount)}{tag(documents, empty.documents)}{tag(formatPurchaseTimelineLabel(lead.purchaseTimeline, language).replace(/^(?:quiere comprar|wants to buy)\s+/i, ''), empty.purchaseTimeline)}</div>{(category || minimum || downRule || step) && <div className="max-w-[340px] rounded border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-2 text-[11px] leading-5 text-[var(--text-muted)]"><span className="font-semibold text-[var(--text)]">{language === 'es' ? 'Normalizado' : 'Normalized'}</span>{category && <span className="ml-2">{language === 'es' ? 'categoría' : 'category'}: {category}</span>}{minimum && <span className="ml-2">{language === 'es' ? 'mínimo' : 'minimum'}: {minimum}</span>}{downRule && <span className={`ml-2 font-semibold ${lead.downPaymentSufficient ? 'text-[var(--brand-strong)]' : 'text-[var(--error)]'}`}>{downRule}</span>}{step && <span className="ml-2">{language === 'es' ? 'paso' : 'step'}: {step}</span>}</div>}</div>;
+  return <div className="space-y-2"><div className="flex max-w-[300px] flex-wrap gap-1.5">{tag(downLabel, empty.downPayment)}{tag(identification, empty.identification)}{tag(bankAccount, empty.bankAccount)}{tag(documents, empty.documents)}{tag(formatPurchaseTimelineLabel(lead.purchaseTimeline, language).replace(/^(?:quiere comprar|wants to buy)\s+/i, ''), empty.purchaseTimeline)}</div>{step && <div className="max-w-[340px] rounded border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-2 text-[11px] leading-5 text-[var(--text-muted)]"><span className="font-semibold text-[var(--text)]">{language === 'es' ? 'Normalizado' : 'Normalized'}</span><span className="ml-2">{language === 'es' ? 'paso' : 'step'}: {step}</span></div>}</div>;
 }
 
 export default function OperatorDashboard() {
@@ -303,16 +265,6 @@ export default function OperatorDashboard() {
   async function copySelectedLeads() { const selected = leads.filter((lead) => selectedLeadIds.includes(lead.id)); if (!selected.length) return; await navigator.clipboard.writeText(formatLeadListCopy(selected, copyTextForLead)); setCopiedLeadId('__selected__'); window.setTimeout(() => setCopiedLeadId((current) => current === '__selected__' ? null : current), 1600); }
   function toggleLead(leadId: string) { setSelectedLeadIds((current) => current.includes(leadId) ? current.filter((id) => id !== leadId) : [...current, leadId]); }
   function toggleAllVisibleLeads() { setSelectedLeadIds((current) => allVisibleLeadsSelected ? current.filter((id) => !leads.some((lead) => lead.id === id)) : Array.from(new Set([...current, ...leads.map((lead) => lead.id)]))); }
-  async function copyDealerLeads(dealerId: string) {
-    try {
-      const payloads = isPortfolioMode ? (['pending', 'wrote_again', 'sent'] as LeadStatus[]).map((item) => getPortfolioLeadResponse(item, dealerId)) : await Promise.all((['pending', 'wrote_again', 'sent'] as LeadStatus[]).map(async (item) => { const response = await getDealerLeads(item, dealerId); if (response.status === 401) { router.replace('/login'); return null; } if (!response.ok) throw new Error(t.app.errors.loadDealerLeads); return response.json() as Promise<LeadResponse>; }));
-      const validPayloads = payloads.filter((payload): payload is LeadResponse => payload !== null);
-      if (!validPayloads.length) return;
-      const dealerLeads = validPayloads.flatMap((payload) => payload.leads);
-      if (!dealerLeads.length) { setError(t.app.errors.noLeadsToCopy); return; }
-      await navigator.clipboard.writeText(formatLeadListCopy(dealerLeads)); const key = `dealer-${dealerId}`; setCopiedLeadId(key); window.setTimeout(() => setCopiedLeadId((current) => current === key ? null : current), 1600);
-    } catch (copyError) { setError(copyError instanceof Error ? copyError.message : t.app.errors.copyFailed); }
-  }
   async function markSent(lead: Lead) {
     if (isPortfolioMode) { setError(language === 'es' ? portfolioWriteBlockedMessage : 'Demo mode: this action is disabled to protect production data.'); return; }
     const previousLeads = leads;
@@ -440,7 +392,7 @@ export default function OperatorDashboard() {
       </div>
     </div>
     <div className="operator-layout flex min-h-[calc(100vh-56px)] flex-col md:flex-row">
-      <aside className="w-full shrink-0 border-b border-[var(--border)] bg-[var(--surface-raised)] px-3 py-3 md:w-60 md:border-b-0 md:border-r md:py-5" aria-label={t.app.dealerNavigation}><div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)] md:pb-3">{t.app.dealers}</div><nav className="flex gap-1 overflow-x-auto md:block md:space-y-1">{dealers.map((dealer) => { const active = dealer.id === (activeDealer?.id ?? selectedDealerId); const checked = selectedDealerIds.includes(dealer.id); const copied = copiedLeadId === `dealer-${dealer.id}`; return <div key={dealer.id} className={`flex min-w-[270px] items-center gap-2 border-l-2 px-2 py-1 md:min-w-0 ${active ? 'border-[var(--brand)] bg-[var(--brand-soft)]' : 'border-transparent'}`}><input type="checkbox" checked={checked} onChange={() => void toggleDealer(dealer.id)} aria-label={`${t.app.dealers}: ${dealer.name}`} className="h-4 w-4 accent-[var(--brand)]" /><button type="button" onClick={() => void selectDealer(dealer.id)} className={`flex min-h-11 min-w-0 flex-1 items-center justify-between px-1 text-left text-sm ${active ? 'font-semibold text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}><span className="truncate pr-2 leading-5">{dealer.name}</span><span className="tabular-nums rounded-full bg-[var(--surface)] px-2 py-0.5 text-xs text-[var(--text-muted)]">{dealer.pendingCount}</span></button><button type="button" onClick={() => void copyDealerLeads(dealer.id)} aria-label={`${t.app.copyAll} ${dealer.name}`} className="min-h-11 shrink-0 rounded border border-[var(--border)] px-2 text-[11px] font-semibold text-[var(--text-muted)] hover:border-[var(--brand)] hover:text-[var(--text)]">{copied ? 'Listo' : t.app.copy}</button></div>; })}</nav></aside>
+      <aside className="w-full shrink-0 border-b border-[var(--border)] bg-[var(--surface-raised)] px-3 py-3 md:w-60 md:border-b-0 md:border-r md:py-5" aria-label={t.app.dealerNavigation}><div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)] md:pb-3">{t.app.dealers}</div><nav className="flex gap-1 overflow-x-auto md:block md:space-y-1">{dealers.map((dealer) => { const active = dealer.id === (activeDealer?.id ?? selectedDealerId); const checked = selectedDealerIds.includes(dealer.id); return <div key={dealer.id} className={`flex min-w-[270px] items-center gap-2 border-l-2 px-2 py-1 md:min-w-0 ${active ? 'border-[var(--brand)] bg-[var(--brand-soft)]' : 'border-transparent'}`}><input type="checkbox" checked={checked} onChange={() => void toggleDealer(dealer.id)} aria-label={`${t.app.dealers}: ${dealer.name}`} className="h-4 w-4 accent-[var(--brand)]" /><button type="button" onClick={() => void selectDealer(dealer.id)} className={`flex min-h-11 min-w-0 flex-1 items-center justify-between px-1 text-left text-sm ${active ? 'font-semibold text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}><span className="truncate pr-2 leading-5">{dealer.name}</span><span className="tabular-nums rounded-full bg-[var(--surface)] px-2 py-0.5 text-xs text-[var(--text-muted)]">{dealer.pendingCount}</span></button></div>; })}</nav></aside>
       <section className="min-w-0 flex-1 px-3 py-5 sm:px-6 sm:py-7 lg:px-9"><div className="mx-auto max-w-[1400px]"><div className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--brand)]">{t.app.eyebrow}</p><h1 className="text-xl font-semibold tracking-[-0.035em] sm:text-2xl">{t.app.title}</h1><p className="mt-2 text-sm text-[var(--text-muted)]">{t.app.description}</p>{isPortfolioMode && <p className="mt-3 inline-flex rounded-full border border-[var(--review)]/40 bg-[var(--review)]/10 px-3 py-1.5 text-xs font-semibold text-[var(--review)]">{t.app.portfolioPreview}</p>}</div><QueueTabs status={status} wroteAgainCount={wroteAgainCount} labels={{ pending: t.app.pending, wroteAgain: t.app.wroteAgain, sent: t.app.sent, ariaLabel: t.app.statusFilter }} onChange={(nextStatus) => void selectStatus(nextStatus)} /></div>{error && <div role="alert" className="mb-4 border border-[var(--error)]/30 bg-[var(--error)]/10 px-4 py-3 text-sm text-[var(--error)]">{error}</div>}
         <div className="overflow-hidden rounded border border-[var(--border)] bg-[var(--surface)]"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3 sm:px-5"><div className="flex items-center gap-3"><span className="text-sm font-semibold">{selectedDealerIds.length > 1 ? t.app.selectedDealers(selectedDealerIds.length) : activeDealer?.name ?? t.app.allDealers}</span><span className="text-xs text-[var(--text-muted)]">{t.app.leadCount(leads.length, statusLabel)}</span></div><div className="flex flex-wrap items-center gap-2"><span className="hidden text-xs text-[var(--text-muted)] sm:inline">{t.app.webhookStream} <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-[var(--brand)]" /></span>{leads.length > 0 && <label className="inline-flex min-h-11 items-center gap-2 rounded border border-[var(--border)] px-3 py-2 text-xs font-semibold text-[var(--text-muted)]"><input type="checkbox" checked={allVisibleLeadsSelected} onChange={toggleAllVisibleLeads} aria-label={t.app.selectAll} className="h-4 w-4 accent-[var(--brand)]" /><span>{t.app.selected(selectedVisibleLeadIds.length)}</span></label>}{selectedVisibleLeadIds.length > 0 && <><button type="button" onClick={() => void copySelectedLeads()} className="min-h-11 rounded border border-[var(--border)] px-3 py-2 text-xs font-semibold hover:border-[var(--brand)]">{copiedLeadId === '__selected__' ? t.app.selectedCopied : t.app.copySelected}</button><button type="button" onClick={deleteSelectedLeads} disabled={deletingSelected} className="min-h-11 rounded border border-[var(--error)]/45 px-3 py-2 text-xs font-semibold text-[var(--error)] hover:bg-[var(--error)]/10 disabled:opacity-60">{deletingSelected ? t.app.deletingSelected : t.app.deleteSelected}</button></>}{selectedDealerIds.length > 1 && <button type="button" onClick={() => void copyAllSelected()} disabled={!leads.length} className="min-h-11 rounded border border-[var(--border)] px-3 py-2 text-xs font-semibold hover:border-[var(--brand)] disabled:opacity-50">{copiedLeadId === '__all__' ? t.app.allCopied : t.app.copyAll}</button>}<button type="button" id="btn-add-manual-lead" onClick={() => setIsAddLeadOpen(true)} disabled={!activeDealer} className="min-h-11 rounded bg-[var(--brand)] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{t.app.addManual}</button><button type="button" id="btn-bulk-leads" onClick={() => setIsBulkLeadOpen(true)} disabled={!activeDealer} className="min-h-11 rounded border border-[var(--brand)] px-3 py-2 text-xs font-semibold text-[var(--brand)] disabled:opacity-50">{language === 'es' ? 'Carga masiva' : 'Bulk upload'}</button></div></div>
           <div className="space-y-3 p-3 md:hidden">{loading && <p className="px-2 py-8 text-center text-sm text-[var(--text-muted)]">{t.app.loading}</p>}{!loading && leads.length === 0 && <p className="px-2 py-8 text-center text-sm text-[var(--text-muted)]">{t.app.noLeads(statusLabel)}</p>}{leads.map((lead) => <article key={lead.id} className="rounded border border-[var(--border)] bg-[var(--page)] p-4"><div className="flex items-start justify-between gap-3"><div className="flex items-start gap-3"><input type="checkbox" checked={selectedLeadIds.includes(lead.id)} onChange={() => toggleLead(lead.id)} aria-label={`${t.app.lead} ${lead.name}`} className="mt-1 h-4 w-4 accent-[var(--brand)]" /><div><h2 className="font-semibold">{lead.name}</h2><p className="mt-1 tabular-nums text-xs text-[var(--text-muted)]">{lead.phone}</p></div></div><span className="text-right text-xs text-[var(--text-muted)]"><span className="block text-[10px] uppercase tracking-[0.08em]">{t.app.received}</span>{formatDate(lead.createdAt, language)}</span></div><p className="mt-3 text-sm font-medium">{lead.vehicleType || t.app.vehicleNotIndicated}</p><div className="mt-3"><Qualification lead={lead} language={language} empty={t.app.empty} /></div><p className="mt-3 text-xs leading-5 text-[var(--text-muted)]">{lead.messageText || formatLeadMessage(lead)}</p><div className="mt-4 flex flex-wrap gap-2"><CopyLeadDropdown leadId={lead.id} currentDealerId={lead.dealerId} dealers={dealers} disabled={copyingLeadId === lead.id} label={t.app.copyTo} chooseLabel={t.app.copyTo} reengagementPhone={status === 'wrote_again' ? lead.phone : undefined} reengagementName={status === 'wrote_again' ? lead.name : undefined} copyContactLabel={copiedLeadId === lead.id ? t.app.contactCopied : t.app.copyContact} contactCopied={copiedLeadId === lead.id} onCopyContact={status === 'wrote_again' ? () => void copyMessage(lead) : undefined} onRequestCopy={(targetDealerId) => requestCopyLead(lead, targetDealerId)} /><button type="button" onClick={() => setConversationLead(lead)} className="min-h-11 rounded border border-[var(--brand)]/40 px-3 py-2 text-xs font-semibold text-[var(--brand-strong)]">{language === 'es' ? 'Ver conversación' : 'View conversation'}</button><ReassignDropdown leadId={lead.id} currentDealerId={lead.dealerId} onReassigned={refreshQueue} /><button type="button" onClick={() => editLead(lead)} className="min-h-11 flex-1 rounded border border-[var(--brand)]/45 px-3 py-2 text-xs font-semibold text-[var(--brand-strong)]" aria-label={`${t.app.editLead}: ${lead.name}`}>{t.app.editLead}</button>{status !== 'wrote_again' && <button type="button" onClick={() => void copyMessage(lead)} className="min-h-11 flex-1 rounded border border-[var(--border)] px-3 py-2 text-xs font-semibold">{copiedLeadId === lead.id ? t.app.copied : t.app.copy}</button>}{(status === 'pending' || status === 'wrote_again') && <button type="button" onClick={() => void markSent(lead)} className="min-h-11 flex-1 rounded bg-[var(--brand)] px-3 py-2 text-xs font-semibold text-white">{language === 'es' ? 'Marcar enviado' : 'Mark sent'}</button>}<button type="button" onClick={() => void deleteLead(lead)} disabled={deletingLeadId === lead.id} className="min-h-11 flex-1 rounded border border-[var(--error)]/40 px-3 py-2 text-xs font-semibold text-[var(--error)] hover:bg-[var(--error)]/10 disabled:opacity-60">{deletingLeadId === lead.id ? t.app.deletingLead : t.app.deleteLead}</button></div></article>)}</div>
