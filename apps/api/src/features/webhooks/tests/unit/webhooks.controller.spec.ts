@@ -2,6 +2,29 @@ import { describe, expect, it, vi } from 'vitest';
 import { WebhooksController } from '../../presentation/webhooks.controller';
 
 describe('WebhooksController queued Guard backup', () => {
+  it('normalizes Instagram DM to the canonical Messenger context channel', async () => {
+    const getContext = vi.fn().mockResolvedValue({ accepted: true });
+    const controller = new WebhooksController(
+      {} as never,
+      {} as never,
+      { markHandlerStarted: vi.fn(), markError: vi.fn() } as never,
+      {} as never,
+      { getContext } as never,
+    );
+
+    await controller.getGhlConversationContext({ webhookIngressRequestId: 'request-instagram' } as never, {
+      locationId: 'LiaoSID3nvAhad49ZpNJ',
+      contactId: 'instagram-contact',
+      channel: 'Instagram DM',
+    });
+
+    expect(getContext).toHaveBeenCalledWith({
+      locationId: 'LiaoSID3nvAhad49ZpNJ',
+      contactId: 'instagram-contact',
+      channel: 'messenger',
+    });
+  });
+
   it('delegates failed webhook replay to the protected service flow', async () => {
     const replayFailedIngress = vi.fn().mockResolvedValue({ accepted: true, selected: 1, processed: 1, failed: 0 });
     const controller = new WebhooksController(

@@ -612,15 +612,32 @@ describe('ConversationWebhookService', () => {
     await expect(service.acceptCustomerReplied({ message_body: 'SUV' }, 'stafford', {})).rejects.toThrow('Contact ID');
   });
 
-  it('accepts Stafford Messenger conversations beside WhatsApp', async () => {
+  it('accepts Stafford WhatsApp, Messenger, and Instagram DM using the Messenger channel', async () => {
     const service = new ConversationWebhookService();
-    const result = await service.acceptCustomerReplied(
-      { message_body: 'Busco un SUV.', channel: 'messenger' },
+    const whatsapp = await service.acceptCustomerReplied(
+      { message_body: 'Busco una Tacoma.', channel: 'WhatsApp' },
+      'stafford',
+      { contactId: 'ghl-stafford-whatsapp-contact', conversationId: 'ghl-stafford-whatsapp-conversation' },
+    );
+    const messenger = await service.acceptCustomerReplied(
+      { message_body: 'Busco un SUV.', channel: 'Facebook Messenger' },
       'stafford',
       { contactId: 'ghl-stafford-messenger-contact', conversationId: 'ghl-stafford-messenger-conversation' },
     );
-    expect(result).toMatchObject({ accepted: true, source: 'stafford', status: 'processed' });
-    expect(getTestConversationEvents()).toHaveLength(1);
+    const instagram = await service.acceptCustomerReplied(
+      { message_body: 'Busco una RAV4.', channel: 'Instagram DM' },
+      'stafford',
+      { contactId: 'ghl-stafford-instagram-contact', conversationId: 'ghl-stafford-instagram-conversation' },
+    );
+
+    expect(whatsapp).toMatchObject({ accepted: true, source: 'stafford', status: 'processed' });
+    expect(messenger).toMatchObject({ accepted: true, source: 'stafford', status: 'processed' });
+    expect(instagram).toMatchObject({ accepted: true, source: 'stafford', status: 'processed' });
+    expect(getTestConversationEvents()).toEqual([
+      expect.objectContaining({ source: 'stafford', channel: 'whatsapp' }),
+      expect.objectContaining({ source: 'stafford', channel: 'messenger' }),
+      expect.objectContaining({ source: 'stafford', channel: 'messenger' }),
+    ]);
   });
 
   it('replays accepted ingress rows that never received an event id', async () => {

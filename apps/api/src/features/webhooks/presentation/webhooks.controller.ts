@@ -11,6 +11,16 @@ import { GhlContextSecretGuard } from './ghl-context-secret.guard';
 
 type WebhookRequest = Request & { rawBody?: Buffer; webhookIngressRequestId?: string };
 
+function normalizeGhlContextChannel(value: unknown): GhlContextChannel | null {
+  if (typeof value !== 'string') return null;
+  const channel = value.trim().toLowerCase();
+  if (channel === 'wa' || channel.includes('whatsapp')) return 'whatsapp';
+  // GHL reports Facebook Messenger and Instagram DM as different channel names;
+  // DealerAdmin stores both under its canonical `messenger` channel.
+  if (channel === 'fb' || channel === 'facebook' || channel.includes('messenger') || channel.includes('instagram')) return 'messenger';
+  return null;
+}
+
 function parseGhlContextRequest(body: unknown): GhlConversationContextRequest {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new BadRequestException('Invalid request payload');
   const value = body as Record<string, unknown>;
@@ -20,15 +30,15 @@ function parseGhlContextRequest(body: unknown): GhlConversationContextRequest {
   const locationId = typeof value.locationId === 'string' ? value.locationId.trim() : '';
   const contactId = typeof value.contactId === 'string' ? value.contactId.trim() : '';
   const conversationId = typeof value.conversationId === 'string' ? value.conversationId.trim() : undefined;
-  const channel = value.channel;
+  const channel = normalizeGhlContextChannel(value.channel);
   const safeId = /^[A-Za-z0-9:_-]+$/;
   if (!locationId || locationId.length > 120 || !safeId.test(locationId)) throw new BadRequestException('Invalid request payload');
   if (!contactId || contactId.length > 120 || !safeId.test(contactId)) throw new BadRequestException('Invalid request payload');
   if (value.conversationId !== undefined && (!conversationId || conversationId.length > 200 || !safeId.test(conversationId))) {
     throw new BadRequestException('Invalid request payload');
   }
-  if (channel !== 'whatsapp' && channel !== 'messenger') throw new BadRequestException('Invalid request payload');
-  return { locationId, contactId, ...(conversationId ? { conversationId } : {}), channel: channel as GhlContextChannel };
+  if (!channel) throw new BadRequestException('Invalid request payload');
+  return { locationId, contactId, ...(conversationId ? { conversationId } : {}), channel };
 }
 
 @Controller('webhooks')
