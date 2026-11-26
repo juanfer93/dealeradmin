@@ -6,9 +6,11 @@ import { isInvalidRealName } from '../../domain/collector-normalizer';
 
 const nameCatalogMigration = readFileSync(resolve(__dirname, '../../../../database/migrations/1710000055000-InvalidRealNames.ts'), 'utf8');
 const applicationPromptNameMigration = readFileSync(resolve(__dirname, '../../../../database/migrations/1710000056000-InvalidApplicationPromptAsName.ts'), 'utf8');
+const whatsappProfileInvalidNamesMigration = readFileSync(resolve(__dirname, '../../../../database/migrations/1710000061000-InvalidWhatsAppProfileNames.ts'), 'utf8');
 const databaseInvalidRealNames = [
   ...[...nameCatalogMigration.matchAll(/\('((?:[^']|'')*)'\)/g)].map((match) => match[1]),
   ...[...applicationPromptNameMigration.matchAll(/\('whatsapp', '((?:[^']|'')*)',/g)].map((match) => match[1]),
+  ...[...whatsappProfileInvalidNamesMigration.matchAll(/\('whatsapp', '((?:[^']|'')*)',/g)].map((match) => match[1]),
 ]
   .map((value) => value.replace(/''/g, "'").trim().replace(/\s+/g, ' ').toLocaleLowerCase());
 const normalizeRealName = (value: string | null | undefined) => normalizeRealNameWithCatalog(value, databaseInvalidRealNames);
@@ -18,6 +20,28 @@ const normalizeCollectorInput = (input: Parameters<typeof normalizeCollectorInpu
 });
 
 describe('normalizeCollectorInput', () => {
+  it('rejects a greeting or unverified WhatsApp profile label while retaining the contact name', () => {
+    const greeting = normalizeCollectorInput({ channel: 'whatsapp', profile: { name: 'Buenas' }, message: 'Hola buenas', chat_history_log: 'Hola buenas' });
+    const unpromptedValidProfile = normalizeCollectorInput({
+      channel: 'whatsapp',
+      contact_name: 'Lead',
+      profile: { name: 'Ana María' },
+      message: 'Hola buenas',
+      chat_history_log: 'Hola buenas',
+    });
+    const misusedLabel = normalizeCollectorInput({
+      channel: 'whatsapp',
+      contact_name: 'Silvia',
+      profile: { name: 'Buco' },
+      message: 'Buco. CR V Honda o Toyota Acura',
+      chat_history_log: 'Buco. CR V Honda o Toyota Acura',
+    });
+
+    expect(greeting.real_name).toBe('');
+    expect(unpromptedValidProfile.real_name).toBe('Ana María');
+    expect(misusedLabel.real_name).toBe('Silvia');
+  });
+
   it('does not treat a down-payment timeframe as the purchase timeframe', () => {
     const transcript = [
       'When are you planning to buy?',

@@ -1,6 +1,7 @@
 import { DataSource } from 'typeorm';
 import { describe, expect, it } from 'vitest';
 import { InvalidRealNames1710000055000 } from '../../../../database/migrations/1710000055000-InvalidRealNames';
+import { InvalidWhatsAppProfileNames1710000061000 } from '../../../../database/migrations/1710000061000-InvalidWhatsAppProfileNames';
 import { MessengerInvalidRealNames1710000057000 } from '../../../../database/migrations/1710000057000-MessengerInvalidRealNames';
 import { normalizeCollectorInput } from '../../../leads/domain/collector-normalizer';
 import { learnInvalidMessengerNames, learnInvalidWhatsAppNames, loadInvalidRealNames } from '../../application/functions/conversations/whatsapp-invalid-name-memory';
@@ -11,6 +12,43 @@ describe.skipIf(!databaseUrl)('WhatsApp invalid-name memory (local PostgreSQL E2
   const dataSource = new DataSource({ type: 'postgres', url: databaseUrl, entities: [], migrations: [], synchronize: false });
   const learnedPhrase = 'busco un carro';
   const learnedTail = 'busco una honda civic';
+
+  it('rejects Buco and Buenas as profile names while preserving Silvia and Josue', async () => {
+    await dataSource.initialize();
+    const runner = dataSource.createQueryRunner();
+    await runner.connect();
+    try {
+      await new InvalidRealNames1710000055000().up(runner);
+      await new InvalidWhatsAppProfileNames1710000061000().up(runner);
+      const catalog = await loadInvalidRealNames(runner, 'whatsapp');
+      const silvia = normalizeCollectorInput({
+        source: 'stafford',
+        channel: 'whatsapp',
+        contact_name: 'Silvia',
+        profile: { name: 'Buco' },
+        invalid_real_names: catalog,
+        message: 'Buco. CR V Honda o Toyota Acura',
+        chat_history_log: 'Buco. CR V Honda o Toyota Acura',
+      });
+      const josue = normalizeCollectorInput({
+        source: 'lucki-mazda',
+        channel: 'whatsapp',
+        contact_name: 'Josue',
+        profile: { name: 'Buenas' },
+        invalid_real_names: catalog,
+        message: 'Hola buenas\nUna troca\nDe preferencia una raptor o tundra',
+        chat_history_log: 'Hola buenas\nUna troca\nDe preferencia una raptor o tundra',
+      });
+
+      expect(catalog).toContain('buco');
+      expect(catalog).toContain('buenas');
+      expect(silvia.real_name).toBe('Silvia');
+      expect(josue.real_name).toBe('Josue');
+    } finally {
+      await runner.release();
+      await dataSource.destroy();
+    }
+  }, 30_000);
 
   it('keeps the Stafford customer Julio separate from a purchase in July', async () => {
     await dataSource.initialize();

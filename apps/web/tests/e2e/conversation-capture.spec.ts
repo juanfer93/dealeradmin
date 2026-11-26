@@ -1,4 +1,6 @@
 import { test, expect } from '../../../../e2e/test';
+import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
 
 test('normaliza los casos reales de Action Midsize y Stafford Toi', async ({ request }) => {
   const suffix = `ghl-e2e-regressions-${Date.now()}`;
@@ -671,6 +673,61 @@ test('prioriza el nombre declarado sobre el nombre nativo de WhatsApp', async ({
       source: 'stafford',
       status: 'processed',
     });
+  }
+});
+
+test('conserva Silvia y Josue cuando WhatsApp vuelve a enviar Buco o Buenas como perfil', async ({ request }) => {
+  test.skip(!process.env.E2E_DATABASE_URL, 'requiere PostgreSQL E2E local con Docker');
+  const suffix = `ghl-e2e-whatsapp-invalid-profile-${Date.now()}`;
+  const contacts = [
+    { id: `${suffix}-buco`, name: 'Silvia', invalidProfile: 'Buco', phone: '+18045550101', message: 'Buco. CR V Honda o Toyota Acura' },
+    { id: `${suffix}-buenas`, name: 'Josue', invalidProfile: 'Buenas', phone: '+15715550102', message: 'Hola buenas\nUna troca\nDe preferencia una raptor o tundra' },
+  ];
+  const requireApiDependency = createRequire(resolve(process.cwd(), 'apps/api/package.json'));
+  const { Pool } = requireApiDependency('pg') as { Pool: new (options: { connectionString: string }) => any };
+  const pool = new Pool({ connectionString: process.env.E2E_DATABASE_URL });
+
+  try {
+    for (const contact of contacts) {
+      for (const [index, contactName] of [contact.name, contact.invalidProfile].entries()) {
+        const eventId = `${suffix}-${contact.id}-${index + 1}`;
+        const response = await request.post('http://127.0.0.1:3010/api/webhooks/ghl/customer-replied/stafford', {
+          data: JSON.stringify({
+            message_body: contact.message,
+            contact_phone: contact.phone,
+            contact_name: contactName,
+            channel: 'whatsapp',
+            event_id: eventId,
+          }),
+          headers: {
+            'content-type': 'application/json',
+            'X-DealerADMIN-Webhook-Secret': 'test-ghl-secret-123456',
+            'X-DealerADMIN-Contact-ID': contact.id,
+            'X-DealerADMIN-Conversation-ID': `${contact.id}-conversation`,
+            'X-DealerADMIN-Message-ID': `${eventId}-message`,
+          },
+        });
+        expect(response.status(), `${contact.invalidProfile} webhook ${index + 1}`).toBe(200);
+      }
+    }
+
+    const leads = await pool.query(
+      'SELECT ghl_contact_id, first_name, last_name FROM leads WHERE ghl_contact_id = ANY($1::text[])',
+      [contacts.map((contact) => contact.id)],
+    ) as { rows: Array<{ ghl_contact_id: string; first_name: string; last_name: string }> };
+    const names = new Map(leads.rows.map((lead) => [lead.ghl_contact_id, `${lead.first_name} ${lead.last_name}`.trim()]));
+    expect(names.get(contacts[0].id)).toBe('Silvia');
+    expect(names.get(contacts[1].id)).toBe('Josue');
+  } finally {
+    const leadRows = await pool.query('SELECT id FROM leads WHERE ghl_contact_id = ANY($1::text[])', [contacts.map((contact) => contact.id)]) as { rows: Array<{ id: string }> };
+    const leadIds = leadRows.rows.map((lead) => lead.id);
+    if (leadIds.length) {
+      await pool.query('DELETE FROM lead_dealers WHERE lead_id = ANY($1::uuid[])', [leadIds]);
+      await pool.query('DELETE FROM conversations WHERE lead_id = ANY($1::uuid[])', [leadIds]);
+      await pool.query('DELETE FROM leads WHERE id = ANY($1::uuid[])', [leadIds]);
+    }
+    await pool.query('DELETE FROM webhook_events WHERE event_id LIKE $1', [`${suffix}%`]);
+    await pool.end();
   }
 });
 

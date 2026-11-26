@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { InvalidRealNames1710000055000 } from '../../../../database/migrations/1710000055000-InvalidRealNames';
 import { MessengerInvalidRealNames1710000057000 } from '../../../../database/migrations/1710000057000-MessengerInvalidRealNames';
 import { WhatsAppUnverifiedSergioProfile1710000060000 } from '../../../../database/migrations/1710000060000-WhatsAppUnverifiedSergioProfile';
+import { InvalidWhatsAppProfileNames1710000061000 } from '../../../../database/migrations/1710000061000-InvalidWhatsAppProfileNames';
 
 describe('InvalidRealNames1710000055000', () => {
   it('seeds the previous invalid-name catalog into the WhatsApp database table', async () => {
@@ -35,6 +36,18 @@ describe('WhatsAppUnverifiedSergioProfile1710000060000', () => {
     const seed = String(query.mock.calls[0]?.[0] ?? '');
     expect(seed).toContain("('whatsapp', 'sergio echeverri', 'Sergio Echeverri', 'unverified_whatsapp_profile')");
     expect(seed).toContain("('whatsapp', 'en mi trabajo', 'En Mi Trabajo', 'whatsapp_work_status_not_name')");
+    expect(seed).toContain('ON CONFLICT (channel, normalized_value) DO NOTHING');
+  });
+});
+
+describe('InvalidWhatsAppProfileNames1710000061000', () => {
+  it('adds Buco and the standalone greeting Buenas to the WhatsApp invalid-name catalog', async () => {
+    const query = vi.fn().mockResolvedValue(undefined);
+    await new InvalidWhatsAppProfileNames1710000061000().up({ query } as never);
+
+    const seed = String(query.mock.calls[0]?.[0] ?? '');
+    expect(seed).toContain("('whatsapp', 'buco', 'Buco', 'unverified_whatsapp_profile')");
+    expect(seed).toContain("('whatsapp', 'buenas', 'Buenas', 'whatsapp_greeting_not_name')");
     expect(seed).toContain('ON CONFLICT (channel, normalized_value) DO NOTHING');
   });
 });

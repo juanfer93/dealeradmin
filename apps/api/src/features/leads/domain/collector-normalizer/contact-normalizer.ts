@@ -281,6 +281,8 @@ export function normalizeNativeWhatsappName(value: string | null | undefined, in
     || /[\p{So}\p{Sk}\p{Cf}\uFE0F]/u.test(rawCandidate)
     || !NATIVE_WHATSAPP_NAME_PATTERN.test(candidate)
     || isInvalidRealName(candidate, invalidRealNames)
+    || GREETING_ONLY.test(candidate)
+    || /^buenas$/i.test(candidate)
     || PHONE_LIKE_TEXT.test(candidate)
     || LOCATION_RESPONSE.test(candidate)
     || ENGLISH_LOCATION_RESPONSE.test(candidate)
@@ -303,6 +305,8 @@ export function whatsappProfileNameFallback(value: string | null | undefined, in
   if (!candidate
     || /^lead$/i.test(candidate)
     || /^\(lead\s+(?:sin\s+nombre|without\s+name)\)$/i.test(candidate)
+    || GREETING_ONLY.test(candidate)
+    || /^buenas$/i.test(candidate)
     || isInvalidRealName(candidate, invalidRealNames)) return EMPTY;
   return candidate;
 }

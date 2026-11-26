@@ -387,7 +387,9 @@ export class ConversationEventFunctions {
       };
       const fallbackLeadName = language === 'en' ? '(Lead without name)' : '(Lead sin nombre)';
       const whatsappProfileLeadName = whatsappChannel
-        ? normalizeRealName(clean(snapshot.profile_name)) || clean(snapshot.profile_name)
+        ? isInvalidRealName(clean(snapshot.profile_name), invalidRealNames)
+          ? ''
+          : normalizeRealName(clean(snapshot.profile_name), invalidRealNames) || clean(snapshot.profile_name)
         : '';
       const persistedLeadName = realName || whatsappProfileLeadName || fallbackLeadName;
       const { firstName: persistedFirstName, lastName: persistedLastName } = splitName(persistedLeadName);

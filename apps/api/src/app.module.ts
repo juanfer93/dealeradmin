@@ -51,6 +51,7 @@ import { GhlGuardRequestMetrics1710000040000 } from './database/migrations/17100
 import { QueuedGuardReplay1710000041000 } from './database/migrations/1710000041000-QueuedGuardReplay';
 import { GhlGuardGlobalLease1710000042000 } from './database/migrations/1710000042000-GhlGuardGlobalLease';
 import { QueuedGuardReplayRetry1710000043000 } from './database/migrations/1710000043000-QueuedGuardReplayRetry';
+import { QualificationWaitingWindowAttempts1710000044000 } from './database/migrations/1710000044000-QualificationWaitingWindowAttempts';
 import { RequeueMp4VoiceAttachments1710000045000 } from './database/migrations/1710000045000-RequeueMp4VoiceAttachments';
 import { PartialGuardRecovery1710000047000 } from './database/migrations/1710000047000-PartialGuardRecovery';
 import { PartialGuardRecoveryLimit1710000048000 } from './database/migrations/1710000048000-PartialGuardRecoveryLimit';
@@ -65,6 +66,7 @@ import { InvalidApplicationPromptAsName1710000056000 } from './database/migratio
 import { MessengerInvalidRealNames1710000057000 } from './database/migrations/1710000057000-MessengerInvalidRealNames';
 import { EnableArlingtonWhatsApp1710000058000 } from './database/migrations/1710000058000-EnableArlingtonWhatsApp';
 import { DeploymentRegistry1710000059000 } from './database/migrations/1710000059000-DeploymentRegistry';
+import { InvalidWhatsAppProfileNames1710000061000 } from './database/migrations/1710000061000-InvalidWhatsAppProfileNames';
 import { AlphaMotorsportsDealer1710000054000 } from './database/migrations/1710000054000-AlphaMotorsportsDealer';
 import { POSTGRES_EXTRA } from './database/postgres-connection-options';
 
@@ -119,6 +121,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             QueuedGuardReplay1710000041000,
             GhlGuardGlobalLease1710000042000,
             QueuedGuardReplayRetry1710000043000,
+            QualificationWaitingWindowAttempts1710000044000,
             RequeueMp4VoiceAttachments1710000045000,
             PartialGuardRecovery1710000047000,
             PartialGuardRecoveryLimit1710000048000,
@@ -134,6 +137,7 @@ const databaseModule = TypeOrmModule.forRootAsync({
             MessengerInvalidRealNames1710000057000,
             EnableArlingtonWhatsApp1710000058000,
             DeploymentRegistry1710000059000,
+            InvalidWhatsAppProfileNames1710000061000,
           ],
           migrationsRun: true,
           ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,
