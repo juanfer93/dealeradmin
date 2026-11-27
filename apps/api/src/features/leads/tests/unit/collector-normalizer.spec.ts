@@ -1407,6 +1407,25 @@ describe('normalizeCollectorInput', () => {
     expect(result.missing_qualification).toContain('vehicle_type');
   });
 
+  it('keeps the vehicle requirement for a WhatsApp message that only contains a phone number', () => {
+    const result = normalizeCollectorInput({
+      channel: 'whatsapp',
+      real_name: 'Oscar Hernández',
+      phone: '+18045461032',
+      message: '804 546 1032',
+      chat_history_log: '804 546 1032',
+    });
+
+    expect(result).toMatchObject({
+      phone: '+18045461032',
+      vehicle_type: ADVISOR_HANDOFF_VEHICLE,
+      advisor_handoff_requested: false,
+      qualification_complete: false,
+    });
+    expect(result.missing_qualification).toContain('vehicle_type');
+    expect(hasMinimumRoutingQualification(result)).toBe(false);
+  });
+
   it('recognizes a request to arrange a call as an explicit advisor handoff', () => {
     const transcript = [
       'Puedo consultar una llamada',

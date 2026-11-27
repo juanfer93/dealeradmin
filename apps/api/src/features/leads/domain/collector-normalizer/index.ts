@@ -161,9 +161,9 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   const hasRealVehicle = Boolean(vehicle) && !isAdvisorHandoffVehicle(vehicle);
   // If a buyer clearly wants a vehicle but has no body-style preference, keep
   // the advisor marker as the default route so the lead can enter waiting_window.
-  // A phone-only reply still needs an explicit advisor request.
+  // A phone-only message activates this default only in Messenger.
   const advisorHandoffRequested = explicitAdvisorHandoffRequested
-    || (!hasRealVehicle && isAdvisorHandoffVehicle(vehicle) && (vehicleIntent === 'buy' || Boolean(phoneFromConversation)));
+    || (!hasRealVehicle && isAdvisorHandoffVehicle(vehicle) && (vehicleIntent === 'buy' || (isMessengerChannel(channel) && Boolean(phoneFromConversation))));
 
   const explicitCashDown = firstValidAmount(extractLatestDownPayment(rawMessage), extractDownPayment(messageForExtraction), rawHistory.includes('__DOWN_PROMPT__') ? extractDownPayment(historyForExtraction) : EMPTY, extractLatestDownPayment(rawHistory));
   const latestInboundMessage = lastMeaningfulLine(messageForExtraction);

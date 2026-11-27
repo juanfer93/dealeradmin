@@ -31,6 +31,34 @@ describe('Default advisor routing E2E', () => {
     expect(status.status).toBe('waiting_window');
   });
 
+  it('keeps a WhatsApp phone-only reply partial until the customer names a vehicle', () => {
+    const normalized = normalizeCollectorInput({
+      source: 'stafford',
+      channel: 'whatsapp',
+      real_name: 'Oscar Hernández',
+      phone: '+18045461032',
+      message: '804 546 1032',
+      chat_history_log: '804 546 1032',
+    });
+    const status = new ConversationQualificationFunctions().statusForConversation(
+      normalized as never,
+      { city: null, state: null, zip_code: null, easterns_zone: null },
+      { id: 'dealer-stafford', routing_config: {} } as never,
+      'stafford',
+      new Date('2026-11-27T16:08:57.000Z'),
+      'capture',
+    );
+
+    expect(normalized).toMatchObject({
+      vehicle_type: 'Quiere hablar con un asesor',
+      advisor_handoff_requested: false,
+      qualification_complete: false,
+      missing_qualification: ['vehicle_type'],
+    });
+    expect(hasMinimumRoutingQualification(normalized)).toBe(false);
+    expect(status.status).toBe('partial');
+  });
+
   it('routes a Messenger request for a call without a vehicle to waiting_window', () => {
     const transcript = [
       'Puedo consultar una llamada',
