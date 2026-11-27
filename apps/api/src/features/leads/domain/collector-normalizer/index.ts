@@ -147,7 +147,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   ), isCampaignButton, isNonVehicleIntent);
   const extractedVehicle = inferVehicleIntent(vehicleSource, explicitVehicle);
   const hasExistingAdvisorMarker = [memoryValue(memory, ['vehicle_type', 'vehicle', 'type']), input.vehicle_type].some((value) => isAdvisorHandoffVehicle(value));
-  const explicitAdvisorHandoffRequested = /\b(?:m[aá]ndame|env[ií]ame|dame|p[aá]same)\s+(?:el\s+|su\s+|tu\s+)?(?:n[uú]mero|tel[eé]fono)[\s\S]{0,60}\b(?:llamar|llamen|llamarme|comunicarme)\b|\b(?:quiero|necesito|me gustar[ií]a)\s+(?:hablar|comunicarme)\s+con\s+(?:un\s+)?(?:asesor|representante|especialista)\b|\b(?:send|give)\s+me\s+(?:the\s+)?(?:phone\s+)?number\s+to\s+call\b|\b(?:i want|i need|i would like)\s+to\s+speak\s+with\s+(?:an?\s+)?(?:advisor|representative|specialist)\b/i.test([rawMessage, rawHistory].join('\n'));
+  const explicitAdvisorHandoffRequested = /\b(?:m[aá]ndame|env[ií]ame|dame|p[aá]same)\s+(?:el\s+|su\s+|tu\s+)?(?:n[uú]mero|tel[eé]fono)[\s\S]{0,60}\b(?:llamar|llamen|llamarme|comunicarme)\b|\b(?:quiero|necesito|me gustar[ií]a)\s+(?:hablar|comunicarme)\s+con\s+(?:un\s+)?(?:asesor|representante|especialista)\b|\b(?:puedo|podr[ií]a|quisiera|quiero|necesito)\s+(?:consultar|recibir|hacer|tener)\s+(?:una\s+)?llamada\b|\b(?:send|give)\s+me\s+(?:the\s+)?(?:phone\s+)?number\s+to\s+call\b|\b(?:i want|i need|i would like)\s+to\s+speak\s+with\s+(?:an?\s+)?(?:advisor|representative|specialist)\b/i.test([rawMessage, rawHistory].join('\n'));
   const transcriptVehicleYear = extractVehicleYear(vehicleSource);
   const transcriptVehicleYearLabel = extractVehicleYearLabel(vehicleSource);
   const formVehicleYear = extractVehicleYear(formContext?.vehicle ?? EMPTY);
@@ -189,7 +189,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   down = visibleDownPayment(down, input.source);
   const downPaymentRule = evaluateDownPayment(vehicle, down);
 
-  const transcriptTimeline = firstNonEmpty(extractTimeline(messageForExtraction), extractTimeline(history));
+  const transcriptTimeline = firstNonEmpty(extractTimeline(messageForExtraction), extractTimeline(rawHistory));
   // A purchase timeline must come from customer evidence in the transcript or
   // an explicit lead form answer. Stale custom fields and generated memory can
   // otherwise invent a buying date the customer never gave.

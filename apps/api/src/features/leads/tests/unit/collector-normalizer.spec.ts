@@ -1375,6 +1375,38 @@ describe('normalizeCollectorInput', () => {
       down_payment: '2000',
       purchase_timeline: 'today',
     })).toBe(false);
+    expect(normalizeCollectorInput({
+      channel: 'messenger',
+      real_name: 'Oscar Hernández',
+      phone: '+18045461032',
+      message: '804 546 1032',
+    }).advisor_handoff_requested).toBe(false);
+  });
+
+  it('recognizes a request to arrange a call as an explicit advisor handoff', () => {
+    const transcript = [
+      'Puedo consultar una llamada',
+      'Con gusto 👍 ¿Cuál es el mejor número para contactarte?',
+      'este minumero 571 436 7467',
+    ].join('\n');
+    const result = normalizeCollectorInput({
+      source: 'messenger',
+      channel: 'messenger',
+      real_name: 'Nicolas Diaz',
+      phone: '+15714367467',
+      message: 'este minumero 571 436 7467',
+      chat_history_log: transcript,
+      vehicle_type: ADVISOR_HANDOFF_VEHICLE,
+    });
+
+    expect(result).toMatchObject({
+      vehicle_type: ADVISOR_HANDOFF_VEHICLE,
+      advisor_handoff_requested: true,
+      qualification_complete: true,
+      qualification_step: 'complete',
+      missing_qualification: [],
+    });
+    expect(hasMinimumRoutingQualification(result)).toBe(true);
   });
 
   it('does not turn prices and mileage in a Messenger message into a phone', () => {
