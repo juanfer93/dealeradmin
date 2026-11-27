@@ -3,6 +3,34 @@ import { hasMinimumRoutingQualification, normalizeCollectorInput } from '../../.
 import { ConversationQualificationFunctions } from '../../application/functions/conversations/conversation-qualification.functions';
 
 describe('Default advisor routing E2E', () => {
+  it('routes a Messenger phone-first reply with no vehicle to an advisor in waiting_window', () => {
+    const normalized = normalizeCollectorInput({
+      source: 'action-cars',
+      channel: 'messenger',
+      real_name: 'Oscar Hernández',
+      phone: '+18045461032',
+      message: '804 546 1032',
+      chat_history_log: '804 546 1032',
+    });
+    const status = new ConversationQualificationFunctions().statusForConversation(
+      normalized as never,
+      { city: null, state: null, zip_code: null, easterns_zone: null },
+      { id: 'dealer-action-cars', routing_config: {} } as never,
+      'action-cars',
+      new Date('2026-11-27T16:08:57.000Z'),
+      'capture',
+    );
+
+    expect(normalized).toMatchObject({
+      vehicle_type: 'Quiere hablar con un asesor',
+      advisor_handoff_requested: true,
+      qualification_complete: true,
+      missing_qualification: [],
+    });
+    expect(hasMinimumRoutingQualification(normalized)).toBe(true);
+    expect(status.status).toBe('waiting_window');
+  });
+
   it('routes a Messenger request for a call without a vehicle to waiting_window', () => {
     const transcript = [
       'Puedo consultar una llamada',

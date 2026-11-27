@@ -163,7 +163,7 @@ export function normalizeCollectorInput(input: CollectorInput): CollectorOutput 
   // the advisor marker as the default route so the lead can enter waiting_window.
   // A phone-only reply still needs an explicit advisor request.
   const advisorHandoffRequested = explicitAdvisorHandoffRequested
-    || (!hasRealVehicle && isAdvisorHandoffVehicle(vehicle) && vehicleIntent === 'buy');
+    || (!hasRealVehicle && isAdvisorHandoffVehicle(vehicle) && (vehicleIntent === 'buy' || Boolean(phoneFromConversation)));
 
   const explicitCashDown = firstValidAmount(extractLatestDownPayment(rawMessage), extractDownPayment(messageForExtraction), rawHistory.includes('__DOWN_PROMPT__') ? extractDownPayment(historyForExtraction) : EMPTY, extractLatestDownPayment(rawHistory));
   const latestInboundMessage = lastMeaningfulLine(messageForExtraction);

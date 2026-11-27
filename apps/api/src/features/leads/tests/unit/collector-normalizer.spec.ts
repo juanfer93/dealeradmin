@@ -1353,7 +1353,7 @@ describe('normalizeCollectorInput', () => {
     expect(result.vehicle_year).toBeNull();
   });
 
-  it('marks a phone-only inbound handoff as advisor contact without qualifying it as a vehicle', () => {
+  it('routes a phone-only inbound reply to an advisor without inventing a vehicle', () => {
     const result = normalizeCollectorInput({
       channel: 'messenger',
       real_name: 'Oscar Hernández',
@@ -1363,10 +1363,11 @@ describe('normalizeCollectorInput', () => {
     expect(result).toMatchObject({
       phone: '+18045461032',
       vehicle_type: ADVISOR_HANDOFF_VEHICLE,
-      qualification_step: 'vehicle_type',
-      qualification_complete: false,
+      advisor_handoff_requested: true,
+      qualification_step: 'complete',
+      qualification_complete: true,
     });
-    expect(result.missing_qualification).toContain('vehicle_type');
+    expect(result.missing_qualification).not.toContain('vehicle_type');
     expect(isAdvisorHandoffVehicle(result.vehicle_type)).toBe(true);
     expect(isQualificationComplete({
       real_name: 'Oscar Hernández',
@@ -1375,12 +1376,35 @@ describe('normalizeCollectorInput', () => {
       down_payment: '2000',
       purchase_timeline: 'today',
     })).toBe(false);
-    expect(normalizeCollectorInput({
+
+    const withStoredPhoneOnly = normalizeCollectorInput({
       channel: 'messenger',
       real_name: 'Oscar Hernández',
       phone: '+18045461032',
       message: '804 546 1032',
-    }).advisor_handoff_requested).toBe(false);
+    });
+    expect(withStoredPhoneOnly).toMatchObject({
+      vehicle_type: ADVISOR_HANDOFF_VEHICLE,
+      advisor_handoff_requested: true,
+      qualification_complete: true,
+    });
+  });
+
+  it('does not route a WhatsApp profile phone as if the customer typed it in chat', () => {
+    const result = normalizeCollectorInput({
+      channel: 'whatsapp',
+      real_name: 'Oscar Hernández',
+      phone: '+18045461032',
+      message: 'Hola',
+    });
+
+    expect(result).toMatchObject({
+      phone: '+18045461032',
+      vehicle_type: ADVISOR_HANDOFF_VEHICLE,
+      advisor_handoff_requested: false,
+      qualification_complete: false,
+    });
+    expect(result.missing_qualification).toContain('vehicle_type');
   });
 
   it('recognizes a request to arrange a call as an explicit advisor handoff', () => {
